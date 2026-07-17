@@ -1,3 +1,185 @@
-### Get the logged-in user's profile
-GET http://localhost:3000/api/user/profile
-Cookie: sb-hmbemyfaqnkiamvhcdcd-auth-token=[{"access_token":"eyJhbGciOiJFUzI1NiIsImtpZCI6IjExZmY5N2YxLTJiYjQtNGYxMS1hZDZjLTI2YjMyN2U5ZjY1MiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2htYmVteWxhcW5raWFtdmhjZGNkLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3MTAzOGIzMi1kYjQ4LTQyM2BeOGU5Zi00MjczZGI0NzJkMDEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzgzMjgyMzg2LCJpYXQiOjE3ODMyNzg3ODYsImVtYWlsIjoiY2V6YXJhdGVvZG9yZXNjdThAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJnb29nbGUiLCJwcm92aWRlcnMiOlsiZ29vZ2xlIl19LCJ1c2VyX21ldGFkYXRhIjp7ImF2YXRhcl91cmwiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NLWkJEUEVEd2VneDFHTWo3QXZtQ3FMRmdERng2R25UblpKRmFUcmJCMzdfTEVpQ0xXTXdRPXM5Ni1jIiwiZW1haWwiOiJjZXphcmF0ZW9kb3Jlc2N1OEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZnVsbF9uYW1lIjoiQ2V6YXJhIElvYW5hIFRlb2RvcmVzY3UiLCJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJuYW1lIjoiQ2V6YXJhIElvYW5hIFRlb2RvcmVzY3UiLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NLWkJEUEVEd2VneDFHTWo3QXZtQ3FMRmdERng2R25UblpKRmFUcmJCMzdfTEVpQ0xXTXdRPXM5Ni1jIiwicHJvdmlkZXJfaWQiOiIxMTI4MTI5MjcxMzM4MTM3MjI0OTkiLCJzdWIiOiIxMTI4MTI5MjcxMzM4MTM3MjI0OTkifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJvYXV0aCIsInRpbWVzdGFtcCI6MTc4MzI3ODc4Nn1dLCJzZXNzaW9uX2lkIjoiZDgyZmUxN2QtNGQ5Zi00OGFhLWJmZWUtNTM1YTQ5YjU4NWU4IiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.FMK591pcsQ8diPzrHAhIO9wRcufU56wm8PbwgZXY1LWTO7QW5AAHuEtryqO1fv5K9fJVUsmmzsiygx-Hxr7ZhA","refresh_token":"wrlmdflzn5fu","user":{"id":"71038b32-db48-423b-8e9f-4273db472d01"}}]
+@baseUrl = http://localhost:3000
+### Paste your own sb-...-auth-token cookie value here before running requests.
+### (A real captured session token used to live directly in this file — replaced
+### with a placeholder so a live credential doesn't sit in source control.)
+@authCookie = sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE
+
+### Get the logged-in user's profile (legacy route)
+GET {{baseUrl}}/api/user/profile
+Cookie: {{authCookie}}
+
+### --- Auth / User ---
+
+### Get own profile
+GET {{baseUrl}}/api/user/me
+Cookie: {{authCookie}}
+
+### Update own profile
+PATCH {{baseUrl}}/api/user/me
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{
+  "display_name": "Cezara"
+}
+
+### Delete own account (irreversible)
+DELETE {{baseUrl}}/api/user/me
+Cookie: {{authCookie}}
+
+### --- Study Settings ---
+
+### Get study settings (404 before onboarding)
+GET {{baseUrl}}/api/study-settings
+Cookie: {{authCookie}}
+
+### Update study settings
+PATCH {{baseUrl}}/api/study-settings
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{
+  "new_kanji_per_day": 5,
+  "enabled_levels": ["N5", "N4"]
+}
+
+### --- Onboarding ---
+
+### Complete onboarding (creates user_study_settings)
+POST {{baseUrl}}/api/onboarding/complete
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{
+  "enabled_levels": ["N5"],
+  "new_kanji_per_day": 2,
+  "new_vocab_per_day": 12
+}
+
+### --- Kanji / Vocabulary (no auth required) ---
+
+### List kanji
+GET {{baseUrl}}/api/kanji?level=N5&limit=20
+
+### Search kanji (substring match on kanji/meanings/readings)
+GET {{baseUrl}}/api/kanji?search=day
+
+### Get one kanji + up to 3 associated words
+GET {{baseUrl}}/api/kanji/1
+
+### List vocabulary
+GET {{baseUrl}}/api/vocabulary?level=N5&limit=20
+
+### Search vocabulary
+GET {{baseUrl}}/api/vocabulary?search=day
+
+### Get one vocabulary word
+GET {{baseUrl}}/api/vocabulary/1
+
+### --- Core SRS ---
+
+### Get today's study queue (due cards + new candidates)
+GET {{baseUrl}}/api/study/queue
+Cookie: {{authCookie}}
+
+### Introduce a new kanji (creates meaning + up to 3 reading progress rows)
+POST {{baseUrl}}/api/study/kanji/introduce
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{
+  "kanji_id": 1
+}
+
+### Introduce a new vocabulary word
+POST {{baseUrl}}/api/study/vocabulary/introduce
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{
+  "word_id": 1
+}
+
+### Submit a review (rating 0-3)
+POST {{baseUrl}}/api/study/review
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{
+  "exercise_type": "kanji_meaning",
+  "kanji_id": 1,
+  "rating": 2
+}
+
+### Undo the most recent review
+POST {{baseUrl}}/api/study/review/undo
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{}
+
+### Get study stats
+GET {{baseUrl}}/api/study/stats
+Cookie: {{authCookie}}
+
+### --- Study Sessions ---
+
+### Start a study session
+POST {{baseUrl}}/api/study/session/start
+Cookie: {{authCookie}}
+
+### End a study session
+POST {{baseUrl}}/api/study/session/end
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{
+  "session_id": 1
+}
+
+### --- Progress ---
+
+### Progress summary (counts by status)
+GET {{baseUrl}}/api/progress/summary
+Cookie: {{authCookie}}
+
+### Progress for one kanji (meaning + readings)
+GET {{baseUrl}}/api/progress/kanji/1
+Cookie: {{authCookie}}
+
+### Progress for one vocabulary word
+GET {{baseUrl}}/api/progress/vocabulary/1
+Cookie: {{authCookie}}
+
+### --- Card control ---
+
+### Suspend a card (type: meaning | reading | vocab)
+POST {{baseUrl}}/api/cards/meaning/1/suspend
+Cookie: {{authCookie}}
+
+### Reset a card to 'new'
+POST {{baseUrl}}/api/cards/meaning/1/reset
+Cookie: {{authCookie}}
+
+### --- Stripe ---
+
+### Start checkout for premium
+POST {{baseUrl}}/api/stripe/create-checkout-session
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{}
+
+### Open the billing portal
+POST {{baseUrl}}/api/stripe/create-portal-session
+Cookie: {{authCookie}}
+Content-Type: application/json
+
+{}
+
+### Webhook is called by Stripe directly (use `stripe listen --forward-to` locally), not from here.
+
+### --- Utility ---
+
+### Health check (DB connectivity)
+GET {{baseUrl}}/api/health

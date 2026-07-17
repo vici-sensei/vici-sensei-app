@@ -71,13 +71,12 @@ export async function GET() {
   const retentionRate =
     recentLogs.length > 0 ? recentLogs.filter((log) => log.correct).length / recentLogs.length : null
 
-  const reviewDays = new Set(recentLogs.map((log) => log.reviewed_at.slice(0, 10)))
-  let streak = 0
-  const cursor = new Date(todayStart)
-  while (reviewDays.has(cursor.toISOString().slice(0, 10))) {
-    streak += 1
-    cursor.setUTCDate(cursor.getUTCDate() - 1)
-  }
+  // Computed via a Postgres function rather than app-side, so it isn't
+  // limited to the same window used for retention_rate above.
+  const { data: streak, error: streakError } = await supabase.rpc('get_review_streak', {
+    p_user_id: user.id,
+  })
+  if (streakError) return jsonError(500, streakError.message)
 
   return NextResponse.json({
     due_today: dueToday,

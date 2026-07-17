@@ -9,7 +9,7 @@ const MAX_LIMIT = 500
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const level = searchParams.get('level')
-  const search = searchParams.get('search')?.trim()
+  const search = searchParams.get('search')?.trim() ?? null
   const limit = Math.min(Number(searchParams.get('limit')) || DEFAULT_LIMIT, MAX_LIMIT)
   const offset = Math.max(Number(searchParams.get('offset')) || 0, 0)
 
@@ -18,24 +18,23 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient()
-  let query = supabase
-    .from('vocabulary')
-    .select('*', { count: 'exact' })
-    .order('id', { ascending: true })
-    .range(offset, offset + limit - 1)
-
-  if (level) query = query.eq('jlpt_level', level)
-  if (search) {
-    query = query.or(
-      `word.ilike.%${search}%,kana_reading.ilike.%${search}%,romaji_reading.ilike.%${search}%,meanings.cs.{${search}}`
-    )
-  }
-
-  const { data, error, count } = await query
+  const { data, error } = await supabase.rpc('search_vocabulary', {
+    p_query: search,
+    p_level: level,
+    p_limit: limit,
+    p_offset: offset,
+  })
 
   if (error) {
     return jsonError(500, error.message)
   }
 
-  return NextResponse.json({ data, count, limit, offset })
+  const count = data[0]?.total_count ?? 0
+  const rows = data.map((row: { total_count: number }) => {
+    const { total_count, ...rest } = row
+    void total_count
+    return rest
+  })
+
+  return NextResponse.json({ data: rows, count, limit, offset })
 }
