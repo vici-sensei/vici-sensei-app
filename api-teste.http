@@ -4,10 +4,6 @@
 ### with a placeholder so a live credential doesn't sit in source control.)
 @authCookie = sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE
 
-### Get the logged-in user's profile (legacy route)
-GET {{baseUrl}}/api/user/profile
-Cookie: {{authCookie}}
-
 ### --- Auth / User ---
 
 ### Get own profile

@@ -1,27 +1,75 @@
 {
   "info": {
     "name": "vici-sensei-app",
-    "description": "API tests for the vici-sensei-app Japanese SRS backend (Next.js route handlers + Supabase/PostgreSQL). Import this file and merge it into (or replace) the existing 'vici-sensei-app' collection in Postman Desktop.\n\nAuth model: routes read the Supabase session from a `sb-<project-ref>-auth-token` cookie (via @supabase/ssr). There is no bearer-token support in this app, so Postman must send that cookie explicitly.\n\nSetup:\n1. Log into the app in your browser at http://localhost:3000, open DevTools > Application > Cookies, copy the value of `sb-hmbemyfaqnkiamvhcdcd-auth-token`.\n2. Set the collection variable `authCookie` to `sb-hmbemyfaqnkiamvhcdcd-auth-token=<paste value>`.\n3. Run the '0. Auth Helper > Get fresh access/refresh tokens' request only if you want to inspect raw tokens - it does NOT auto-populate authCookie (the @supabase/ssr cookie encoding is version-specific and unsafe to reconstruct blindly); keep using the manual paste from step 2.\n4. Run 'Health check' first to confirm the dev server + DB are reachable before running anything else.\n\nMost folders are safe to run repeatedly. The exceptions are called out in request descriptions: introduce-kanji/introduce-vocabulary will 409 on a second run (by design), and 'Delete own account' in Auth/User is destructive and irreversible - do not include it in a collection-wide Runner pass.",
+    "description": "API tests for the vici-sensei-app Japanese SRS backend (Next.js route handlers + Supabase/PostgreSQL).\n\nAuth model: routes read the Supabase session from a `sb-<project-ref>-auth-token` cookie (via @supabase/ssr, HttpOnly, sometimes split into `.0`/`.1` chunks). There is no bearer-token support in this app.\n\nCookies are supplied via the Postman Interceptor browser extension, NOT a manual header - no request in this collection sets a `Cookie` header itself, so nothing here overrides what the Interceptor-synced Cookie Jar sends automatically.\n\nSetup (one-time):\n1. Install the 'Postman Interceptor' extension in Chrome (Chrome Web Store) and make sure it's enabled/active.\n2. In Postman Desktop: Settings (gear icon) > General > enable the Interceptor connection - it should show as connected once the Chrome extension is active.\n3. Open any request here, click 'Cookies' near the top of the request builder, and make sure cookie syncing is on for `localhost` (the domain the app runs on).\n4. Log into the app normally at http://localhost:3000 in that same Chrome window - Postman's Cookie Jar for `localhost` picks up the `sb-...-auth-token` cookie(s) automatically, including the HttpOnly ones, with no copy-pasting.\n5. Run 'Health check' first to confirm the dev server + DB are reachable before running anything else.\n\nIf Interceptor ever stops syncing (extension disabled, cookie jar cleared), the fallback is to grab the cookie from DevTools > Application > Cookies once and paste it as a request-level `Cookie` header just for that troubleshooting session - do not restore it collection-wide, since a hardcoded header will silently stop reflecting future logins/session refreshes.\n\nMost folders are safe to run repeatedly. The exceptions are called out in request descriptions: introduce-kanji/introduce-vocabulary will 409 on a second run (by design), and 'Delete own account' in Auth/User is destructive and irreversible - do not include it in a collection-wide Runner pass.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
-    { "key": "authCookie", "value": "sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE", "type": "string" },
-    { "key": "supabaseUrl", "value": "https://hmbemyfaqnkiamvhcdcd.supabase.co", "type": "string" },
-    { "key": "supabaseAnonKey", "value": "", "type": "string" },
-    { "key": "testEmail", "value": "", "type": "string" },
-    { "key": "testPassword", "value": "", "type": "string" },
-    { "key": "kanjiId", "value": "1", "type": "string" },
-    { "key": "kanjiWordId", "value": "1", "type": "string" },
-    { "key": "vocabId", "value": "1", "type": "string" },
-    { "key": "missingId", "value": "999999999", "type": "string" },
-    { "key": "sessionId", "value": "", "type": "string" },
-    { "key": "reviewLogId", "value": "", "type": "string" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authCookie",
+      "value": "sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE",
+      "type": "string"
+    },
+    {
+      "key": "supabaseUrl",
+      "value": "https://hmbemyfaqnkiamvhcdcd.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabaseAnonKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "kanjiId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "kanjiWordId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "vocabId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "missingId",
+      "value": "999999999",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reviewLogId",
+      "value": "",
+      "type": "string"
+    }
   ],
   "item": [
     {
       "name": "0. Auth Helper",
-      "description": "This app only trusts the Supabase session cookie set by @supabase/ssr - it does not accept an Authorization: Bearer header. The request below hits Supabase's GoTrue REST API directly to obtain a fresh access/refresh token pair for inspection or for scripting your own cookie-building logic; it intentionally does not try to auto-write `authCookie`, since guessing the exact @supabase/ssr cookie payload format is fragile across versions. Prefer copying the real cookie from your browser after logging into the app once.",
+      "description": "This app only trusts the Supabase session cookie set by @supabase/ssr - it does not accept an Authorization: Bearer header. Auth for every other request in this collection is handled by the Postman Interceptor-synced Cookie Jar (see the collection description) once you log into the app in Chrome. The request below is optional: it hits Supabase's GoTrue REST API directly to obtain a fresh access/refresh token pair for inspection/debugging only - it does not feed into the Cookie Jar or any other request.",
       "item": [
         {
           "name": "Get fresh access/refresh tokens (Supabase password grant)",
@@ -43,19 +91,40 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "apikey", "value": "{{supabaseAnonKey}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "apikey",
+                "value": "{{supabaseAnonKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{supabaseUrl}}/auth/v1/token?grant_type=password",
-              "host": ["{{supabaseUrl}}"],
-              "path": ["auth", "v1", "token"],
-              "query": [{ "key": "grant_type", "value": "password" }]
+              "host": [
+                "{{supabaseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "v1",
+                "token"
+              ],
+              "query": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                }
+              ]
             },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -82,7 +151,16 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            }
           },
           "response": []
         }
@@ -91,31 +169,6 @@
     {
       "name": "2. Auth / User",
       "item": [
-        {
-          "name": "Get profile (legacy route)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('has display_name and avatar_url keys', () => {",
-                  "  pm.expect(body).to.have.property('display_name');",
-                  "  pm.expect(body).to.have.property('avatar_url');",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/user/profile", "host": ["{{baseUrl}}"], "path": ["api", "user", "profile"] }
-          },
-          "response": []
-        },
         {
           "name": "Get own profile (/api/user/me)",
           "event": [
@@ -138,8 +191,18 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/user/me", "host": ["{{baseUrl}}"], "path": ["api", "user", "me"] }
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "me"
+              ]
+            }
           },
           "response": []
         },
@@ -159,8 +222,24 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Cookie", "value": "", "disabled": true }],
-            "url": { "raw": "{{baseUrl}}/api/user/me", "host": ["{{baseUrl}}"], "path": ["api", "user", "me"] }
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "me"
+              ]
+            }
           },
           "response": []
         },
@@ -181,14 +260,30 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/user/me", "host": ["{{baseUrl}}"], "path": ["api", "user", "me"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "me"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"display_name\": \"Cezara\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -210,11 +305,31 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/user/me", "host": ["{{baseUrl}}"], "path": ["api", "user", "me"] },
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } }
+            "url": {
+              "raw": "{{baseUrl}}/api/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": []
         },
@@ -233,8 +348,18 @@
           ],
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/user/me", "host": ["{{baseUrl}}"], "path": ["api", "user", "me"] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "me"
+              ]
+            },
             "description": "Cancels active Stripe subscriptions then hard-deletes the auth.users row (cascades to public.users and every progress table via ON DELETE CASCADE). Do not run this against an account you want to keep. Not included in any suggested Collection Runner pass."
           },
           "response": []
@@ -266,8 +391,17 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/study-settings", "host": ["{{baseUrl}}"], "path": ["api", "study-settings"] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/study-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study-settings"
+              ]
+            },
             "description": "Returns 404 until /api/onboarding/complete has been called for this user at least once."
           },
           "response": []
@@ -291,14 +425,29 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study-settings", "host": ["{{baseUrl}}"], "path": ["api", "study-settings"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study-settings"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"new_kanji_per_day\": 5,\n  \"enabled_levels\": [\"N5\", \"N4\"]\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -320,11 +469,30 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study-settings", "host": ["{{baseUrl}}"], "path": ["api", "study-settings"] },
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } }
+            "url": {
+              "raw": "{{baseUrl}}/api/study-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study-settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": []
         },
@@ -345,14 +513,29 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study-settings", "host": ["{{baseUrl}}"], "path": ["api", "study-settings"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study-settings"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"study_kanji\": false,\n  \"study_vocabulary\": false\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -381,14 +564,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/onboarding/complete", "host": ["{{baseUrl}}"], "path": ["api", "onboarding", "complete"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/onboarding/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "onboarding",
+                "complete"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"enabled_levels\": [\"N5\"],\n  \"new_kanji_per_day\": 2,\n  \"new_vocab_per_day\": 12\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "description": "Upserts user_study_settings, so this is safe to re-run - it will not 409/fail on a second call."
           },
@@ -411,14 +610,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/onboarding/complete", "host": ["{{baseUrl}}"], "path": ["api", "onboarding", "complete"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/onboarding/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "onboarding",
+                "complete"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"enabled_levels\": [\"N9\"],\n  \"new_kanji_per_day\": 2,\n  \"new_vocab_per_day\": 12\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -450,11 +665,22 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/kanji?level=N5&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "kanji"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "kanji"
+              ],
               "query": [
-                { "key": "level", "value": "N5" },
-                { "key": "limit", "value": "20" }
+                {
+                  "key": "level",
+                  "value": "N5"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
               ]
             }
           },
@@ -483,9 +709,19 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/kanji?search=day",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "kanji"],
-              "query": [{ "key": "search", "value": "day" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "kanji"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "day"
+                }
+              ]
             }
           },
           "response": []
@@ -508,9 +744,19 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/kanji?level=N9",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "kanji"],
-              "query": [{ "key": "level", "value": "N9" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "kanji"
+              ],
+              "query": [
+                {
+                  "key": "level",
+                  "value": "N9"
+                }
+              ]
             }
           },
           "response": []
@@ -538,7 +784,17 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/kanji/{{kanjiId}}", "host": ["{{baseUrl}}"], "path": ["api", "kanji", "{{kanjiId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/kanji/{{kanjiId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "kanji",
+                "{{kanjiId}}"
+              ]
+            }
           },
           "response": []
         },
@@ -559,7 +815,17 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/kanji/{{missingId}}", "host": ["{{baseUrl}}"], "path": ["api", "kanji", "{{missingId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/kanji/{{missingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "kanji",
+                "{{missingId}}"
+              ]
+            }
           },
           "response": []
         }
@@ -589,11 +855,22 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/vocabulary?level=N5&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "vocabulary"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vocabulary"
+              ],
               "query": [
-                { "key": "level", "value": "N5" },
-                { "key": "limit", "value": "20" }
+                {
+                  "key": "level",
+                  "value": "N5"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
               ]
             }
           },
@@ -622,9 +899,19 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/vocabulary?search=day",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "vocabulary"],
-              "query": [{ "key": "search", "value": "day" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vocabulary"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "day"
+                }
+              ]
             }
           },
           "response": []
@@ -650,7 +937,17 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/vocabulary/{{vocabId}}", "host": ["{{baseUrl}}"], "path": ["api", "vocabulary", "{{vocabId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/vocabulary/{{vocabId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vocabulary",
+                "{{vocabId}}"
+              ]
+            }
           },
           "response": []
         },
@@ -670,7 +967,17 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/vocabulary/{{missingId}}", "host": ["{{baseUrl}}"], "path": ["api", "vocabulary", "{{missingId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/vocabulary/{{missingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vocabulary",
+                "{{missingId}}"
+              ]
+            }
           },
           "response": []
         }
@@ -700,8 +1007,18 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/study/queue", "host": ["{{baseUrl}}"], "path": ["api", "study", "queue"] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/study/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "queue"
+              ]
+            },
             "description": "Requires /api/onboarding/complete to have run first (404s otherwise, same as /api/study-settings)."
           },
           "response": []
@@ -735,14 +1052,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study/kanji/introduce", "host": ["{{baseUrl}}"], "path": ["api", "study", "kanji", "introduce"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study/kanji/introduce",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "kanji",
+                "introduce"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"kanji_id\": {{kanjiId}}\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "description": "Only succeeds (201) the first time for a given kanji_id/user - every subsequent call correctly 409s, which this test treats as an equally valid outcome."
           },
@@ -773,14 +1107,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study/vocabulary/introduce", "host": ["{{baseUrl}}"], "path": ["api", "study", "vocabulary", "introduce"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study/vocabulary/introduce",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "vocabulary",
+                "introduce"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"word_id\": {{vocabId}}\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -808,14 +1159,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study/review", "host": ["{{baseUrl}}"], "path": ["api", "study", "review"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "review"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"exercise_type\": \"kanji_meaning\",\n  \"kanji_id\": {{kanjiId}},\n  \"rating\": 2\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "description": "400s if the card's current status is 'new' or 'suspended' (e.g. right after a card-control reset) - run 'Introduce a new kanji' first so the card is in 'learning'."
           },
@@ -837,14 +1204,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study/review", "host": ["{{baseUrl}}"], "path": ["api", "study", "review"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "review"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"exercise_type\": \"kanji_meaning\",\n  \"kanji_id\": {{kanjiId}},\n  \"rating\": 5\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -866,14 +1249,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study/review", "host": ["{{baseUrl}}"], "path": ["api", "study", "review"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "review"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"exercise_type\": \"kanji_meaning\",\n  \"kanji_id\": {{missingId}},\n  \"rating\": 2\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -897,11 +1296,32 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study/review/undo", "host": ["{{baseUrl}}"], "path": ["api", "study", "review", "undo"] },
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": {
+              "raw": "{{baseUrl}}/api/study/review/undo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "review",
+                "undo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "description": "Run this immediately after 'Submit a review' - it reverts the single most recent non-undone review_logs row for the user. 404s if there is nothing left to undo."
           },
           "response": []
@@ -931,8 +1351,18 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/study/stats", "host": ["{{baseUrl}}"], "path": ["api", "study", "stats"] }
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/study/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "stats"
+              ]
+            }
           },
           "response": []
         }
@@ -962,8 +1392,19 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/study/session/start", "host": ["{{baseUrl}}"], "path": ["api", "study", "session", "start"] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/study/session/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "session",
+                "start"
+              ]
+            },
             "description": "Saves the new session_id into the collectionVariable `sessionId`, consumed by 'End a study session' below - run these two back to back."
           },
           "response": []
@@ -993,14 +1434,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study/session/end", "host": ["{{baseUrl}}"], "path": ["api", "study", "session", "end"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study/session/end",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "session",
+                "end"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"session_id\": {{sessionId}}\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "description": "Uses the collectionVariable `sessionId` set by 'Start a study session' - run that request first in the same run."
           },
@@ -1022,14 +1480,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/study/session/end", "host": ["{{baseUrl}}"], "path": ["api", "study", "session", "end"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/study/session/end",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study",
+                "session",
+                "end"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"session_id\": {{missingId}}\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1065,8 +1540,18 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/progress/summary", "host": ["{{baseUrl}}"], "path": ["api", "progress", "summary"] }
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/progress/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "progress",
+                "summary"
+              ]
+            }
           },
           "response": []
         },
@@ -1090,8 +1575,19 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/progress/kanji/{{kanjiId}}", "host": ["{{baseUrl}}"], "path": ["api", "progress", "kanji", "{{kanjiId}}"] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/progress/kanji/{{kanjiId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "progress",
+                "kanji",
+                "{{kanjiId}}"
+              ]
+            },
             "description": "meaning is null if this kanji has never been introduced for the logged-in user."
           },
           "response": []
@@ -1114,8 +1610,19 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/progress/vocabulary/{{vocabId}}", "host": ["{{baseUrl}}"], "path": ["api", "progress", "vocabulary", "{{vocabId}}"] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/progress/vocabulary/{{vocabId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "progress",
+                "vocabulary",
+                "{{vocabId}}"
+              ]
+            },
             "description": "404s if this word has never been introduced (unlike the kanji route, which returns meaning: null instead)."
           },
           "response": []
@@ -1143,8 +1650,20 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/cards/meaning/{{kanjiId}}/suspend", "host": ["{{baseUrl}}"], "path": ["api", "cards", "meaning", "{{kanjiId}}", "suspend"] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/meaning/{{kanjiId}}/suspend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cards",
+                "meaning",
+                "{{kanjiId}}",
+                "suspend"
+              ]
+            },
             "description": "type is one of meaning | reading | vocab (see CARD_TYPE_TO_EXERCISE_TYPE). 404s if the card was never introduced."
           },
           "response": []
@@ -1173,8 +1692,20 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/cards/meaning/{{kanjiId}}/reset", "host": ["{{baseUrl}}"], "path": ["api", "cards", "meaning", "{{kanjiId}}", "reset"] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/meaning/{{kanjiId}}/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cards",
+                "meaning",
+                "{{kanjiId}}",
+                "reset"
+              ]
+            },
             "description": "After this, submitting a review for the same card correctly 400s with \"Cannot review a card with status 'new'\" until it's introduced/reset back into learning."
           },
           "response": []
@@ -1195,8 +1726,20 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Cookie", "value": "{{authCookie}}" }],
-            "url": { "raw": "{{baseUrl}}/api/cards/bogus/{{kanjiId}}/suspend", "host": ["{{baseUrl}}"], "path": ["api", "cards", "bogus", "{{kanjiId}}", "suspend"] }
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/bogus/{{kanjiId}}/suspend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cards",
+                "bogus",
+                "{{kanjiId}}",
+                "suspend"
+              ]
+            }
           },
           "response": []
         }
@@ -1224,11 +1767,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/stripe/create-checkout-session", "host": ["{{baseUrl}}"], "path": ["api", "stripe", "create-checkout-session"] },
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": {
+              "raw": "{{baseUrl}}/api/stripe/create-checkout-session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "create-checkout-session"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "description": "500s with a clear message if STRIPE_PRICE_ID / STRIPE_SECRET_KEY are not configured in .env.local - that is expected outside a fully configured Stripe test environment."
           },
           "response": []
@@ -1254,11 +1817,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{authCookie}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/stripe/create-portal-session", "host": ["{{baseUrl}}"], "path": ["api", "stripe", "create-portal-session"] },
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": {
+              "raw": "{{baseUrl}}/api/stripe/create-portal-session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "create-portal-session"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "description": "400s if this user has no stripe_customer_id yet (i.e. never started checkout)."
           },
           "response": []
@@ -1279,12 +1862,31 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/stripe/webhook", "host": ["{{baseUrl}}"], "path": ["api", "stripe", "webhook"] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stripe/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"type\": \"checkout.session.completed\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "description": "Stripe signs every real webhook body with STRIPE_WEBHOOK_SECRET; Postman cannot produce that signature, so this route can only be exercised end-to-end via `stripe listen --forward-to localhost:3000/api/stripe/webhook` + `stripe trigger <event>`. This request only verifies the 'missing signature' guard clause."
           },
