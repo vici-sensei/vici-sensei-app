@@ -1,24 +1,10 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET() {
-  const cookieStore = await cookies()
+  const supabase = await createClient()
 
-  // 1. Inițializăm clientul Supabase pe Server cu acces la Cookies
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-      },
-    }
-  )
-
-  // 2. Extragem userul logat din sesiune (Supabase verifică automat token-ul din cookie)
+  // Extragem userul logat din sesiune (Supabase verifică automat token-ul din cookie)
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
