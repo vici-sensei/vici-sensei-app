@@ -1,0 +1,17 @@
+$kind: http-request
+name: Get own profile (/api/user/me)
+url: "{{baseUrl}}/api/user/me"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('has expected fields', () => {
+        pm.expect(body).to.have.property('email');
+        pm.expect(body).to.have.property('display_name');
+        pm.expect(body).to.have.property('is_premium');
+        pm.expect(body).to.have.property('created_at');
+      });
+    language: text/javascript
+order: 1000

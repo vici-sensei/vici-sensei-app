@@ -1,0 +1,26 @@
+$kind: http-request
+url: "{{baseUrl}}/api/study/vocabulary/introduce"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "word_id": {{vocabId}}
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 201 or 409', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));
+      if (pm.response.code === 201) {
+        const body = pm.response.json();
+        pm.test('progress row created with status learning', () => {
+          pm.expect(body.word_id).to.eql(Number(pm.collectionVariables.get('vocabId')));
+          pm.expect(body.status).to.eql('learning');
+        });
+      } else {
+        pm.test('409 error mentions already introduced', () => pm.expect(pm.response.json().error).to.include('already been introduced'));
+      }
+    language: text/javascript
+order: 3000

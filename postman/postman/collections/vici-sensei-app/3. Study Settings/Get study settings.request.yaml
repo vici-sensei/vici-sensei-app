@@ -1,0 +1,17 @@
+$kind: http-request
+description: Returns 404 until /api/onboarding/complete has been called for this user at least once.
+url: "{{baseUrl}}/api/study-settings"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));
+      if (pm.response.code === 200) {
+        const body = pm.response.json();
+        pm.test('has enabled_levels array', () => pm.expect(body.enabled_levels).to.be.an('array'));
+        pm.test('has new_kanji_per_day', () => pm.expect(body.new_kanji_per_day).to.be.a('number'));
+      } else {
+        pm.test('404 has error message', () => pm.expect(pm.response.json()).to.have.property('error'));
+      }
+    language: text/javascript
+order: 1000

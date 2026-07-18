@@ -1,0 +1,20 @@
+$kind: http-request
+url: "{{baseUrl}}/api/progress/summary"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('has all three exercise-type buckets', () => {
+        pm.expect(body.kanji_meaning).to.be.an('object');
+        pm.expect(body.kanji_reading).to.be.an('object');
+        pm.expect(body.vocab_meaning).to.be.an('object');
+      });
+      pm.test('kanji_meaning has all status keys', () => {
+        ['new', 'learning', 'review', 'relearning', 'suspended'].forEach((s) => {
+          pm.expect(body.kanji_meaning).to.have.property(s);
+        });
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,31 @@
+$kind: http-request
+description: Only succeeds (201) the first time for a given kanji_id/user - every subsequent call correctly 409s, which this test treats as an equally valid outcome.
+url: "{{baseUrl}}/api/study/kanji/introduce"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "kanji_id": {{kanjiId}}
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 201 or 409', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));
+      if (pm.response.code === 201) {
+        const body = pm.response.json();
+        pm.test('meaning row created with status learning', () => {
+          pm.expect(body.meaning.kanji_id).to.eql(Number(pm.collectionVariables.get('kanjiId')));
+          pm.expect(body.meaning.status).to.eql('learning');
+        });
+        pm.test('readings array present (<= 3)', () => {
+          pm.expect(body.readings).to.be.an('array');
+          pm.expect(body.readings.length).to.be.at.most(3);
+        });
+      } else {
+        pm.test('409 error mentions already introduced', () => pm.expect(pm.response.json().error).to.include('already been introduced'));
+      }
+    language: text/javascript
+order: 2000

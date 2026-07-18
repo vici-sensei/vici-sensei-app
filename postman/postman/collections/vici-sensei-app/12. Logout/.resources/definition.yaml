@@ -1,0 +1,3 @@
+$kind: collection
+description: Kept as the very last folder so a top-to-bottom Collection Runner pass over the whole collection doesn't invalidate the session in the middle of everything else. Run 'Logout' manually, last, on its own - not as part of a full-collection Runner pass.
+order: 13000

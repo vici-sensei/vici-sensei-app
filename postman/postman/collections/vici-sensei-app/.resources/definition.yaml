@@ -1,0 +1,27 @@
+$kind: collection
+description: |-
+  API tests for the vici-sensei-app Japanese SRS backend (Next.js route handlers + Supabase/PostgreSQL).
+
+  Auth model: routes read the Supabase session from a `sb-<project-ref>-auth-token` cookie (via @supabase/ssr, HttpOnly, sometimes split into `.0`/`.1` chunks). There is no bearer-token support in this app.
+
+  Cookies are supplied via the Postman Interceptor browser extension, NOT a manual header - no request in this collection sets a `Cookie` header itself, so nothing here overrides what the Interceptor-synced Cookie Jar sends automatically.
+
+  Setup (one-time):
+  1. Install the 'Postman Interceptor' extension in Chrome (Chrome Web Store) and make sure it's enabled/active.
+  2. In Postman Desktop: Settings (gear icon) > General > enable the Interceptor connection - it should show as connected once the Chrome extension is active.
+  3. Open any request here, click 'Cookies' near the top of the request builder, and make sure cookie syncing is on for `localhost` (the domain the app runs on).
+  4. Log into the app normally at http://localhost:3000 in that same Chrome window - Postman's Cookie Jar for `localhost` picks up the `sb-...-auth-token` cookie(s) automatically, including the HttpOnly ones, with no copy-pasting.
+  5. Run 'Health check' first to confirm the dev server + DB are reachable before running anything else.
+
+  If Interceptor ever stops syncing (extension disabled, cookie jar cleared), the fallback is to grab the cookie from DevTools > Application > Cookies once and paste it as a request-level `Cookie` header just for that troubleshooting session - do not restore it collection-wide, since a hardcoded header will silently stop reflecting future logins/session refreshes.
+
+  Most folders are safe to run repeatedly. The exceptions are called out in request descriptions: introduce-kanji/introduce-vocabulary will 409 on a second run (by design), 'Delete own account' in Auth/User is destructive and irreversible, and 'Logout' in the last folder (12. Logout) ends your session - none of these three should be included in a collection-wide Runner pass. 'Logout' is kept in its own folder at the very end specifically so a full top-to-bottom Runner pass over the rest of the collection doesn't get logged out partway through.
+variables:
+  baseUrl: http://localhost:3000
+  authCookie: sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE
+  kanjiId: "1"
+  kanjiWordId: "1"
+  vocabId: "1"
+  missingId: "999999999"
+  sessionId: ""
+  reviewLogId: ""

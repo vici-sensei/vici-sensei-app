@@ -1,0 +1,13 @@
+$kind: http-request
+description: "404s if this word has never been introduced (unlike the kanji route, which returns meaning: null instead)."
+url: "{{baseUrl}}/api/progress/vocabulary/{{vocabId}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));
+      if (pm.response.code === 200) {
+        pm.test('has status field', () => pm.expect(pm.response.json().status).to.be.a('string'));
+      }
+    language: text/javascript
+order: 3000

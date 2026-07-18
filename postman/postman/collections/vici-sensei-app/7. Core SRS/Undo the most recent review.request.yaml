@@ -1,0 +1,18 @@
+$kind: http-request
+description: Run this immediately after 'Submit a review' - it reverts the single most recent non-undone review_logs row for the user. 404s if there is nothing left to undo.
+url: "{{baseUrl}}/api/study/review/undo"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));
+      if (pm.response.code === 200) {
+        pm.test('has undone_review_log_id', () => pm.expect(pm.response.json()).to.have.property('undone_review_log_id'));
+      }
+    language: text/javascript
+order: 7000

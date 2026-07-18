@@ -1,0 +1,27 @@
+$kind: http-request
+description: Uses the collectionVariable `sessionId` set by 'Start a study session' - run that request first in the same run.
+url: "{{baseUrl}}/api/study/session/end"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "session_id": {{sessionId}}
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));
+      if (pm.response.code === 200) {
+        const body = pm.response.json();
+        pm.test('has cards_reviewed/cards_correct/duration/accuracy', () => {
+          pm.expect(body.cards_reviewed).to.be.a('number');
+          pm.expect(body.cards_correct).to.be.a('number');
+          pm.expect(body.duration_seconds).to.be.a('number');
+          pm.expect(body).to.have.property('accuracy');
+        });
+      }
+    language: text/javascript
+order: 2000

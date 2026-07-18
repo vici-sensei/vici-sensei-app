@@ -1,0 +1,3 @@
+$kind: collection
+description: "This app only supports login via Google OAuth (see app/login/page.tsx) and only trusts the Supabase session cookie set by @supabase/ssr - it does not accept an Authorization: Bearer header and has no password-grant login path. Auth for every other request in this collection is handled by the Postman Interceptor-synced Cookie Jar (see the collection description) once you log into the app in Chrome."
+order: 1000

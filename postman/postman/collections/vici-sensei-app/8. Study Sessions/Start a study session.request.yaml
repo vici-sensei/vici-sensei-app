@@ -1,0 +1,16 @@
+$kind: http-request
+description: Saves the new session_id into the collectionVariable `sessionId`, consumed by 'End a study session' below - run these two back to back.
+url: "{{baseUrl}}/api/study/session/start"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 201', () => pm.response.to.have.status(201));
+      const body = pm.response.json();
+      pm.test('has session_id + started_at', () => {
+        pm.expect(body.session_id).to.be.a('number');
+        pm.expect(body.started_at).to.be.a('string');
+      });
+      pm.collectionVariables.set('sessionId', body.session_id);
+    language: text/javascript
+order: 1000

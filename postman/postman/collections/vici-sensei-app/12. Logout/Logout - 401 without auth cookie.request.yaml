@@ -1,0 +1,13 @@
+$kind: http-request
+description: Uses protocolProfileBehavior.disableCookies so Postman skips the Interceptor-synced Cookie Jar for this one request - an empty/disabled Cookie header alone would NOT block the jar's auto-attached session cookie, so the request would actually succeed (200) instead of 401.
+url: "{{baseUrl}}/api/auth/logout"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 401', () => pm.response.to.have.status(401));
+      pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));
+    language: text/javascript
+settings:
+  disableCookies: true
+order: 1000

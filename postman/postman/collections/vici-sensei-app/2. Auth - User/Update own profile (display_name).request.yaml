@@ -1,0 +1,35 @@
+$kind: http-request
+url: "{{baseUrl}}/api/user/me"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "display_name": "{{display_name}}"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const englishNames = [
+        'Alice', 'Benjamin', 'Charlotte', 'Daniel', 'Emma',
+        'Frank', 'Grace', 'Henry', 'Isabella', 'Jack',
+        'Katherine', 'Liam', 'Mia', 'Nathan', 'Olivia',
+        'Patrick', 'Quinn', 'Rachel', 'Samuel', 'Victoria'
+      ];
+
+      const customName = pm.variables.get('custom_display_name');
+
+      const chosenName = customName && customName.trim()
+        ? customName.trim()
+        : englishNames[Math.floor(Math.random() * englishNames.length)];
+
+      pm.variables.set('display_name', chosenName);
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      pm.test('display_name updated', () => pm.expect(pm.response.json().display_name).to.eql(pm.variables.get('display_name')));
+    language: text/javascript
+order: 3000

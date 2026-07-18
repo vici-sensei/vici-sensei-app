@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/study-settings"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "study_kanji": false,
+      "study_vocabulary": false
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      pm.test('error mentions must remain true', () => pm.expect(pm.response.json().error).to.include('must remain true'));
+    language: text/javascript
+order: 5000

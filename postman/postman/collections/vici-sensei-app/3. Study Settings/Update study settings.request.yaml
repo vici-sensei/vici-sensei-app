@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{baseUrl}}/api/study-settings"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "new_kanji_per_day": 5,
+      "enabled_levels": ["N5", "N4"]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('new_kanji_per_day updated', () => pm.expect(body.new_kanji_per_day).to.eql(5));
+      pm.test('enabled_levels updated', () => pm.expect(body.enabled_levels).to.eql(['N5', 'N4']));
+    language: text/javascript
+order: 3000

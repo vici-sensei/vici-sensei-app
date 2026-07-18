@@ -1,0 +1,14 @@
+$kind: http-request
+name: OAuth callback - no code redirects to /login
+description: "This app only supports login via Google OAuth (app/login/page.tsx calls signInWithOAuth), so the real happy path of app/auth/callback/route.ts - exchanging a Google-issued `code` for a session via exchangeCodeForSession() - requires an interactive browser consent flow and cannot be scripted from Postman. This request instead verifies the callback route's fallback: with no `code` query param, it redirects to /login (307) rather than throwing. protocolProfileBehavior.followRedirects is off so Postman doesn't chase the redirect and we can assert on the raw 307 + Location header."
+url: "{{baseUrl}}/auth/callback"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 307', () => pm.response.to.have.status(307));
+      pm.test('redirects to /login', () => pm.expect(pm.response.headers.get('Location')).to.include('/login'));
+    language: text/javascript
+settings:
+  followRedirects: false
+order: 1000

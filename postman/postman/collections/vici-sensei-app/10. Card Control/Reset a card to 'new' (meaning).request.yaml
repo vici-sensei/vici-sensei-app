@@ -1,0 +1,19 @@
+$kind: http-request
+description: After this, submitting a review for the same card correctly 400s with "Cannot review a card with status 'new'" until it's introduced/reset back into learning.
+url: "{{baseUrl}}/api/cards/meaning/{{kanjiId}}/reset"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));
+      if (pm.response.code === 200) {
+        const body = pm.response.json();
+        pm.test('status is new + counters zeroed', () => {
+          pm.expect(body.status).to.eql('new');
+          pm.expect(body.repetitions).to.eql(0);
+          pm.expect(body.lapses).to.eql(0);
+          pm.expect(body.learning_step).to.eql(0);
+        });
+      }
+    language: text/javascript
+order: 3000

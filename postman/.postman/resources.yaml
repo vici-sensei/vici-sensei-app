@@ -1,0 +1,13 @@
+# Use this workspace to collaborate
+workspace:
+  id: ce436049-6da2-41e6-8793-81fd5c8edaf6
+
+localResources:
+  collections:
+    - ../vici-sensei-app.postman_collection.json
+  environments:
+    - ../vici-sensei-local.postman_environment.json
+
+cloudResources:
+  collections:
+    ../postman/collections/vici-sensei-app: 8a59367a-c28b-4c56-9a74-691d3ae2561e

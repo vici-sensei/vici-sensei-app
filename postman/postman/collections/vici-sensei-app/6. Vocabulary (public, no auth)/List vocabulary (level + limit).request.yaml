@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?level=N5&limit=20"
+method: GET
+queryParams:
+  level: N5
+  limit: "20"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('has data array', () => pm.expect(body.data).to.be.an('array'));
+      pm.test('data length <= limit', () => pm.expect(body.data.length).to.be.at.most(20));
+    language: text/javascript
+order: 1000

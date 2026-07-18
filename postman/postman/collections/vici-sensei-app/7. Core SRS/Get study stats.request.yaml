@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/study/stats"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('has expected fields', () => {
+        pm.expect(body.due_today).to.be.a('number');
+        pm.expect(body.new_kanji_today).to.be.a('number');
+        pm.expect(body.new_kanji_limit).to.be.a('number');
+        pm.expect(body.new_vocab_today).to.be.a('number');
+        pm.expect(body.new_vocab_limit).to.be.a('number');
+        pm.expect(body.streak).to.be.a('number');
+        pm.expect(body).to.have.property('retention_rate');
+      });
+    language: text/javascript
+order: 8000

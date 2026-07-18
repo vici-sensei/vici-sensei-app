@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/api/kanji/{{missingId}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 404', () => pm.response.to.have.status(404));
+      pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));
+    language: text/javascript
+order: 5000

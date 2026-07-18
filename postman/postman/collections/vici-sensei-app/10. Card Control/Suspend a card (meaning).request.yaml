@@ -1,0 +1,13 @@
+$kind: http-request
+description: type is one of meaning | reading | vocab (see CARD_TYPE_TO_EXERCISE_TYPE). 404s if the card was never introduced.
+url: "{{baseUrl}}/api/cards/meaning/{{kanjiId}}/suspend"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));
+      if (pm.response.code === 200) {
+        pm.test('status is suspended', () => pm.expect(pm.response.json().status).to.eql('suspended'));
+      }
+    language: text/javascript
+order: 1000

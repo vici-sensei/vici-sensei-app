@@ -1,0 +1,20 @@
+$kind: http-request
+url: "{{baseUrl}}/api/onboarding/complete"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "enabled_levels": ["N9"],
+      "new_kanji_per_day": 2,
+      "new_vocab_per_day": 12
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));
+    language: text/javascript
+order: 2000

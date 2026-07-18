@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/user/me"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));
+    language: text/javascript
+order: 4000

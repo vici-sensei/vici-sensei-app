@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?search=day"
+method: GET
+queryParams:
+  search: day
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('has data + count', () => {
+        pm.expect(body.data).to.be.an('array');
+        pm.expect(body.count).to.be.a('number');
+      });
+    language: text/javascript
+order: 2000

@@ -1,0 +1,27 @@
+$kind: http-request
+description: 400s if the card's current status is 'new' or 'suspended' (e.g. right after a card-control reset) - run 'Introduce a new kanji' first so the card is in 'learning'.
+url: "{{baseUrl}}/api/study/review"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "exercise_type": "kanji_meaning",
+      "kanji_id": {{kanjiId}},
+      "rating": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200 or 400', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));
+      if (pm.response.code === 200) {
+        const body = pm.response.json();
+        pm.test('advances learning_step or moves to review', () => {
+          pm.expect(['learning', 'review']).to.include(body.status);
+        });
+        pm.test('has due_at', () => pm.expect(body.due_at).to.be.a('string'));
+      }
+    language: text/javascript
+order: 4000

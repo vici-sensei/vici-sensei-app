@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/api/kanji/{{kanjiId}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('has kanji + meanings + words', () => {
+        pm.expect(body.kanji).to.be.a('string');
+        pm.expect(body.meanings).to.be.an('array');
+        pm.expect(body.words).to.be.an('array');
+        pm.expect(body.words.length).to.be.at.most(3);
+      });
+    language: text/javascript
+order: 4000

@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/study-settings"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      pm.test("error mentions 'field'", () => pm.expect(pm.response.json().error).to.include('field'));
+    language: text/javascript
+order: 4000

@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/api/kanji?level=N9"
+method: GET
+queryParams:
+  level: N9
+scripts:
+  - type: afterResponse
+    code: pm.test('status is 400', () => pm.response.to.have.status(400));
+    language: text/javascript
+order: 3000

@@ -1,0 +1,11 @@
+$kind: http-request
+name: Suspend/Reset - 400 invalid card type
+url: "{{baseUrl}}/api/cards/bogus/{{kanjiId}}/suspend"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      pm.test('error lists valid types', () => pm.expect(pm.response.json().error).to.include('meaning'));
+    language: text/javascript
+order: 5000

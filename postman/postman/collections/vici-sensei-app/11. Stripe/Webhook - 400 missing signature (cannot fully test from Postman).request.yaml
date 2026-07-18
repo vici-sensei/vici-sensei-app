@@ -1,0 +1,19 @@
+$kind: http-request
+description: Stripe signs every real webhook body with STRIPE_WEBHOOK_SECRET; Postman cannot produce that signature, so this route can only be exercised end-to-end via `stripe listen --forward-to localhost:3000/api/stripe/webhook` + `stripe trigger <event>`. This request only verifies the 'missing signature' guard clause.
+url: "{{baseUrl}}/api/stripe/webhook"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "type": "checkout.session.completed"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      pm.test('error mentions stripe-signature', () => pm.expect(pm.response.json().error).to.include('stripe-signature'));
+    language: text/javascript
+order: 3000

@@ -1,0 +1,11 @@
+$kind: http-request
+description: Deterministic version of the 404 branch already exercised loosely by 'Suspend a card (meaning)' - {{missingId}} guarantees no progress row exists, so this always 404s rather than depending on whether {{kanjiId}} happens to have been introduced yet.
+url: "{{baseUrl}}/api/cards/meaning/{{missingId}}/suspend"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 404', () => pm.response.to.have.status(404));
+      pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));
+    language: text/javascript
+order: 2000

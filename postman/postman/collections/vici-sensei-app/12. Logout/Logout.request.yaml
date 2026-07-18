@@ -1,0 +1,11 @@
+$kind: http-request
+description: Calls supabase.auth.signOut() server-side, which invalidates the session and clears the sb-...-auth-token cookie via Set-Cookie on the response. Because the Postman Interceptor keeps the Cookie Jar synced with Chrome, this will log you out of the app in that Chrome window too - you'll need to log in again before re-running any authenticated request in this collection.
+url: "{{baseUrl}}/api/auth/logout"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      pm.test('has confirmation message', () => pm.expect(pm.response.json()).to.have.property('message'));
+    language: text/javascript
+order: 2000
