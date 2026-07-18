@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "vici-sensei-app",
-    "description": "API tests for the vici-sensei-app Japanese SRS backend (Next.js route handlers + Supabase/PostgreSQL).\n\nAuth model: routes read the Supabase session from a `sb-<project-ref>-auth-token` cookie (via @supabase/ssr, HttpOnly, sometimes split into `.0`/`.1` chunks). There is no bearer-token support in this app.\n\nCookies are supplied via the Postman Interceptor browser extension, NOT a manual header - no request in this collection sets a `Cookie` header itself, so nothing here overrides what the Interceptor-synced Cookie Jar sends automatically.\n\nSetup (one-time):\n1. Install the 'Postman Interceptor' extension in Chrome (Chrome Web Store) and make sure it's enabled/active.\n2. In Postman Desktop: Settings (gear icon) > General > enable the Interceptor connection - it should show as connected once the Chrome extension is active.\n3. Open any request here, click 'Cookies' near the top of the request builder, and make sure cookie syncing is on for `localhost` (the domain the app runs on).\n4. Log into the app normally at http://localhost:3000 in that same Chrome window - Postman's Cookie Jar for `localhost` picks up the `sb-...-auth-token` cookie(s) automatically, including the HttpOnly ones, with no copy-pasting.\n5. Run 'Health check' first to confirm the dev server + DB are reachable before running anything else.\n\nIf Interceptor ever stops syncing (extension disabled, cookie jar cleared), the fallback is to grab the cookie from DevTools > Application > Cookies once and paste it as a request-level `Cookie` header just for that troubleshooting session - do not restore it collection-wide, since a hardcoded header will silently stop reflecting future logins/session refreshes.\n\nMost folders are safe to run repeatedly. The exceptions are called out in request descriptions: introduce-kanji/introduce-vocabulary will 409 on a second run (by design), and 'Delete own account' in Auth/User is destructive and irreversible - do not include it in a collection-wide Runner pass.",
+    "description": "API tests for the vici-sensei-app Japanese SRS backend (Next.js route handlers + Supabase/PostgreSQL).\n\nAuth model: routes read the Supabase session from a `sb-<project-ref>-auth-token` cookie (via @supabase/ssr, HttpOnly, sometimes split into `.0`/`.1` chunks). There is no bearer-token support in this app.\n\nCookies are supplied via the Postman Interceptor browser extension, NOT a manual header - no request in this collection sets a `Cookie` header itself, so nothing here overrides what the Interceptor-synced Cookie Jar sends automatically.\n\nSetup (one-time):\n1. Install the 'Postman Interceptor' extension in Chrome (Chrome Web Store) and make sure it's enabled/active.\n2. In Postman Desktop: Settings (gear icon) > General > enable the Interceptor connection - it should show as connected once the Chrome extension is active.\n3. Open any request here, click 'Cookies' near the top of the request builder, and make sure cookie syncing is on for `localhost` (the domain the app runs on).\n4. Log into the app normally at http://localhost:3000 in that same Chrome window - Postman's Cookie Jar for `localhost` picks up the `sb-...-auth-token` cookie(s) automatically, including the HttpOnly ones, with no copy-pasting.\n5. Run 'Health check' first to confirm the dev server + DB are reachable before running anything else.\n\nIf Interceptor ever stops syncing (extension disabled, cookie jar cleared), the fallback is to grab the cookie from DevTools > Application > Cookies once and paste it as a request-level `Cookie` header just for that troubleshooting session - do not restore it collection-wide, since a hardcoded header will silently stop reflecting future logins/session refreshes.\n\nMost folders are safe to run repeatedly. The exceptions are called out in request descriptions: introduce-kanji/introduce-vocabulary will 409 on a second run (by design), 'Delete own account' in Auth/User is destructive and irreversible, and 'Logout' in the last folder (12. Logout) ends your session - none of these three should be included in a collection-wide Runner pass. 'Logout' is kept in its own folder at the very end specifically so a full top-to-bottom Runner pass over the rest of the collection doesn't get logged out partway through.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,26 +13,6 @@
     {
       "key": "authCookie",
       "value": "sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE",
-      "type": "string"
-    },
-    {
-      "key": "supabaseUrl",
-      "value": "https://hmbemyfaqnkiamvhcdcd.supabase.co",
-      "type": "string"
-    },
-    {
-      "key": "supabaseAnonKey",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "testEmail",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "testPassword",
-      "value": "",
       "type": "string"
     },
     {
@@ -69,63 +49,39 @@
   "item": [
     {
       "name": "0. Auth Helper",
-      "description": "This app only trusts the Supabase session cookie set by @supabase/ssr - it does not accept an Authorization: Bearer header. Auth for every other request in this collection is handled by the Postman Interceptor-synced Cookie Jar (see the collection description) once you log into the app in Chrome. The request below is optional: it hits Supabase's GoTrue REST API directly to obtain a fresh access/refresh token pair for inspection/debugging only - it does not feed into the Cookie Jar or any other request.",
+      "description": "This app only supports login via Google OAuth (see app/login/page.tsx) and only trusts the Supabase session cookie set by @supabase/ssr - it does not accept an Authorization: Bearer header and has no password-grant login path. Auth for every other request in this collection is handled by the Postman Interceptor-synced Cookie Jar (see the collection description) once you log into the app in Chrome.",
       "item": [
         {
-          "name": "Get fresh access/refresh tokens (Supabase password grant)",
+          "name": "OAuth callback - no code redirects to /login",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('response has access_token', () => pm.expect(body.access_token).to.be.a('string'));",
-                  "pm.test('response has refresh_token', () => pm.expect(body.refresh_token).to.be.a('string'));",
-                  "console.log('access_token / refresh_token retrieved. Building the sb-...-auth-token cookie value from these is version-specific for @supabase/ssr - the reliable path is still to copy the cookie from your browser session and paste it into the authCookie variable.');"
+                  "pm.test('status is 307', () => pm.response.to.have.status(307));",
+                  "pm.test('redirects to /login', () => pm.expect(pm.response.headers.get('Location')).to.include('/login'));"
                 ]
               }
             }
           ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "apikey",
-                "value": "{{supabaseAnonKey}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{supabaseUrl}}/auth/v1/token?grant_type=password",
+              "raw": "{{baseUrl}}/auth/callback",
               "host": [
-                "{{supabaseUrl}}"
+                "{{baseUrl}}"
               ],
               "path": [
                 "auth",
-                "v1",
-                "token"
-              ],
-              "query": [
-                {
-                  "key": "grant_type",
-                  "value": "password"
-                }
+                "callback"
               ]
             },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
+            "description": "This app only supports login via Google OAuth (app/login/page.tsx calls signInWithOAuth), so the real happy path of app/auth/callback/route.ts - exchanging a Google-issued `code` for a session via exchangeCodeForSession() - requires an interactive browser consent flow and cannot be scripted from Postman. This request instead verifies the callback route's fallback: with no `code` query param, it redirects to /login (307) rather than throwing. protocolProfileBehavior.followRedirects is off so Postman doesn't chase the redirect and we can assert on the raw 307 + Location header."
           },
           "response": []
         }
@@ -220,15 +176,12 @@
               }
             }
           ],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Cookie",
-                "value": "",
-                "disabled": true
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/user/me",
               "host": [
@@ -247,12 +200,34 @@
           "name": "Update own profile (display_name)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const englishNames = [",
+                  "  'Alice', 'Benjamin', 'Charlotte', 'Daniel', 'Emma',",
+                  "  'Frank', 'Grace', 'Henry', 'Isabella', 'Jack',",
+                  "  'Katherine', 'Liam', 'Mia', 'Nathan', 'Olivia',",
+                  "  'Patrick', 'Quinn', 'Rachel', 'Samuel', 'Victoria'",
+                  "];",
+                  "",
+                  "const customName = pm.variables.get('custom_display_name');",
+                  "",
+                  "const chosenName = customName && customName.trim()",
+                  "  ? customName.trim()",
+                  "  : englishNames[Math.floor(Math.random() * englishNames.length)];",
+                  "",
+                  "pm.variables.set('display_name', chosenName);"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('display_name updated', () => pm.expect(pm.response.json().display_name).to.eql('Cezara'));"
+                  "pm.test('display_name updated', () => pm.expect(pm.response.json().display_name).to.eql(pm.variables.get('display_name')));"
                 ]
               }
             }
@@ -278,7 +253,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"display_name\": \"Cezara\"\n}",
+              "raw": "{\n  \"display_name\": \"{{display_name}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -403,6 +378,39 @@
               ]
             },
             "description": "Returns 404 until /api/onboarding/complete has been called for this user at least once."
+          },
+          "response": []
+        },
+        {
+          "name": "Get study settings - 401 without auth cookie",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/study-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "study-settings"
+              ]
+            }
           },
           "response": []
         },
@@ -910,6 +918,41 @@
                 {
                   "key": "search",
                   "value": "day"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List vocabulary - 400 invalid level",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/vocabulary?level=N9",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vocabulary"
+              ],
+              "query": [
+                {
+                  "key": "level",
+                  "value": "N9"
                 }
               ]
             }
@@ -1669,6 +1712,40 @@
           "response": []
         },
         {
+          "name": "Suspend a card - 404 no progress found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/meaning/{{missingId}}/suspend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cards",
+                "meaning",
+                "{{missingId}}",
+                "suspend"
+              ]
+            },
+            "description": "Deterministic version of the 404 branch already exercised loosely by 'Suspend a card (meaning)' - {{missingId}} guarantees no progress row exists, so this always 404s rather than depending on whether {{kanjiId}} happens to have been introduced yet."
+          },
+          "response": []
+        },
+        {
           "name": "Reset a card to 'new' (meaning)",
           "event": [
             {
@@ -1707,6 +1784,40 @@
               ]
             },
             "description": "After this, submitting a review for the same card correctly 400s with \"Cannot review a card with status 'new'\" until it's introduced/reset back into learning."
+          },
+          "response": []
+        },
+        {
+          "name": "Reset a card - 404 no progress found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/meaning/{{missingId}}/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cards",
+                "meaning",
+                "{{missingId}}",
+                "reset"
+              ]
+            },
+            "description": "Deterministic version of the 404 branch already exercised loosely by 'Reset a card to new (meaning)' - {{missingId}} guarantees no progress row exists."
           },
           "response": []
         },
@@ -1889,6 +2000,79 @@
               }
             },
             "description": "Stripe signs every real webhook body with STRIPE_WEBHOOK_SECRET; Postman cannot produce that signature, so this route can only be exercised end-to-end via `stripe listen --forward-to localhost:3000/api/stripe/webhook` + `stripe trigger <event>`. This request only verifies the 'missing signature' guard clause."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "12. Logout",
+      "description": "Kept as the very last folder so a top-to-bottom Collection Runner pass over the whole collection doesn't invalidate the session in the middle of everything else. Run 'Logout' manually, last, on its own - not as part of a full-collection Runner pass.",
+      "item": [
+        {
+          "name": "Logout - 401 without auth cookie",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('has error message', () => pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Uses protocolProfileBehavior.disableCookies so Postman skips the Interceptor-synced Cookie Jar for this one request - an empty/disabled Cookie header alone would NOT block the jar's auto-attached session cookie, so the request would actually succeed (200) instead of 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has confirmation message', () => pm.expect(pm.response.json()).to.have.property('message'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Calls supabase.auth.signOut() server-side, which invalidates the session and clears the sb-...-auth-token cookie via Set-Cookie on the response. Because the Postman Interceptor keeps the Cookie Jar synced with Chrome, this will log you out of the app in that Chrome window too - you'll need to log in again before re-running any authenticated request in this collection."
           },
           "response": []
         }
