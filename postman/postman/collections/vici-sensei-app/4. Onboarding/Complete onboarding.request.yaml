@@ -19,5 +19,6 @@ scripts:
       const body = pm.response.json();
       pm.test('enabled_levels persisted', () => pm.expect(body.enabled_levels).to.eql(['N5']));
       pm.test('new_kanji_per_day persisted', () => pm.expect(body.new_kanji_per_day).to.eql(2));
+      pm.test('new_vocab_per_day synced to 6x new_kanji_per_day', () => pm.expect(body.new_vocab_per_day).to.eql(12));
     language: text/javascript
 order: 1000

@@ -1,0 +1,20 @@
+$kind: http-request
+name: Update study settings - max_reviews_per_day
+url: "{{baseUrl}}/api/study-settings"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "max_reviews_per_day": 50
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('max_reviews_per_day updated', () => pm.expect(body.max_reviews_per_day).to.eql(50));
+    language: text/javascript
+order: 3600

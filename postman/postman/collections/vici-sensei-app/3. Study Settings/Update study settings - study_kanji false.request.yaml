@@ -1,0 +1,21 @@
+$kind: http-request
+name: Update study settings - study_kanji false
+url: "{{baseUrl}}/api/study-settings"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "study_kanji": false
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('study_kanji disabled', () => pm.expect(body.study_kanji).to.eql(false));
+      pm.test('study_vocabulary left true', () => pm.expect(body.study_vocabulary).to.eql(true));
+    language: text/javascript
+order: 3700

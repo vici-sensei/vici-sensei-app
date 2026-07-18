@@ -1,0 +1,21 @@
+$kind: http-request
+name: Update study settings - study_vocabulary true
+description: Restores study_vocabulary to true after the disable test.
+url: "{{baseUrl}}/api/study-settings"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "study_vocabulary": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('study_vocabulary enabled', () => pm.expect(body.study_vocabulary).to.eql(true));
+    language: text/javascript
+order: 3850

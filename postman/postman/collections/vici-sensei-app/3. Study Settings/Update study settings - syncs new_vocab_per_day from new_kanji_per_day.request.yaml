@@ -1,0 +1,22 @@
+$kind: http-request
+name: Update study settings - syncs new_vocab_per_day from new_kanji_per_day
+description: Updating new_kanji_per_day alone should recompute new_vocab_per_day as new_kanji_per_day * 6.
+url: "{{baseUrl}}/api/study-settings"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "new_kanji_per_day": 3
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('new_kanji_per_day updated', () => pm.expect(body.new_kanji_per_day).to.eql(3));
+      pm.test('new_vocab_per_day synced to new_kanji_per_day * 6', () => pm.expect(body.new_vocab_per_day).to.eql(18));
+    language: text/javascript
+order: 3200
