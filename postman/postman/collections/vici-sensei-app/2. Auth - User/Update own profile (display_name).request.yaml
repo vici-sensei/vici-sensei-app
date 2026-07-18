@@ -1,4 +1,5 @@
 $kind: http-request
+name: Update own profile (display_name)
 url: "{{baseUrl}}/api/user/me"
 method: PATCH
 headers:
@@ -13,10 +14,26 @@ scripts:
   - type: beforeRequest
     code: |-
       const englishNames = [
-        'Alice', 'Benjamin', 'Charlotte', 'Daniel', 'Emma',
-        'Frank', 'Grace', 'Henry', 'Isabella', 'Jack',
-        'Katherine', 'Liam', 'Mia', 'Nathan', 'Olivia',
-        'Patrick', 'Quinn', 'Rachel', 'Samuel', 'Victoria'
+        'Alice Elizabeth Smith', 
+        'Benjamin Alexander Jones', 
+        'Charlotte Marie Williams', 
+        'Daniel James Brown', 
+        'Emma Grace Taylor',
+        'Frank Oliver Davies', 
+        'Grace Victoria Wilson', 
+        'Henry Thomas Evans', 
+        'Isabella Rose Thomas', 
+        'Jack Christopher Roberts',
+        'Katherine Louise Johnson', 
+        'Liam Charles Lewis', 
+        'Mia Jane Walker', 
+        'Nathan Edward Robinson', 
+        'Olivia Frances Wood',
+        'Patrick William Wright', 
+        'Quinn Harrison Thompson', 
+        'Rachel Ann Green', 
+        'Samuel Arthur Hall', 
+        'Victoria Mae Turner'
       ];
 
       const customName = pm.variables.get('custom_display_name');

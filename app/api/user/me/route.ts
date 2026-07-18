@@ -56,7 +56,13 @@ export async function PATCH(request: Request) {
   return NextResponse.json(data)
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const requestOrigin = request.headers.get('origin')
+  const expectedOrigin = new URL(request.url).origin
+  if (requestOrigin && requestOrigin !== expectedOrigin) {
+    return jsonError(403, 'Cross-origin requests are not allowed for this action.')
+  }
+
   const supabase = await createClient()
   const { user, response } = await requireUser(supabase)
   if (!user) return response
@@ -71,22 +77,35 @@ export async function DELETE() {
     return jsonError(500, profileError.message)
   }
 
+  let hadActiveSubscription = false
+  let stripeCustomerDeleted = false
+
   if (profile?.stripe_customer_id) {
     try {
       const stripe = getStripeClient()
       const subscriptions = await stripe.subscriptions.list({
         customer: profile.stripe_customer_id,
-        status: 'active',
+        status: 'all',
       })
-      await Promise.all(
-        subscriptions.data.map((sub) => stripe.subscriptions.cancel(sub.id))
+      // Only 'canceled' and 'incomplete_expired' are already-terminal states;
+      // everything else (active, trialing, past_due, unpaid, paused,
+      // incomplete) still needs to be canceled, or Stripe will refuse to
+      // delete a customer that has subscriptions attached.
+      const cancelableSubscriptions = subscriptions.data.filter(
+        (sub) => sub.status !== 'canceled' && sub.status !== 'incomplete_expired'
       )
+      hadActiveSubscription = cancelableSubscriptions.length > 0
+      await Promise.all(
+        cancelableSubscriptions.map((sub) => stripe.subscriptions.cancel(sub.id))
+      )
+      await stripe.customers.del(profile.stripe_customer_id)
+      stripeCustomerDeleted = true
     } catch (err) {
       return jsonError(
         500,
-        `Could not cancel the Stripe subscription before deleting the account: ${
+        `Could not cancel the Stripe subscription or remove the Stripe customer before deleting the account: ${
           err instanceof Error ? err.message : 'unknown error'
-        }. Configure Stripe or cancel the subscription manually before retrying.`
+        }. Configure Stripe or resolve this manually before retrying.`
       )
     }
   }
@@ -95,6 +114,15 @@ export async function DELETE() {
   const { error: deleteError } = await admin.auth.admin.deleteUser(user.id)
   if (deleteError) {
     return jsonError(500, deleteError.message)
+  }
+
+  const { error: auditError } = await admin.from('account_deletion_log').insert({
+    user_id: user.id,
+    had_active_subscription: hadActiveSubscription,
+    stripe_customer_deleted: stripeCustomerDeleted,
+  })
+  if (auditError) {
+    console.error('Failed to write account_deletion_log entry:', auditError.message)
   }
 
   return new NextResponse(null, { status: 204 })

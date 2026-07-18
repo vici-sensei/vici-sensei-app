@@ -1,6 +1,6 @@
 $kind: http-request
 name: ⚠️ Delete own account (DESTRUCTIVE - irreversible, run manually only)
-description: Cancels active Stripe subscriptions then hard-deletes the auth.users row (cascades to public.users and every progress table via ON DELETE CASCADE). Do not run this against an account you want to keep. Not included in any suggested Collection Runner pass.
+description: Cancels every outstanding Stripe subscription (any status other than canceled/incomplete_expired), deletes the Stripe customer, then hard-deletes the auth.users row (cascades to public.users and every progress table via ON DELETE CASCADE). Writes one row to account_deletion_log (user_id + timestamp only, no PII) as an audit trail. Do not run this against an account you want to keep -- the subscription is not recoverable. Not included in any suggested Collection Runner pass.
 url: "{{baseUrl}}/api/user/me"
 method: DELETE
 scripts:
