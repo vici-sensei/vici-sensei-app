@@ -1,5 +1,5 @@
 $kind: http-request
-description: Requires /api/onboarding/complete to have run first (404s otherwise, same as /api/study-settings).
+description: user_study_settings is auto-created at signup, so this works even before /api/onboarding/complete has run (it just uses the signup defaults).
 url: "{{baseUrl}}/api/study/queue"
 method: GET
 scripts:

@@ -5,12 +5,7 @@ import { jsonError, requireUser } from '@/lib/api/errors'
 import { JLPT_LEVELS } from '@/lib/srs/constants'
 
 const bodySchema = z.object({
-  new_kanji_per_day: z.number().int().min(0).optional(),
-  new_vocab_per_day: z.number().int().min(0).optional(),
-  max_reviews_per_day: z.number().int().min(0).optional(),
-  enabled_levels: z.array(z.enum(JLPT_LEVELS)).min(1).optional(),
-  study_kanji: z.boolean().optional(),
-  study_vocabulary: z.boolean().optional(),
+  enabled_levels: z.array(z.enum(JLPT_LEVELS)).min(1),
 })
 
 export async function POST(request: Request) {
@@ -25,11 +20,16 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from('user_study_settings')
-    .upsert({ user_id: user.id, ...parsed.data }, { onConflict: 'user_id' })
+    .update({
+      enabled_levels: parsed.data.enabled_levels,
+      onboarding_completed: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', user.id)
     .select('*')
     .single()
 
   if (error) return jsonError(500, error.message)
 
-  return NextResponse.json(data, { status: 201 })
+  return NextResponse.json(data)
 }

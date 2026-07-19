@@ -7,9 +7,7 @@ body:
   type: json
   content: |-
     {
-      "enabled_levels": ["N9"],
-      "new_kanji_per_day": 2,
-      "new_vocab_per_day": 12
+      "enabled_levels": ["N9"]
     }
 scripts:
   - type: afterResponse

@@ -1,5 +1,6 @@
 $kind: http-request
-description: Upserts user_study_settings, so this is safe to re-run - it will not 409/fail on a second call.
+name: Complete onboarding
+description: Updates the existing user_study_settings row (auto-created at signup) with the chosen JLPT level and marks onboarding_completed. Safe to re-run.
 url: "{{baseUrl}}/api/onboarding/complete"
 method: POST
 headers:
@@ -8,17 +9,16 @@ body:
   type: json
   content: |-
     {
-      "enabled_levels": ["N5"],
-      "new_kanji_per_day": 2,
-      "new_vocab_per_day": 12
+      "enabled_levels": ["N5", "N4", "N3", "N2"]
     }
 scripts:
   - type: afterResponse
     code: |-
-      pm.test('status is 201', () => pm.response.to.have.status(201));
+      pm.test('status is 200', () => pm.response.to.have.status(200));
       const body = pm.response.json();
-      pm.test('enabled_levels persisted', () => pm.expect(body.enabled_levels).to.eql(['N5']));
-      pm.test('new_kanji_per_day persisted', () => pm.expect(body.new_kanji_per_day).to.eql(2));
-      pm.test('new_vocab_per_day synced to 6x new_kanji_per_day', () => pm.expect(body.new_vocab_per_day).to.eql(12));
+      pm.test('enabled_levels persisted', () => pm.expect(body.enabled_levels).to.eql(['N5', 'N4', 'N3', 'N2']));
+      pm.test('onboarding_completed is true', () => pm.expect(body.onboarding_completed).to.eql(true));
+      pm.test('new_kanji_per_day keeps its signup default', () => pm.expect(body.new_kanji_per_day).to.eql(2));
+      pm.test('new_vocab_per_day keeps its signup default', () => pm.expect(body.new_vocab_per_day).to.eql(12));
     language: text/javascript
 order: 1000
