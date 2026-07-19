@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const offset = Math.max(Number(searchParams.get('offset')) || 0, 0)
 
   if (levels?.some((level) => !JLPT_LEVELS.includes(level as (typeof JLPT_LEVELS)[number]))) {
-    return jsonError(400, `level must be one of: ${JLPT_LEVELS.join(', ')}`)
+    return jsonError(400, `each level must be one of: ${JLPT_LEVELS.join(', ')}`)
   }
 
   const { data, error } = await supabase.rpc('search_kanji', {

@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{baseUrl}}/api/kanji?level=N5,%20N4"
+method: GET
+queryParams:
+  level: "N5, N4"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('a space after the comma in the level list is trimmed, not treated as invalid', () => {
+        pm.response.to.have.status(200);
+      });
+      const body = pm.response.json();
+      pm.test('every row is N5 or N4', () => {
+        pm.expect(body.data.every((k) => k.level === 'N5' || k.level === 'N4')).to.be.true;
+      });
+    language: text/javascript
+order: 1080
