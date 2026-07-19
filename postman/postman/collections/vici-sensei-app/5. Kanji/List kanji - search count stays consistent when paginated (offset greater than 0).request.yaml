@@ -1,0 +1,21 @@
+$kind: http-request
+description: Depends on 'Search kanji - results are ordered by match relevance' running first to populate the collectionVariable `broadSearchCount` - run these two back to back.
+url: "{{baseUrl}}/api/kanji?search=a&limit=1&offset=10"
+method: GET
+queryParams:
+  search: a
+  limit: "1"
+  offset: "10"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      const baseline = Number(pm.collectionVariables.get('broadSearchCount'));
+      pm.test('total count for the same search is unchanged on a later page', () => {
+        pm.expect(baseline, 'run "Search kanji - results are ordered by match relevance" first to populate the baseline').to.be.a('number').greaterThan(10);
+        pm.expect(body.data.length, 'need more than 10 matches for search=a for this page to be non-empty').to.equal(1);
+        pm.expect(body.count).to.equal(baseline);
+      });
+    language: text/javascript
+order: 2020

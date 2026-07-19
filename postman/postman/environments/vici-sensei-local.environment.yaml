@@ -6,6 +6,10 @@ values:
     value: sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE
   - key: kanjiId
     value: '1'
+  - key: kanjiIdNoWords
+    value: '945'
+  - key: kanjiIdManyWords
+    value: '42'
   - key: kanjiWordId
     value: '1'
   - key: vocabId

@@ -1,4 +1,5 @@
 $kind: collection
+name: vici-sensei-app
 description: |-
   API tests for the vici-sensei-app Japanese SRS backend (Next.js route handlers + Supabase/PostgreSQL).
 
@@ -25,3 +26,5 @@ variables:
   missingId: "999999999"
   sessionId: ""
   reviewLogId: ""
+  unfilteredKanjiCount: ""
+  broadSearchCount: ""

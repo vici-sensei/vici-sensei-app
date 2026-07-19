@@ -1,0 +1,17 @@
+$kind: http-request
+description: Also saves the unfiltered total count into the collectionVariable `unfilteredKanjiCount`, consumed by 'List kanji - search with bare underscore matches nearly everything' below - run these two back to back.
+url: "{{baseUrl}}/api/kanji"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('defaults limit to 50 and offset to 0', () => {
+        pm.expect(body.limit).to.equal(50);
+        pm.expect(body.offset).to.equal(0);
+      });
+      pm.test('data length respects default limit', () => pm.expect(body.data.length).to.be.at.most(50));
+      pm.collectionVariables.set('unfilteredKanjiCount', body.count);
+    language: text/javascript
+order: 900

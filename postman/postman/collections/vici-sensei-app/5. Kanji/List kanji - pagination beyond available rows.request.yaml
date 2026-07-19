@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{baseUrl}}/api/kanji?limit=5&offset=100000"
+method: GET
+queryParams:
+  limit: "5"
+  offset: "100000"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('no rows at this offset', () => pm.expect(body.data).to.have.lengthOf(0));
+      pm.test('count falls back to 0 when the page is empty (current behavior, likely a bug: total_count is read off the first returned row, so an empty page loses the real total)', () => {
+        pm.expect(body.count).to.equal(0);
+      });
+    language: text/javascript
+order: 1100

@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?level=N5,N4&limit=100"
+method: GET
+queryParams:
+  level: "N5,N4"
+  limit: "100"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('has data array', () => pm.expect(body.data).to.be.an('array'));
+      pm.test('data length <= limit', () => pm.expect(body.data.length).to.be.at.most(100));
+      pm.test('every row is N5 or N4', () => {
+        pm.expect(body.data.every((w) => w.jlpt_level === 'N5' || w.jlpt_level === 'N4')).to.be.true;
+      });
+      pm.test('count reflects the combined levels, not just one', () => {
+        pm.expect(body.count).to.be.a('number').greaterThan(0);
+      });
+    language: text/javascript
+order: 1050

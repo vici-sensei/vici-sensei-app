@@ -1,0 +1,42 @@
+$kind: http-request
+description: Also saves the total match count into the collectionVariable `broadSearchCount`, consumed by 'List kanji - search count stays consistent when paginated' below - run these two back to back.
+url: "{{baseUrl}}/api/kanji?search=a&limit=500"
+method: GET
+queryParams:
+  search: a
+  limit: "500"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      const query = 'a';
+
+      function tierOf(row) {
+        const kanji = (row.kanji || '').toLowerCase();
+        const readings = [...(row.kun_readings || []), ...(row.on_readings || [])].map((r) => (r || '').toLowerCase());
+        const meanings = (row.meanings || []).map((m) => (m || '').toLowerCase());
+
+        if (kanji === query) return 0;
+        if (readings.includes(query)) return 1;
+        if (kanji.startsWith(query) || readings.some((r) => r.startsWith(query))) return 2;
+        if (kanji.includes(query) || readings.some((r) => r.includes(query))) return 3;
+        if (meanings.some((m) => m.startsWith(query))) return 4;
+        if (meanings.some((m) => m.includes(query))) return 5;
+        return 99;
+      }
+
+      pm.test('results are non-decreasing in match tier (exact/prefix kanji+reading matches sort before meaning-only substring matches)', () => {
+        const tiers = body.data.map(tierOf);
+        for (let i = 1; i < tiers.length; i++) {
+          pm.expect(tiers[i], `row ${i} (tier ${tiers[i]}) sorted after row ${i - 1} (tier ${tiers[i - 1]}) out of order`).to.be.at.least(tiers[i - 1]);
+        }
+      });
+
+      pm.test('every returned row matches on a recognized tier (sanity check on the test itself, not just the API)', () => {
+        pm.expect(body.data.every((row) => tierOf(row) < 99)).to.equal(true);
+      });
+
+      pm.collectionVariables.set('broadSearchCount', body.count);
+    language: text/javascript
+order: 2010

@@ -1,0 +1,18 @@
+$kind: http-request
+description: Depends on 'List kanji (default params)' running first to populate the collectionVariable `unfilteredKanjiCount` - run these two back to back.
+url: "{{baseUrl}}/api/kanji?search=_"
+method: GET
+queryParams:
+  search: "_"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      const baseline = Number(pm.collectionVariables.get('unfilteredKanjiCount'));
+      pm.test('a bare "_" is escaped before being interpolated into the ILIKE pattern, so it is treated as a literal underscore character instead of the SQL LIKE any-single-character wildcard (would otherwise match almost every row)', () => {
+        pm.expect(baseline, 'run "List kanji (default params)" first to populate the baseline').to.be.a('number').greaterThan(0);
+        pm.expect(body.count).to.be.lessThan(baseline);
+      });
+    language: text/javascript
+order: 950

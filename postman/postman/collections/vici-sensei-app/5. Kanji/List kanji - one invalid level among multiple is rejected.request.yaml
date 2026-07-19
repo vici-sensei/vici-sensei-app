@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{baseUrl}}/api/kanji?level=N5,N9"
+method: GET
+queryParams:
+  level: "N5,N9"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('any invalid level in the comma-separated list rejects the whole request', () => {
+        pm.response.to.have.status(400);
+      });
+    language: text/javascript
+order: 3050

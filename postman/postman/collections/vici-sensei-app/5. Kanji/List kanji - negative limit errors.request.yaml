@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{baseUrl}}/api/kanji?limit=-10"
+method: GET
+queryParams:
+  limit: "-10"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('negative limit is not validated by the route and reaches Postgres LIMIT, which rejects negative values -> 500 (documents a gap: the route should probably validate limit > 0 and return 400)', () => {
+        pm.response.to.have.status(500);
+      });
+    language: text/javascript
+order: 2600

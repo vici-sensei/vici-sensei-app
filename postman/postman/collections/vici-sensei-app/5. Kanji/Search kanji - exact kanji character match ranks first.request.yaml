@@ -1,0 +1,22 @@
+$kind: http-request
+description: Depends on 'Get one kanji + up to 3 words' running first to populate the collectionVariable `kanjiChar` - run these two back to back.
+url: "{{baseUrl}}/api/kanji?search={{kanjiChar}}"
+method: GET
+queryParams:
+  search: "{{kanjiChar}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      const char = pm.collectionVariables.get('kanjiChar');
+
+      pm.test('kanjiChar was captured by "Get one kanji + up to 3 words"', () => {
+        pm.expect(char, 'run "Get one kanji + up to 3 words" first').to.be.a('string').and.not.empty;
+      });
+
+      pm.test('an exact kanji-character match ranks first (tier 0 sorts before any reading/meaning-only match)', () => {
+        pm.expect(body.data[0] && body.data[0].kanji).to.equal(char);
+      });
+    language: text/javascript
+order: 4050
