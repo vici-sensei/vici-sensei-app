@@ -28,3 +28,4 @@ variables:
   reviewLogId: ""
   unfilteredKanjiCount: ""
   broadSearchCount: ""
+  kanjiChar: ""
