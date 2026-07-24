@@ -1,7 +1,7 @@
 workspace:
-  id: ce436049-6da2-41e6-8793-81fd5c8edaf6
+  id: 640e06a5-4611-4162-875f-26ac4953ff4c
 cloudResources:
   collections:
-    ../postman/collections/vici-sensei-app: 18107985-94a8da49-b1e7-4104-a5da-3341328ae503
+    ../postman/collections/vici-sensei-app: 56881901-8b9f8297-e5cf-474a-87b7-c211bb220a7d
   environments:
-    ../postman/environments/vici-sensei-local.environment.yaml: 18107985-3c3ac23e-226f-4430-88bf-d2d2d00d1903
+    ../postman/environments/vici-sensei-local.environment.yaml: 56881901-b8119027-8244-4b41-a2fc-e10d99ae2b5f
