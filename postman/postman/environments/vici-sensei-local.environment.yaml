@@ -3,7 +3,7 @@ values:
   - key: baseUrl
     value: 'http://localhost:3000'
   - key: authCookie
-    value: sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE
+    value: sb-hmbemylaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE
   - key: kanjiId
     value: '1'
   - key: kanjiIdNoWords

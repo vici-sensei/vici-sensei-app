@@ -19,7 +19,7 @@ description: |-
   Most folders are safe to run repeatedly. The exceptions are called out in request descriptions: introduce-kanji/introduce-vocabulary will 409 on a second run (by design), 'Delete own account' in Auth/User is destructive and irreversible, and 'Logout' in the last folder (12. Logout) ends your session - none of these three should be included in a collection-wide Runner pass. 'Logout' is kept in its own folder at the very end specifically so a full top-to-bottom Runner pass over the rest of the collection doesn't get logged out partway through.
 variables:
   baseUrl: http://localhost:3000
-  authCookie: sb-hmbemyfaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE
+  authCookie: sb-hmbemylaqnkiamvhcdcd-auth-token=PASTE_YOUR_SESSION_COOKIE_HERE
   kanjiId: "1"
   kanjiWordId: "1"
   vocabId: "1"
