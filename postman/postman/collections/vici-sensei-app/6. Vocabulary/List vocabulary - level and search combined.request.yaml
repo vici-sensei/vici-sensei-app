@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?level=N5&search=a"
+method: GET
+queryParams:
+  level: N5
+  search: a
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('every row matches the level filter', () => {
+        pm.expect(body.data.every((w) => w.jlpt_level === 'N5')).to.equal(true);
+      });
+    language: text/javascript
+order: 2300

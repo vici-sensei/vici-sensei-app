@@ -1,4 +1,5 @@
 $kind: http-request
+description: Also saves the fetched word into the collectionVariable `vocabWord`, consumed by 'Search vocabulary - exact word match ranks first' below - run these two back to back.
 url: "{{baseUrl}}/api/vocabulary/{{vocabId}}"
 method: GET
 scripts:
@@ -10,5 +11,6 @@ scripts:
         pm.expect(body.word).to.be.a('string');
         pm.expect(body.kana_reading).to.be.a('string');
       });
+      pm.collectionVariables.set('vocabWord', body.word);
     language: text/javascript
 order: 4000

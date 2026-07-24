@@ -29,3 +29,4 @@ variables:
   unfilteredKanjiCount: ""
   broadSearchCount: ""
   kanjiChar: ""
+  unfilteredVocabularyCount: ""

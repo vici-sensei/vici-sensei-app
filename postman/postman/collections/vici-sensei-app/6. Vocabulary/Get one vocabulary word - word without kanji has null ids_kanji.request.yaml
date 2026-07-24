@@ -1,0 +1,14 @@
+$kind: http-request
+description: "vocabIdNoKanji (158, より) was found via: select id, word, ids_kanji from public.vocabulary where ids_kanji is null or ids_kanji = '{}' order by id limit 10;"
+url: "{{baseUrl}}/api/vocabulary/{{vocabIdNoKanji}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('a word with no associated kanji has a null (or empty) ids_kanji, not an error or a missing field', () => {
+        pm.expect(body.ids_kanji === null || (Array.isArray(body.ids_kanji) && body.ids_kanji.length === 0)).to.be.true;
+      });
+    language: text/javascript
+order: 4250

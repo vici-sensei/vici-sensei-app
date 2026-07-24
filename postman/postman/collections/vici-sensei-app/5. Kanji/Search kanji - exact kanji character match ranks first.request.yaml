@@ -1,4 +1,5 @@
 $kind: http-request
+name: Search kanji - exact kanji character match ranks first
 description: Depends on 'Get one kanji + up to 3 words' running first to populate the collectionVariable `kanjiChar` - run these two back to back.
 url: "{{baseUrl}}/api/kanji?search={{kanjiChar}}"
 method: GET

@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?search=%20"
+method: GET
+queryParams:
+  search: " "
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('a whitespace-only search is trimmed to empty by the route and returns the unfiltered list, same as search=""', () => {
+        pm.expect(body.data).to.be.an('array');
+        pm.expect(body.count).to.be.a('number').greaterThan(0);
+      });
+    language: text/javascript
+order: 2250

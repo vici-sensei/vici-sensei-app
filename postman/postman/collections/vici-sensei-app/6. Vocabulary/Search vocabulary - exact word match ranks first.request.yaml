@@ -1,0 +1,22 @@
+$kind: http-request
+description: Depends on 'Get one vocabulary word' running first to populate the collectionVariable `vocabWord` - run these two back to back.
+url: "{{baseUrl}}/api/vocabulary?search={{vocabWord}}"
+method: GET
+queryParams:
+  search: "{{vocabWord}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      const word = pm.collectionVariables.get('vocabWord');
+
+      pm.test('vocabWord was captured by "Get one vocabulary word"', () => {
+        pm.expect(word, 'run "Get one vocabulary word" first').to.be.a('string').and.not.empty;
+      });
+
+      pm.test('an exact word match ranks first (tier 0 sorts before any reading/meaning-only match)', () => {
+        pm.expect(body.data[0] && body.data[0].word).to.equal(word);
+      });
+    language: text/javascript
+order: 4050

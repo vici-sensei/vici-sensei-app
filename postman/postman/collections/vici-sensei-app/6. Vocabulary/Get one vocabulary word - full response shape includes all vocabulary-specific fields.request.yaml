@@ -1,0 +1,24 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary/{{vocabId}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('response includes all vocabulary-specific fields with the expected types', () => {
+        pm.expect(body.id).to.be.a('number');
+        pm.expect(body.meanings).to.satisfy((v) => v === null || Array.isArray(v));
+        pm.expect(body.parts_of_speech).to.satisfy((v) => v === null || Array.isArray(v));
+        pm.expect(body.ids_kanji).to.satisfy((v) => v === null || Array.isArray(v));
+        pm.expect(body.jlpt_level).to.satisfy((v) => v === null || typeof v === 'string');
+        pm.expect(body.is_common_jisho).to.satisfy((v) => v === null || typeof v === 'boolean');
+        pm.expect(body.usually_kana).to.satisfy((v) => v === null || typeof v === 'boolean');
+        pm.expect(body.frequency).to.satisfy((v) => v === null || typeof v === 'string');
+        pm.expect(body.romaji_reading).to.satisfy((v) => v === null || typeof v === 'string');
+        pm.expect(body.furiganas).to.satisfy((v) => v === null || Array.isArray(v));
+        pm.expect(body.romaji_furiganas).to.satisfy((v) => v === null || Array.isArray(v));
+        pm.expect(body.other_readings).to.satisfy((v) => v === null || Array.isArray(v));
+      });
+    language: text/javascript
+order: 4200

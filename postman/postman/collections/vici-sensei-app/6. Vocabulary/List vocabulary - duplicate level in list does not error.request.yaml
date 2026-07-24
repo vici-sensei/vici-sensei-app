@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?level=N5,N5"
+method: GET
+queryParams:
+  level: "N5,N5"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('a repeated level in the list is not an error', () => {
+        pm.response.to.have.status(200);
+      });
+      const body = pm.response.json();
+      pm.test('every row is N5', () => pm.expect(body.data.every((w) => w.jlpt_level === 'N5')).to.be.true);
+    language: text/javascript
+order: 1070

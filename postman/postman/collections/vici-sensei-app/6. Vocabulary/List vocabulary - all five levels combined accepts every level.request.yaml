@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?level=N5,N4,N3,N2,N1&limit=200"
+method: GET
+queryParams:
+  level: "N5,N4,N3,N2,N1"
+  limit: "200"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('has data array', () => pm.expect(body.data).to.be.an('array'));
+      pm.test('every row has one of the 5 JLPT levels', () => {
+        const validLevels = ['N5', 'N4', 'N3', 'N2', 'N1'];
+        pm.expect(body.data.every((w) => validLevels.includes(w.jlpt_level))).to.be.true;
+      });
+      pm.test('count is a positive number', () => pm.expect(body.count).to.be.a('number').greaterThan(0));
+    language: text/javascript
+order: 1060

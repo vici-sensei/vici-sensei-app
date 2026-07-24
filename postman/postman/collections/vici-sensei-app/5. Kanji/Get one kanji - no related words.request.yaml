@@ -1,4 +1,5 @@
 $kind: http-request
+name: Get one kanji - no related words
 url: "{{baseUrl}}/api/kanji/{{kanjiIdNoWords}}"
 method: GET
 scripts:

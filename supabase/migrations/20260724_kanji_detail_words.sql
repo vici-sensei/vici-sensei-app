@@ -1,5 +1,11 @@
 -- Run this manually in DBeaver or the Supabase SQL editor.
 --
+-- Returns every public.vocabulary column per match (not just id/word/
+-- kana_reading/meanings/level/furiganas), mirroring the column list already
+-- used by get_new_vocab_candidates and search_vocabulary in
+-- 20260718_query_functions.sql, so GET /api/kanji/{id} exposes the same
+-- vocabulary shape those endpoints do.
+--
 -- Replaces the "3 words per kanji" selection used by GET /api/kanji/{id}.
 -- Previously this was a plain supabase-js query ordered by reading_number
 -- then priority_score. New rules:
@@ -49,6 +55,12 @@
 -- Written as a Postgres function (see 20260718_query_functions.sql) rather
 -- than embedded-relationship filtering in supabase-js, which this project
 -- avoids for `!inner` + dot-notation filters.
+--
+-- The OUT-parameter row type changed from the previous version of this
+-- function (fewer columns), so a plain CREATE OR REPLACE fails with
+-- "cannot change return type of existing function" -- drop it first.
+
+drop function if exists public.get_kanji_detail_words(bigint);
 
 create or replace function public.get_kanji_detail_words(p_kanji_id bigint)
  returns table(
@@ -58,8 +70,16 @@ create or replace function public.get_kanji_detail_words(p_kanji_id bigint)
    word text,
    kana_reading text,
    meanings text[],
-   level text,
-   furiganas text[]
+   parts_of_speech text[],
+   ids_kanji bigint[],
+   jlpt_level text,
+   is_common_jisho boolean,
+   usually_kana boolean,
+   frequency text,
+   romaji_reading text,
+   furiganas text[],
+   romaji_furiganas text[],
+   other_readings text[]
  )
  language sql
  stable
@@ -81,8 +101,16 @@ as $function$
       v.word,
       v.kana_reading,
       v.meanings,
-      v.jlpt_level as level,
+      v.parts_of_speech,
+      v.ids_kanji,
+      v.jlpt_level,
+      v.is_common_jisho,
+      v.usually_kana,
+      v.frequency,
+      v.romaji_reading,
       v.furiganas,
+      v.romaji_furiganas,
+      v.other_readings,
       case v.frequency
         when 'high' then 4
         when 'normal' then 3
@@ -109,7 +137,9 @@ as $function$
   ),
   best_per_group as (
     select distinct on (reading_number)
-      kanji_word_id, reading_number, word_id, word, kana_reading, meanings, level, furiganas,
+      kanji_word_id, reading_number, word_id, word, kana_reading, meanings, parts_of_speech,
+      ids_kanji, jlpt_level, is_common_jisho, usually_kana, frequency, romaji_reading,
+      furiganas, romaji_furiganas, other_readings,
       tier, level_gap, starred, freq_score
     from scored
     order by reading_number nulls last, tier asc, level_gap asc, starred asc, freq_score desc, kanji_word_id asc
@@ -119,7 +149,9 @@ as $function$
   ),
   fill_ins as (
     select
-      s.kanji_word_id, s.reading_number, s.word_id, s.word, s.kana_reading, s.meanings, s.level, s.furiganas,
+      s.kanji_word_id, s.reading_number, s.word_id, s.word, s.kana_reading, s.meanings, s.parts_of_speech,
+      s.ids_kanji, s.jlpt_level, s.is_common_jisho, s.usually_kana, s.frequency, s.romaji_reading,
+      s.furiganas, s.romaji_furiganas, s.other_readings,
       s.tier, s.level_gap, s.starred, s.freq_score
     from scored s
     where not exists (select 1 from best_per_group b where b.kanji_word_id = s.kanji_word_id)
@@ -131,7 +163,9 @@ as $function$
     union all
     select * from fill_ins
   )
-  select kanji_word_id, reading_number, word_id, word, kana_reading, meanings, level, furiganas
+  select kanji_word_id, reading_number, word_id, word, kana_reading, meanings, parts_of_speech,
+         ids_kanji, jlpt_level, is_common_jisho, usually_kana, frequency, romaji_reading,
+         furiganas, romaji_furiganas, other_readings
   from combined
   order by tier asc, level_gap asc, starred asc, freq_score desc, reading_number nulls last, kanji_word_id asc
   limit 3;

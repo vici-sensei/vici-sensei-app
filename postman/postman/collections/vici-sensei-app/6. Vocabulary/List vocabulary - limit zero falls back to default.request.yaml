@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?limit=0"
+method: GET
+queryParams:
+  limit: "0"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('limit=0 is falsy in JS so it falls back to the default of 50 (current behavior, may be surprising)', () => {
+        pm.expect(body.limit).to.equal(50);
+      });
+    language: text/javascript
+order: 2500

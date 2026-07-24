@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?limit=1000"
+method: GET
+queryParams:
+  limit: "1000"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('limit is clamped to 500', () => pm.expect(body.limit).to.equal(500));
+      pm.test('data length respects clamped limit', () => pm.expect(body.data.length).to.be.at.most(500));
+    language: text/javascript
+order: 2400

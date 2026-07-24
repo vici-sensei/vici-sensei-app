@@ -9,8 +9,16 @@ type KanjiDetailWordRow = {
   word: string
   kana_reading: string | null
   meanings: string[] | null
-  level: string | null
+  parts_of_speech: string[] | null
+  ids_kanji: number[] | null
+  jlpt_level: string | null
+  is_common_jisho: boolean | null
+  usually_kana: boolean | null
+  frequency: string | null
+  romaji_reading: string | null
   furiganas: string[] | null
+  romaji_furiganas: string[] | null
+  other_readings: string[] | null
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -48,8 +56,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       word: row.word,
       kana_reading: row.kana_reading,
       meanings: row.meanings,
-      level: row.level,
+      parts_of_speech: row.parts_of_speech,
+      ids_kanji: row.ids_kanji,
+      jlpt_level: row.jlpt_level,
+      is_common_jisho: row.is_common_jisho,
+      usually_kana: row.usually_kana,
+      frequency: row.frequency,
+      romaji_reading: row.romaji_reading,
       furiganas: row.furiganas,
+      romaji_furiganas: row.romaji_furiganas,
+      other_readings: row.other_readings,
     },
   }))
 

@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{baseUrl}}/api/vocabulary?offset=-5"
+method: GET
+queryParams:
+  offset: "-5"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('offset is clamped to 0', () => pm.expect(body.offset).to.equal(0));
+    language: text/javascript
+order: 2700
