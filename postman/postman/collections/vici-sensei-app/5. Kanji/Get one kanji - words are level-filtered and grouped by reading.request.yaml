@@ -1,0 +1,31 @@
+$kind: http-request
+url: "{{baseUrl}}/api/kanji/{{kanjiIdManyWords}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+
+      pm.test('words is an array of at most 3', () => {
+        pm.expect(body.words).to.be.an('array');
+        pm.expect(body.words.length).to.be.at.most(3);
+      });
+
+      pm.test('at most one word per reading_number', () => {
+        const seen = new Set();
+        for (const w of body.words) {
+          pm.expect(seen.has(w.reading_number)).to.equal(false);
+          seen.add(w.reading_number);
+        }
+      });
+
+      pm.test('no duplicate words', () => {
+        const seen = new Set();
+        for (const w of body.words) {
+          pm.expect(seen.has(w.vocabulary.id)).to.equal(false);
+          seen.add(w.vocabulary.id);
+        }
+      });
+    language: text/javascript
+order: 4200

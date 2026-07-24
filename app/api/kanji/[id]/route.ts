@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
 
+type KanjiDetailWordRow = {
+  kanji_word_id: number
+  reading_number: number | null
+  word_id: number
+  word: string
+  kana_reading: string | null
+  meanings: string[] | null
+  level: string | null
+  furiganas: string[] | null
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
@@ -21,17 +32,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return jsonError(404, 'Kanji not found.')
   }
 
-  const { data: words, error: wordsError } = await supabase
-    .from('kanji_word')
-    .select('id, reading_number, priority_score, vocabulary:id_word(id, word, kana_reading, meanings, furiganas)')
-    .eq('id_kanji', id)
-    .order('reading_number', { ascending: true, nullsFirst: false })
-    .order('priority_score', { ascending: false, nullsFirst: false })
-    .limit(3)
+  const { data: wordRows, error: wordsError } = await supabase.rpc('get_kanji_detail_words', {
+    p_kanji_id: id,
+  })
 
   if (wordsError) {
     return jsonError(500, wordsError.message)
   }
+
+  const words = ((wordRows ?? []) as KanjiDetailWordRow[]).map((row) => ({
+    id: row.kanji_word_id,
+    reading_number: row.reading_number,
+    vocabulary: {
+      id: row.word_id,
+      word: row.word,
+      kana_reading: row.kana_reading,
+      meanings: row.meanings,
+      level: row.level,
+      furiganas: row.furiganas,
+    },
+  }))
 
   return NextResponse.json({ ...kanji, words })
 }
