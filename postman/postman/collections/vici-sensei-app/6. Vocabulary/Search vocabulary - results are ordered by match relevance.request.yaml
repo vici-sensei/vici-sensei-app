@@ -19,11 +19,16 @@ scripts:
         const meanings = (row.meanings || []).map((m) => (m || '').toLowerCase());
 
         if (word === query) return 0;
-        if (kana === query || romaji === query) return 1;
-        if (word.startsWith(query) || kana.startsWith(query) || romaji.startsWith(query)) return 2;
-        if (word.includes(query) || kana.includes(query) || romaji.includes(query)) return 3;
-        if (meanings.some((m) => m.startsWith(query))) return 4;
-        if (meanings.some((m) => m.includes(query))) return 5;
+        if (kana === query || romaji === query || meanings.some((m) => m === query)) return 1;
+        if (
+          word.startsWith(query) ||
+          kana.startsWith(query) ||
+          romaji.startsWith(query) ||
+          meanings.some((m) => m.startsWith(query))
+        )
+          return 2;
+        if (word.includes(query) || kana.includes(query)) return 3;
+        if (meanings.some((m) => m.includes(query))) return 4;
         return 99;
       }
 

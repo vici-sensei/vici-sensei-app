@@ -14,6 +14,8 @@ values:
     value: '1'
   - key: vocabId
     value: '1'
+  - key: vocabIdNoKanji
+    value: '158'
   - key: missingId
     value: '999999999'
   - key: sessionId

@@ -1,4 +1,5 @@
 $kind: http-request
+name: Get one vocabulary word - word without kanji has null ids_kanji
 description: "vocabIdNoKanji (158, より) was found via: select id, word, ids_kanji from public.vocabulary where ids_kanji is null or ids_kanji = '{}' order by id limit 10;"
 url: "{{baseUrl}}/api/vocabulary/{{vocabIdNoKanji}}"
 method: GET
