@@ -9,14 +9,14 @@ body:
   type: json
   content: |-
     {
-      "enabled_levels": ["N5", "N4", "N3", "N2"]
+      "enabled_levels": ["N5"]
     }
 scripts:
   - type: afterResponse
     code: |-
       pm.test('status is 200', () => pm.response.to.have.status(200));
       const body = pm.response.json();
-      pm.test('enabled_levels persisted', () => pm.expect(body.enabled_levels).to.eql(['N5', 'N4', 'N3', 'N2']));
+      pm.test('enabled_levels persisted', () => pm.expect(body.enabled_levels).to.eql(['N5']));
       pm.test('onboarding_completed is true', () => pm.expect(body.onboarding_completed).to.eql(true));
       pm.test('new_kanji_per_day keeps its signup default', () => pm.expect(body.new_kanji_per_day).to.eql(2));
       pm.test('new_vocab_per_day keeps its signup default', () => pm.expect(body.new_vocab_per_day).to.eql(12));

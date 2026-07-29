@@ -35,24 +35,22 @@ export async function POST(request: Request) {
 
   if (meaningError) return jsonError(500, meaningError.message)
 
-  const { data: kanjiWords, error: kanjiWordsError } = await supabase
-    .from('kanji_word')
-    .select('id')
-    .eq('id_kanji', kanji_id)
-    .order('reading_number', { ascending: true, nullsFirst: false })
-    .limit(3)
+  const { data: kanjiWords, error: kanjiWordsError } = await supabase.rpc(
+    'get_kanji_detail_words',
+    { p_kanji_id: kanji_id }
+  )
 
   if (kanjiWordsError) return jsonError(500, kanjiWordsError.message)
 
   let readingRows: unknown[] = []
-  if (kanjiWords.length > 0) {
+  if (kanjiWords && kanjiWords.length > 0) {
     const { data, error: readingInsertError } = await supabase
       .from('user_kanji_reading_progress')
       .insert(
-        kanjiWords.map((kw) => ({
+        kanjiWords.map((kw: { kanji_word_id: number }) => ({
           user_id: user.id,
           kanji_id,
-          kanji_word_id: kw.id,
+          kanji_word_id: kw.kanji_word_id,
           ...initialLearningState(),
         }))
       )
