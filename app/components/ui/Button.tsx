@@ -12,7 +12,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE =
-  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl text-base font-bold text-white transition-[transform,box-shadow,opacity] duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none disabled:translate-y-0";
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl text-base font-bold text-white transition-[translate,box-shadow,opacity,background-color,border-color] duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none disabled:translate-y-0";
 
 const SIZE: Record<ButtonSize, string> = {
   md: "px-8 py-[15px]",
@@ -69,7 +69,7 @@ export function Button({
           loading ? "inline-block" : "hidden"
         }`}
       />
-      <span className={loading ? "opacity-85" : ""}>{children}</span>
+      <span className={`inline-flex items-center gap-2 ${loading ? "opacity-85" : ""}`}>{children}</span>
     </button>
   );
 }

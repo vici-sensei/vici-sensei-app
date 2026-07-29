@@ -30,7 +30,7 @@ export function StartStudyButton() {
       <Button onClick={handleStart} loading={loading}>
         Start studying
       </Button>
-      {error && <p className="subtitle mt-2.5 text-accent-red">{error}</p>}
+      {error && <p className="mt-2.5 text-base leading-[1.6] text-accent-red">{error}</p>}
     </div>
   );
 }

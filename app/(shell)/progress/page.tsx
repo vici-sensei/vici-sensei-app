@@ -73,13 +73,13 @@ export default async function ProgressPage() {
 
   return (
     <div>
-      <h1 className="main-title">Your progress</h1>
-      <p className="subtitle" style={{ marginBottom: 30 }}>
+      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Your progress</h1>
+      <p className="mb-7.5 text-base leading-[1.6] text-text-muted">
         How your cards are distributed across the three exercise types.
       </p>
 
       {grandTotal === 0 ? (
-        <div className="method-card px-5 py-[60px] text-center text-text-muted">
+        <div className="relative rounded-2xl border border-border-soft bg-bg-cards px-5 py-15 text-center text-text-muted backdrop-blur-[10px]">
           <h3 className="mb-2.5 text-[1.3rem] text-white">No progress yet</h3>
           <p>Once you start studying, your kanji and vocabulary will show up here, broken down by status.</p>
           <Link href="/study" className={buttonClasses({ hover: "hover", className: "mt-2.5" })}>
@@ -104,7 +104,7 @@ export default async function ProgressPage() {
               >
                 {block.icon}
               </div>
-              <div className="method-card ml-4">
+              <div className="relative ml-4 rounded-2xl border border-border-soft bg-bg-cards p-7 backdrop-blur-[10px]">
                 <div className="mb-1 flex flex-wrap items-center gap-3">
                   <h3 className="m-0 text-[1.15rem] font-extrabold">{block.title}</h3>
                   <span className="text-sm font-semibold text-text-muted">{blockTotal} total</span>

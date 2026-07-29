@@ -47,7 +47,7 @@ export default function OnboardingPage() {
         </div>
 
         {error && (
-          <div className="login-error show" style={{ marginBottom: 20 }}>
+          <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-accent-red/30 bg-accent-red/[0.08] px-4 py-3.5 text-left text-[0.88rem] text-rose-200">
             <span>{error}</span>
           </div>
         )}

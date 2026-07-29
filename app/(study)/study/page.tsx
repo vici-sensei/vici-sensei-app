@@ -20,7 +20,9 @@ export default function StudyPage() {
     return (
       <div className="flex min-h-screen flex-col bg-bg-main">
         <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
-          <p className="subtitle">{status === "ending" ? "Wrapping up your session…" : "Loading your study queue…"}</p>
+          <p className="text-base leading-[1.6] text-text-muted">
+            {status === "ending" ? "Wrapping up your session…" : "Loading your study queue…"}
+          </p>
         </div>
       </div>
     );
@@ -28,17 +30,17 @@ export default function StudyPage() {
 
   if (status === "error") {
     return (
-      <div className="error-screen">
-        <div className="error-card">
-          <div className="error-icon-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">
+        <div className="relative w-full max-w-[440px]">
+          <div className="mx-auto mb-5.5 flex h-16 w-16 items-center justify-center rounded-full border border-accent-red/30 bg-accent-red/10">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7 text-accent-red">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
           </div>
-          <h1>Something went wrong</h1>
-          <p className="subtitle">{error ?? "Could not load your study queue."}</p>
+          <h1 className="mb-2.5 text-2xl font-extrabold">Something went wrong</h1>
+          <p className="mb-7 text-base leading-[1.6] text-text-muted">{error ?? "Could not load your study queue."}</p>
           <Button onClick={() => window.location.reload()}>Retry</Button>
         </div>
       </div>

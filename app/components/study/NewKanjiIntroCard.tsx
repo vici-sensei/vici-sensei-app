@@ -28,7 +28,7 @@ export function NewKanjiIntroCard({ candidate, detail, disabled, onConfirm }: Pr
           </div>
         )}
       </div>
-      {detail === "loading" && <p className="subtitle mt-5">Loading example words…</p>}
+      {detail === "loading" && <p className="mt-5 text-base leading-[1.6] text-text-muted">Loading example words…</p>}
       {words.length > 0 && (
         <div className="mt-7.5 grid grid-cols-3 gap-3 text-left max-[700px]:grid-cols-1">
           {words.map((w) => (

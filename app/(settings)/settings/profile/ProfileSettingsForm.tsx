@@ -55,8 +55,8 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
 
   return (
     <div>
-      <h2 className="main-title text-[1.7rem]">Profile</h2>
-      <p className="subtitle mb-6.5">Update how your name and avatar appear in the app.</p>
+      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Profile</h2>
+      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">Update how your name and avatar appear in the app.</p>
 
       <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
         <div className="mb-6.5 flex items-center gap-5">

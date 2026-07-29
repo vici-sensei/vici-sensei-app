@@ -32,19 +32,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <div className="relative">
           {allDone ? (
             <>
-              <h1 className="main-title">You&apos;re all done for today 🎉</h1>
-              <p className="subtitle">
+              <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">You&apos;re all done for today 🎉</h1>
+              <p className="text-base leading-[1.6] text-text-muted">
                 Come back tomorrow for your next reviews, or explore the dictionary in the meantime.
               </p>
             </>
           ) : (
             <>
-              <h1 className="main-title">
+              <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
                 You have{" "}
                 <span className="font-extrabold text-accent-red">{cardsToday}</span>{" "}
                 cards to do today
               </h1>
-              <p className="subtitle">
+              <p className="text-base leading-[1.6] text-text-muted">
                 {stats.due_today} reviews are due, plus new kanji and vocabulary ready to introduce.
               </p>
               <StartStudyButton />

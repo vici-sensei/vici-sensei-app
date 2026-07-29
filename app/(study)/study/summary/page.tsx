@@ -24,6 +24,11 @@ export default function StudySummaryPage() {
       router.replace("/dashboard");
       return;
     }
+    // sessionStorage is only readable client-side, so this can't be the initial state —
+    // it must be set post-mount. Reading it any earlier (a lazy useState initializer, a
+    // ref checked during render) makes the client's first paint diverge from the null
+    // server render and trips a hydration mismatch instead.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSummary(stored);
   }, [router]);
 
@@ -35,8 +40,10 @@ export default function StudySummaryPage() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.08)_0%,transparent_55%)]">
       <div className="relative w-full max-w-[560px] text-center">
         <Badge color="gold">Session complete</Badge>
-        <h1 className="main-title mt-4.5">Nice work! You&apos;re done for today.</h1>
-        <p className="subtitle">Here&apos;s how today&apos;s session went.</p>
+        <h1 className="mb-2 mt-4.5 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
+          Nice work! You&apos;re done for today.
+        </h1>
+        <p className="text-base leading-[1.6] text-text-muted">Here&apos;s how today&apos;s session went.</p>
         <div className="my-8.5 grid grid-cols-3 gap-3.5">
           <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
             <div className="mb-1 text-[1.7rem] font-extrabold">{summary.cards_reviewed}</div>

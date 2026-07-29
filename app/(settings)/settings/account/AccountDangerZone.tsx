@@ -32,8 +32,8 @@ export function AccountDangerZone() {
 
   return (
     <div>
-      <h2 className="main-title text-[1.7rem]">Account</h2>
-      <p className="subtitle mb-6.5">Permanently delete your Vici Sensei account.</p>
+      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Account</h2>
+      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">Permanently delete your Vici Sensei account.</p>
 
       <GlassCard tone="danger" padding="lg">
         <div className="mb-1 flex items-center gap-2.5">

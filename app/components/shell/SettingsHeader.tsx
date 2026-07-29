@@ -5,7 +5,10 @@ import { ProfileMenu } from "./ProfileMenu";
 export function SettingsHeader({ user }: { user: UserProfile }) {
   return (
     <header className="sticky top-0 z-50 flex h-17 items-center justify-between border-b border-border-soft bg-bg-main/85 px-7 backdrop-blur-[12px]">
-      <Link href="/dashboard" className="back-link">
+      <Link
+        href="/dashboard"
+        className="inline-flex items-center gap-2 text-[0.88rem] font-bold text-text-muted hover:text-white [&>svg]:h-3.75 [&>svg]:w-3.75"
+      >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <line x1="19" y1="12" x2="5" y2="12" />
           <polyline points="12 19 5 12 12 5" />

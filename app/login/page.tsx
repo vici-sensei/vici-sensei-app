@@ -56,7 +56,7 @@ export default function LoginPage() {
           loading={state === "loading"}
           onClick={handleGoogleLogin}
         >
-          <FcGoogle className="h-5 w-5 shrink-0 rounded bg-white p-0.5" />
+          <FcGoogle className="h-5 w-5 shrink-0 rounded-full bg-white p-0.5" />
           Continue with Google
         </Button>
 

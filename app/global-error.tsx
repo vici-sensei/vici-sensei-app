@@ -23,7 +23,7 @@ export default function GlobalError({
               </svg>
             </div>
             <h1 className="mb-2.5 text-2xl font-extrabold">Something went wrong</h1>
-            <p className="subtitle mb-7">A critical error occurred. Please try reloading the page.</p>
+            <p className="mb-7 text-base leading-[1.6] text-text-muted">A critical error occurred. Please try reloading the page.</p>
             <Button onClick={() => reset()}>Retry</Button>
             {error.digest && <div className="mt-4.5 font-mono text-[0.78rem] text-text-muted">Error reference: {error.digest}</div>}
           </div>
