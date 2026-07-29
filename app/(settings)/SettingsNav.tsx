@@ -60,12 +60,17 @@ export function SettingsNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="settings-nav">
+    <nav className="flex w-full shrink-0 flex-row gap-0.5 overflow-x-auto md:w-55 md:flex-col md:overflow-visible">
       {ITEMS.map((item) => {
         const active = pathname === item.href;
-        const classes = ["settings-nav-link", item.danger ? "danger" : "", active ? "active" : ""]
-          .filter(Boolean)
-          .join(" ");
+        const classes = [
+          "flex cursor-pointer items-center gap-3 rounded-lg border-l-[3px] px-3.5 py-[11px] text-[0.92rem] font-bold transition-all [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0",
+          active
+            ? item.danger
+              ? "border-accent-red bg-accent-red/10 text-[#ff8a93]"
+              : "border-accent-red bg-accent-red/[0.08] text-white"
+            : "border-transparent text-text-muted hover:text-white",
+        ].join(" ");
         return (
           <Link key={item.href} href={item.href} className={classes}>
             {item.icon}

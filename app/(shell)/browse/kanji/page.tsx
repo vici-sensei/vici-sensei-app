@@ -4,6 +4,7 @@ import type { KanjiListResponse, StudySettings } from "@/lib/types";
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { BrowseTabs } from "../BrowseTabs";
 import { BrowseControls } from "../BrowseControls";
+import { Button, buttonClasses } from "@/app/components/ui/Button";
 
 const PAGE_SIZE = 50;
 
@@ -57,59 +58,63 @@ export default async function BrowseKanjiPage({ searchParams }: PageProps) {
         placeholder="Search by character, reading, or meaning..."
       />
 
-      <div className="section-title" style={{ marginTop: 24 }}>
-        Results
-      </div>
+      <div className="mt-6 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Results</div>
 
       {result.data.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon-wrap">
+        <div className="px-5 py-15 text-center text-text-muted">
+          <div className="mx-auto mb-4.5 flex h-15 w-15 items-center justify-center rounded-full border border-border-soft bg-white/[0.04] [&>svg]:h-6.5 [&>svg]:w-6.5">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </div>
-          <h3>No results{search ? ` for "${search}"` : ""}</h3>
+          <h3 className="mb-2 text-[1.15rem] text-white">No results{search ? ` for "${search}"` : ""}</h3>
           <p>Try a different character, reading, or meaning — or adjust the JLPT level filter.</p>
         </div>
       ) : (
         <>
-          <div className="result-list">
+          <div className="mb-6 flex flex-col gap-2.5">
             {result.data.map((row) => (
-              <Link key={row.id} href={`/browse/kanji/${row.id}`} className="result-row">
-                <div className="result-char">{row.kanji}</div>
-                <div className="result-word-block">
-                  <div className="result-main">{row.meanings?.join(", ")}</div>
-                  <div className="result-sub">
+              <Link
+                key={row.id}
+                href={`/browse/kanji/${row.id}`}
+                className="flex cursor-pointer items-center gap-4.5 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
+              >
+                <div className="w-13 shrink-0 text-[1.9rem] font-extrabold">{row.kanji}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-0.5 text-[1.05rem] font-bold">{row.meanings?.join(", ")}</div>
+                  <div className="text-[0.85rem] text-text-muted">
                     kun: {row.kun_readings?.join("、") || "—"} &nbsp;·&nbsp; on: {row.on_readings?.join("、") || "—"}
                   </div>
                 </div>
-                <div className="lvl-badge">{row.level ?? "—"}</div>
+                <div className="shrink-0 rounded-lg border border-accent-red/30 bg-accent-red/10 px-2.5 py-1 text-[0.72rem] font-extrabold text-accent-red">
+                  {row.level ?? "—"}
+                </div>
               </Link>
             ))}
           </div>
 
-          <div className="pagination">
+          <div className="flex items-center justify-center gap-3.5">
             {offset > 0 ? (
-              <Link className="btn-secondary btn-sm" href={pageHref(Math.max(0, offset - PAGE_SIZE))}>
+              <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(Math.max(0, offset - PAGE_SIZE))}>
                 ← Previous
               </Link>
             ) : (
-              <button type="button" className="btn-secondary btn-sm" disabled>
+              <Button variant="secondary" size="sm" disabled>
                 ← Previous
-              </button>
+              </Button>
             )}
-            <span>
+            <span className="text-[0.85rem] font-semibold text-text-muted">
               Page {currentPage} of {totalPages} &nbsp;·&nbsp; {result.count} results
             </span>
             {offset + PAGE_SIZE < result.count ? (
-              <Link className="btn-secondary btn-sm" href={pageHref(offset + PAGE_SIZE)}>
+              <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(offset + PAGE_SIZE)}>
                 Next →
               </Link>
             ) : (
-              <button type="button" className="btn-secondary btn-sm" disabled>
+              <Button variant="secondary" size="sm" disabled>
                 Next →
-              </button>
+              </Button>
             )}
           </div>
         </>

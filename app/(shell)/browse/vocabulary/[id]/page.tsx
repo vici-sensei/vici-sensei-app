@@ -4,6 +4,7 @@ import type { VocabularyProgress, VocabularyRow } from "@/lib/types";
 import { StatusPill } from "@/app/components/ui/StatusPill";
 import { CardActions } from "@/app/components/browse/CardActions";
 import { formatDueAt } from "@/lib/format";
+import { buttonClasses } from "@/app/components/ui/Button";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -15,10 +16,10 @@ export default async function VocabularyDetailPage({ params }: PageProps) {
 
   if (!word) {
     return (
-      <div className="empty-state">
-        <h3>Word not found</h3>
+      <div className="px-5 py-15 text-center text-text-muted">
+        <h3 className="mb-2 text-[1.15rem] text-white">Word not found</h3>
         <p>This vocabulary entry doesn&apos;t exist or may have been removed.</p>
-        <Link href="/browse/vocabulary" className="btn-secondary btn-sm" style={{ marginTop: 16, display: "inline-flex" }}>
+        <Link href="/browse/vocabulary" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mt-4" })}>
           ← Back to results
         </Link>
       </div>
@@ -26,56 +27,57 @@ export default async function VocabularyDetailPage({ params }: PageProps) {
   }
 
   const progress = await fetchServerOptional<VocabularyProgress>(`/api/progress/vocabulary/${id}`);
+  const factLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
 
   return (
     <div>
-      <Link href="/browse/vocabulary" className="btn-secondary btn-sm" style={{ marginBottom: 24, display: "inline-flex" }}>
+      <Link href="/browse/vocabulary" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mb-6" })}>
         ← Back to results
       </Link>
 
-      <div className="detail-header">
-        <div className="detail-word-block">
-          <div className="detail-word">{word.word}</div>
-          <div className="detail-kana">
+      <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
+        <div className="min-w-55 flex-1">
+          <div className="text-[clamp(2.2rem,5vw,3rem)] font-extrabold leading-[1.1]">{word.word}</div>
+          <div className="mt-1 mb-3 text-[1.2rem] font-bold text-accent-blue">
             {word.kana_reading}
             {word.romaji_reading && <> &nbsp;·&nbsp; romaji: {word.romaji_reading}</>}
           </div>
-          <div className="detail-meanings">{word.meanings?.join(", ")}</div>
-          <div className="detail-facts">
-            <div className="fact-col">
-              <div className="lbl">Part of speech</div>
-              <div className="vals">{word.parts_of_speech?.join(", ") || "—"}</div>
+          <div className="mb-3 text-[1.35rem] font-bold">{word.meanings?.join(", ")}</div>
+          <div className="flex flex-wrap gap-6">
+            <div>
+              <div className={factLabel}>Part of speech</div>
+              <div className="text-base font-bold">{word.parts_of_speech?.join(", ") || "—"}</div>
             </div>
-            <div className="fact-col">
-              <div className="lbl">JLPT level</div>
-              <div className="vals">
-                <span className="lvl-badge">{word.jlpt_level ?? "—"}</span>
+            <div>
+              <div className={factLabel}>JLPT level</div>
+              <div className="text-base font-bold">
+                <span className="rounded-lg border border-accent-red/30 bg-accent-red/10 px-2.5 py-1 text-[0.72rem] font-extrabold text-accent-red">
+                  {word.jlpt_level ?? "—"}
+                </span>
               </div>
             </div>
-            <div className="fact-col">
-              <div className="lbl">Other readings</div>
-              <div className="vals" style={{ color: "var(--color-text-muted)" }}>
-                {word.other_readings?.join(", ") || "—"}
-              </div>
+            <div>
+              <div className={factLabel}>Other readings</div>
+              <div className="text-base font-bold text-text-muted">{word.other_readings?.join(", ") || "—"}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="section-title">Your progress</div>
+      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
       {progress ? (
-        <div className="progress-row">
-          <div className="pr-label">Meaning — &quot;{word.meanings?.[0] ?? word.word}&quot;</div>
-          <div className="progress-meta-group">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-soft bg-white/[0.02] px-4.5 py-3.5">
+          <div className="text-[0.92rem] font-bold">Meaning — &quot;{word.meanings?.[0] ?? word.word}&quot;</div>
+          <div className="flex flex-wrap items-center gap-3.5">
             <StatusPill status={progress.status} />
-            <span className="pr-meta">
+            <span className="text-[0.8rem] tabular-nums text-text-muted">
               due {formatDueAt(progress.due_at)} &nbsp;·&nbsp; ease {progress.ease_factor.toFixed(2)}
             </span>
             <CardActions type="vocab" id={word.id} status={progress.status} />
           </div>
         </div>
       ) : (
-        <div className="no-progress-note">
+        <div className="rounded-xl border border-dashed border-border-soft bg-white/[0.02] px-5 py-4.5 text-[0.92rem] text-text-muted">
           You haven&apos;t started this word yet. It&apos;ll appear here once it comes up in your normal study queue.
         </div>
       )}

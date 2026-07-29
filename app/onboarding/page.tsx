@@ -30,19 +30,19 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="onboarding-screen">
-      <div className="onboarding-card">
-        <Badge color="blue">Last step</Badge>
-        <h1>What JLPT level are you studying?</h1>
-        <p className="explain">
+    <div className="flex min-h-screen items-center justify-center px-6 py-[60px]">
+      <div className="w-full max-w-[560px] text-center">
+        <Badge color="blue" className="mb-5">Last step</Badge>
+        <h1 className="mb-3.5 text-[2.1rem] font-extrabold tracking-[-1px]">What JLPT level are you studying?</h1>
+        <p className="mx-auto mb-9 max-w-md text-base leading-[1.6] text-text-muted">
           Choose the most advanced level you&apos;re studying now. Lower levels are enabled automatically — if you
           know N3, we assume you know N5/N4 too.
         </p>
 
         <LevelGrid value={level} onChange={setLevel} />
 
-        <div className="onboarding-note">
-          You&apos;ll study <strong>{included.slice().reverse().join(", ")}</strong>. You can change this anytime in
+        <div className="mb-8 mt-3.5 rounded-lg border border-border-soft bg-white/[0.03] px-4 py-3 text-sm text-text-muted">
+          You&apos;ll study <strong className="text-white">{included.slice().reverse().join(", ")}</strong>. You can change this anytime in
           Settings.
         </div>
 
@@ -52,7 +52,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        <Button onClick={handleContinue} loading={submitting} style={{ width: "100%" }}>
+        <Button onClick={handleContinue} loading={submitting} className="w-full">
           Continue
         </Button>
       </div>

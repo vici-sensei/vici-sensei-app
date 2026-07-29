@@ -15,9 +15,9 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   return (
     <div>
       <SettingsHeader user={user} />
-      <div className="settings-body">
+      <div className="mx-auto flex max-w-[1000px] flex-col gap-6 px-6 pb-20 pt-9 md:flex-row md:gap-10">
         <SettingsNav />
-        <div className="settings-pane">{children}</div>
+        <div className="min-w-0 flex-1">{children}</div>
       </div>
     </div>
   );

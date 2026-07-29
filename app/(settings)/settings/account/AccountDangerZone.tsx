@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
+import { GlassCard } from "@/app/components/ui/GlassCard";
+import { Button } from "@/app/components/ui/Button";
 
 export function AccountDangerZone() {
   const router = useRouter();
@@ -30,17 +32,13 @@ export function AccountDangerZone() {
 
   return (
     <div>
-      <h2 className="main-title" style={{ fontSize: "1.7rem" }}>
-        Account
-      </h2>
-      <p className="subtitle" style={{ marginBottom: 26 }}>
-        Permanently delete your Vici Sensei account.
-      </p>
+      <h2 className="main-title text-[1.7rem]">Account</h2>
+      <p className="subtitle mb-6.5">Permanently delete your Vici Sensei account.</p>
 
-      <div className="legal-company-card danger-card">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+      <GlassCard tone="danger" padding="lg">
+        <div className="mb-1 flex items-center gap-2.5">
           <svg
-            style={{ width: 20, height: 20, color: "var(--color-accent-red)" }}
+            className="h-5 w-5 text-accent-red"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -52,47 +50,40 @@ export function AccountDangerZone() {
             <line x1="12" y1="9" x2="12" y2="13" />
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
-          <strong style={{ fontSize: "1.05rem" }}>This can&apos;t be undone</strong>
+          <strong className="text-[1.05rem]">This can&apos;t be undone</strong>
         </div>
-        <p className="field-hint" style={{ margin: "10px 0 0" }}>
-          Deleting your account permanently removes:
-        </p>
-        <ul className="danger-list">
+        <p className="mt-2.5 text-[0.8rem] leading-normal text-text-muted">Deleting your account permanently removes:</p>
+        <ul className="mt-3.5 mb-5 list-disc pl-5 text-[0.9rem] leading-[1.8] text-text-muted">
           <li>All kanji, reading, and vocabulary progress</li>
           <li>Your full review history and study sessions</li>
           <li>Your active Premium subscription (cancelled automatically)</li>
         </ul>
-        <label className="confirm-row">
-          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+        <label className="my-5 flex items-start gap-2.5 text-[0.9rem] text-text-muted">
+          <input
+            type="checkbox"
+            className="mt-[3px] h-4 w-4 shrink-0 accent-accent-red"
+            checked={confirmed}
+            onChange={(e) => setConfirmed(e.target.checked)}
+          />
           I understand this action is permanent and cannot be reversed.
         </label>
-        <div className="field-group">
-          <label className="field-label">
-            Type <strong style={{ color: "#fff" }}>DELETE</strong> to confirm
+        <div className="mb-[22px]">
+          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted">
+            Type <strong className="text-white">DELETE</strong> to confirm
           </label>
           <input
-            className="field-input confirm-word-input"
+            className="w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 font-mono tracking-[1px] text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40"
             type="text"
             placeholder="DELETE"
             value={word}
             onChange={(e) => setWord(e.target.value)}
           />
         </div>
-        {error && (
-          <p className="field-hint" style={{ color: "var(--color-accent-red)" }}>
-            {error}
-          </p>
-        )}
-        <button
-          type="button"
-          className="btn-primary btn-danger"
-          disabled={!canDelete || deleting}
-          onClick={handleDelete}
-          style={{ width: "100%" }}
-        >
+        {error && <p className="mt-1.5 text-[0.8rem] leading-normal text-accent-red">{error}</p>}
+        <Button danger className="w-full" disabled={!canDelete || deleting} onClick={handleDelete}>
           {deleting ? "Deleting…" : "Delete my account permanently"}
-        </button>
-      </div>
+        </Button>
+      </GlassCard>
     </div>
   );
 }

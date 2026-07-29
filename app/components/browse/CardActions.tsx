@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPost, ApiError } from "@/lib/api/client";
 import type { CardType } from "@/lib/srs/progressTables";
 import type { ProgressStatus } from "@/lib/srs/constants";
+import { Button } from "@/app/components/ui/Button";
 
 interface Props {
   type: CardType;
@@ -31,30 +32,16 @@ export function CardActions({ type, id, status }: Props) {
   }
 
   return (
-    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+    <div className="flex items-center gap-2.5">
       {status !== "suspended" && (
-        <button
-          type="button"
-          className="btn-secondary btn-sm"
-          onClick={() => handle("suspend")}
-          disabled={pending !== null}
-        >
+        <Button variant="secondary" size="sm" onClick={() => handle("suspend")} disabled={pending !== null}>
           {pending === "suspend" ? "Suspending…" : "Suspend"}
-        </button>
+        </Button>
       )}
-      <button
-        type="button"
-        className="btn-secondary btn-sm btn-danger"
-        onClick={() => handle("reset")}
-        disabled={pending !== null}
-      >
+      <Button variant="secondary" size="sm" danger onClick={() => handle("reset")} disabled={pending !== null}>
         {pending === "reset" ? "Resetting…" : "Reset progress"}
-      </button>
-      {error && (
-        <span className="pr-meta" style={{ color: "var(--color-accent-red)" }}>
-          {error}
-        </span>
-      )}
+      </Button>
+      {error && <span className="text-[0.8rem] tabular-nums text-accent-red">{error}</span>}
     </div>
   );
 }

@@ -41,11 +41,14 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
     }
   }
 
+  const menuItemClasses =
+    "block w-full rounded-lg px-3 py-2.5 text-left text-[0.88rem] font-semibold text-text-muted hover:bg-white/5 hover:text-white";
+
   return (
-    <div className="app-avatar-wrap" ref={wrapRef}>
+    <div className="relative" ref={wrapRef}>
       <button
         type="button"
-        className="app-avatar"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[0.9rem] font-extrabold text-white"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -53,21 +56,31 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
       >
         {initials(user.display_name, user.email)}
       </button>
-      <div className={`profile-menu${open ? " open" : ""}`} role="menu">
-        <Link href="/settings/study" onClick={() => setOpen(false)}>
+      <div
+        className={`absolute right-0 top-12 z-60 w-55 flex-col gap-0.5 rounded-2xl border border-border-soft bg-bg-cards p-2 shadow-[0_20px_40px_rgba(0,0,0,0.4)] backdrop-blur-[10px] ${
+          open ? "flex" : "hidden"
+        }`}
+        role="menu"
+      >
+        <Link href="/settings/study" className={menuItemClasses} onClick={() => setOpen(false)}>
           Settings — Study
         </Link>
-        <Link href="/settings/profile" onClick={() => setOpen(false)}>
+        <Link href="/settings/profile" className={menuItemClasses} onClick={() => setOpen(false)}>
           Settings — Profile
         </Link>
-        <Link href="/settings/billing" onClick={() => setOpen(false)}>
+        <Link href="/settings/billing" className={menuItemClasses} onClick={() => setOpen(false)}>
           Settings — Billing
         </Link>
-        <Link href="/settings/account" onClick={() => setOpen(false)}>
+        <Link href="/settings/account" className={menuItemClasses} onClick={() => setOpen(false)}>
           Settings — Account
         </Link>
-        <hr />
-        <button type="button" className="logout" onClick={handleLogout} disabled={loggingOut}>
+        <hr className="mx-1 my-1.5 border-border-soft" />
+        <button
+          type="button"
+          className={`${menuItemClasses} text-accent-red hover:text-accent-red`}
+          onClick={handleLogout}
+          disabled={loggingOut}
+        >
           {loggingOut ? "Logging out…" : "Log out"}
         </button>
       </div>

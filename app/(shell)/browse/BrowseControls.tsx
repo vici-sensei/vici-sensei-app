@@ -43,31 +43,47 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
 
   return (
     <>
-      <div className="search-row">
-        <div className="search-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <div className="mb-4.5 flex flex-wrap gap-3">
+        <div className="flex min-w-55 flex-1 items-center gap-2.5 rounded-xl border border-border-soft bg-white/[0.03] px-4 py-3">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4 shrink-0 text-text-muted"
+          >
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             type="text"
+            className="flex-1 bg-transparent text-[0.95rem] text-white outline-none placeholder:text-text-muted"
             placeholder={placeholder}
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
       </div>
-      <div className="level-filter">
-        {JLPT_LEVELS.map((level) => (
-          <button
-            key={level}
-            type="button"
-            className={`level-toggle${levels.includes(level) ? " active" : ""}`}
-            onClick={() => toggleLevel(level)}
-          >
-            {level}
-          </button>
-        ))}
+      <div className="mb-4.5 flex flex-wrap gap-2">
+        {JLPT_LEVELS.map((level) => {
+          const active = levels.includes(level);
+          return (
+            <button
+              key={level}
+              type="button"
+              className={`cursor-pointer rounded-xl border px-4 py-[11px] text-[0.85rem] font-extrabold transition-all ${
+                active
+                  ? "border-accent-blue/35 bg-accent-blue/[0.12] text-accent-blue"
+                  : "border-border-soft bg-white/[0.03] text-text-muted hover:border-white/20"
+              }`}
+              onClick={() => toggleLevel(level)}
+            >
+              {level}
+            </button>
+          );
+        })}
       </div>
     </>
   );

@@ -18,8 +18,8 @@ export default function StudyPage() {
 
   if (status === "loading" || status === "ending" || !current) {
     return (
-      <div className="study-screen">
-        <div className="study-stage">
+      <div className="flex min-h-screen flex-col bg-bg-main">
+        <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
           <p className="subtitle">{status === "ending" ? "Wrapping up your session…" : "Loading your study queue…"}</p>
         </div>
       </div>
@@ -46,9 +46,9 @@ export default function StudyPage() {
   }
 
   return (
-    <div className="study-screen">
+    <div className="flex min-h-screen flex-col bg-bg-main">
       <QueueProgressBar completed={completedCount} total={totalKnown} onExit={() => router.push("/dashboard")} />
-      <div className="study-stage">
+      <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
         {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
           <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={actionPending} onRate={actions.rate} />
         )}
@@ -76,7 +76,7 @@ export default function StudyPage() {
           />
         )}
       </div>
-      <div className="study-footer">
+      <div className="flex min-h-14 justify-center px-6 pb-7">
         <UndoPill visible={lastReview !== null} disabled={actionPending} onUndo={actions.undoLast} />
       </div>
     </div>

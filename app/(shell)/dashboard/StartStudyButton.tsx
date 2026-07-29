@@ -26,15 +26,11 @@ export function StartStudyButton() {
   }
 
   return (
-    <div style={{ marginTop: 24 }}>
+    <div className="mt-6">
       <Button onClick={handleStart} loading={loading}>
         Start studying
       </Button>
-      {error && (
-        <p className="subtitle" style={{ color: "var(--color-accent-red)", marginTop: 10 }}>
-          {error}
-        </p>
-      )}
+      {error && <p className="subtitle mt-2.5 text-accent-red">{error}</p>}
     </div>
   );
 }

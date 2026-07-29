@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
+import { FaToriiGate } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
+import { Badge } from "@/app/components/ui/Badge";
+import { Button } from "@/app/components/ui/Button";
 
 type LoginState = "idle" | "loading" | "error";
 
@@ -30,50 +33,52 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-screen">
-      <div className="login-card">
-        <div className="login-logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 8h20M4 8v13M20 8v13M7 3c0 2.5 2 4 5 4s5-1.5 5-4" />
-          </svg>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">
+      <div className="relative w-full max-w-[460px]">
+        <div className="mb-7 flex items-center justify-center gap-2.5 text-2xl font-extrabold tracking-[-0.5px]">
+          <FaToriiGate className="h-[26px] w-[26px] text-accent-red" />
           Vici Sensei
         </div>
-        <span className="badge">Spaced repetition, Anki style</span>
-        <h1 className="main-title" style={{ fontSize: "2.6rem" }}>
+        <Badge>Spaced repetition, Anki style</Badge>
+        <h1 className="mb-2 text-[2.6rem] font-extrabold leading-tight tracking-[-0.8px]">
           Learn Japanese
           <br />
           at your own pace.
         </h1>
-        <p className="subtitle">
+        <p className="mb-10 text-base leading-[1.6] text-text-muted">
           Kanji, readings, and vocabulary organized by JLPT level, scheduled for exactly when your brain needs to
           see them again.
         </p>
 
-        <button
+        <Button
           type="button"
-          className={`btn-primary${state === "loading" ? " is-loading" : ""}`}
-          style={{ width: "100%", maxWidth: 360 }}
+          className="w-full max-w-[360px]"
+          loading={state === "loading"}
           onClick={handleGoogleLogin}
-          disabled={state === "loading"}
         >
-          <span className="spinner" style={state === "loading" ? { display: "inline-block" } : undefined} />
-          <FcGoogle className="google-btn-icon" />
-          <span className="btn-label">Continue with Google</span>
-        </button>
+          <FcGoogle className="h-5 w-5 shrink-0 rounded bg-white p-0.5" />
+          Continue with Google
+        </Button>
 
-        <div className={`login-error${state === "error" ? " show" : ""}`}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <div
+          className={`mt-[22px] items-center gap-2.5 rounded-xl border border-accent-red/30 bg-accent-red/[0.08] px-4 py-3.5 text-left text-[0.88rem] text-rose-200 ${
+            state === "error" ? "flex" : "hidden"
+          }`}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-[18px] w-[18px] shrink-0 text-accent-red">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <span>Sign-in failed. Please try again.</span>
-          <span className="retry-link" onClick={handleGoogleLogin}>
+          <span className="ml-auto cursor-pointer whitespace-nowrap font-bold text-white underline underline-offset-2" onClick={handleGoogleLogin}>
             Retry
           </span>
         </div>
 
-        <p className="login-footnote">No passwords. Secure sign-in exclusively through your Google account.</p>
+        <p className="mt-[18px] text-[0.85rem] text-text-muted">
+          No passwords. Secure sign-in exclusively through your Google account.
+        </p>
       </div>
     </div>
   );

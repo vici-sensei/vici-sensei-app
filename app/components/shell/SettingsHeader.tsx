@@ -4,7 +4,7 @@ import { ProfileMenu } from "./ProfileMenu";
 
 export function SettingsHeader({ user }: { user: UserProfile }) {
   return (
-    <header className="app-header">
+    <header className="sticky top-0 z-50 flex h-17 items-center justify-between border-b border-border-soft bg-bg-main/85 px-7 backdrop-blur-[12px]">
       <Link href="/dashboard" className="back-link">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <line x1="19" y1="12" x2="5" y2="12" />
@@ -12,8 +12,8 @@ export function SettingsHeader({ user }: { user: UserProfile }) {
         </svg>
         Back to app
       </Link>
-      <Link href="/dashboard" className="app-logo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Link href="/dashboard" className="inline-flex items-center gap-2 text-[1.15rem] font-extrabold tracking-[-0.4px]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-accent-red">
           <path d="M2 8h20M4 8v13M20 8v13M7 3c0 2.5 2 4 5 4s5-1.5 5-4" />
         </svg>
         Vici Sensei

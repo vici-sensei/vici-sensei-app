@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, ApiError } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
+import { Button } from "@/app/components/ui/Button";
 import type { UserProfile, UserProfilePatch } from "@/lib/types";
 
 function initials(name: string | null, email: string) {
@@ -47,29 +48,30 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
   const previewInitials = initials(displayName, initial.email);
   const canSave = dirty && displayName.trim().length > 0 && displayName.trim().length <= 50;
 
+  const fieldLabel = "mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted";
+  const fieldInput =
+    "w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40 read-only:cursor-not-allowed read-only:text-text-muted";
+  const fieldHint = "mt-1.5 text-[0.8rem] leading-normal text-text-muted";
+
   return (
     <div>
-      <h2 className="main-title" style={{ fontSize: "1.7rem" }}>
-        Profile
-      </h2>
-      <p className="subtitle" style={{ marginBottom: 26 }}>
-        Update how your name and avatar appear in the app.
-      </p>
+      <h2 className="main-title text-[1.7rem]">Profile</h2>
+      <p className="subtitle mb-6.5">Update how your name and avatar appear in the app.</p>
 
-      <div className="legal-company-card">
-        <div className="avatar-row">
-          <div className="avatar-preview">
+      <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+        <div className="mb-6.5 flex items-center gap-5">
+          <div className="flex h-18 w-18 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[1.4rem] font-extrabold text-white">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- arbitrary user-supplied URL, any domain
-              <img src={avatarUrl} alt="" />
+              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               previewInitials
             )}
           </div>
-          <div style={{ flex: 1 }}>
-            <label className="field-label">Avatar URL</label>
+          <div className="flex-1">
+            <label className={fieldLabel}>Avatar URL</label>
             <input
-              className="field-input"
+              className={fieldInput}
               type="text"
               placeholder="https://..."
               value={avatarUrl}
@@ -80,10 +82,10 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
             />
           </div>
         </div>
-        <div className="field-group">
-          <label className="field-label">Display name</label>
+        <div className="mb-[22px]">
+          <label className={fieldLabel}>Display name</label>
           <input
-            className="field-input"
+            className={fieldInput}
             type="text"
             maxLength={50}
             value={displayName}
@@ -92,23 +94,23 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
               setDirty(true);
             }}
           />
-          <div className="field-hint">1–50 characters.</div>
+          <div className={fieldHint}>1–50 characters.</div>
         </div>
-        <div className="field-group" style={{ marginBottom: 0 }}>
-          <label className="field-label">Email</label>
-          <input className="field-input" type="text" value={initial.email} readOnly />
-          <div className="field-hint">Comes from your Google account — can&apos;t be changed here.</div>
+        <div>
+          <label className={fieldLabel}>Email</label>
+          <input className={fieldInput} type="text" value={initial.email} readOnly />
+          <div className={fieldHint}>Comes from your Google account — can&apos;t be changed here.</div>
         </div>
       </div>
 
-      {error && (
-        <p className="field-hint" style={{ color: "var(--color-accent-red)" }}>
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-1.5 text-[0.8rem] leading-normal text-accent-red">{error}</p>}
 
-      <div className="save-bar">
-        <div className={`unsaved-note${dirty ? " show" : ""}`}>
+      <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-[22px]">
+        <div
+          className={`flex items-center gap-2 text-[0.85rem] text-accent-gold transition-opacity duration-200 [&>svg]:h-3.5 [&>svg]:w-3.5 ${
+            dirty ? "opacity-100" : "opacity-0"
+          }`}
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
@@ -116,9 +118,9 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
           </svg>
           Unsaved changes
         </div>
-        <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || !canSave}>
+        <Button onClick={handleSave} disabled={saving || !canSave}>
           {saving ? "Saving..." : "Save changes"}
-        </button>
+        </Button>
       </div>
     </div>
   );
