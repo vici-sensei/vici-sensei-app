@@ -42,8 +42,12 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const url = request.nextUrl.clone()
 
-  // Regulile tale de protecție a rutelor
-  if (!user && url.pathname.startsWith('/dashboard')) {
+  // Toate rutele autentificate — restul (login, session-expired, auth/callback, api/*) rămân publice la acest nivel;
+  // /api/* face propriul guard (401 JSON) prin requireUser(), iar /onboarding are nevoie doar de sesiune, nu de
+  // onboarding_completed (acel gate mai fin trăiește în layout-urile (shell)/(study), care oricum fac fetch de settings).
+  const PROTECTED_PREFIXES = ['/dashboard', '/study', '/browse', '/progress', '/settings', '/onboarding']
+
+  if (!user && PROTECTED_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }

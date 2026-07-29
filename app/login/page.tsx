@@ -1,53 +1,79 @@
-'use client';
+"use client";
 
-// 1. Schimbă importul din @supabase/supabase-js în @supabase/ssr
-import { createBrowserClient } from '@supabase/ssr';
-import { FcGoogle } from 'react-icons/fc';
+import { useState } from "react";
+import { FcGoogle } from "react-icons/fc";
+import { createClient } from "@/lib/supabase/client";
 
-// 2. Inițializează folosind createBrowserClient
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+type LoginState = "idle" | "loading" | "error";
 
 export default function LoginPage() {
-  const handleGoogleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
+  const [state, setState] = useState<LoginState>("idle");
+
+  async function handleGoogleLogin() {
+    setState("loading");
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
       options: {
-        // Această configurare combinată cu createBrowserClient va forța 
-        // generarea unui flow PKCE (?code=...) în loc de hash (#access_token)
         redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         queryParams: {
-          access_type: 'offline',
-          prompt: 'select_account',
+          access_type: "offline",
+          prompt: "select_account",
         },
       },
     });
-  };
+
+    if (error) {
+      setState("error");
+    }
+    // On success the browser navigates away to Google — no further state change needed.
+  }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0d1117] px-4 text-white font-sans antialiased">
-      <div className="w-full max-w-md space-y-8 rounded-2xl border border-zinc-700/50 bg-[#161b22] p-8 shadow-2xl">
-        <div className="text-center">
-          <span className="text-4xl inline-block drop-shadow-[0_0_8px_rgba(255,68,85,0.2)]">⛩️</span>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            Vici Sensei
-          </h1>
-          <p className="mt-3 text-sm font-medium text-zinc-400">
-            Learn Japanese smartly with the SRS system
-          </p>
+    <div className="login-screen">
+      <div className="login-card">
+        <div className="login-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 8h20M4 8v13M20 8v13M7 3c0 2.5 2 4 5 4s5-1.5 5-4" />
+          </svg>
+          Vici Sensei
+        </div>
+        <span className="badge">Spaced repetition, Anki style</span>
+        <h1 className="main-title" style={{ fontSize: "2.6rem" }}>
+          Learn Japanese
+          <br />
+          at your own pace.
+        </h1>
+        <p className="subtitle">
+          Kanji, readings, and vocabulary organized by JLPT level, scheduled for exactly when your brain needs to
+          see them again.
+        </p>
+
+        <button
+          type="button"
+          className={`btn-primary${state === "loading" ? " is-loading" : ""}`}
+          style={{ width: "100%", maxWidth: 360 }}
+          onClick={handleGoogleLogin}
+          disabled={state === "loading"}
+        >
+          <span className="spinner" style={state === "loading" ? { display: "inline-block" } : undefined} />
+          <FcGoogle className="google-btn-icon" />
+          <span className="btn-label">Continue with Google</span>
+        </button>
+
+        <div className={`login-error${state === "error" ? " show" : ""}`}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>Sign-in failed. Please try again.</span>
+          <span className="retry-link" onClick={handleGoogleLogin}>
+            Retry
+          </span>
         </div>
 
-        <div className="mt-8">
-          <button
-            onClick={handleGoogleLogin}
-            className="flex w-full items-center justify-center gap-3 rounded-full border border-[#ff4455]/60 bg-[#22141c] px-5 py-3.5 text-sm font-bold text-[#ff4455] tracking-wide transition-all duration-200 hover:bg-[#2f1a26] hover:border-[#ff4455] hover:shadow-[0_0_15px_rgba(255,68,85,0.2)] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#ff4455] focus:ring-offset-2 focus:ring-offset-[#161b22]"
-          >
-            <FcGoogle className="h-5 w-5 min-w-[20px] min-h-[20px]" />
-            <span>Sign in with Google</span>
-          </button>
-        </div>
+        <p className="login-footnote">No passwords. Secure sign-in exclusively through your Google account.</p>
       </div>
     </div>
   );
