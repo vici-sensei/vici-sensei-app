@@ -78,8 +78,18 @@ export async function POST(request: Request) {
     wordIdForLog = kanjiWord.id_word
   }
 
+  const { data: openSession } = await supabase
+    .from('study_sessions')
+    .select('id')
+    .eq('user_id', user.id)
+    .is('ended_at', null)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   const { error: logError } = await supabase.from('review_logs').insert({
     user_id: user.id,
+    session_id: openSession?.id ?? null,
     exercise_type,
     kanji_id: kanjiIdForLog,
     word_id: wordIdForLog,

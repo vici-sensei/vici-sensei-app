@@ -5,6 +5,15 @@ import { jsonError, requireUser } from '@/lib/api/errors'
 
 const bodySchema = z.object({ session_id: z.number().int() })
 
+type EndStudySessionRow = {
+  id: number
+  started_at: string
+  ended_at: string
+  cards_reviewed: number
+  cards_correct: number
+  duration_seconds: number
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { user, response } = await requireUser(supabase)
@@ -15,45 +24,18 @@ export async function POST(request: Request) {
     return jsonError(400, parsed.error.issues[0]?.message ?? 'Invalid request body.')
   }
 
-  const { data: session, error: sessionError } = await supabase
-    .from('study_sessions')
-    .select('id, started_at')
-    .eq('id', parsed.data.session_id)
-    .eq('user_id', user.id)
-    .maybeSingle()
+  const { data, error } = await supabase.rpc('end_study_session', {
+    p_user_id: user.id,
+    p_session_id: parsed.data.session_id,
+  })
 
-  if (sessionError) return jsonError(500, sessionError.message)
-  if (!session) return jsonError(404, 'Study session not found.')
-
-  const endedAt = new Date().toISOString()
-
-  const { data: logs, error: logsError } = await supabase
-    .from('review_logs')
-    .select('correct')
-    .eq('user_id', user.id)
-    .eq('undone', false)
-    .gte('reviewed_at', session.started_at)
-    .lte('reviewed_at', endedAt)
-
-  if (logsError) return jsonError(500, logsError.message)
-
-  const cardsReviewed = logs.length
-  const cardsCorrect = logs.filter((log) => log.correct).length
-
-  const { data: updated, error: updateError } = await supabase
-    .from('study_sessions')
-    .update({ ended_at: endedAt, cards_reviewed: cardsReviewed, cards_correct: cardsCorrect })
-    .eq('id', session.id)
-    .select('*')
-    .single()
-
-  if (updateError) return jsonError(500, updateError.message)
-
-  const durationMs = new Date(endedAt).getTime() - new Date(session.started_at).getTime()
+  if (error) return jsonError(500, error.message)
+  const row = ((data ?? []) as EndStudySessionRow[])[0]
+  if (!row) return jsonError(404, 'Study session not found.')
 
   return NextResponse.json({
-    ...updated,
-    duration_seconds: Math.round(durationMs / 1000),
-    accuracy: cardsReviewed > 0 ? cardsCorrect / cardsReviewed : null,
+    ...row,
+    user_id: user.id,
+    accuracy: row.cards_reviewed > 0 ? row.cards_correct / row.cards_reviewed : null,
   })
 }

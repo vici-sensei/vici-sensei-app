@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { popStoredSummary } from "@/lib/study/session";
@@ -17,8 +17,16 @@ function formatDuration(seconds: number): string {
 export default function StudySummaryPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<StudySessionEnd | null>(null);
+  const hasPopped = useRef(false);
 
   useEffect(() => {
+    // Strict Mode double-invokes effects on mount in dev. popStoredSummary()
+    // clears sessionStorage as it reads, so a second invocation would find
+    // nothing and immediately redirect away — this guard makes the pop
+    // happen exactly once regardless of how many times the effect runs.
+    if (hasPopped.current) return;
+    hasPopped.current = true;
+
     const stored = popStoredSummary();
     if (!stored) {
       router.replace("/dashboard");
@@ -34,7 +42,7 @@ export default function StudySummaryPage() {
 
   if (!summary) return null;
 
-  const accuracyLabel = summary.accuracy != null ? `${Math.round(summary.accuracy * 100)}%` : "—";
+  const accuracyLabel = summary.accuracy != null ? `${Math.round(summary.accuracy * 100)}%` : "N/A";
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.08)_0%,transparent_55%)]">
@@ -50,7 +58,15 @@ export default function StudySummaryPage() {
             <div className="text-[0.78rem] font-semibold text-text-muted">Reviewed</div>
           </div>
           <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-            <div className="mb-1 text-[1.7rem] font-extrabold text-accent-blue">{accuracyLabel}</div>
+            <div
+              className={
+                summary.accuracy != null
+                  ? "mb-1 text-[1.7rem] font-extrabold text-accent-blue"
+                  : "mb-1 text-[1.7rem] font-semibold text-text-muted"
+              }
+            >
+              {accuracyLabel}
+            </div>
             <div className="text-[0.78rem] font-semibold text-text-muted">Accuracy</div>
           </div>
           <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">

@@ -63,16 +63,16 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
         role="menu"
       >
         <Link href="/settings/study" className={menuItemClasses} onClick={() => setOpen(false)}>
-          Settings — Study
+          Settings
         </Link>
         <Link href="/settings/profile" className={menuItemClasses} onClick={() => setOpen(false)}>
-          Settings — Profile
+          Profile
         </Link>
         <Link href="/settings/billing" className={menuItemClasses} onClick={() => setOpen(false)}>
-          Settings — Billing
+          Subscription
         </Link>
         <Link href="/settings/account" className={menuItemClasses} onClick={() => setOpen(false)}>
-          Settings — Account
+          Account
         </Link>
         <hr className="mx-1 my-1.5 border-border-soft" />
         <button

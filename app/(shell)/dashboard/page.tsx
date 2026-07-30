@@ -17,6 +17,24 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const remainingVocab = Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0);
   const cardsToday = stats.due_today + remainingKanji + remainingVocab;
   const allDone = cardsToday === 0;
+  const kanjiPending = remainingKanji > 0;
+  const vocabPending = remainingVocab > 0;
+  const hasNewContent = kanjiPending || vocabPending;
+
+  let newContentPhrase = "";
+  if (kanjiPending && vocabPending) newContentPhrase = "new kanji and vocabulary";
+  else if (kanjiPending) newContentPhrase = "new kanji";
+  else if (vocabPending) newContentPhrase = "new vocabulary";
+
+  let summaryText: string;
+  if (stats.due_today > 0 && hasNewContent) {
+    summaryText = `${stats.due_today} review${stats.due_today === 1 ? "" : "s"} due, plus ${newContentPhrase} ready to introduce.`;
+  } else if (stats.due_today > 0) {
+    summaryText = `${stats.due_today} review${stats.due_today === 1 ? "" : "s"} due today.`;
+  } else {
+    const verb = kanjiPending && vocabPending ? "are" : "is";
+    summaryText = `${newContentPhrase.charAt(0).toUpperCase() + newContentPhrase.slice(1)} ${verb} ready to introduce.`;
+  }
 
   return (
     <div>
@@ -42,11 +60,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
                 You have{" "}
                 <span className="font-extrabold text-accent-red">{cardsToday}</span>{" "}
-                cards to do today
+                card{cardsToday === 1 ? "" : "s"} to do today
               </h1>
-              <p className="text-base leading-[1.6] text-text-muted">
-                {stats.due_today} reviews are due, plus new kanji and vocabulary ready to introduce.
-              </p>
+              <p className="text-base leading-[1.6] text-text-muted">{summaryText}</p>
               <StartStudyButton />
             </>
           )}
@@ -99,8 +115,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <polyline points="12 6 12 12 16 14" />
             </svg>
           </div>
-          <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-            {stats.retention_rate != null ? `${Math.round(stats.retention_rate * 100)}%` : "—"}
+          <div
+            className={
+              stats.retention_rate != null
+                ? "mb-1.5 text-3xl font-extrabold leading-none tracking-tight"
+                : "mb-1.5 text-3xl font-semibold leading-none tracking-tight text-text-muted"
+            }
+          >
+            {stats.retention_rate != null ? `${Math.round(stats.retention_rate * 100)}%` : "N/A"}
           </div>
           <div className="text-sm font-semibold text-text-muted">Retention (30d)</div>
         </GlassCard>

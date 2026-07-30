@@ -42,7 +42,7 @@ export function NewKanjiIntroCard({ candidate, detail, disabled, onConfirm }: Pr
       )}
       <div className="mt-8.5">
         <Button className="w-full" disabled={disabled} onClick={onConfirm}>
-          Got it — next
+          Next
         </Button>
       </div>
     </div>

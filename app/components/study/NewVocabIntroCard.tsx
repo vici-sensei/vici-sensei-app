@@ -28,7 +28,7 @@ export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
       </div>
       <div className="mt-8.5">
         <Button className="w-full" disabled={disabled} onClick={onConfirm}>
-          Got it — next
+          Next
         </Button>
       </div>
     </div>
