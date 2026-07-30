@@ -7,6 +7,5 @@ export interface UserProfile {
 }
 
 export interface UserProfilePatch {
-  display_name?: string;
-  avatar_url?: string;
+  display_name: string;
 }

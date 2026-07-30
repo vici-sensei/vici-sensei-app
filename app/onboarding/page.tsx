@@ -6,25 +6,25 @@ import type { JlptLevel } from "@/lib/srs/constants";
 import { LevelGrid, enabledLevelsFor } from "@/app/components/ui/LevelGrid";
 import { Button } from "@/app/components/ui/Button";
 import { Badge } from "@/app/components/ui/Badge";
+import { useToast } from "@/app/components/ui/Toast";
 import { apiPost, ApiError } from "@/lib/api/client";
 import type { StudySettings } from "@/lib/types";
 
 export default function OnboardingPage() {
   const [level, setLevel] = useState<JlptLevel>("N5");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const router = useRouter();
 
   const included = enabledLevelsFor(level);
 
   async function handleContinue() {
     setSubmitting(true);
-    setError(null);
     try {
       await apiPost<StudySettings>("/api/onboarding/complete", { enabled_levels: included });
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      showToast(err instanceof ApiError ? err.message : "Something went wrong. Please try again.", "error");
       setSubmitting(false);
     }
   }
@@ -45,12 +45,6 @@ export default function OnboardingPage() {
           You&apos;ll study <strong className="text-white">{included.slice().reverse().join(", ")}</strong>. You can change this anytime in
           Settings.
         </div>
-
-        {error && (
-          <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-accent-red/30 bg-accent-red/[0.08] px-4 py-3.5 text-left text-[0.88rem] text-rose-200">
-            <span>{error}</span>
-          </div>
-        )}
 
         <Button onClick={handleContinue} loading={submitting} className="w-full">
           Continue

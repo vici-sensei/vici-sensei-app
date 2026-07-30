@@ -2,29 +2,22 @@
 
 import { useState } from "react";
 import { apiPost, ApiError } from "@/lib/api/client";
+import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
+import { FaCheck } from "react-icons/fa6";
 
 export function BillingPanel({ isPremium }: { isPremium: boolean }) {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleAction(path: string) {
     setLoading(true);
-    setError(null);
     try {
       const { url } = await apiPost<{ url: string }>(path);
       window.location.href = url;
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not start the checkout flow.");
+      showToast(err instanceof ApiError ? err.message : "Could not start the checkout flow.", "error");
       setLoading(false);
     }
   }
@@ -59,15 +52,15 @@ export function BillingPanel({ isPremium }: { isPremium: boolean }) {
               <Badge color="blue">Free plan</Badge>
               <ul className="mt-4 flex list-none flex-col gap-2.5 p-0">
                 <li className="flex items-center gap-2.5 text-[0.92rem] text-text-muted [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0 [&>svg]:text-accent-gold">
-                  <CheckIcon />
+                  <FaCheck />
                   Unlimited daily new-card limits
                 </li>
                 <li className="flex items-center gap-2.5 text-[0.92rem] text-text-muted [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0 [&>svg]:text-accent-gold">
-                  <CheckIcon />
+                  <FaCheck />
                   Full N5–N1 vocabulary &amp; kanji sets
                 </li>
                 <li className="flex items-center gap-2.5 text-[0.92rem] text-text-muted [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0 [&>svg]:text-accent-gold">
-                  <CheckIcon />
+                  <FaCheck />
                   Priority support
                 </li>
               </ul>
@@ -78,7 +71,6 @@ export function BillingPanel({ isPremium }: { isPremium: boolean }) {
           </div>
         )}
       </div>
-      {error && <p className="mt-1.5 text-[0.8rem] leading-normal text-accent-red">{error}</p>}
     </div>
   );
 }

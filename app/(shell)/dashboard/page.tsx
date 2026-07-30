@@ -4,6 +4,7 @@ import type { StudyStats } from "@/lib/types";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { StartStudyButton } from "./StartStudyButton";
 import { CheckoutBanner } from "./CheckoutBanner";
+import { FaBook, FaPenToSquare, FaFire, FaClock, FaArrowRight } from "react-icons/fa6";
 
 interface DashboardPageProps {
   searchParams: Promise<{ checkout?: string }>;
@@ -72,10 +73,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-4">
         <GlassCard padding="sm">
           <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            </svg>
+            <FaBook className="h-4 w-4" />
           </div>
           <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
             {stats.new_kanji_today}
@@ -86,10 +84,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <GlassCard padding="sm">
           <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
+            <FaPenToSquare className="h-4 w-4" />
           </div>
           <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
             {stats.new_vocab_today}
@@ -100,9 +95,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <GlassCard padding="sm">
           <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-gold/[0.12] text-accent-gold">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-            </svg>
+            <FaFire className="h-4 w-4" />
           </div>
           <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{stats.streak}</div>
           <div className="text-sm font-semibold text-text-muted">Day streak</div>
@@ -110,10 +103,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <GlassCard padding="sm">
           <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-red/10 text-accent-red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
+            <FaClock className="h-4 w-4" />
           </div>
           <div
             className={
@@ -133,10 +123,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         href="/progress"
       >
         View detailed progress
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-          <line x1="5" y1="12" x2="19" y2="12" />
-          <polyline points="12 5 19 12 12 19" />
-        </svg>
+        <FaArrowRight className="h-4 w-4" />
       </Link>
     </div>
   );

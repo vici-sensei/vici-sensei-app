@@ -1,6 +1,7 @@
 "use client";
 
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
+import { FaCheck } from "react-icons/fa6";
 
 const DESCRIPTIONS: Record<JlptLevel, string> = {
   N5: "Beginner",
@@ -45,15 +46,7 @@ export function LevelGrid({ value, onChange, size = "md" }: LevelGridProps) {
                 state === "selected" ? "flex bg-white" : state === "included" ? "flex bg-accent-red" : "hidden bg-accent-red"
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={3}
-                className={`h-[11px] w-[11px] ${state === "selected" ? "text-accent-red" : "text-white"}`}
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <FaCheck className={`h-[11px] w-[11px] ${state === "selected" ? "text-accent-red" : "text-white"}`} />
             </span>
             <span
               className={`text-[1.15rem] font-extrabold ${

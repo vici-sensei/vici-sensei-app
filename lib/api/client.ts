@@ -70,3 +70,25 @@ export function apiPatch<T>(path: string, body: unknown): Promise<T> {
 export function apiDelete<T>(path: string): Promise<T> {
   return apiFetch<T>(path, { method: 'DELETE' })
 }
+
+/**
+ * Like apiFetch, but for multipart/form-data bodies — the browser must set
+ * its own Content-Type (with boundary), so this skips apiFetch's forced
+ * 'application/json' header instead of trying to override it.
+ */
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const res = await fetch(path, { method: 'POST', body: formData })
+
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/session-expired'
+    }
+    throw new ApiError(401, 'You are not logged in. Please log in.')
+  }
+
+  if (!res.ok) {
+    throw new ApiError(res.status, await parseErrorMessage(res))
+  }
+
+  return res.json() as Promise<T>
+}

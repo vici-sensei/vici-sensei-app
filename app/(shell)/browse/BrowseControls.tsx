@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
+import { FaMagnifyingGlass } from "react-icons/fa6";
 
 interface Props {
   initialSearch: string;
@@ -45,18 +46,7 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
     <>
       <div className="mb-4.5 flex flex-wrap gap-3">
         <div className="flex min-w-55 flex-1 items-center gap-2.5 rounded-xl border border-border-soft bg-white/[0.03] px-4 py-3">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4 shrink-0 text-text-muted"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <FaMagnifyingGlass className="h-4 w-4 shrink-0 text-text-muted" />
           <input
             type="text"
             className="flex-1 bg-transparent text-[0.95rem] text-white outline-none placeholder:text-text-muted"

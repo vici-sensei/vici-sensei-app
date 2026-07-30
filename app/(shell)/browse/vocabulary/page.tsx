@@ -5,6 +5,7 @@ import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { BrowseTabs } from "../BrowseTabs";
 import { BrowseControls } from "../BrowseControls";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
+import { FaMagnifyingGlass } from "react-icons/fa6";
 
 const PAGE_SIZE = 50;
 
@@ -63,10 +64,7 @@ export default async function BrowseVocabularyPage({ searchParams }: PageProps) 
       {result.data.length === 0 ? (
         <div className="px-5 py-15 text-center text-text-muted">
           <div className="mx-auto mb-4.5 flex h-15 w-15 items-center justify-center rounded-full border border-border-soft bg-white/[0.04] [&>svg]:h-6.5 [&>svg]:w-6.5">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
+            <FaMagnifyingGlass />
           </div>
           <h3 className="mb-2 text-[1.15rem] text-white">No results{search ? ` for "${search}"` : ""}</h3>
           <p>Try a different character, reading, or meaning — or adjust the JLPT level filter.</p>

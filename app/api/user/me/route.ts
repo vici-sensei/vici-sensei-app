@@ -23,14 +23,9 @@ export async function GET() {
   return NextResponse.json(data)
 }
 
-const patchSchema = z
-  .object({
-    display_name: z.string().min(1).max(50).optional(),
-    avatar_url: z.string().url().optional(),
-  })
-  .refine((body) => body.display_name !== undefined || body.avatar_url !== undefined, {
-    message: 'At least one of display_name or avatar_url must be provided.',
-  })
+const patchSchema = z.object({
+  display_name: z.string().min(1).max(50),
+})
 
 export async function PATCH(request: Request) {
   const supabase = await createClient()

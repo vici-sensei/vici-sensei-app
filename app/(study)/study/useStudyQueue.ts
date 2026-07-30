@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost, ApiError } from "@/lib/api/client";
+import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId, setStoredSummary } from "@/lib/study/session";
 import type {
   DueCard,
@@ -45,6 +46,7 @@ function reviewBody(card: DueCard, rating: Rating) {
 
 export function useStudyQueue() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -179,12 +181,12 @@ export function useStudyQueue() {
         });
         void refreshQueue();
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Could not submit your answer. Please try again.");
+        showToast(err instanceof ApiError ? err.message : "Could not submit your answer. Please try again.", "error");
       } finally {
         setActionPending(false);
       }
     },
-    [maybeEnd, refreshQueue]
+    [maybeEnd, refreshQueue, showToast]
   );
 
   const introduceKanji = useCallback(
@@ -205,12 +207,12 @@ export function useStudyQueue() {
         });
         void refreshQueue();
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Could not introduce this kanji. Please try again.");
+        showToast(err instanceof ApiError ? err.message : "Could not introduce this kanji. Please try again.", "error");
       } finally {
         setActionPending(false);
       }
     },
-    [maybeEnd, refreshQueue]
+    [maybeEnd, refreshQueue, showToast]
   );
 
   const introduceVocab = useCallback(
@@ -231,12 +233,12 @@ export function useStudyQueue() {
         });
         void refreshQueue();
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Could not introduce this word. Please try again.");
+        showToast(err instanceof ApiError ? err.message : "Could not introduce this word. Please try again.", "error");
       } finally {
         setActionPending(false);
       }
     },
-    [maybeEnd, refreshQueue]
+    [maybeEnd, refreshQueue, showToast]
   );
 
   const undoLast = useCallback(async () => {
@@ -248,11 +250,11 @@ export function useStudyQueue() {
       setQueue((prev) => [{ key: reviewKey(lastReview.card), kind: "review", card: lastReview.card }, ...prev]);
       setLastReview(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not undo your last answer.");
+      showToast(err instanceof ApiError ? err.message : "Could not undo your last answer.", "error");
     } finally {
       setActionPending(false);
     }
-  }, [lastReview]);
+  }, [lastReview, showToast]);
 
   return {
     status,

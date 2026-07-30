@@ -33,8 +33,8 @@ export function NewKanjiIntroCard({ candidate, detail, disabled, onConfirm }: Pr
         <div className="mt-7.5 grid grid-cols-3 gap-3 text-left max-[700px]:grid-cols-1">
           {words.map((w) => (
             <div className="rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-4" key={w.id}>
-              <div className="mb-1 text-2xl font-extrabold">{w.vocabulary.word}</div>
               <div className="mb-1.5 text-[0.85rem] font-bold text-accent-blue">{w.vocabulary.kana_reading}</div>
+              <div className="mb-1 text-2xl font-extrabold">{w.vocabulary.word}</div>
               <div className="text-[0.8rem] leading-[1.4] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
             </div>
           ))}

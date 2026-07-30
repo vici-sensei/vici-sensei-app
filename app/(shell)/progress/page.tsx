@@ -4,6 +4,7 @@ import { fetchServer } from "@/lib/api/server";
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import { buttonClasses } from "@/app/components/ui/Button";
+import { FaBook, FaFont, FaPenToSquare } from "react-icons/fa6";
 
 const STATUS_COLORS: Record<ProgressStatus, string> = {
   new: "var(--color-text-muted)",
@@ -33,33 +34,19 @@ const BLOCKS: Block[] = [
     key: "kanji_meaning",
     title: "Kanji meaning",
     accent: "var(--color-accent-blue)",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      </svg>
-    ),
+    icon: <FaBook />,
   },
   {
     key: "kanji_reading",
     title: "Kanji reading",
     accent: "var(--color-accent-gold)",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 7V4h16v3M9 20h6M12 4v16" />
-      </svg>
-    ),
+    icon: <FaFont />,
   },
   {
     key: "vocab_meaning",
     title: "Vocabulary meaning",
     accent: "var(--color-accent-red)",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-      </svg>
-    ),
+    icon: <FaPenToSquare />,
   },
 ];
 
