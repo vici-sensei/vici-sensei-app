@@ -85,14 +85,24 @@ export function checkKanjiMeaningAnswer(input: string, acceptedMeanings: string[
 
   const variantSets = meanings.map((meaning) => new Set(meaningVariants(meaning).map((v) => v.compare)));
 
-  const results: TokenResult[] = tokens.map((raw) => {
-    const display = normalizeDisplay(raw);
-    const compare = normalize(raw);
-    const isCorrect = variantSets.some((set) => set.has(compare));
-    if (isCorrect) {
+  const parsed = tokens.map((raw) => ({
+    raw,
+    display: normalizeDisplay(raw),
+    compare: normalize(raw),
+  }));
+  const matchedIndex = parsed.map(({ compare }) => variantSets.findIndex((set) => set.has(compare)));
+
+  // Meanings already claimed by an exact-match token shouldn't also be suggested
+  // as the "closest" guess for a different, wrong token in the same answer.
+  const consumed = new Set(matchedIndex.filter((i) => i !== -1));
+  const remainingMeanings = meanings.filter((_, i) => !consumed.has(i));
+  const candidateMeanings = remainingMeanings.length > 0 ? remainingMeanings : meanings;
+
+  const results: TokenResult[] = parsed.map(({ raw, display, compare }, i) => {
+    if (matchedIndex[i] !== -1) {
       return { raw, correct: true };
     }
-    const closest = findClosest(compare, meanings);
+    const closest = findClosest(compare, candidateMeanings);
     const { userDiff, targetDiff } = levenshteinAlign(compare, display, closest.compare, closest.display);
     return { raw, correct: false, closestMeaning: closest.meaning, userDiff, targetDiff };
   });
