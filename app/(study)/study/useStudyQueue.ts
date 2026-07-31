@@ -7,7 +7,6 @@ import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId, setStoredSummary } from "@/lib/study/session";
 import type {
   DueCard,
-  KanjiDetail,
   Rating,
   ReviewResult,
   StudyQueueResponse,
@@ -52,22 +51,11 @@ export function useStudyQueue() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
-  const [kanjiDetails, setKanjiDetails] = useState<Record<number, KanjiDetail | "loading" | "error">>({});
   const [actionPending, setActionPending] = useState(false);
 
   const sessionIdRef = useRef<number | null>(null);
   const endingRef = useRef(false);
   const hasProcessedAnyRef = useRef(false);
-
-  const prefetchKanji = useCallback((items: QueueItem[]) => {
-    const kanjiItems = items.filter((i): i is QueueItem & { kind: "new_kanji" } => i.kind === "new_kanji");
-    for (const item of kanjiItems) {
-      setKanjiDetails((prev) => (prev[item.candidate.id] !== undefined ? prev : { ...prev, [item.candidate.id]: "loading" }));
-      apiGet<KanjiDetail>(`/api/kanji/${item.candidate.id}`)
-        .then((detail) => setKanjiDetails((prev) => ({ ...prev, [item.candidate.id]: detail })))
-        .catch(() => setKanjiDetails((prev) => ({ ...prev, [item.candidate.id]: "error" })));
-    }
-  }, []);
 
   const endSession = useCallback(
     async (hasProgress: boolean) => {
@@ -109,7 +97,6 @@ export function useStudyQueue() {
       setQueue((prev) => {
         const existingKeys = new Set(prev.map((i) => i.key));
         const additions = incoming.filter((i) => !existingKeys.has(i.key));
-        prefetchKanji(additions);
         const next = [...prev, ...additions];
         maybeEnd(next);
         return next;
@@ -117,7 +104,7 @@ export function useStudyQueue() {
     } catch {
       // periodic refresh failures shouldn't interrupt an active session
     }
-  }, [prefetchKanji, maybeEnd]);
+  }, [maybeEnd]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,7 +123,6 @@ export function useStudyQueue() {
         if (cancelled) return;
         const items = buildQueue(data);
         setQueue(items);
-        prefetchKanji(items);
 
         if (items.length === 0) {
           void endSession(false);
@@ -268,7 +254,6 @@ export function useStudyQueue() {
     current: queue[0] ?? null,
     completedCount,
     totalKnown: completedCount + queue.length,
-    kanjiDetails,
     lastReview,
     actionPending,
     actions: { rate, introduceKanji, introduceVocab, undoLast },

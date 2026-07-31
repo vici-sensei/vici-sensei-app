@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
 import { utcDayBounds } from '@/lib/srs/day'
+import { fetchKanjiDetailWords } from '@/lib/kanji/detailWords'
+import type { KanjiRow, KanjiDetailWord } from '@/lib/types'
 
 export async function GET() {
   const supabase = await createClient()
@@ -35,7 +37,7 @@ export async function GET() {
   if (dueError) return jsonError(500, dueError.message)
 
   const { start: todayStart, end: todayEnd } = utcDayBounds()
-  let newKanjiToIntroduce: unknown[] = []
+  let newKanjiToIntroduce: (KanjiRow & { words: KanjiDetailWord[] })[] = []
   let newVocabToIntroduce: unknown[] = []
 
   if (settings.study_kanji) {
@@ -56,7 +58,17 @@ export async function GET() {
         { p_user_id: user.id, p_enabled_levels: enabledLevels, p_limit: remaining }
       )
       if (candidatesError) return jsonError(500, candidatesError.message)
-      newKanjiToIntroduce = candidates
+
+      const withWords = await Promise.all(
+        ((candidates ?? []) as KanjiRow[]).map(async (candidate) => ({
+          candidate,
+          result: await fetchKanjiDetailWords(supabase, candidate.id),
+        }))
+      )
+      const wordsError = withWords.find((w) => w.result.error)?.result.error
+      if (wordsError) return jsonError(500, wordsError)
+
+      newKanjiToIntroduce = withWords.map(({ candidate, result }) => ({ ...candidate, words: result.words }))
     }
   }
 

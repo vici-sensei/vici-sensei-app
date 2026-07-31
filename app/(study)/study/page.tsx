@@ -14,7 +14,7 @@ import { FaArrowRotateRight } from "react-icons/fa6";
 
 export default function StudyPage() {
   const router = useRouter();
-  const { status, error, current, completedCount, totalKnown, kanjiDetails, lastReview, actionPending, actions } =
+  const { status, error, current, completedCount, totalKnown, lastReview, actionPending, actions } =
     useStudyQueue();
 
   if (status === "loading" || status === "ending" || !current) {
@@ -61,7 +61,6 @@ export default function StudyPage() {
           <NewKanjiIntroCard
             key={current.key}
             candidate={current.candidate}
-            detail={kanjiDetails[current.candidate.id]}
             disabled={actionPending}
             onConfirm={() => actions.introduceKanji(current)}
           />

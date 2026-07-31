@@ -1,5 +1,6 @@
 import type { ExerciseType, ProgressStatus } from "@/lib/srs/constants";
 import type { KanjiMeaningProgress, KanjiReadingProgress } from "./progress";
+import type { KanjiDetailWord } from "./kanji";
 
 export interface DueCard {
   exercise_type: ExerciseType;
@@ -30,6 +31,7 @@ export interface NewKanjiCandidate {
   level: string | null;
   kun_readings: string[] | null;
   on_readings: string[] | null;
+  words: KanjiDetailWord[];
 }
 
 export interface NewVocabCandidate {

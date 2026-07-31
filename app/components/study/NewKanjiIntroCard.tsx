@@ -1,17 +1,16 @@
-import type { KanjiDetail, NewKanjiCandidate } from "@/lib/types";
+import type { NewKanjiCandidate } from "@/lib/types";
 import { Button } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 interface Props {
   candidate: NewKanjiCandidate;
-  detail: KanjiDetail | "loading" | "error" | undefined;
   disabled: boolean;
   onConfirm: () => void;
 }
 
-export function NewKanjiIntroCard({ candidate, detail, disabled, onConfirm }: Props) {
-  const words = detail && detail !== "loading" && detail !== "error" ? detail.words : [];
+export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
+  const words = candidate.words;
 
   return (
     <div className="relative w-full max-w-[620px] rounded-3xl border border-border-soft bg-bg-cards px-10 py-14 text-center backdrop-blur-[10px]">
@@ -37,7 +36,6 @@ export function NewKanjiIntroCard({ candidate, detail, disabled, onConfirm }: Pr
         )}
       </div>
       
-      {detail === "loading" && <p className="mt-5 text-base leading-[1.6] text-text-muted">Loading example words…</p>}
       {words.length > 0 && (
         <div className="mt-7.5 grid grid-cols-3 gap-3 text-left max-[700px]:grid-cols-1">
           {words.map((w) => (
