@@ -58,9 +58,11 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate }: Props) {
             : "border-border-soft"
       }`}
     >
-      <div className="mb-6 text-xs font-extrabold uppercase tracking-[1.5px] text-accent-blue">Vocabulary meaning</div>
-      <div className="mb-1.5 text-5xl font-extrabold">{card.word}</div>
+      <div className="mb-6 text-xs font-extrabold uppercase tracking-[1.5px] text-accent-blue">Vocabulary</div>
       <div className="mb-1 text-[1.4rem] font-semibold text-text-muted">{card.kana_reading}</div>
+      <div className="mb-1.5 text-5xl font-extrabold">{card.word}</div>
+      <div className="mt-1 text-[0.85rem] text-text-muted">What does this word mean?</div>
+      
       <div className={`mt-7 border-t border-border-soft pt-7 ${revealed ? "block" : "hidden"}`}>
         <div className="text-[1.3rem] font-bold text-white">{meanings ? meanings.join(", ") : "…"}</div>
       </div>

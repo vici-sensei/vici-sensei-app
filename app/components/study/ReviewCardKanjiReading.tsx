@@ -8,14 +8,70 @@ import { Button } from "@/app/components/ui/Button";
 
 const FLASH_DELAY_MS = 350;
 
-function renderTargetWord(word: string, target: string): ReactNode {
+interface FuriganaSegment {
+  text: string;
+  furigana: string | null;
+}
+
+function buildFuriganaSegments(word: string, furiganas: string[] | null | undefined): FuriganaSegment[] {
+  const chars = Array.from(word);
+  if (!furiganas || furiganas.length !== chars.length) {
+    return [{ text: word, furigana: null }];
+  }
+  const segments: FuriganaSegment[] = [];
+  let i = 0;
+  while (i < chars.length) {
+    const reading = furiganas[i];
+    if (reading && reading !== "-") {
+      let j = i + 1;
+      while (j < chars.length && furiganas[j] === "-") j++;
+      segments.push({ text: chars.slice(i, j).join(""), furigana: reading });
+      i = j;
+    } else {
+      segments.push({ text: chars[i], furigana: null });
+      i++;
+    }
+  }
+  return segments;
+}
+
+// Shows furigana above every kanji in the word except the one being tested,
+// so the target's reading isn't given away before the user answers.
+function renderTargetWord(word: string, target: string, furiganas: string[] | null | undefined): ReactNode {
   const idx = target ? word.indexOf(target) : -1;
-  if (idx === -1) return word;
+  const segments = buildFuriganaSegments(word, furiganas);
+
+  let pos = 0;
   return (
     <>
-      {word.slice(0, idx)}
-      <span className="text-accent-blue">{target}</span>
-      {word.slice(idx + target.length)}
+      {segments.map((segment, i) => {
+        const segStart = pos;
+        const segEnd = pos + segment.text.length;
+        pos = segEnd;
+        const overlapsTarget = idx !== -1 && segStart < idx + target.length && segEnd > idx;
+
+        if (overlapsTarget) {
+          const before = segment.text.slice(0, Math.max(idx, segStart) - segStart);
+          const mid = segment.text.slice(Math.max(idx, segStart) - segStart, Math.min(idx + target.length, segEnd) - segStart);
+          const after = segment.text.slice(Math.min(idx + target.length, segEnd) - segStart);
+          return (
+            <span key={i}>
+              {before}
+              <span className="text-accent-blue/70">{mid}</span>
+              {after}
+            </span>
+          );
+        }
+        if (segment.furigana) {
+          return (
+            <ruby key={i}>
+              {segment.text}
+              <rt className="pb-4 text-[0.3em] font-normal text-text-muted">{segment.furigana}</rt>
+            </ruby>
+          );
+        }
+        return <span key={i}>{segment.text}</span>;
+      })}
     </>
   );
 }
@@ -59,7 +115,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
     >
       <div className="mb-6 text-xs font-extrabold uppercase tracking-[1.5px] text-accent-blue">Word reading</div>
 
-      <div className="mb-2 text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none">{card.word ? renderTargetWord(card.word, card.kanji_char ?? "") : card.kanji_char}</div>
+      <div className="mb-2 pt-[0.6em] text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none">{card.word ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas) : card.kanji_char}</div>
       <div className="mt-1 text-[0.85rem] text-text-muted">How is this word read?</div>
 
       {!revealed && (

@@ -20,6 +20,7 @@ export interface DueCard {
   kana_reading: string | null;
   romaji_reading: string | null;
   other_readings: string[] | null;
+  furiganas: string[] | null;
 }
 
 export interface NewKanjiCandidate {
