@@ -33,7 +33,7 @@ export function renderWordWithFurigana(word: string, furiganas: string[] | null 
       <ruby key={i}>
         {segment.text}
         <rt
-          className={`mb-4 text-[0.3em] font-normal text-text-muted ${
+          className={`mb-4 select-none text-[0.3em] font-normal text-text-muted ${
             segment.text.length > 1 ? "rounded-md bg-white/5 px-1 pb-1" : ""
           }`}
         >
@@ -78,7 +78,7 @@ export function renderTargetWord(word: string, target: string, furiganas: string
             <ruby key={i}>
               {segment.text}
               <rt
-                className={`mb-4 text-[0.3em] font-normal text-text-muted text-justify ${
+                className={`mb-4 select-none text-[0.3em] font-normal text-text-muted text-justify ${
                   segment.text.length > 1 ? "rounded-md bg-white/5 px-1 pb-1" : ""
                 }`}
               >

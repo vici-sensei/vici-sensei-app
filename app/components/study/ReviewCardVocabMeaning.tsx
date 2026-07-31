@@ -57,7 +57,9 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate }: Props) {
       label="Vocabulary"
       flash={flash}
       prompt={
-        <div className="mb-2 pt-[0.6em] text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none">
+        <div
+          className={`mb-2 pt-[0.6em] text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none ${revealed ? "" : "select-none"}`}
+        >
           {card.word ? renderWordWithFurigana(card.word, card.furiganas) : card.word}
         </div>
       }

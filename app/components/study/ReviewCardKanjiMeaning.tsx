@@ -26,7 +26,11 @@ export function ReviewCardKanjiMeaning({ card, disabled, onRate }: Props) {
       label="Kanji meaning"
       flash={flash}
       prompt={
-        <div className="mb-2 text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none">{card.kanji_char}</div>
+        <div
+          className={`mb-2 text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none ${revealed ? "" : "select-none"}`}
+        >
+          {card.kanji_char}
+        </div>
       }
       subtitle="What does this kanji mean?"
       revealed={revealed}
