@@ -66,7 +66,13 @@ function renderTargetWord(word: string, target: string, furiganas: string[] | nu
           return (
             <ruby key={i}>
               {segment.text}
-              <rt className="pb-4 text-[0.3em] font-normal text-text-muted">{segment.furigana}</rt>
+              <rt
+                className={`mb-4 text-[0.3em] font-normal text-text-muted text-justify ${
+                  segment.text.length > 1 ? "rounded-md bg-white/5 px-1 pb-1" : ""
+                }`}
+              >
+                {segment.furigana}
+              </rt>
             </ruby>
           );
         }
