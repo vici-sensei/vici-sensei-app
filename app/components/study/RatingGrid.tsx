@@ -3,6 +3,7 @@ import type { Rating } from "@/lib/types";
 interface RatingGridProps {
   visible: boolean;
   disabled?: boolean;
+  hideAgain?: boolean;
   onRate: (rating: Rating) => void;
 }
 
@@ -13,10 +14,11 @@ const RATINGS: { rating: Rating; label: string; hint: string; className: string 
   { rating: 3, label: "Easy", hint: "6d", className: "border-accent-gold/35 bg-accent-gold/[0.08] text-accent-gold enabled:hover:shadow-[0_6px_20px_rgba(255,210,0,0.25)]" },
 ];
 
-export function RatingGrid({ visible, disabled, onRate }: RatingGridProps) {
+export function RatingGrid({ visible, disabled, hideAgain, onRate }: RatingGridProps) {
+  const ratings = hideAgain ? RATINGS.filter((r) => r.rating !== 0) : RATINGS;
   return (
-    <div className={`mt-8.5 grid-cols-4 gap-2.5 ${visible ? "grid" : "hidden"}`}>
-      {RATINGS.map((r) => (
+    <div className={`mt-8.5 ${hideAgain ? "grid-cols-3" : "grid-cols-4"} gap-2.5 ${visible ? "grid" : "hidden"}`}>
+      {ratings.map((r) => (
         <button
           key={r.rating}
           type="button"
