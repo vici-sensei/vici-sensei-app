@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fetchServerOptional } from "@/lib/api/server";
 import type { VocabularyProgress, VocabularyRow } from "@/lib/types";
 import { StatusPill } from "@/app/components/ui/StatusPill";
+import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { CardActions } from "@/app/components/browse/CardActions";
 import { formatDueAt } from "@/lib/format";
 import { buttonClasses } from "@/app/components/ui/Button";
@@ -37,11 +38,10 @@ export default async function VocabularyDetailPage({ params }: PageProps) {
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="min-w-55 flex-1">
-          <div className="text-[clamp(2.2rem,5vw,3rem)] font-extrabold leading-[1.1]">{word.word}</div>
-          <div className="mt-1 mb-3 text-[1.2rem] font-bold text-accent-blue">
+          <div className="mt-1 text-[1.2rem] font-bold text-accent-blue">
             {word.kana_reading}
-            {word.romaji_reading && <> &nbsp;·&nbsp; romaji: {word.romaji_reading}</>}
           </div>
+          <div className="text-[clamp(2.2rem,5vw,3rem)] font-extrabold leading-[1.1] mb-3">{word.word}</div>
           <div className="mb-3 text-[1.35rem] font-bold">{word.meanings?.join(", ")}</div>
           <div className="flex flex-wrap gap-6">
             <div>
@@ -51,9 +51,7 @@ export default async function VocabularyDetailPage({ params }: PageProps) {
             <div>
               <div className={factLabel}>JLPT level</div>
               <div className="text-base font-bold">
-                <span className="rounded-lg border border-accent-red/30 bg-accent-red/10 px-2.5 py-1 text-[0.72rem] font-extrabold text-accent-red">
-                  {word.jlpt_level ?? "—"}
-                </span>
+                <LevelBadge level={word.jlpt_level} />
               </div>
             </div>
             <div>

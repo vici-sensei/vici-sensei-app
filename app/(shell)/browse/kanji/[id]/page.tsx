@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fetchServer, fetchServerOptional } from "@/lib/api/server";
 import type { KanjiDetail, KanjiProgressResponse } from "@/lib/types";
 import { StatusPill } from "@/app/components/ui/StatusPill";
+import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { CardActions } from "@/app/components/browse/CardActions";
 import { formatDueAt } from "@/lib/format";
 import { buttonClasses } from "@/app/components/ui/Button";
@@ -53,9 +54,7 @@ export default async function KanjiDetailPage({ params }: PageProps) {
             <div>
               <div className={colLabel}>JLPT level</div>
               <div className="text-[1.1rem] font-bold">
-                <span className="rounded-lg border border-accent-red/30 bg-accent-red/10 px-2.5 py-1 text-[0.72rem] font-extrabold text-accent-red">
-                  {kanji.level ?? "—"}
-                </span>
+                <LevelBadge level={kanji.level} />
               </div>
             </div>
           </div>
@@ -66,8 +65,8 @@ export default async function KanjiDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-3 gap-3 text-left max-[700px]:grid-cols-1">
         {kanji.words.map((w) => (
           <div className="rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-4" key={w.id}>
-            <div className="mb-1 text-2xl font-extrabold">{w.vocabulary.word}</div>
-            <div className="mb-1.5 text-[0.85rem] font-bold text-accent-blue">{w.vocabulary.kana_reading}</div>
+            <div className="text-[0.85rem] font-bold text-accent-blue">{w.vocabulary.kana_reading}</div>
+            <div className="mb-1.5 text-2xl font-extrabold">{w.vocabulary.word}</div>
             <div className="text-[0.8rem] leading-[1.4] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
             {w.reading_number != null && (
               <div className="mt-2 inline-block rounded-md bg-white/5 px-2 py-0.5 text-[0.68rem] font-extrabold text-text-muted">

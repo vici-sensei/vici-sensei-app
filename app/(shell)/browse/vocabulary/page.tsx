@@ -5,6 +5,7 @@ import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { BrowseTabs } from "../BrowseTabs";
 import { BrowseControls } from "../BrowseControls";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
+import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 
 const PAGE_SIZE = 50;
@@ -83,9 +84,7 @@ export default async function BrowseVocabularyPage({ searchParams }: PageProps) 
                   <div className="mb-0.5 text-[1.05rem] font-bold">{row.meanings?.join(", ")}</div>
                   <div className="text-[0.85rem] text-text-muted">{row.kana_reading}</div>
                 </div>
-                <div className="shrink-0 rounded-lg border border-accent-red/30 bg-accent-red/10 px-2.5 py-1 text-[0.72rem] font-extrabold text-accent-red">
-                  {row.jlpt_level ?? "—"}
-                </div>
+                <LevelBadge level={row.jlpt_level} className="shrink-0" />
               </Link>
             ))}
           </div>
