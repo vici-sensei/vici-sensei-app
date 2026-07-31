@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
 import { utcDayBounds } from '@/lib/srs/day'
+import { getNextDue } from '@/lib/srs/nextDue'
 import { fetchKanjiDetailWords } from '@/lib/kanji/detailWords'
 import type { KanjiRow, KanjiDetailWord } from '@/lib/types'
 
@@ -35,6 +36,9 @@ export async function GET() {
     p_as_of: nowIso,
   })
   if (dueError) return jsonError(500, dueError.message)
+
+  const nextDue = await getNextDue(supabase, user.id, nowIso)
+  if (nextDue.error !== null) return jsonError(500, nextDue.error)
 
   const { start: todayStart, end: todayEnd } = utcDayBounds()
   let newKanjiToIntroduce: (KanjiRow & { words: KanjiDetailWord[] })[] = []
@@ -98,5 +102,6 @@ export async function GET() {
     due_cards: dueCards,
     new_kanji_to_introduce: newKanjiToIntroduce,
     new_vocab_to_introduce: newVocabToIntroduce,
+    next_due_at: nextDue.data.next_due_at,
   })
 }

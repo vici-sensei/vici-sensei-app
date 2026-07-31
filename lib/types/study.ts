@@ -55,6 +55,7 @@ export interface StudyQueueResponse {
   due_cards: DueCard[];
   new_kanji_to_introduce: NewKanjiCandidate[];
   new_vocab_to_introduce: NewVocabCandidate[];
+  next_due_at: string | null;
 }
 
 export interface StudyStats {

@@ -80,3 +80,22 @@ body {
     box-shadow: 0 0 0 0 rgba(0, 210, 255, 0);
   }
 }
+
+@keyframes vici-float-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-22px);
+  }
+}

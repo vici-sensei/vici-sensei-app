@@ -14,7 +14,7 @@ import { FaArrowRotateRight } from "react-icons/fa6";
 
 export default function StudyPage() {
   const router = useRouter();
-  const { status, error, current, completedCount, totalKnown, lastReview, actionPending, actions } =
+  const { status, error, current, completedCount, totalKnown, nextDueAt, lastReview, actionPending, actions } =
     useStudyQueue();
 
   if (status === "loading" || status === "ending" || !current) {
@@ -46,7 +46,12 @@ export default function StudyPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg-main">
-      <QueueProgressBar completed={completedCount} total={totalKnown} onExit={() => router.push("/dashboard")} />
+      <QueueProgressBar
+        completed={completedCount}
+        total={totalKnown}
+        nextDueAt={nextDueAt}
+        onExit={() => router.push("/dashboard")}
+      />
       <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
         {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
           <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={actionPending} onRate={actions.rate} />

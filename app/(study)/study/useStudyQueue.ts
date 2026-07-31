@@ -50,6 +50,7 @@ export function useStudyQueue() {
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
+  const [nextDueAt, setNextDueAt] = useState<string | null>(null);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const [actionPending, setActionPending] = useState(false);
 
@@ -94,6 +95,7 @@ export function useStudyQueue() {
     try {
       const data = await apiGet<StudyQueueResponse>("/api/study/queue");
       const incoming = buildQueue(data);
+      setNextDueAt(data.next_due_at);
       setQueue((prev) => {
         const existingKeys = new Set(prev.map((i) => i.key));
         const additions = incoming.filter((i) => !existingKeys.has(i.key));
@@ -123,6 +125,7 @@ export function useStudyQueue() {
         if (cancelled) return;
         const items = buildQueue(data);
         setQueue(items);
+        setNextDueAt(data.next_due_at);
 
         if (items.length === 0) {
           void endSession(false);
@@ -151,6 +154,19 @@ export function useStudyQueue() {
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [status, refreshQueue]);
+
+  // Refreshes right when the next scheduled card becomes due, rather than
+  // waiting out the rest of the REFRESH_INTERVAL_MS poll.
+  useEffect(() => {
+    if (status !== "ready" || !nextDueAt) return;
+    const delay = new Date(nextDueAt).getTime() - Date.now();
+    if (delay <= 0) {
+      void refreshQueue();
+      return;
+    }
+    const timeout = setTimeout(() => void refreshQueue(), delay);
+    return () => clearTimeout(timeout);
+  }, [status, nextDueAt, refreshQueue]);
 
   const rate = useCallback(
     async (card: DueCard, rating: Rating) => {
@@ -254,6 +270,7 @@ export function useStudyQueue() {
     current: queue[0] ?? null,
     completedCount,
     totalKnown: completedCount + queue.length,
+    nextDueAt,
     lastReview,
     actionPending,
     actions: { rate, introduceKanji, introduceVocab, undoLast },
