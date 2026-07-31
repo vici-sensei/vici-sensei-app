@@ -65,6 +65,8 @@ export interface StudyStats {
   new_vocab_limit: number;
   streak: number;
   retention_rate: number | null;
+  next_due_at: string | null;
+  next_due_is_today: boolean;
 }
 
 export type Rating = 0 | 1 | 2 | 3;
@@ -112,4 +114,6 @@ export interface StudySessionEnd {
   new_cards_learned: number;
   duration_seconds: number;
   accuracy: number | null;
+  next_due_at: string | null;
+  next_due_is_today: boolean;
 }

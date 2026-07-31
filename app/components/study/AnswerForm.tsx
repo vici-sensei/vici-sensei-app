@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { useEffect, useRef, type FormEvent } from "react";
 import { Button } from "@/app/components/ui/Button";
 
 interface Props {
@@ -10,10 +10,16 @@ interface Props {
 }
 
 export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disabled }: Props) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!disabled) inputRef.current?.focus();
+  }, [disabled]);
+
   return (
     <form onSubmit={onSubmit} className="mt-7 flex flex-col items-center gap-3">
       <input
-        autoFocus
+        ref={inputRef}
         type="text"
         value={answer}
         onChange={(e) => onAnswerChange(e.target.value)}

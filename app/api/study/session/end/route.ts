@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
+import { getNextDue } from '@/lib/srs/nextDue'
 
 const bodySchema = z.object({ session_id: z.number().int() })
 
@@ -34,9 +35,13 @@ export async function POST(request: Request) {
   const row = ((data ?? []) as EndStudySessionRow[])[0]
   if (!row) return jsonError(404, 'Study session not found.')
 
+  const nextDue = await getNextDue(supabase, user.id, row.ended_at)
+  if (nextDue.error !== null) return jsonError(500, nextDue.error)
+
   return NextResponse.json({
     ...row,
     user_id: user.id,
     accuracy: row.cards_reviewed > 0 ? row.cards_correct / row.cards_reviewed : null,
+    ...nextDue.data,
   })
 }

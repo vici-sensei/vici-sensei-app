@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import type { Rating } from "@/lib/types";
 import { RatingGrid } from "./RatingGrid";
 import { Button } from "@/app/components/ui/Button";
@@ -31,6 +31,20 @@ export function ReviewCardShell({
   onRate,
   onContinue,
 }: Props) {
+  const showContinue = revealed && !correct;
+
+  useEffect(() => {
+    if (!showContinue || disabled) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onContinue();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showContinue, disabled, onContinue]);
+
   return (
     <div
       className={`relative w-full max-w-[560px] rounded-3xl border bg-bg-cards px-10 py-14 text-center backdrop-blur-[10px] transition-[border-color,box-shadow] duration-300 ${

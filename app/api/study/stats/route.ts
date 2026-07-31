@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
 import { utcDayBounds } from '@/lib/srs/day'
+import { getNextDue } from '@/lib/srs/nextDue'
 
 const DEFAULT_NEW_KANJI_PER_DAY = 2
 const DEFAULT_NEW_VOCAB_PER_DAY = 12
@@ -39,6 +40,10 @@ export async function GET() {
     if (result.error) return jsonError(500, result.error.message)
   }
   const dueToday = dueCounters.reduce((sum, r) => sum + (r.count ?? 0), 0)
+
+  const nextDue = await getNextDue(supabase, user.id, nowIso)
+  if (nextDue.error !== null) return jsonError(500, nextDue.error)
+  const { next_due_at: nextDueAt, next_due_is_today: nextDueIsToday } = nextDue.data
 
   const { count: newKanjiToday, error: newKanjiError } = await supabase
     .from('user_kanji_meaning_progress')
@@ -86,5 +91,7 @@ export async function GET() {
     new_vocab_limit: newVocabPerDay,
     streak,
     retention_rate: retentionRate,
+    next_due_at: nextDueAt,
+    next_due_is_today: nextDueIsToday,
   })
 }
