@@ -8,7 +8,7 @@ import type { StudySessionStart } from "@/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 
-export function StartStudyButton() {
+export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
   const router = useRouter();
@@ -27,7 +27,7 @@ export function StartStudyButton() {
 
   return (
     <div className="mt-6">
-      <Button onClick={handleStart} loading={loading}>
+      <Button onClick={handleStart} loading={loading} disabled={disabled}>
         Start studying
       </Button>
     </div>

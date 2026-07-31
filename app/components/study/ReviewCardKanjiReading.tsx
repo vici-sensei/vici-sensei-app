@@ -51,7 +51,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
           {card.word ? renderTargetWord(card.word, card.kanji_char ?? "") : card.kanji_char}
         </div>
       </div>
-      <div className="mt-1 text-[0.85rem] text-text-muted">How is this kanji read in this word?</div>
+      <div className="mt-1 text-[0.85rem] text-text-muted">How is this word read?</div>
       <div className={`mt-7 border-t border-border-soft pt-7 ${revealed ? "block" : "hidden"}`}>
         <div className="text-[1.3rem] font-bold text-white">{card.kana_reading}</div>
       </div>

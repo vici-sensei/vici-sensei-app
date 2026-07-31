@@ -52,10 +52,14 @@ export default function StudySummaryPage() {
           Nice work! You&apos;re done for today.
         </h1>
         <p className="text-base leading-[1.6] text-text-muted">Here&apos;s how today&apos;s session went.</p>
-        <div className="my-8.5 grid grid-cols-3 gap-3.5">
+        <div className="my-8.5 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
           <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
             <div className="mb-1 text-[1.7rem] font-extrabold">{summary.cards_reviewed}</div>
             <div className="text-[0.78rem] font-semibold text-text-muted">Reviewed</div>
+          </div>
+          <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
+            <div className="mb-1 text-[1.7rem] font-extrabold">{summary.new_cards_learned}</div>
+            <div className="text-[0.78rem] font-semibold text-text-muted">New</div>
           </div>
           <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
             <div

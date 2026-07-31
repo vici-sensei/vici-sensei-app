@@ -5,6 +5,7 @@ import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { BrowseTabs } from "../BrowseTabs";
 import { BrowseControls } from "../BrowseControls";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
+import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 
 const PAGE_SIZE = 50;
@@ -85,9 +86,7 @@ export default async function BrowseKanjiPage({ searchParams }: PageProps) {
                     kun: {row.kun_readings?.join("、") || "—"} &nbsp;·&nbsp; on: {row.on_readings?.join("、") || "—"}
                   </div>
                 </div>
-                <div className="shrink-0 rounded-lg border border-accent-red/30 bg-accent-red/10 px-2.5 py-1 text-[0.72rem] font-extrabold text-accent-red">
-                  {row.level ?? "—"}
-                </div>
+                <LevelBadge level={row.level} className="shrink-0" />
               </Link>
             ))}
           </div>

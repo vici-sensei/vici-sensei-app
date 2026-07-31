@@ -194,7 +194,10 @@ export function useStudyQueue() {
       setActionPending(true);
       try {
         try {
-          await apiPost("/api/study/kanji/introduce", { kanji_id: item.candidate.id });
+          await apiPost("/api/study/kanji/introduce", {
+            kanji_id: item.candidate.id,
+            session_id: sessionIdRef.current,
+          });
         } catch (err) {
           if (!(err instanceof ApiError && err.status === 409)) throw err;
         }
@@ -220,7 +223,10 @@ export function useStudyQueue() {
       setActionPending(true);
       try {
         try {
-          await apiPost("/api/study/vocabulary/introduce", { word_id: item.candidate.id });
+          await apiPost("/api/study/vocabulary/introduce", {
+            word_id: item.candidate.id,
+            session_id: sessionIdRef.current,
+          });
         } catch (err) {
           if (!(err instanceof ApiError && err.status === 409)) throw err;
         }

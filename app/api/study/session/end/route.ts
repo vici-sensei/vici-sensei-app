@@ -11,6 +11,7 @@ type EndStudySessionRow = {
   ended_at: string
   cards_reviewed: number
   cards_correct: number
+  new_cards_learned: number
   duration_seconds: number
 }
 

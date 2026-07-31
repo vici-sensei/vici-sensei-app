@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchServer } from "@/lib/api/server";
 import type { StudyStats } from "@/lib/types";
+import { cardsRemainingToday } from "@/lib/study/stats";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { StartStudyButton } from "./StartStudyButton";
 import { CheckoutBanner } from "./CheckoutBanner";
@@ -16,7 +17,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const remainingKanji = Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0);
   const remainingVocab = Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0);
-  const cardsToday = stats.due_today + remainingKanji + remainingVocab;
+  const cardsToday = cardsRemainingToday(stats);
   const allDone = cardsToday === 0;
   const kanjiPending = remainingKanji > 0;
   const vocabPending = remainingVocab > 0;
@@ -64,9 +65,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 card{cardsToday === 1 ? "" : "s"} to do today
               </h1>
               <p className="text-base leading-[1.6] text-text-muted">{summaryText}</p>
-              <StartStudyButton />
             </>
           )}
+          <StartStudyButton disabled={allDone} />
         </div>
       </div>
 

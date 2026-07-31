@@ -1,8 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { fetchServer } from "@/lib/api/server";
-import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
+import type { ProgressSummaryResponse, ProgressStatusCounts, StudyStats } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
+import { cardsRemainingToday } from "@/lib/study/stats";
 import { buttonClasses } from "@/app/components/ui/Button";
 import { FaBook, FaFont, FaPenToSquare } from "react-icons/fa6";
 
@@ -55,8 +56,12 @@ function total(counts: ProgressStatusCounts): number {
 }
 
 export default async function ProgressPage() {
-  const summary = await fetchServer<ProgressSummaryResponse>("/api/progress/summary");
+  const [summary, stats] = await Promise.all([
+    fetchServer<ProgressSummaryResponse>("/api/progress/summary"),
+    fetchServer<StudyStats>("/api/study/stats"),
+  ]);
   const grandTotal = BLOCKS.reduce((sum, b) => sum + total(summary[b.key]), 0);
+  const studyDisabled = cardsRemainingToday(stats) === 0;
 
   return (
     <div>
@@ -69,9 +74,18 @@ export default async function ProgressPage() {
         <div className="relative rounded-2xl border border-border-soft bg-bg-cards px-5 py-15 text-center text-text-muted backdrop-blur-[10px]">
           <h3 className="mb-2.5 text-[1.3rem] text-white">No progress yet</h3>
           <p>Once you start studying, your kanji and vocabulary will show up here, broken down by status.</p>
-          <Link href="/study" className={buttonClasses({ hover: "hover", className: "mt-2.5" })}>
-            Start studying
-          </Link>
+          {studyDisabled ? (
+            <span
+              aria-disabled="true"
+              className={buttonClasses({ hover: "hover", className: "mt-2.5 cursor-not-allowed opacity-45" })}
+            >
+              Start studying
+            </span>
+          ) : (
+            <Link href="/study" className={buttonClasses({ hover: "hover", className: "mt-2.5" })}>
+              Start studying
+            </Link>
+          )}
         </div>
       ) : (
         BLOCKS.map((block, idx) => {

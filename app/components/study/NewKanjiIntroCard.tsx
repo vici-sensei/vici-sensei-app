@@ -1,5 +1,6 @@
 import type { KanjiDetail, NewKanjiCandidate } from "@/lib/types";
 import { Button } from "@/app/components/ui/Button";
+import { LevelBadge } from "@/app/components/ui/LevelBadge";
 
 interface Props {
   candidate: NewKanjiCandidate;
@@ -33,9 +34,17 @@ export function NewKanjiIntroCard({ candidate, detail, disabled, onConfirm }: Pr
         <div className="mt-7.5 grid grid-cols-3 gap-3 text-left max-[700px]:grid-cols-1">
           {words.map((w) => (
             <div className="rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-4" key={w.id}>
-              <div className="mb-1.5 text-[0.85rem] font-bold text-accent-blue">{w.vocabulary.kana_reading}</div>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="text-[0.85rem] font-bold text-accent-blue">{w.vocabulary.kana_reading}</span>
+                {w.vocabulary.jlpt_level && <LevelBadge level={w.vocabulary.jlpt_level} size="sm" />}
+              </div>
               <div className="mb-1 text-2xl font-extrabold">{w.vocabulary.word}</div>
               <div className="text-[0.8rem] leading-[1.4] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
+              {w.vocabulary.usually_kana && (
+                <div className="mt-1.5 text-[0.7rem] font-semibold italic text-accent-blue/70">
+                  usually written in kana
+                </div>
+              )}
             </div>
           ))}
         </div>

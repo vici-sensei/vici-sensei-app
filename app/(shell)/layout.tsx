@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { fetchServer, fetchServerOptional } from "@/lib/api/server";
-import type { StudySettings, UserProfile } from "@/lib/types";
+import type { StudySettings, StudyStats, UserProfile } from "@/lib/types";
+import { cardsRemainingToday } from "@/lib/study/stats";
 import { Header } from "@/app/components/shell/Header";
 import { SidebarDesktop } from "@/app/components/shell/SidebarDesktop";
 import { BottomNavMobile } from "@/app/components/shell/BottomNavMobile";
@@ -15,19 +16,23 @@ export default async function ShellLayout({ children }: { children: React.ReactN
     redirect("/onboarding");
   }
 
-  const user = await fetchServer<UserProfile>("/api/user/me");
+  const [user, stats] = await Promise.all([
+    fetchServer<UserProfile>("/api/user/me"),
+    fetchServer<StudyStats>("/api/study/stats"),
+  ]);
+  const studyDisabled = cardsRemainingToday(stats) === 0;
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header user={user} />
       <div className="flex w-full flex-1">
-        <SidebarDesktop />
+        <SidebarDesktop studyDisabled={studyDisabled} />
         <main className="max-w-none flex-1 px-5 pb-[90px] pt-5 md:max-w-[1000px] md:px-10 md:pb-8 md:pt-8">
           <OfflineBanner />
           {children}
         </main>
       </div>
-      <BottomNavMobile />
+      <BottomNavMobile studyDisabled={studyDisabled} />
     </div>
   );
 }

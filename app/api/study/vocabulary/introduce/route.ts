@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
 import { initialLearningState } from '@/lib/srs/scheduler'
 
-const bodySchema = z.object({ word_id: z.number().int() })
+const bodySchema = z.object({ word_id: z.number().int(), session_id: z.number().int().optional() })
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return jsonError(400, parsed.error.issues[0]?.message ?? 'Invalid request body.')
   }
-  const { word_id } = parsed.data
+  const { word_id, session_id } = parsed.data
 
   const { data: existing, error: existingError } = await supabase
     .from('user_vocabulary_progress')
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from('user_vocabulary_progress')
-    .insert({ user_id: user.id, word_id, ...initialLearningState() })
+    .insert({ user_id: user.id, word_id, session_id: session_id ?? null, ...initialLearningState() })
     .select('*')
     .single()
 

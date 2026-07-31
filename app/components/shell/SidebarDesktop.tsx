@@ -4,13 +4,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "./navItems";
 
-export function SidebarDesktop() {
+export function SidebarDesktop({ studyDisabled = false }: { studyDisabled?: boolean }) {
   const pathname = usePathname();
 
   return (
     <nav className="hidden w-55 shrink-0 flex-col gap-0.5 border-r border-border-soft px-3.5 py-6 md:flex">
       {NAV_ITEMS.map((item) => {
         const active = item.isActive(pathname);
+        const disabled = studyDisabled && item.href === "/study";
+        if (disabled) {
+          return (
+            <span
+              key={item.href}
+              aria-disabled="true"
+              className="flex cursor-not-allowed items-center gap-3 rounded-lg border-l-[3px] border-transparent px-3.5 py-[11px] text-[0.92rem] font-semibold text-text-muted opacity-45 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:shrink-0"
+            >
+              {item.icon}
+              {item.label}
+            </span>
+          );
+        }
         return (
           <Link
             key={item.href}
