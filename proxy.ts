@@ -38,8 +38,18 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Verificăm starea sesiunii utilizatorului
-  const { data: { user } } = await supabase.auth.getUser()
+  // Verificăm starea sesiunii utilizatorului. supabase.auth.getUser() face un round-trip de
+  // rețea către Supabase — dacă acesta eșuează (timeout, blip temporar), excepția nesurprinsă
+  // dobora întreaga funcție edge (inclusiv pe /login). Tratăm eșecul ca "neautentificat" în loc
+  // să lăsăm proxy-ul să crape.
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch (error) {
+    console.error('proxy: supabase.auth.getUser() a eșuat', error)
+  }
+
   const url = request.nextUrl.clone()
 
   // Matcher-ul de mai jos deja limitează proxy-ul la exact aceste prefixe + /login, deci getUser()
