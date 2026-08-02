@@ -10,7 +10,36 @@ import { ReviewCardVocabMeaning } from "@/app/components/study/ReviewCardVocabMe
 import { NewKanjiIntroCard } from "@/app/components/study/NewKanjiIntroCard";
 import { NewVocabIntroCard } from "@/app/components/study/NewVocabIntroCard";
 import { Button } from "@/app/components/ui/Button";
-import { FaArrowRotateRight } from "react-icons/fa6";
+import { Skeleton } from "@/app/components/ui/Skeleton";
+import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
+
+function StudyQueueSkeleton() {
+  return (
+    <div className="flex min-h-screen flex-col bg-bg-main">
+      <div className="px-7 py-5">
+        <div className="flex items-center gap-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-text-muted/40 [&>svg]:h-4 [&>svg]:w-4">
+            <FaXmark />
+          </div>
+          <Skeleton className="h-1.5 flex-1 rounded-full" />
+          <Skeleton className="h-4 w-12 shrink-0" />
+        </div>
+      </div>
+      <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
+        <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-10 py-14 text-center backdrop-blur-[10px]">
+          <Skeleton className="mx-auto mb-6 h-3 w-28" />
+          <Skeleton className="mx-auto mb-2 h-24 w-24 rounded-2xl" />
+          <Skeleton className="mx-auto mt-1 h-3.5 w-48" />
+          <div className="mt-7 flex flex-col items-center gap-3">
+            <Skeleton className="h-11 w-full rounded-lg" />
+            <Skeleton className="h-11 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+      <div className="min-h-14 px-6 pb-7" />
+    </div>
+  );
+}
 
 export default function StudyPage() {
   const router = useRouter();
@@ -18,15 +47,7 @@ export default function StudyPage() {
     useStudyQueue();
 
   if (status === "loading" || status === "ending" || !current) {
-    return (
-      <div className="flex min-h-screen flex-col bg-bg-main">
-        <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
-          <p className="text-base leading-[1.6] text-text-muted">
-            {status === "ending" ? "Wrapping up your session…" : "Loading your study queue…"}
-          </p>
-        </div>
-      </div>
-    );
+    return <StudyQueueSkeleton />;
   }
 
   if (status === "error") {

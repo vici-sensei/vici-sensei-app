@@ -4,15 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost, ApiError } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
-import { clearStoredSessionId, getStoredSessionId, setStoredSessionId, setStoredSummary } from "@/lib/study/session";
-import type {
-  DueCard,
-  Rating,
-  ReviewResult,
-  StudyQueueResponse,
-  StudySessionEnd,
-  StudySessionStart,
-} from "@/lib/types";
+import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
+import type { DueCard, Rating, ReviewResult, StudyQueueResponse, StudySessionStart } from "@/lib/types";
 import { newKanjiKey, newVocabKey, reviewKey, type QueueItem } from "./types";
 
 const REFRESH_INTERVAL_MS = 45_000;
@@ -68,19 +61,24 @@ export function useStudyQueue() {
       if (endingRef.current) return;
       endingRef.current = true;
       setStatus("ending");
+
+      // With progress, hand off to /study/summary immediately — it owns the
+      // session/end call itself, so the skeleton there covers the wait instead
+      // of stacking a second loading screen on this page before navigating.
+      if (hasProgress) {
+        router.push("/study/summary");
+        return;
+      }
+
       const sessionId = sessionIdRef.current;
       try {
         if (sessionId != null) {
-          const summary = await apiPost<StudySessionEnd>("/api/study/session/end", { session_id: sessionId });
+          await apiPost("/api/study/session/end", { session_id: sessionId });
           clearStoredSessionId();
-          if (hasProgress) {
-            setStoredSummary(summary);
-            router.push("/study/summary");
-            return;
-          }
         }
-        router.push("/dashboard");
       } catch {
+        // nothing to recover — the session just won't be marked ended server-side
+      } finally {
         router.push("/dashboard");
       }
     },

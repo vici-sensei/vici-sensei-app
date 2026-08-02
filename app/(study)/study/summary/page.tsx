@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import confetti from "canvas-confetti";
-import { popStoredSummary } from "@/lib/study/session";
+import { apiPost, ApiError } from "@/lib/api/client";
+import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
 import type { StudySessionEnd } from "@/lib/types";
 import { Badge } from "@/app/components/ui/Badge";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { buttonClasses } from "@/app/components/ui/Button";
 import { NextReviewTime } from "@/app/(shell)/dashboard/NextReviewTime";
 
@@ -32,31 +34,56 @@ function formatDuration(seconds: number): string {
 export default function StudySummaryPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<StudySessionEnd | null>(null);
-  const hasPopped = useRef(false);
+  const hasStarted = useRef(false);
 
   useEffect(() => {
-    // Strict Mode double-invokes effects on mount in dev. popStoredSummary()
-    // clears sessionStorage as it reads, so a second invocation would find
-    // nothing and immediately redirect away — this guard makes the pop
-    // happen exactly once regardless of how many times the effect runs.
-    if (hasPopped.current) return;
-    hasPopped.current = true;
+    // Strict Mode double-invokes effects on mount in dev. The session id is
+    // cleared as soon as the end call succeeds, so a second invocation would
+    // find nothing and redirect away — this guard makes the call happen
+    // exactly once regardless of how many times the effect runs.
+    if (hasStarted.current) return;
+    hasStarted.current = true;
 
-    const stored = popStoredSummary();
-    if (!stored) {
+    const sessionId = getStoredSessionId();
+    if (sessionId == null) {
       router.replace("/dashboard");
       return;
     }
-    // sessionStorage is only readable client-side, so this can't be the initial state —
-    // it must be set post-mount. Reading it any earlier (a lazy useState initializer, a
-    // ref checked during render) makes the client's first paint diverge from the null
-    // server render and trips a hydration mismatch instead.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSummary(stored);
-    celebrate();
+
+    (async () => {
+      try {
+        const result = await apiPost<StudySessionEnd>("/api/study/session/end", { session_id: sessionId });
+        clearStoredSessionId();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSummary(result);
+        celebrate();
+      } catch (err) {
+        if (!(err instanceof ApiError)) throw err;
+        router.replace("/dashboard");
+      }
+    })();
   }, [router]);
 
-  if (!summary) return null;
+  if (!summary) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.08)_0%,transparent_55%)]">
+        <div className="relative w-full max-w-[560px] text-center">
+          <Skeleton className="mx-auto h-7 w-36 rounded-full" />
+          <Skeleton className="mx-auto mb-2 mt-4.5 h-9 w-4/5 max-w-100" />
+          <Skeleton className="mx-auto h-5 w-3/5 max-w-75" />
+          <div className="my-8.5 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
+                <Skeleton className="mx-auto mb-2 h-7 w-10" />
+                <Skeleton className="mx-auto h-3.5 w-14" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="mx-auto h-13 w-40 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
 
   const accuracyLabel = summary.accuracy != null ? `${Math.round(summary.accuracy * 100)}%` : "N/A";
 
