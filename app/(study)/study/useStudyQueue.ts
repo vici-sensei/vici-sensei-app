@@ -28,6 +28,22 @@ function buildQueue(data: StudyQueueResponse): QueueItem[] {
   return items;
 }
 
+// Reviews always come before new material, so a review that becomes due mid-session
+// (e.g. a learning-step retest) never gets stuck behind new cards that were already queued.
+function reviewsFirst(items: QueueItem[]): QueueItem[] {
+  const reviews = items.filter((i) => i.kind === "review");
+  const newCards = items.filter((i) => i.kind !== "review");
+  return [...reviews, ...newCards];
+}
+
+// Same priority, but leaves the card currently on screen in place so a merge never
+// yanks it out from under the user mid-answer.
+function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueItem[] {
+  if (prev.length === 0) return reviewsFirst(additions);
+  const [current, ...rest] = prev;
+  return [current, ...reviewsFirst([...rest, ...additions])];
+}
+
 function reviewBody(card: DueCard, rating: Rating) {
   const body: Record<string, unknown> = { exercise_type: card.exercise_type, rating };
   if (card.exercise_type === "kanji_meaning") body.kanji_id = card.kanji_id;
@@ -93,7 +109,7 @@ export function useStudyQueue() {
       setQueue((prev) => {
         const existingKeys = new Set(prev.map((i) => i.key));
         const additions = incoming.filter((i) => !existingKeys.has(i.key));
-        return [...prev, ...additions];
+        return mergeKeepingCurrent(prev, additions);
       });
     } catch {
       // periodic refresh failures shouldn't interrupt an active session

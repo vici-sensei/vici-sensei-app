@@ -10,11 +10,23 @@ interface QueueProgressBarProps {
   onExit: () => void;
 }
 
+const MINUTE = 60;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
+const MONTH = 30 * DAY;
+const YEAR = 365 * DAY;
+
 function formatCountdown(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
+  if (totalSeconds >= YEAR) return `${Math.floor(totalSeconds / YEAR)}y`;
+  if (totalSeconds >= MONTH) return `${Math.floor(totalSeconds / MONTH)}mo`;
+  if (totalSeconds >= WEEK) return `${Math.floor(totalSeconds / WEEK)}w`;
+  if (totalSeconds >= DAY) return `${Math.floor(totalSeconds / DAY)}d`;
+  if (totalSeconds >= HOUR) return `${Math.floor(totalSeconds / HOUR)}h`;
+  if (totalSeconds >= MINUTE) return `${Math.floor(totalSeconds / MINUTE)}m`;
+  return `${totalSeconds}s`;
 }
 
 export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueProgressBarProps) {
@@ -77,11 +89,11 @@ export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueP
           )}
         </div>
       </div>
-      {showCountdown && (
-        <p className="mt-2 text-center text-[0.75rem] text-text-muted/70">
-          Next card in {formatCountdown(remainingMs)}
-        </p>
-      )}
+      <p
+        className={`mt-2 text-center text-[0.75rem] text-text-muted/70 ${showCountdown ? "" : "invisible"}`}
+      >
+        Next card in {showCountdown ? formatCountdown(remainingMs) : "0s"}
+      </p>
     </div>
   );
 }
