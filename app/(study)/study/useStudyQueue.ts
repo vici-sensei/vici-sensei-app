@@ -85,15 +85,6 @@ export function useStudyQueue() {
     [router]
   );
 
-  const maybeEnd = useCallback(
-    (nextQueue: QueueItem[]) => {
-      if (nextQueue.length === 0 && !endingRef.current) {
-        void endSession(hasProcessedAnyRef.current);
-      }
-    },
-    [endSession]
-  );
-
   const refreshQueue = useCallback(async () => {
     try {
       const data = await apiGet<StudyQueueResponse>("/api/study/queue");
@@ -102,14 +93,12 @@ export function useStudyQueue() {
       setQueue((prev) => {
         const existingKeys = new Set(prev.map((i) => i.key));
         const additions = incoming.filter((i) => !existingKeys.has(i.key));
-        const next = [...prev, ...additions];
-        maybeEnd(next);
-        return next;
+        return [...prev, ...additions];
       });
     } catch {
       // periodic refresh failures shouldn't interrupt an active session
     }
-  }, [maybeEnd]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +162,14 @@ export function useStudyQueue() {
     return () => clearTimeout(timeout);
   }, [status, nextDueAt, refreshQueue]);
 
+  // Ends the session once the queue actually empties. Runs post-commit (not inside a
+  // setQueue updater) so router.push doesn't fire a setState while StudyPage is rendering.
+  useEffect(() => {
+    if (status === "ready" && queue.length === 0 && !endingRef.current) {
+      void endSession(hasProcessedAnyRef.current);
+    }
+  }, [status, queue, endSession]);
+
   const enqueueMutation = useCallback((mutate: () => Promise<void>) => {
     mutationChainRef.current = mutationChainRef.current.then(mutate, mutate);
   }, []);
@@ -182,11 +179,7 @@ export function useStudyQueue() {
       hasProcessedAnyRef.current = true;
       setLastReview({ card });
       setCompletedCount((c) => c + 1);
-      setQueue((prev) => {
-        const next = prev.filter((i) => i.key !== reviewKey(card));
-        maybeEnd(next);
-        return next;
-      });
+      setQueue((prev) => prev.filter((i) => i.key !== reviewKey(card)));
 
       enqueueMutation(async () => {
         try {
@@ -199,18 +192,14 @@ export function useStudyQueue() {
         }
       });
     },
-    [enqueueMutation, maybeEnd, showToast]
+    [enqueueMutation, showToast]
   );
 
   const introduceKanji = useCallback(
     (item: QueueItem & { kind: "new_kanji" }) => {
       hasProcessedAnyRef.current = true;
       setCompletedCount((c) => c + 1);
-      setQueue((prev) => {
-        const next = prev.filter((i) => i.key !== item.key);
-        maybeEnd(next);
-        return next;
-      });
+      setQueue((prev) => prev.filter((i) => i.key !== item.key));
 
       enqueueMutation(async () => {
         try {
@@ -226,18 +215,14 @@ export function useStudyQueue() {
         }
       });
     },
-    [enqueueMutation, maybeEnd, showToast]
+    [enqueueMutation, showToast]
   );
 
   const introduceVocab = useCallback(
     (item: QueueItem & { kind: "new_vocab" }) => {
       hasProcessedAnyRef.current = true;
       setCompletedCount((c) => c + 1);
-      setQueue((prev) => {
-        const next = prev.filter((i) => i.key !== item.key);
-        maybeEnd(next);
-        return next;
-      });
+      setQueue((prev) => prev.filter((i) => i.key !== item.key));
 
       enqueueMutation(async () => {
         try {
@@ -253,7 +238,7 @@ export function useStudyQueue() {
         }
       });
     },
-    [enqueueMutation, maybeEnd, showToast]
+    [enqueueMutation, showToast]
   );
 
   const undoLast = useCallback(() => {
