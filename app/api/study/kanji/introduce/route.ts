@@ -27,11 +27,9 @@ export async function POST(request: Request) {
   if (existingError) return jsonError(500, existingError.message)
   if (existing) return jsonError(409, 'This kanji has already been introduced.')
 
-  const { data: meaningRow, error: meaningError } = await supabase
+  const { error: meaningError } = await supabase
     .from('user_kanji_meaning_progress')
     .insert({ user_id: user.id, kanji_id, session_id: session_id ?? null, ...initialLearningState() })
-    .select('*')
-    .single()
 
   if (meaningError) return jsonError(500, meaningError.message)
 
@@ -42,9 +40,8 @@ export async function POST(request: Request) {
 
   if (kanjiWordsError) return jsonError(500, kanjiWordsError.message)
 
-  let readingRows: unknown[] = []
   if (kanjiWords && kanjiWords.length > 0) {
-    const { data, error: readingInsertError } = await supabase
+    const { error: readingInsertError } = await supabase
       .from('user_kanji_reading_progress')
       .insert(
         kanjiWords.map((kw: { kanji_word_id: number }) => ({
@@ -54,11 +51,9 @@ export async function POST(request: Request) {
           ...initialLearningState(),
         }))
       )
-      .select('*')
 
     if (readingInsertError) return jsonError(500, readingInsertError.message)
-    readingRows = data
   }
 
-  return NextResponse.json({ meaning: meaningRow, readings: readingRows }, { status: 201 })
+  return new NextResponse(null, { status: 204 })
 }

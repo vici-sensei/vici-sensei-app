@@ -1,6 +1,15 @@
-import type { ExerciseType, ProgressStatus } from "@/lib/srs/constants";
-import type { KanjiMeaningProgress, KanjiReadingProgress } from "./progress";
-import type { KanjiDetailWord } from "./kanji";
+import type { ExerciseType } from "@/lib/srs/constants";
+
+export interface NewKanjiIntroWord {
+  id: number;
+  vocabulary: {
+    word: string;
+    meanings: string[] | null;
+    jlpt_level: string | null;
+    usually_kana: boolean | null;
+    furiganas: string[] | null;
+  };
+}
 
 export interface DueCard {
   exercise_type: ExerciseType;
@@ -8,13 +17,6 @@ export interface DueCard {
   kanji_id: number | null;
   word_id: number | null;
   kanji_word_id: number | null;
-  status: ProgressStatus;
-  due_at: string;
-  ease_factor: number;
-  interval_days: number;
-  repetitions: number;
-  lapses: number;
-  learning_step: number;
   kanji_char: string | null;
   kanji_meanings: string[] | null;
   word: string | null;
@@ -22,6 +24,7 @@ export interface DueCard {
   romaji_reading: string | null;
   other_readings: string[] | null;
   furiganas: string[] | null;
+  word_meanings: string[] | null;
 }
 
 export interface NewKanjiCandidate {
@@ -31,7 +34,7 @@ export interface NewKanjiCandidate {
   level: string | null;
   kun_readings: string[] | null;
   on_readings: string[] | null;
-  words: KanjiDetailWord[];
+  words: NewKanjiIntroWord[];
 }
 
 export interface NewVocabCandidate {
@@ -40,15 +43,9 @@ export interface NewVocabCandidate {
   kana_reading: string | null;
   meanings: string[] | null;
   parts_of_speech: string[] | null;
-  ids_kanji: number[] | null;
   jlpt_level: string | null;
-  is_common_jisho: boolean | null;
   usually_kana: boolean | null;
-  frequency: string | null;
-  romaji_reading: string | null;
   furiganas: string[] | null;
-  romaji_furiganas: string[] | null;
-  other_readings: string[] | null;
 }
 
 export interface StudyQueueResponse {
@@ -79,25 +76,6 @@ export interface ReviewRequestBody {
   kanji_word_id?: number;
   rating: Rating;
   user_answer?: string;
-}
-
-export interface ReviewResult {
-  status: ProgressStatus;
-  ease_factor: number;
-  interval_days: number;
-  repetitions: number;
-  lapses: number;
-  learning_step: number;
-  due_at: string;
-}
-
-export interface UndoReviewResponse {
-  undone_review_log_id: number;
-}
-
-export interface IntroduceKanjiResponse {
-  meaning: KanjiMeaningProgress;
-  readings: KanjiReadingProgress[];
 }
 
 export interface StudySessionStart {

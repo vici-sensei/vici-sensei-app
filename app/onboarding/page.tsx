@@ -8,7 +8,6 @@ import { Button } from "@/app/components/ui/Button";
 import { Badge } from "@/app/components/ui/Badge";
 import { useToast } from "@/app/components/ui/Toast";
 import { apiPost, ApiError } from "@/lib/api/client";
-import type { StudySettings } from "@/lib/types";
 
 export default function OnboardingPage() {
   const [level, setLevel] = useState<JlptLevel>("N5");
@@ -21,7 +20,7 @@ export default function OnboardingPage() {
   async function handleContinue() {
     setSubmitting(true);
     try {
-      await apiPost<StudySettings>("/api/onboarding/complete", { enabled_levels: included });
+      await apiPost("/api/onboarding/complete", { enabled_levels: included });
       router.push("/dashboard");
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Something went wrong. Please try again.", "error");

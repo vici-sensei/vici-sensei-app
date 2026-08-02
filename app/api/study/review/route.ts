@@ -109,5 +109,5 @@ export async function POST(request: Request) {
 
   if (logError) return jsonError(500, logError.message)
 
-  return NextResponse.json(updated)
+  return new NextResponse(null, { status: 204 })
 }

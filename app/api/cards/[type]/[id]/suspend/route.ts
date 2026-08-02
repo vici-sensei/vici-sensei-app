@@ -24,11 +24,11 @@ export async function POST(
     .update({ status: 'suspended', updated_at: new Date().toISOString() })
     .eq('user_id', user.id)
     .eq(key, id)
-    .select('*')
+    .select('id')
     .maybeSingle()
 
   if (error) return jsonError(500, error.message)
   if (!data) return jsonError(404, 'No progress found for this card.')
 
-  return NextResponse.json(data)
+  return new NextResponse(null, { status: 204 })
 }

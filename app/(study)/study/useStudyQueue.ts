@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiGet, apiPost, ApiError } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
-import type { DueCard, Rating, ReviewResult, StudyQueueResponse, StudySessionStart } from "@/lib/types";
+import type { DueCard, Rating, StudyQueueResponse, StudySessionStart } from "@/lib/types";
 import { newKanjiKey, newVocabKey, reviewKey, type QueueItem } from "./types";
 
 const REFRESH_INTERVAL_MS = 45_000;
@@ -190,7 +190,7 @@ export function useStudyQueue() {
 
       enqueueMutation(async () => {
         try {
-          await apiPost<ReviewResult>("/api/study/review", reviewBody(card, rating));
+          await apiPost("/api/study/review", reviewBody(card, rating));
         } catch (err) {
           setCompletedCount((c) => Math.max(0, c - 1));
           setLastReview((prev) => (prev?.card === card ? null : prev));

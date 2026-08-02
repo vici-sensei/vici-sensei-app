@@ -1,5 +1,3 @@
-import type { VocabularyRow } from "./vocabulary";
-
 export interface KanjiRow {
   id: number;
   kanji: string;
@@ -19,7 +17,11 @@ export interface KanjiListResponse {
 export interface KanjiDetailWord {
   id: number;
   reading_number: number | null;
-  vocabulary: VocabularyRow;
+  vocabulary: {
+    word: string;
+    kana_reading: string | null;
+    meanings: string[] | null;
+  };
 }
 
 export interface KanjiDetail extends KanjiRow {

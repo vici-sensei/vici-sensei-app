@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { VocabularyListResponse, VocabularyRow } from "@/lib/types";
+import type { VocabularyDetailRow, VocabularyListResponse, VocabularyRow } from "@/lib/types";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 500;
@@ -57,9 +57,13 @@ export async function fetchVocabularyList({
   return cachedQueryVocabularyList(search, levels, boundedLimit, boundedOffset);
 }
 
-async function queryVocabularyDetail(id: number): Promise<VocabularyRow | null> {
+async function queryVocabularyDetail(id: number): Promise<VocabularyDetailRow | null> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from("vocabulary").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("vocabulary")
+    .select("id, word, kana_reading, meanings, parts_of_speech, jlpt_level, other_readings")
+    .eq("id", id)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -68,6 +72,6 @@ const cachedQueryVocabularyDetail = unstable_cache(queryVocabularyDetail, ["voca
   revalidate: REVALIDATE_SECONDS,
 });
 
-export async function fetchVocabularyDetail(id: number): Promise<VocabularyRow | null> {
+export async function fetchVocabularyDetail(id: number): Promise<VocabularyDetailRow | null> {
   return cachedQueryVocabularyDetail(id);
 }

@@ -27,13 +27,11 @@ export async function POST(request: Request) {
   if (existingError) return jsonError(500, existingError.message)
   if (existing) return jsonError(409, 'This word has already been introduced.')
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('user_vocabulary_progress')
     .insert({ user_id: user.id, word_id, session_id: session_id ?? null, ...initialLearningState() })
-    .select('*')
-    .single()
 
   if (error) return jsonError(500, error.message)
 
-  return NextResponse.json(data, { status: 201 })
+  return new NextResponse(null, { status: 204 })
 }

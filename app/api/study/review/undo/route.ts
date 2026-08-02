@@ -71,5 +71,5 @@ export async function POST(request: Request) {
 
   if (markUndoneError) return jsonError(500, markUndoneError.message)
 
-  return NextResponse.json({ undone_review_log_id: log.id })
+  return new NextResponse(null, { status: 204 })
 }

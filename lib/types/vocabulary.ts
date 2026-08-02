@@ -21,3 +21,13 @@ export interface VocabularyListResponse {
   limit: number;
   offset: number;
 }
+
+export interface VocabularyDetailRow {
+  id: number;
+  word: string;
+  kana_reading: string | null;
+  meanings: string[] | null;
+  parts_of_speech: string[] | null;
+  jlpt_level: string | null;
+  other_readings: string[] | null;
+}

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     return jsonError(400, parsed.error.issues[0]?.message ?? 'Invalid request body.')
   }
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('user_study_settings')
     .update({
       enabled_levels: parsed.data.enabled_levels,
@@ -26,10 +26,10 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     })
     .eq('user_id', user.id)
-    .select('*')
+    .select('user_id')
     .single()
 
   if (error) return jsonError(500, error.message)
 
-  return NextResponse.json(data)
+  return new NextResponse(null, { status: 204 })
 }
