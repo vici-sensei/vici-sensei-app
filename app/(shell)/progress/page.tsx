@@ -1,13 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
-import Link from "next/link";
 import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
 import { fetchProgressSummary } from "@/lib/data/progress";
-import { getStudyStats } from "@/lib/data/studyStats";
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
-import { cardsRemainingToday } from "@/lib/study/stats";
-import { buttonClasses } from "@/app/components/ui/Button";
 import { FaBook, FaFont, FaPenToSquare } from "react-icons/fa6";
+import { StartStudyingLink } from "./StartStudyingLink";
 
 const STATUS_COLORS: Record<ProgressStatus, string> = {
   new: "var(--color-text-muted)",
@@ -60,14 +57,8 @@ function total(counts: ProgressStatusCounts): number {
 export default async function ProgressPage() {
   const supabase = await getSupabaseServerClient();
   const user = await getAuthedUser();
-  const [summary, stats] = await Promise.all([
-    fetchProgressSummary(supabase, user.id),
-    // Cached per-request (React.cache) — the shell layout above this page already fetched
-    // stats, so this reuses that result instead of re-querying.
-    getStudyStats(supabase, user.id),
-  ]);
+  const summary = await fetchProgressSummary(supabase, user.id);
   const grandTotal = BLOCKS.reduce((sum, b) => sum + total(summary[b.key]), 0);
-  const studyDisabled = cardsRemainingToday(stats) === 0;
 
   return (
     <div>
@@ -80,18 +71,7 @@ export default async function ProgressPage() {
         <div className="relative rounded-2xl border border-border-soft bg-bg-cards px-5 py-15 text-center text-text-muted backdrop-blur-[10px]">
           <h3 className="mb-2.5 text-[1.3rem] text-white">No progress yet</h3>
           <p>Once you start studying, your kanji and vocabulary will show up here, broken down by status.</p>
-          {studyDisabled ? (
-            <span
-              aria-disabled="true"
-              className={buttonClasses({ hover: "hover", className: "mt-2.5 cursor-not-allowed opacity-45" })}
-            >
-              Start studying
-            </span>
-          ) : (
-            <Link href="/study" className={buttonClasses({ hover: "hover", className: "mt-2.5" })}>
-              Start studying
-            </Link>
-          )}
+          <StartStudyingLink />
         </div>
       ) : (
         BLOCKS.map((block, idx) => {

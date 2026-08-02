@@ -4,6 +4,7 @@ import { jsonError, requireUser } from '@/lib/api/errors'
 import { utcDayBounds } from '@/lib/srs/day'
 import { getNextDue } from '@/lib/srs/nextDue'
 import { fetchKanjiDetailWordsBatch } from '@/lib/kanji/detailWords'
+import { getRequestTimezone } from '@/lib/data/timezone'
 import type { KanjiRow } from '@/lib/types'
 
 export async function GET() {
@@ -26,7 +27,8 @@ export async function GET() {
 
   const enabledLevels = settings.enabled_levels as string[]
   const nowIso = new Date().toISOString()
-  const { start: todayStart, end: todayEnd } = utcDayBounds()
+  const timezone = await getRequestTimezone()
+  const { start: todayStart, end: todayEnd } = utcDayBounds(new Date(), timezone)
 
   // Everything below only depends on `settings`, so it fires as batches of parallel queries
   // instead of the sequential round trips this route used to make one at a time — each round
@@ -41,7 +43,7 @@ export async function GET() {
       p_limit: settings.max_reviews_per_day,
       p_as_of: nowIso,
     }),
-    getNextDue(supabase, user.id, nowIso),
+    getNextDue(supabase, user.id, nowIso, timezone),
     settings.study_kanji
       ? supabase
           .from('user_kanji_meaning_progress')

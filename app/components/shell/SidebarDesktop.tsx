@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { NAV_ITEMS } from "./navItems";
 
-export function SidebarDesktop({ studyDisabled = false }: { studyDisabled?: boolean }) {
+export function SidebarDesktop() {
   const pathname = usePathname();
+  const { studyDisabled } = useStudyStats();
 
   return (
     <nav className="hidden w-55 shrink-0 flex-col gap-0.5 border-r border-border-soft px-3.5 py-6 md:flex">

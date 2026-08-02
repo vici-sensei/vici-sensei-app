@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
 import { getStudyStats } from "@/lib/data/studyStats";
+import { getRequestTimezone } from "@/lib/data/timezone";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { DashboardHero } from "./DashboardHero";
 import { CheckoutBanner } from "./CheckoutBanner";
@@ -15,14 +16,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const supabase = await getSupabaseServerClient();
   const user = await getAuthedUser();
   // Cached per-request (React.cache) — the shell layout above this page already fetched
-  // stats, so this reuses that result instead of re-querying.
-  const stats = await getStudyStats(supabase, user.id);
+  // stats (with the same timezone), so this reuses that result instead of re-querying.
+  const timezone = await getRequestTimezone();
+  const stats = await getStudyStats(supabase, user.id, timezone);
 
   return (
     <div>
       {(checkout === "success" || checkout === "cancel") && <CheckoutBanner status={checkout} />}
 
-      <DashboardHero initialStats={stats} />
+      <DashboardHero />
 
       <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-4">
         <GlassCard padding="sm">

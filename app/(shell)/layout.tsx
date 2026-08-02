@@ -3,15 +3,18 @@ import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
 import { getStudySettings } from "@/lib/data/studySettings";
 import { getUserProfile } from "@/lib/data/userProfile";
 import { getStudyStats } from "@/lib/data/studyStats";
-import { cardsRemainingToday } from "@/lib/study/stats";
+import { getRequestTimezone } from "@/lib/data/timezone";
+import { StudyStatsProvider } from "@/lib/study/StudyStatsContext";
 import { Header } from "@/app/components/shell/Header";
 import { SidebarDesktop } from "@/app/components/shell/SidebarDesktop";
 import { BottomNavMobile } from "@/app/components/shell/BottomNavMobile";
 import { OfflineBanner } from "@/app/components/shell/OfflineBanner";
+import { TimezoneSync } from "@/app/components/shell/TimezoneSync";
 
 export default async function ShellLayout({ children }: { children: React.ReactNode }) {
   const supabase = await getSupabaseServerClient();
   const authedUser = await getAuthedUser();
+  const timezone = await getRequestTimezone();
 
   // Settings, profile, and stats are independent of one another (each only needs the user id),
   // so they run as one batch instead of settings blocking the other two — the redirect check
@@ -20,7 +23,7 @@ export default async function ShellLayout({ children }: { children: React.ReactN
   const [settings, user, stats] = await Promise.all([
     getStudySettings(supabase, authedUser.id),
     getUserProfile(supabase, authedUser.id),
-    getStudyStats(supabase, authedUser.id),
+    getStudyStats(supabase, authedUser.id, timezone),
   ]);
 
   // A user_study_settings row is created for every user at signup (handle_new_user trigger),
@@ -30,19 +33,25 @@ export default async function ShellLayout({ children }: { children: React.ReactN
     redirect("/onboarding");
   }
 
-  const studyDisabled = cardsRemainingToday(stats) === 0;
-
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header user={user} />
-      <div className="flex w-full flex-1">
-        <SidebarDesktop studyDisabled={studyDisabled} />
-        <main className="max-w-none flex-1 px-5 pb-[90px] pt-5 md:max-w-[1000px] md:px-10 md:pb-8 md:pt-8">
-          <OfflineBanner />
-          {children}
-        </main>
+    // Next.js keeps this layout mounted (and doesn't re-run its data fetch) across
+    // client-side navigations between pages that share it — a server-computed
+    // "studyDisabled" boolean baked in here would go stale the moment new content
+    // becomes available while the user stays inside the app. StudyStatsProvider
+    // polls client-side instead, so the nav's Study link reflects the live count.
+    <StudyStatsProvider initialStats={stats}>
+      <TimezoneSync />
+      <div className="flex min-h-screen flex-col">
+        <Header user={user} />
+        <div className="flex w-full flex-1">
+          <SidebarDesktop />
+          <main className="max-w-none flex-1 px-5 pb-[90px] pt-5 md:max-w-[1000px] md:px-10 md:pb-8 md:pt-8">
+            <OfflineBanner />
+            {children}
+          </main>
+        </div>
+        <BottomNavMobile />
       </div>
-      <BottomNavMobile studyDisabled={studyDisabled} />
-    </div>
+    </StudyStatsProvider>
   );
 }

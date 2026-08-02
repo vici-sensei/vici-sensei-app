@@ -10,9 +10,13 @@ const RETENTION_WINDOW_DAYS = 30;
 
 const DUE_PROGRESS_TABLES = ["user_kanji_meaning_progress", "user_kanji_reading_progress", "user_vocabulary_progress"] as const;
 
-export async function fetchStudyStats(supabase: SupabaseServerClient, userId: string): Promise<StudyStats> {
+export async function fetchStudyStats(
+  supabase: SupabaseServerClient,
+  userId: string,
+  timezone?: string
+): Promise<StudyStats> {
   const nowIso = new Date().toISOString();
-  const { start: todayStart, end: todayEnd } = utcDayBounds();
+  const { start: todayStart, end: todayEnd } = utcDayBounds(new Date(), timezone);
   const windowStart = new Date(Date.now() - RETENTION_WINDOW_DAYS * 86_400_000).toISOString();
 
   // All of these are independent of one another (each only needs userId/nowIso), so they
@@ -34,7 +38,7 @@ export async function fetchStudyStats(supabase: SupabaseServerClient, userId: st
             .neq("status", "suspended")
         )
       ),
-      getNextDue(supabase, userId, nowIso),
+      getNextDue(supabase, userId, nowIso, timezone),
       supabase
         .from("user_kanji_meaning_progress")
         .select("id", { count: "exact", head: true })

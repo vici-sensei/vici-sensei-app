@@ -1,50 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { GiPartyPopper } from "react-icons/gi";
-import { apiGet } from "@/lib/api/client";
-import type { StudyStats } from "@/lib/types";
+import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { StartStudyButton } from "./StartStudyButton";
 import { NextReviewTime } from "./NextReviewTime";
 
-const POLL_INTERVAL_MS = 30_000;
-
-export function DashboardHero({ initialStats }: { initialStats: StudyStats }) {
-  const [stats, setStats] = useState(initialStats);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function refresh() {
-      try {
-        const fresh = await apiGet<StudyStats>("/api/study/stats");
-        if (!cancelled) setStats(fresh);
-      } catch {
-        // Keep showing the last known stats; the next tick or focus event will retry.
-      }
-    }
-
-    // Polling re-asks the server (whose clock is authoritative) rather than
-    // trusting the device clock to know when a review becomes due or a new
-    // day starts.
-    const interval = setInterval(refresh, POLL_INTERVAL_MS);
-    function onVisibilityChange() {
-      if (document.visibilityState === "visible") void refresh();
-    }
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, []);
+export function DashboardHero() {
+  // Shared with the nav's Study link (see StudyStatsProvider in the shell layout) so both
+  // reflect the same live count instead of drifting apart.
+  const { stats, studyDisabled: allDone, stale } = useStudyStats();
 
   const remainingKanji = Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0);
   const remainingVocab = Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0);
   const cardsToday = cardsRemainingToday(stats);
-  const allDone = cardsToday === 0;
   const dueLaterToday = allDone && stats.next_due_is_today;
   const kanjiPending = remainingKanji > 0;
   const vocabPending = remainingVocab > 0;
@@ -102,6 +71,9 @@ export function DashboardHero({ initialStats }: { initialStats: StudyStats }) {
           </>
         )}
         <StartStudyButton disabled={allDone} />
+        {stale && (
+          <p className="mt-2.5 text-sm text-text-muted">Couldn&apos;t refresh your stats — try reloading the page.</p>
+        )}
       </div>
     </div>
   );
