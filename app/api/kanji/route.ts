@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
 import { JLPT_LEVELS } from '@/lib/srs/constants'
+import { fetchKanjiList } from '@/lib/data/kanji'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 500
@@ -24,23 +25,10 @@ export async function GET(request: Request) {
     return jsonError(400, `each level must be one of: ${JLPT_LEVELS.join(', ')}`)
   }
 
-  const { data, error } = await supabase.rpc('search_kanji', {
-    p_query: search,
-    p_level: levels,
-    p_limit: limit,
-    p_offset: offset,
-  })
-
-  if (error) {
-    return jsonError(500, error.message)
+  try {
+    const result = await fetchKanjiList({ search, levels, limit, offset })
+    return NextResponse.json(result)
+  } catch (err) {
+    return jsonError(500, err instanceof Error ? err.message : 'Failed to search kanji.')
   }
-
-  const count = data[0]?.total_count ?? 0
-  const rows = data.map((row: { total_count: number }) => {
-    const { total_count, ...rest } = row
-    void total_count
-    return rest
-  })
-
-  return NextResponse.json({ data: rows, count, limit, offset })
 }

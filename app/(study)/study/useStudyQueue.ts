@@ -52,11 +52,16 @@ export function useStudyQueue() {
   const [completedCount, setCompletedCount] = useState(0);
   const [nextDueAt, setNextDueAt] = useState<string | null>(null);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
-  const [actionPending, setActionPending] = useState(false);
+  const [undoPending, setUndoPending] = useState(false);
 
   const sessionIdRef = useRef<number | null>(null);
   const endingRef = useRef(false);
   const hasProcessedAnyRef = useRef(false);
+  // Background mutations (review/introduce/undo) are chained through this instead of
+  // awaited by the UI, so the next card can show immediately while still guaranteeing
+  // the server sees them in the order the user actually answered — important for undo,
+  // which needs the review it's undoing to have landed first.
+  const mutationChainRef = useRef<Promise<void>>(Promise.resolve());
 
   const endSession = useCallback(
     async (hasProgress: boolean) => {
@@ -113,15 +118,17 @@ export function useStudyQueue() {
 
     async function init() {
       try {
-        let sessionId = getStoredSessionId();
-        if (sessionId == null) {
-          const started = await apiPost<StudySessionStart>("/api/study/session/start");
-          sessionId = started.session_id;
-          setStoredSessionId(sessionId);
-        }
+        const storedSessionId = getStoredSessionId();
+        // Neither of these depends on the other's result, so they fire together instead
+        // of the queue fetch waiting on session/start to finish first.
+        const [started, data] = await Promise.all([
+          storedSessionId == null ? apiPost<StudySessionStart>("/api/study/session/start") : Promise.resolve(null),
+          apiGet<StudyQueueResponse>("/api/study/queue"),
+        ]);
+        const sessionId = storedSessionId ?? started!.session_id;
+        if (started) setStoredSessionId(sessionId);
         sessionIdRef.current = sessionId;
 
-        const data = await apiGet<StudyQueueResponse>("/api/study/queue");
         if (cancelled) return;
         const items = buildQueue(data);
         setQueue(items);
@@ -168,101 +175,109 @@ export function useStudyQueue() {
     return () => clearTimeout(timeout);
   }, [status, nextDueAt, refreshQueue]);
 
+  const enqueueMutation = useCallback((mutate: () => Promise<void>) => {
+    mutationChainRef.current = mutationChainRef.current.then(mutate, mutate);
+  }, []);
+
   const rate = useCallback(
-    async (card: DueCard, rating: Rating) => {
-      setActionPending(true);
-      try {
-        await apiPost<ReviewResult>("/api/study/review", reviewBody(card, rating));
-        hasProcessedAnyRef.current = true;
-        setLastReview({ card });
-        setCompletedCount((c) => c + 1);
-        setQueue((prev) => {
-          const next = prev.filter((i) => i.key !== reviewKey(card));
-          maybeEnd(next);
-          return next;
-        });
-        void refreshQueue();
-      } catch (err) {
-        showToast(err instanceof ApiError ? err.message : "Could not submit your answer. Please try again.", "error");
-      } finally {
-        setActionPending(false);
-      }
+    (card: DueCard, rating: Rating) => {
+      hasProcessedAnyRef.current = true;
+      setLastReview({ card });
+      setCompletedCount((c) => c + 1);
+      setQueue((prev) => {
+        const next = prev.filter((i) => i.key !== reviewKey(card));
+        maybeEnd(next);
+        return next;
+      });
+
+      enqueueMutation(async () => {
+        try {
+          await apiPost<ReviewResult>("/api/study/review", reviewBody(card, rating));
+        } catch (err) {
+          setCompletedCount((c) => Math.max(0, c - 1));
+          setLastReview((prev) => (prev?.card === card ? null : prev));
+          setQueue((prev) => [{ key: reviewKey(card), kind: "review", card }, ...prev]);
+          showToast(err instanceof ApiError ? err.message : "Could not submit your answer. Please try again.", "error");
+        }
+      });
     },
-    [maybeEnd, refreshQueue, showToast]
+    [enqueueMutation, maybeEnd, showToast]
   );
 
   const introduceKanji = useCallback(
-    async (item: QueueItem & { kind: "new_kanji" }) => {
-      setActionPending(true);
-      try {
+    (item: QueueItem & { kind: "new_kanji" }) => {
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      setQueue((prev) => {
+        const next = prev.filter((i) => i.key !== item.key);
+        maybeEnd(next);
+        return next;
+      });
+
+      enqueueMutation(async () => {
         try {
           await apiPost("/api/study/kanji/introduce", {
             kanji_id: item.candidate.id,
             session_id: sessionIdRef.current,
           });
         } catch (err) {
-          if (!(err instanceof ApiError && err.status === 409)) throw err;
+          if (err instanceof ApiError && err.status === 409) return; // already introduced elsewhere — not a failure
+          setCompletedCount((c) => Math.max(0, c - 1));
+          setQueue((prev) => [item, ...prev]);
+          showToast(err instanceof ApiError ? err.message : "Could not introduce this kanji. Please try again.", "error");
         }
-        hasProcessedAnyRef.current = true;
-        setCompletedCount((c) => c + 1);
-        setQueue((prev) => {
-          const next = prev.filter((i) => i.key !== item.key);
-          maybeEnd(next);
-          return next;
-        });
-        void refreshQueue();
-      } catch (err) {
-        showToast(err instanceof ApiError ? err.message : "Could not introduce this kanji. Please try again.", "error");
-      } finally {
-        setActionPending(false);
-      }
+      });
     },
-    [maybeEnd, refreshQueue, showToast]
+    [enqueueMutation, maybeEnd, showToast]
   );
 
   const introduceVocab = useCallback(
-    async (item: QueueItem & { kind: "new_vocab" }) => {
-      setActionPending(true);
-      try {
+    (item: QueueItem & { kind: "new_vocab" }) => {
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      setQueue((prev) => {
+        const next = prev.filter((i) => i.key !== item.key);
+        maybeEnd(next);
+        return next;
+      });
+
+      enqueueMutation(async () => {
         try {
           await apiPost("/api/study/vocabulary/introduce", {
             word_id: item.candidate.id,
             session_id: sessionIdRef.current,
           });
         } catch (err) {
-          if (!(err instanceof ApiError && err.status === 409)) throw err;
+          if (err instanceof ApiError && err.status === 409) return; // already introduced elsewhere — not a failure
+          setCompletedCount((c) => Math.max(0, c - 1));
+          setQueue((prev) => [item, ...prev]);
+          showToast(err instanceof ApiError ? err.message : "Could not introduce this word. Please try again.", "error");
         }
-        hasProcessedAnyRef.current = true;
-        setCompletedCount((c) => c + 1);
-        setQueue((prev) => {
-          const next = prev.filter((i) => i.key !== item.key);
-          maybeEnd(next);
-          return next;
-        });
-        void refreshQueue();
-      } catch (err) {
-        showToast(err instanceof ApiError ? err.message : "Could not introduce this word. Please try again.", "error");
-      } finally {
-        setActionPending(false);
-      }
+      });
     },
-    [maybeEnd, refreshQueue, showToast]
+    [enqueueMutation, maybeEnd, showToast]
   );
 
-  const undoLast = useCallback(async () => {
+  const undoLast = useCallback(() => {
     if (!lastReview) return;
-    setActionPending(true);
-    try {
-      await apiPost("/api/study/review/undo");
-      setCompletedCount((c) => Math.max(0, c - 1));
-      setQueue((prev) => [{ key: reviewKey(lastReview.card), kind: "review", card: lastReview.card }, ...prev]);
-      setLastReview(null);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not undo your last answer.", "error");
-    } finally {
-      setActionPending(false);
-    }
-  }, [lastReview, showToast]);
+    const toUndo = lastReview;
+    setUndoPending(true);
+
+    // Chained behind rate()/introduceKanji()/introduceVocab() so the review being undone
+    // has definitely landed on the server before the undo request fires.
+    enqueueMutation(async () => {
+      try {
+        await apiPost("/api/study/review/undo");
+        setCompletedCount((c) => Math.max(0, c - 1));
+        setQueue((prev) => [{ key: reviewKey(toUndo.card), kind: "review", card: toUndo.card }, ...prev]);
+        setLastReview((prev) => (prev === toUndo ? null : prev));
+      } catch (err) {
+        showToast(err instanceof ApiError ? err.message : "Could not undo your last answer.", "error");
+      } finally {
+        setUndoPending(false);
+      }
+    });
+  }, [enqueueMutation, lastReview, showToast]);
 
   return {
     status,
@@ -272,7 +287,7 @@ export function useStudyQueue() {
     totalKnown: completedCount + queue.length,
     nextDueAt,
     lastReview,
-    actionPending,
+    actionPending: undoPending,
     actions: { rate, introduceKanji, introduceVocab, undoLast },
   };
 }

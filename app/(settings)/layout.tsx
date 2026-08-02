@@ -1,16 +1,22 @@
 import { redirect } from "next/navigation";
-import { fetchServer, fetchServerOptional } from "@/lib/api/server";
-import type { StudySettings, UserProfile } from "@/lib/types";
+import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
+import { getStudySettings } from "@/lib/data/studySettings";
+import { getUserProfile } from "@/lib/data/userProfile";
 import { SettingsHeader } from "@/app/components/shell/SettingsHeader";
 import { SettingsNav } from "./SettingsNav";
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
-  const settings = await fetchServerOptional<StudySettings>("/api/study-settings");
+  const supabase = await getSupabaseServerClient();
+  const authedUser = await getAuthedUser();
+
+  // Independent of one another, so they run as one batch instead of settings blocking profile.
+  const [settings, user] = await Promise.all([
+    getStudySettings(supabase, authedUser.id),
+    getUserProfile(supabase, authedUser.id),
+  ]);
   if (!settings || !settings.onboarding_completed) {
     redirect("/onboarding");
   }
-
-  const user = await fetchServer<UserProfile>("/api/user/me");
 
   return (
     <div>

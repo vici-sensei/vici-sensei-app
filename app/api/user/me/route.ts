@@ -4,23 +4,19 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { jsonError, requireUser } from '@/lib/api/errors'
 import { getStripeClient } from '@/lib/stripe/client'
+import { fetchUserProfile } from '@/lib/data/userProfile'
 
 export async function GET() {
   const supabase = await createClient()
   const { user, response } = await requireUser(supabase)
   if (!user) return response
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('email, display_name, avatar_url, is_premium, created_at')
-    .eq('id', user.id)
-    .single()
-
-  if (error) {
-    return jsonError(500, error.message)
+  try {
+    const data = await fetchUserProfile(supabase, user.id)
+    return NextResponse.json(data)
+  } catch (err) {
+    return jsonError(500, err instanceof Error ? err.message : 'Failed to load user profile.')
   }
-
-  return NextResponse.json(data)
 }
 
 const patchSchema = z.object({

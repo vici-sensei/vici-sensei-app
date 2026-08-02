@@ -1,7 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
-import { fetchServer } from "@/lib/api/server";
-import type { ProgressSummaryResponse, ProgressStatusCounts, StudyStats } from "@/lib/types";
+import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
+import { fetchProgressSummary } from "@/lib/data/progress";
+import { getStudyStats } from "@/lib/data/studyStats";
+import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { buttonClasses } from "@/app/components/ui/Button";
@@ -56,9 +58,13 @@ function total(counts: ProgressStatusCounts): number {
 }
 
 export default async function ProgressPage() {
+  const supabase = await getSupabaseServerClient();
+  const user = await getAuthedUser();
   const [summary, stats] = await Promise.all([
-    fetchServer<ProgressSummaryResponse>("/api/progress/summary"),
-    fetchServer<StudyStats>("/api/study/stats"),
+    fetchProgressSummary(supabase, user.id),
+    // Cached per-request (React.cache) — the shell layout above this page already fetched
+    // stats, so this reuses that result instead of re-querying.
+    getStudyStats(supabase, user.id),
   ]);
   const grandTotal = BLOCKS.reduce((sum, b) => sum + total(summary[b.key]), 0);
   const studyDisabled = cardsRemainingToday(stats) === 0;

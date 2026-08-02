@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
+import { fetchVocabularyDetail } from '@/lib/data/vocabulary'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -8,11 +9,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { user, response } = await requireUser(supabase)
   if (!user) return response
 
-  const { data, error } = await supabase.from('vocabulary').select('*').eq('id', id).maybeSingle()
-
-  if (error) {
-    return jsonError(500, error.message)
+  let data
+  try {
+    data = await fetchVocabularyDetail(Number(id))
+  } catch (err) {
+    return jsonError(500, err instanceof Error ? err.message : 'Failed to load vocabulary word.')
   }
+
   if (!data) {
     return jsonError(404, 'Vocabulary word not found.')
   }

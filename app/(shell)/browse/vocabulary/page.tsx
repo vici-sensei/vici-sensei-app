@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { fetchServer } from "@/lib/api/server";
-import type { VocabularyListResponse, StudySettings } from "@/lib/types";
+import { redirect } from "next/navigation";
+import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
+import { getStudySettings } from "@/lib/data/studySettings";
+import { fetchVocabularyList } from "@/lib/data/vocabulary";
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { BrowseTabs } from "../BrowseTabs";
 import { BrowseControls } from "../BrowseControls";
@@ -22,18 +24,17 @@ function parseLevels(raw: string | undefined, fallback: JlptLevel[]): JlptLevel[
 
 export default async function BrowseVocabularyPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const settings = await fetchServer<StudySettings>("/api/study-settings");
+  const supabase = await getSupabaseServerClient();
+  const user = await getAuthedUser();
+  // Cached per-request (React.cache) — the shell layout above this page already fetched
+  // settings, so this reuses that result instead of re-querying.
+  const settings = await getStudySettings(supabase, user.id);
+  if (!settings) redirect("/onboarding");
   const levels = parseLevels(params.level, settings.enabled_levels);
   const search = params.search ?? "";
   const offset = Math.max(Number(params.offset) || 0, 0);
 
-  const query = new URLSearchParams();
-  if (search) query.set("search", search);
-  if (levels.length > 0) query.set("level", levels.join(","));
-  query.set("limit", String(PAGE_SIZE));
-  query.set("offset", String(offset));
-
-  const result = await fetchServer<VocabularyListResponse>(`/api/vocabulary?${query.toString()}`);
+  const result = await fetchVocabularyList({ search: search || null, levels, limit: PAGE_SIZE, offset });
 
   const basePath = "/browse/vocabulary";
   const preservedParams = new URLSearchParams();

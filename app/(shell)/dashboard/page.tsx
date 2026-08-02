@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { fetchServer } from "@/lib/api/server";
-import type { StudyStats } from "@/lib/types";
+import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
+import { getStudyStats } from "@/lib/data/studyStats";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { DashboardHero } from "./DashboardHero";
 import { CheckoutBanner } from "./CheckoutBanner";
@@ -12,7 +12,11 @@ interface DashboardPageProps {
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const { checkout } = await searchParams;
-  const stats = await fetchServer<StudyStats>("/api/study/stats");
+  const supabase = await getSupabaseServerClient();
+  const user = await getAuthedUser();
+  // Cached per-request (React.cache) — the shell layout above this page already fetched
+  // stats, so this reuses that result instead of re-querying.
+  const stats = await getStudyStats(supabase, user.id);
 
   return (
     <div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { fetchServer, fetchServerOptional } from "@/lib/api/server";
-import type { KanjiDetail, KanjiProgressResponse } from "@/lib/types";
+import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
+import { fetchKanjiDetail } from "@/lib/data/kanji";
+import { fetchKanjiProgress } from "@/lib/data/progress";
 import { StatusPill } from "@/app/components/ui/StatusPill";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { CardActions } from "@/app/components/browse/CardActions";
@@ -13,7 +14,16 @@ interface PageProps {
 
 export default async function KanjiDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const kanji = await fetchServerOptional<KanjiDetail>(`/api/kanji/${id}`);
+  const supabase = await getSupabaseServerClient();
+  const user = await getAuthedUser();
+  const kanjiId = Number(id);
+
+  // Both only need the id (progress additionally needs the user), so they run in parallel
+  // instead of waiting for the kanji lookup before starting the progress query.
+  const [kanji, progress] = await Promise.all([
+    fetchKanjiDetail(kanjiId),
+    fetchKanjiProgress(supabase, user.id, kanjiId),
+  ]);
 
   if (!kanji) {
     return (
@@ -27,7 +37,6 @@ export default async function KanjiDetailPage({ params }: PageProps) {
     );
   }
 
-  const progress = await fetchServer<KanjiProgressResponse>(`/api/progress/kanji/${id}`);
   const hasProgress = progress.meaning !== null || progress.readings.length > 0;
 
   const colLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";

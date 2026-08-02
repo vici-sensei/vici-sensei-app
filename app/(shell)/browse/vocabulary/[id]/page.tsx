@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { fetchServerOptional } from "@/lib/api/server";
-import type { VocabularyProgress, VocabularyRow } from "@/lib/types";
+import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
+import { fetchVocabularyDetail } from "@/lib/data/vocabulary";
+import { fetchVocabularyProgress } from "@/lib/data/progress";
 import { StatusPill } from "@/app/components/ui/StatusPill";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { CardActions } from "@/app/components/browse/CardActions";
@@ -13,7 +14,16 @@ interface PageProps {
 
 export default async function VocabularyDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const word = await fetchServerOptional<VocabularyRow>(`/api/vocabulary/${id}`);
+  const supabase = await getSupabaseServerClient();
+  const user = await getAuthedUser();
+  const wordId = Number(id);
+
+  // Both only need the id (progress additionally needs the user), so they run in parallel
+  // instead of waiting for the word lookup before starting the progress query.
+  const [word, progress] = await Promise.all([
+    fetchVocabularyDetail(wordId),
+    fetchVocabularyProgress(supabase, user.id, wordId),
+  ]);
 
   if (!word) {
     return (
@@ -27,7 +37,6 @@ export default async function VocabularyDetailPage({ params }: PageProps) {
     );
   }
 
-  const progress = await fetchServerOptional<VocabularyProgress>(`/api/progress/vocabulary/${id}`);
   const factLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
 
   return (

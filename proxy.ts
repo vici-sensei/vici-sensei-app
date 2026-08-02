@@ -42,9 +42,10 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const url = request.nextUrl.clone()
 
-  // Toate rutele autentificate — restul (login, session-expired, auth/callback, api/*) rămân publice la acest nivel;
-  // /api/* face propriul guard (401 JSON) prin requireUser(), iar /onboarding are nevoie doar de sesiune, nu de
-  // onboarding_completed (acel gate mai fin trăiește în layout-urile (shell)/(study), care oricum fac fetch de settings).
+  // Matcher-ul de mai jos deja limitează proxy-ul la exact aceste prefixe + /login, deci getUser()
+  // nu se mai execută pe /api/* (are propriul guard prin requireUser()) sau pe rutele public (/, /session-expired,
+  // /auth/callback). /onboarding are nevoie doar de sesiune, nu de onboarding_completed (acel gate mai fin
+  // trăiește în layout-urile (shell)/(study), care oricum fac fetch de settings).
   const PROTECTED_PREFIXES = ['/dashboard', '/study', '/browse', '/progress', '/settings', '/onboarding']
 
   if (!user && PROTECTED_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
@@ -60,9 +61,19 @@ export async function proxy(request: NextRequest) {
   return response
 }
 
-// Configurare Matcher pentru proxy
+// Configurare Matcher pentru proxy — rulează doar pe rutele protejate (unde chiar
+// redirecționăm spre /login dacă nu există sesiune) și pe /login (pentru redirect
+// invers, spre /dashboard, dacă userul e deja autentificat). /api/* e exclus complet:
+// fiecare rută API își face propriul guard prin requireUser(), deci getUser() aici ar
+// fi doar un round-trip suplimentar irosit.
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/dashboard/:path*',
+    '/study/:path*',
+    '/browse/:path*',
+    '/progress/:path*',
+    '/settings/:path*',
+    '/onboarding/:path*',
+    '/login',
   ],
 }

@@ -3,20 +3,18 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
 import { JLPT_LEVELS } from '@/lib/srs/constants'
+import { fetchStudySettings } from '@/lib/data/studySettings'
 
 export async function GET() {
   const supabase = await createClient()
   const { user, response } = await requireUser(supabase)
   if (!user) return response
 
-  const { data, error } = await supabase
-    .from('user_study_settings')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (error) {
-    return jsonError(500, error.message)
+  let data
+  try {
+    data = await fetchStudySettings(supabase, user.id)
+  } catch (err) {
+    return jsonError(500, err instanceof Error ? err.message : 'Failed to load study settings.')
   }
 
   if (!data) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api/client";
 import type { UserProfile } from "@/lib/types";
@@ -28,14 +29,15 @@ function Avatar({
   const showAvatar = Boolean(user.avatar_url) && !avatarFailed;
   return (
     <div
-      className={`flex items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 font-extrabold text-white ${className}`}
+      className={`relative flex items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 font-extrabold text-white ${className}`}
     >
       {showAvatar ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={avatarSrc(user.avatar_url as string, 128)}
           alt=""
-          className="h-full w-full object-cover"
+          fill
+          sizes="64px"
+          className="object-cover"
           onError={onAvatarError}
         />
       ) : (

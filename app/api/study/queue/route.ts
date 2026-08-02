@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { jsonError, requireUser } from '@/lib/api/errors'
 import { utcDayBounds } from '@/lib/srs/day'
 import { getNextDue } from '@/lib/srs/nextDue'
-import { fetchKanjiDetailWords } from '@/lib/kanji/detailWords'
-import type { KanjiRow, KanjiDetailWord } from '@/lib/types'
+import { fetchKanjiDetailWordsBatch } from '@/lib/kanji/detailWords'
+import type { KanjiRow } from '@/lib/types'
 
 export async function GET() {
   const supabase = await createClient()
@@ -26,82 +26,90 @@ export async function GET() {
 
   const enabledLevels = settings.enabled_levels as string[]
   const nowIso = new Date().toISOString()
-
-  const { data: dueCards, error: dueError } = await supabase.rpc('get_due_cards', {
-    p_user_id: user.id,
-    p_enabled_levels: enabledLevels,
-    p_include_kanji: settings.study_kanji,
-    p_include_vocab: settings.study_vocabulary,
-    p_limit: settings.max_reviews_per_day,
-    p_as_of: nowIso,
-  })
-  if (dueError) return jsonError(500, dueError.message)
-
-  const nextDue = await getNextDue(supabase, user.id, nowIso)
-  if (nextDue.error !== null) return jsonError(500, nextDue.error)
-
   const { start: todayStart, end: todayEnd } = utcDayBounds()
-  let newKanjiToIntroduce: (KanjiRow & { words: KanjiDetailWord[] })[] = []
-  let newVocabToIntroduce: unknown[] = []
 
-  if (settings.study_kanji) {
-    const { count: introducedTodayCount, error: countError } = await supabase
-      .from('user_kanji_meaning_progress')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('repetitions', 0)
-      .gte('created_at', todayStart)
-      .lt('created_at', todayEnd)
+  // Everything below only depends on `settings`, so it fires as batches of parallel queries
+  // instead of the sequential round trips this route used to make one at a time — each round
+  // trip pays full cross-region latency, so this cuts request time roughly in proportion to
+  // the number of rounds saved (was ~6-7 sequential, now 3 at most).
+  const [dueCardsResult, nextDue, kanjiCountResult, vocabCountResult] = await Promise.all([
+    supabase.rpc('get_due_cards', {
+      p_user_id: user.id,
+      p_enabled_levels: enabledLevels,
+      p_include_kanji: settings.study_kanji,
+      p_include_vocab: settings.study_vocabulary,
+      p_limit: settings.max_reviews_per_day,
+      p_as_of: nowIso,
+    }),
+    getNextDue(supabase, user.id, nowIso),
+    settings.study_kanji
+      ? supabase
+          .from('user_kanji_meaning_progress')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('repetitions', 0)
+          .gte('created_at', todayStart)
+          .lt('created_at', todayEnd)
+      : Promise.resolve({ count: 0, error: null }),
+    settings.study_vocabulary
+      ? supabase
+          .from('user_vocabulary_progress')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('repetitions', 0)
+          .gte('created_at', todayStart)
+          .lt('created_at', todayEnd)
+      : Promise.resolve({ count: 0, error: null }),
+  ])
 
-    if (countError) return jsonError(500, countError.message)
+  if (dueCardsResult.error) return jsonError(500, dueCardsResult.error.message)
+  if (nextDue.error !== null) return jsonError(500, nextDue.error)
+  if (kanjiCountResult.error) return jsonError(500, kanjiCountResult.error.message)
+  if (vocabCountResult.error) return jsonError(500, vocabCountResult.error.message)
 
-    const remaining = Math.max(settings.new_kanji_per_day - (introducedTodayCount ?? 0), 0)
-    if (remaining > 0) {
-      const { data: candidates, error: candidatesError } = await supabase.rpc(
-        'get_new_kanji_candidates',
-        { p_user_id: user.id, p_enabled_levels: enabledLevels, p_limit: remaining }
-      )
-      if (candidatesError) return jsonError(500, candidatesError.message)
+  const kanjiRemaining = settings.study_kanji
+    ? Math.max(settings.new_kanji_per_day - (kanjiCountResult.count ?? 0), 0)
+    : 0
+  const vocabRemaining = settings.study_vocabulary
+    ? Math.max(settings.new_vocab_per_day - (vocabCountResult.count ?? 0), 0)
+    : 0
 
-      const withWords = await Promise.all(
-        ((candidates ?? []) as KanjiRow[]).map(async (candidate) => ({
-          candidate,
-          result: await fetchKanjiDetailWords(supabase, candidate.id),
-        }))
-      )
-      const wordsError = withWords.find((w) => w.result.error)?.result.error
-      if (wordsError) return jsonError(500, wordsError)
+  const [kanjiCandidatesResult, vocabCandidatesResult] = await Promise.all([
+    kanjiRemaining > 0
+      ? supabase.rpc('get_new_kanji_candidates', {
+          p_user_id: user.id,
+          p_enabled_levels: enabledLevels,
+          p_limit: kanjiRemaining,
+        })
+      : Promise.resolve({ data: [] as KanjiRow[], error: null }),
+    vocabRemaining > 0
+      ? supabase.rpc('get_new_vocab_candidates', {
+          p_user_id: user.id,
+          p_enabled_levels: enabledLevels,
+          p_limit: vocabRemaining,
+        })
+      : Promise.resolve({ data: [] as unknown[], error: null }),
+  ])
 
-      newKanjiToIntroduce = withWords.map(({ candidate, result }) => ({ ...candidate, words: result.words }))
-    }
-  }
+  if (kanjiCandidatesResult.error) return jsonError(500, kanjiCandidatesResult.error.message)
+  if (vocabCandidatesResult.error) return jsonError(500, vocabCandidatesResult.error.message)
 
-  if (settings.study_vocabulary) {
-    const { count: introducedTodayCount, error: countError } = await supabase
-      .from('user_vocabulary_progress')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('repetitions', 0)
-      .gte('created_at', todayStart)
-      .lt('created_at', todayEnd)
+  const kanjiCandidateRows = (kanjiCandidatesResult.data ?? []) as KanjiRow[]
+  const { wordsByKanjiId, error: wordsError } = await fetchKanjiDetailWordsBatch(
+    supabase,
+    kanjiCandidateRows.map((c) => c.id)
+  )
+  if (wordsError) return jsonError(500, wordsError)
 
-    if (countError) return jsonError(500, countError.message)
-
-    const remaining = Math.max(settings.new_vocab_per_day - (introducedTodayCount ?? 0), 0)
-    if (remaining > 0) {
-      const { data: candidates, error: candidatesError } = await supabase.rpc(
-        'get_new_vocab_candidates',
-        { p_user_id: user.id, p_enabled_levels: enabledLevels, p_limit: remaining }
-      )
-      if (candidatesError) return jsonError(500, candidatesError.message)
-      newVocabToIntroduce = candidates
-    }
-  }
+  const newKanjiToIntroduce = kanjiCandidateRows.map((candidate) => ({
+    ...candidate,
+    words: wordsByKanjiId.get(candidate.id) ?? [],
+  }))
 
   return NextResponse.json({
-    due_cards: dueCards,
+    due_cards: dueCardsResult.data,
     new_kanji_to_introduce: newKanjiToIntroduce,
-    new_vocab_to_introduce: newVocabToIntroduce,
+    new_vocab_to_introduce: vocabCandidatesResult.data ?? [],
     next_due_at: nextDue.data.next_due_at,
   })
 }

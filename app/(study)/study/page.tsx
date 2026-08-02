@@ -53,20 +53,22 @@ export default function StudyPage() {
         onExit={() => router.push("/dashboard")}
       />
       <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
+        {/* Rating/introducing is optimistic — the next card is already what's shown here,
+            so there's nothing in-flight for *this* card to wait on. */}
         {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
-          <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={actionPending} onRate={actions.rate} />
+          <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
         )}
         {current.kind === "review" && current.card.exercise_type === "kanji_reading" && (
-          <ReviewCardKanjiReading key={current.key} card={current.card} disabled={actionPending} onRate={actions.rate} />
+          <ReviewCardKanjiReading key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
         )}
         {current.kind === "review" && current.card.exercise_type === "vocab_meaning" && (
-          <ReviewCardVocabMeaning key={current.key} card={current.card} disabled={actionPending} onRate={actions.rate} />
+          <ReviewCardVocabMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
         )}
         {current.kind === "new_kanji" && (
           <NewKanjiIntroCard
             key={current.key}
             candidate={current.candidate}
-            disabled={actionPending}
+            disabled={false}
             onConfirm={() => actions.introduceKanji(current)}
           />
         )}
@@ -74,7 +76,7 @@ export default function StudyPage() {
           <NewVocabIntroCard
             key={current.key}
             candidate={current.candidate}
-            disabled={actionPending}
+            disabled={false}
             onConfirm={() => actions.introduceVocab(current)}
           />
         )}

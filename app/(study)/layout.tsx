@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
-import { fetchServerOptional } from "@/lib/api/server";
-import type { StudySettings } from "@/lib/types";
+import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
+import { getStudySettings } from "@/lib/data/studySettings";
 
 export default async function StudyLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await getSupabaseServerClient();
+  const user = await getAuthedUser();
+
   // See app/(shell)/layout.tsx — a settings row always exists after signup;
   // onboarding_completed is the real gate, not row existence.
-  const settings = await fetchServerOptional<StudySettings>("/api/study-settings");
+  const settings = await getStudySettings(supabase, user.id);
   if (!settings || !settings.onboarding_completed) {
     redirect("/onboarding");
   }
