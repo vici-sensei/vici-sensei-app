@@ -68,7 +68,7 @@ export function renderTargetWord(word: string, target: string, furiganas: string
           return (
             <span key={i}>
               {before}
-              <span className="text-accent-blue/70">{mid}</span>
+              {mid}
               {after}
             </span>
           );

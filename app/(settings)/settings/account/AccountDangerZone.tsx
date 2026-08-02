@@ -61,7 +61,7 @@ export function AccountDangerZone() {
             Type <strong className="text-white">DELETE</strong> to confirm
           </label>
           <input
-            className="w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 font-mono tracking-[1px] text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40"
+            className="w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 font-mono tracking-[1px] text-[0.95rem] text-white outline-none transition-colors focus:border-accent-red/40"
             type="text"
             placeholder="DELETE"
             value={word}

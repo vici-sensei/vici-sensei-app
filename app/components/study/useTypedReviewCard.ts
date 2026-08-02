@@ -3,8 +3,6 @@ import type { DueCard, Rating } from "@/lib/types";
 
 const FLASH_DELAY_MS = 350;
 
-export type CardFlash = "correct" | "wrong" | null;
-
 export function useTypedReviewCard<TResult extends { correct: boolean }>(
   card: DueCard,
   disabled: boolean,
@@ -15,7 +13,6 @@ export function useTypedReviewCard<TResult extends { correct: boolean }>(
   const [result, setResult] = useState<TResult | null>(null);
 
   const revealed = result !== null;
-  const flash: CardFlash = result === null ? null : result.correct ? "correct" : "wrong";
 
   function handleCheck(event: FormEvent) {
     event.preventDefault();
@@ -31,5 +28,5 @@ export function useTypedReviewCard<TResult extends { correct: boolean }>(
     setTimeout(() => onRate(card, 0), FLASH_DELAY_MS);
   }
 
-  return { answer, setAnswer, result, revealed, flash, handleCheck, handleRate, handleContinue };
+  return { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue };
 }

@@ -8,9 +8,17 @@ export interface TokenResult {
   targetDiff?: DiffChar[];
 }
 
+export interface MatchedMeaning {
+  meaning: string;
+  // "core" when the user typed only the non-parenthetical part (e.g. "door"
+  // for "door (esp. Japanese-style)") — only that part should be highlighted.
+  highlight: "full" | "core";
+}
+
 export interface MeaningCheckResult {
   correct: boolean;
   tokens: TokenResult[];
+  matchedMeanings: MatchedMeaning[];
 }
 
 function normalizeDisplay(value: string): string {
@@ -80,10 +88,11 @@ export function checkKanjiMeaningAnswer(input: string, acceptedMeanings: string[
   const tokens = splitAnswer(input);
   const meanings = acceptedMeanings.filter(Boolean);
   if (tokens.length === 0 || meanings.length === 0) {
-    return { correct: false, tokens: [] };
+    return { correct: false, tokens: [], matchedMeanings: [] };
   }
 
-  const variantSets = meanings.map((meaning) => new Set(meaningVariants(meaning).map((v) => v.compare)));
+  const meaningVariantsList = meanings.map((meaning) => meaningVariants(meaning));
+  const variantSets = meaningVariantsList.map((variants) => new Set(variants.map((v) => v.compare)));
 
   const parsed = tokens.map((raw) => ({
     raw,
@@ -107,5 +116,17 @@ export function checkKanjiMeaningAnswer(input: string, acceptedMeanings: string[
     return { raw, correct: false, closestMeaning: closest.meaning, userDiff, targetDiff };
   });
 
-  return { correct: results.every((r) => r.correct), tokens: results };
+  const matchedMeanings: MatchedMeaning[] = [];
+  const seenMeaningIndexes = new Set<number>();
+  parsed.forEach(({ compare }, i) => {
+    const idx = matchedIndex[i];
+    if (idx === -1 || seenMeaningIndexes.has(idx)) return;
+    seenMeaningIndexes.add(idx);
+    const variants = meaningVariantsList[idx];
+    const matchedVariant = variants.find((v) => v.compare === compare);
+    const highlight = variants.length > 1 && matchedVariant === variants[0] ? "core" : "full";
+    matchedMeanings.push({ meaning: meanings[idx], highlight });
+  });
+
+  return { correct: results.every((r) => r.correct), tokens: results, matchedMeanings };
 }

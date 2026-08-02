@@ -1,6 +1,7 @@
 "use client";
 
 import type { DueCard, Rating } from "@/lib/types";
+import { FaCheck } from "react-icons/fa6";
 import { checkKanjiReadingAnswer } from "@/lib/study/kanjiReadingMatch";
 import { renderTargetWord } from "@/lib/study/furigana";
 import { useTypedReviewCard } from "./useTypedReviewCard";
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
-  const { answer, setAnswer, result, revealed, flash, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
+  const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
     card,
     disabled,
     onRate,
@@ -25,7 +26,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
   return (
     <ReviewCardShell
       label="Word reading"
-      flash={flash}
+      accent="blue"
       prompt={
         <div
           className={`mb-2 pt-[0.6em] text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none ${revealed ? "" : "select-none"}`}
@@ -33,7 +34,11 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
           {card.word ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas) : card.kanji_char}
         </div>
       }
-      subtitle="How is this word read?"
+      subtitle={
+        <>
+          How is this <span className="font-extrabold text-accent-blue">word read</span>?
+        </>
+      }
       revealed={revealed}
       correct={result?.correct ?? false}
       disabled={disabled}
@@ -46,12 +51,16 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
           onSubmit={handleCheck}
           placeholder="Type the reading…"
           disabled={disabled}
+          accent="blue"
         />
       }
       revealContent={
         result && (
           <>
-            <div className="text-[1.3rem] font-bold text-white">{card.kana_reading}</div>
+            <div className="flex items-center justify-center gap-2 text-[1.3rem] font-bold text-white">
+              {result.correct && <FaCheck className="text-accent-green" />}
+              <span>{card.kana_reading}</span>
+            </div>
             {!result.correct && (
               <TokenDiffList
                 tokens={[{ raw: "", correct: false, userDiff: result.userDiff, targetDiff: result.targetDiff }]}
