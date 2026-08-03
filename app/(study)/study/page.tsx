@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useStudyQueue } from "./useStudyQueue";
-import { useViewportHeight } from "./useViewportHeight";
+import { useViewportHeight } from "@/lib/useViewportHeight";
 import { QueueProgressBar } from "@/app/components/study/QueueProgressBar";
 import { UndoPill } from "@/app/components/study/UndoPill";
 import { ReviewCardKanjiMeaning } from "@/app/components/study/ReviewCardKanjiMeaning";
@@ -27,7 +27,7 @@ function StudyQueueSkeleton() {
         </div>
       </div>
       <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
-        <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-10 py-14 text-center backdrop-blur-[10px]">
+        <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 md:px-10 md:py-14 text-center backdrop-blur-[10px]">
           <Skeleton className="mx-auto mb-6 h-3 w-28" />
           <Skeleton className="mx-auto mb-2 h-24 w-24 rounded-2xl" />
           <Skeleton className="mx-auto mt-1 h-3.5 w-48" />
@@ -68,45 +68,48 @@ export default function StudyPage() {
   }
 
   return (
-    <div className="flex flex-col bg-bg-main" style={{ height: "var(--app-height, 100dvh)" }}>
+    <div className="flex flex-col bg-bg-main" style={{ minHeight: "var(--app-height, 100dvh)" }}>
       <QueueProgressBar
         completed={completedCount}
         total={totalKnown}
         nextDueAt={nextDueAt}
         onExit={() => router.push("/dashboard")}
       />
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 pb-15 pt-5">
-        {/* Rating/introducing is optimistic — the next card is already what's shown here,
-            so there's nothing in-flight for *this* card to wait on. */}
-        {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
-          <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
-        )}
-        {current.kind === "review" && current.card.exercise_type === "kanji_reading" && (
-          <ReviewCardKanjiReading key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
-        )}
-        {current.kind === "review" && current.card.exercise_type === "vocab_meaning" && (
-          <ReviewCardVocabMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
-        )}
-        {current.kind === "new_kanji" && (
-          <NewKanjiIntroCard
-            key={current.key}
-            candidate={current.candidate}
-            disabled={false}
-            onConfirm={() => actions.introduceKanji(current)}
-          />
-        )}
-        {current.kind === "new_vocab" && (
-          <NewVocabIntroCard
-            key={current.key}
-            candidate={current.candidate}
-            disabled={false}
-            onConfirm={() => actions.introduceVocab(current)}
-          />
-        )}
+      <div className="flex flex-1 flex-col items-center px-4 md:px-6 md:py-5">
+        {/* my-auto (not justify-center) so that when the card is taller than the
+            remaining space it aligns to the top instead of clipping equally on both ends;
+            the page itself scrolls (progress bar included) rather than just this section. */}
+        <div className="my-auto flex w-full justify-center">
+          {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
+            <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+          )}
+          {current.kind === "review" && current.card.exercise_type === "kanji_reading" && (
+            <ReviewCardKanjiReading key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+          )}
+          {current.kind === "review" && current.card.exercise_type === "vocab_meaning" && (
+            <ReviewCardVocabMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+          )}
+          {current.kind === "new_kanji" && (
+            <NewKanjiIntroCard
+              key={current.key}
+              candidate={current.candidate}
+              disabled={false}
+              onConfirm={() => actions.introduceKanji(current)}
+            />
+          )}
+          {current.kind === "new_vocab" && (
+            <NewVocabIntroCard
+              key={current.key}
+              candidate={current.candidate}
+              disabled={false}
+              onConfirm={() => actions.introduceVocab(current)}
+            />
+          )}
+        </div>
       </div>
-      <div className="flex min-h-14 justify-center px-6 pb-7">
+      {<div className="flex md:min-h-14 justify-center px-4 py-2 md:px-6 md:py-7">
         <UndoPill visible={lastReview !== null} disabled={actionPending} onUndo={actions.undoLast} />
-      </div>
+      </div>}
     </div>
   );
 }

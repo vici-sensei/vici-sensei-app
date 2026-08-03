@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { FaBook, FaUser, FaCreditCard, FaTriangleExclamation } from "react-icons/fa6";
 import { NavItem } from "@/app/components/shell/NavItem";
 import { navBarClasses } from "@/app/components/shell/navBarClasses";
+import { useViewportHeight } from "@/lib/useViewportHeight";
 
 interface Item {
   href: string;
@@ -41,6 +42,7 @@ const ITEMS: Item[] = [
 
 export function SettingsNav() {
   const pathname = usePathname();
+  useViewportHeight();
 
   return (
     <nav className={navBarClasses}>

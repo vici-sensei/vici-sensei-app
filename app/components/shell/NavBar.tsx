@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
+import { useViewportHeight } from "@/lib/useViewportHeight";
 import { NAV_ITEMS } from "./navItems";
 import { NavItem } from "./NavItem";
 import { navBarClasses } from "./navBarClasses";
@@ -9,6 +10,7 @@ import { navBarClasses } from "./navBarClasses";
 export function NavBar() {
   const pathname = usePathname();
   const { studyDisabled } = useStudyStats();
+  useViewportHeight();
 
   return (
     <nav className={navBarClasses}>

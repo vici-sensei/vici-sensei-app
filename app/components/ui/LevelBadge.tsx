@@ -18,7 +18,7 @@ type LevelBadgeSize = "sm" | "md" | "lg";
 const SIZE_CLASSES: Record<LevelBadgeSize, string> = {
   sm: "rounded-md px-1.5 py-0.5 text-[0.65rem]",
   md: "rounded-lg px-2.5 py-1 text-[0.78rem]",
-  lg: "rounded-xl px-4 py-1.5 text-[1.05rem]",
+  lg: "rounded-xl px-2 md:px-4 md:py-1.5 text-[1.05rem]",
 };
 
 interface LevelBadgeProps {
@@ -29,7 +29,7 @@ interface LevelBadgeProps {
 
 export function LevelBadge({ level, size = "md", className }: LevelBadgeProps) {
   const classes = [
-    "inline-flex items-center justify-center border font-extrabold tracking-[0.5px]",
+    "inline-flex items-center justify-center border font-extrabold md:tracking-[0.5px]",
     SIZE_CLASSES[size],
     levelColorClasses(level),
     className ?? "",

@@ -60,7 +60,7 @@ export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueP
   const showCountdown = remainingMs !== null && remainingMs > 0;
 
   return (
-    <div className="px-7 py-5">
+    <div className="px-4 py-2 md:px-7 md:py-5">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -90,7 +90,7 @@ export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueP
         </div>
       </div>
       <p
-        className={`mt-2 text-center text-[0.75rem] text-text-muted/70 ${showCountdown ? "" : "invisible"}`}
+        className={`mt-1 md:mt-2 text-center text-[0.75rem] text-text-muted/70 ${showCountdown ? "" : "invisible"}`}
       >
         Next card in {showCountdown ? formatCountdown(remainingMs) : "0s"}
       </p>

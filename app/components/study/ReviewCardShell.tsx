@@ -53,7 +53,7 @@ export function ReviewCardShell({
   }, [showContinue, disabled, onContinue]);
 
   return (
-    <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-10 py-14 text-center backdrop-blur-[10px]">
+    <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 md:px-10 md:py-14 text-center backdrop-blur-[10px]">
       <div className={`mb-6 text-xs font-extrabold uppercase tracking-[1.5px] ${ACCENT_CLASSES[accent]}`}>{label}</div>
 
       {prompt}

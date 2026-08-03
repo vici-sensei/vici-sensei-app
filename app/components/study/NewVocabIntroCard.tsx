@@ -13,10 +13,10 @@ export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
   const isUsuallyKana = candidate.usually_kana === true;
 
   return (
-    <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-10 py-14 text-center backdrop-blur-[10px]">
+    <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 md:px-10 md:py-14 text-center backdrop-blur-[10px]">
       <div className="mb-6 text-xs font-extrabold uppercase tracking-[1.5px] text-accent-gold">New word</div>
 
-      <div className="mb-2 pt-[0.6em] text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none">
+      <div className="mb-2 pt-[0.6em] text-[clamp(4rem,12vw,6.5rem)] font-medium leading-none">
         {isUsuallyKana ? candidate.kana_reading : renderWordWithFurigana(candidate.word, candidate.furiganas)}
       </div>
       
