@@ -1,5 +1,5 @@
 import type { SupabaseServerClient } from "@/lib/supabase/server";
-import type { KanjiProgressResponse, ProgressStatusCounts, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";
+import type { KanjiProgressResponse, KanjiReadingProgress, ProgressStatusCounts, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";
 import { PROGRESS_STATUSES } from "@/lib/srs/constants";
 
 function countByStatus(rows: { status: string }[]): ProgressStatusCounts {
@@ -16,10 +16,10 @@ export async function fetchKanjiProgress(
   kanjiId: number
 ): Promise<KanjiProgressResponse> {
   const [meaningResult, readingsResult] = await Promise.all([
-    supabase.from("user_kanji_meaning_progress").select("*").eq("user_id", userId).eq("kanji_id", kanjiId).maybeSingle(),
+    supabase.from("user_kanji_meaning_progress").select("status, due_at").eq("user_id", userId).eq("kanji_id", kanjiId).maybeSingle(),
     supabase
       .from("user_kanji_reading_progress")
-      .select("*, kanji_word:kanji_word_id(reading_number, vocabulary:id_word(word, kana_reading))")
+      .select("id, status, due_at, kanji_word_id, kanji_word:kanji_word_id(reading_number, vocabulary:id_word(word, kana_reading))")
       .eq("user_id", userId)
       .eq("kanji_id", kanjiId),
   ]);
@@ -27,7 +27,7 @@ export async function fetchKanjiProgress(
   if (meaningResult.error) throw new Error(meaningResult.error.message);
   if (readingsResult.error) throw new Error(readingsResult.error.message);
 
-  return { meaning: meaningResult.data, readings: readingsResult.data };
+  return { meaning: meaningResult.data, readings: readingsResult.data as unknown as KanjiReadingProgress[] };
 }
 
 export async function fetchVocabularyProgress(
@@ -37,7 +37,7 @@ export async function fetchVocabularyProgress(
 ): Promise<VocabularyProgress | null> {
   const { data, error } = await supabase
     .from("user_vocabulary_progress")
-    .select("*")
+    .select("status, due_at")
     .eq("user_id", userId)
     .eq("word_id", wordId)
     .maybeSingle();

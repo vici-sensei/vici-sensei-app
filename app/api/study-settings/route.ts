@@ -26,9 +26,9 @@ export async function GET() {
 
 const patchSchema = z
   .object({
-    new_kanji_per_day: z.number().int().min(0).optional(),
+    new_kanji_per_day: z.number().int().min(1).optional(),
     new_vocab_per_day: z.number().int().min(0).optional(),
-    max_reviews_per_day: z.number().int().min(0).optional(),
+    max_reviews_per_day: z.number().int().min(1).optional(),
     enabled_levels: z.array(z.enum(JLPT_LEVELS)).min(1).optional(),
     study_kanji: z.boolean().optional(),
     study_vocabulary: z.boolean().optional(),

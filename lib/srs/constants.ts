@@ -6,6 +6,17 @@ export const LEARNING_STEPS_MINUTES = [1, 10] as const
 export const MIN_EASE_FACTOR = 1.3
 export const DEFAULT_EASE_FACTOR = 2.5
 
+// Anki-style SM-2 tuning: penalties/bonuses applied to the ease factor per rating,
+// and the interval ladder used once a card is in the 'review' phase.
+export const EASE_AGAIN_PENALTY = 0.2
+export const EASE_HARD_PENALTY = 0.15
+export const EASE_EASY_BONUS = 0.15
+export const HARD_INTERVAL_MULTIPLIER = 1.2
+export const EASY_BONUS_MULTIPLIER = 1.3
+export const GRADUATING_INTERVAL_DAYS = 1
+export const EASY_GRADUATING_INTERVAL_DAYS = 4
+export const SECOND_INTERVAL_DAYS = 6
+
 export const EXERCISE_TYPES = ['kanji_meaning', 'kanji_reading', 'vocab_meaning'] as const
 export type ExerciseType = (typeof EXERCISE_TYPES)[number]
 

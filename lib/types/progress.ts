@@ -1,26 +1,14 @@
 import type { ProgressStatus } from "@/lib/srs/constants";
 
-export interface ProgressRow {
-  id: number;
-  user_id: string;
+export interface KanjiMeaningProgress {
   status: ProgressStatus;
-  ease_factor: number;
-  interval_days: number;
-  repetitions: number;
-  lapses: number;
-  learning_step: number;
   due_at: string;
-  last_reviewed_at: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
-export interface KanjiMeaningProgress extends ProgressRow {
-  kanji_id: number;
-}
-
-export interface KanjiReadingProgress extends ProgressRow {
-  kanji_id: number;
+export interface KanjiReadingProgress {
+  id: number;
+  status: ProgressStatus;
+  due_at: string;
   kanji_word_id: number;
   /** Only present on GET /api/progress/kanji/[id], via join. */
   kanji_word?: {
@@ -29,8 +17,9 @@ export interface KanjiReadingProgress extends ProgressRow {
   };
 }
 
-export interface VocabularyProgress extends ProgressRow {
-  word_id: number;
+export interface VocabularyProgress {
+  status: ProgressStatus;
+  due_at: string;
 }
 
 export interface KanjiProgressResponse {

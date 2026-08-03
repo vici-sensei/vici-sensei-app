@@ -42,6 +42,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate }: Props) {
       revealed={revealed}
       correct={result?.correct ?? false}
       disabled={disabled}
+      ratingPreviews={card.rating_previews}
       onRate={handleRate}
       onContinue={handleContinue}
       answerForm={

@@ -95,7 +95,7 @@ export default async function KanjiDetailPage({ params }: PageProps) {
               <div className="flex flex-wrap items-center gap-3.5">
                 <StatusPill status={progress.meaning.status} />
                 <span className="text-[0.8rem] tabular-nums text-text-muted">
-                  due {formatDueAt(progress.meaning.due_at)} &nbsp;·&nbsp; ease {progress.meaning.ease_factor.toFixed(2)}
+                  due {formatDueAt(progress.meaning.due_at)}
                 </span>
                 <CardActions type="meaning" id={kanji.id} status={progress.meaning.status} />
               </div>
@@ -115,7 +115,7 @@ export default async function KanjiDetailPage({ params }: PageProps) {
               <div className="flex flex-wrap items-center gap-3.5">
                 <StatusPill status={r.status} />
                 <span className="text-[0.8rem] tabular-nums text-text-muted">
-                  due {formatDueAt(r.due_at)} &nbsp;·&nbsp; ease {r.ease_factor.toFixed(2)}
+                  due {formatDueAt(r.due_at)}
                 </span>
                 <CardActions type="reading" id={r.kanji_word_id} status={r.status} />
               </div>

@@ -5,7 +5,21 @@ import { utcDayBounds } from '@/lib/srs/day'
 import { getNextDue } from '@/lib/srs/nextDue'
 import { fetchKanjiDetailWordsBatch } from '@/lib/kanji/detailWords'
 import { getRequestTimezone } from '@/lib/data/timezone'
-import type { KanjiRow } from '@/lib/types'
+import { previewRatingLabels, type ProgressRow } from '@/lib/srs/scheduler'
+import type { DueCard, KanjiRow } from '@/lib/types'
+
+// Raw shape of a get_due_cards() row: DueCard's fields plus the SRS state columns
+// (status/ease_factor/interval_days/repetitions/lapses/learning_step) that only
+// exist to compute rating_previews here -- they never reach the client as-is.
+type DueCardRow = Omit<DueCard, 'rating_previews'> & ProgressRow
+
+function toDueCard(row: DueCardRow): DueCard {
+  const { status, ease_factor, interval_days, repetitions, lapses, learning_step, ...card } = row
+  return {
+    ...card,
+    rating_previews: previewRatingLabels({ status, ease_factor, interval_days, repetitions, lapses, learning_step }),
+  }
+}
 
 export async function GET() {
   const supabase = await createClient()
@@ -109,7 +123,7 @@ export async function GET() {
   }))
 
   return NextResponse.json({
-    due_cards: dueCardsResult.data,
+    due_cards: ((dueCardsResult.data ?? []) as DueCardRow[]).map(toDueCard),
     new_kanji_to_introduce: newKanjiToIntroduce,
     new_vocab_to_introduce: vocabCandidatesResult.data ?? [],
     next_due_at: nextDue.data.next_due_at,

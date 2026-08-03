@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import type { Rating } from "@/lib/types";
+import type { Rating, RatingPreviews } from "@/lib/types";
 import { RatingGrid } from "./RatingGrid";
 import { Button } from "@/app/components/ui/Button";
 
@@ -19,6 +19,7 @@ interface Props {
   revealContent: ReactNode;
   correct: boolean;
   disabled: boolean;
+  ratingPreviews: RatingPreviews;
   onRate: (rating: Rating) => void;
   onContinue: () => void;
 }
@@ -33,6 +34,7 @@ export function ReviewCardShell({
   revealContent,
   correct,
   disabled,
+  ratingPreviews,
   onRate,
   onContinue,
 }: Props) {
@@ -65,7 +67,7 @@ export function ReviewCardShell({
       <div className="mt-8.5">
         {revealed &&
           (correct ? (
-            <RatingGrid visible disabled={disabled} hideAgain onRate={onRate} />
+            <RatingGrid visible disabled={disabled} hideAgain previews={ratingPreviews} onRate={onRate} />
           ) : (
             <Button variant="secondary" className="w-full" disabled={disabled} onClick={onContinue}>
               Continue

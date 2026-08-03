@@ -78,7 +78,7 @@ export default async function VocabularyDetailPage({ params }: PageProps) {
           <div className="flex flex-wrap items-center gap-3.5">
             <StatusPill status={progress.status} />
             <span className="text-[0.8rem] tabular-nums text-text-muted">
-              due {formatDueAt(progress.due_at)} &nbsp;·&nbsp; ease {progress.ease_factor.toFixed(2)}
+              due {formatDueAt(progress.due_at)}
             </span>
             <CardActions type="vocab" id={word.id} status={progress.status} />
           </div>

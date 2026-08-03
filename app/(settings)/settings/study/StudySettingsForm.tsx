@@ -26,21 +26,21 @@ export function StudySettingsForm({ initial }: { initial: StudySettings }) {
   const [saving, setSaving] = useState(false);
 
   function adjustKanji(delta: number) {
-    const next = Math.max(0, newKanjiPerDay + delta);
+    const next = Math.max(1, newKanjiPerDay + delta);
     setNewKanjiPerDay(next);
     setNewVocabPerDay(next * 6);
     setDirty(true);
   }
 
   function adjustVocab(delta: number) {
-    const next = Math.max(0, newVocabPerDay + delta * 6);
+    const next = Math.max(6, newVocabPerDay + delta * 6);
     setNewVocabPerDay(next);
     setNewKanjiPerDay(Math.round(next / 6));
     setDirty(true);
   }
 
   function adjustReviews(delta: number) {
-    setMaxReviewsPerDay((v) => Math.max(0, v + delta * REVIEWS_STEP));
+    setMaxReviewsPerDay((v) => Math.max(REVIEWS_STEP, v + delta * REVIEWS_STEP));
     setDirty(true);
   }
 
@@ -102,7 +102,7 @@ export function StudySettingsForm({ initial }: { initial: StudySettings }) {
         <div className="mb-[22px]">
           <label className={fieldLabel}>New kanji per day</label>
           <div className="flex items-center gap-2.5">
-            <button type="button" className={stepperBtn} onClick={() => adjustKanji(-1)} disabled={newKanjiPerDay <= 0}>
+            <button type="button" className={stepperBtn} onClick={() => adjustKanji(-1)} disabled={newKanjiPerDay <= 1}>
               −
             </button>
             <span className={stepperVal}>{newKanjiPerDay}</span>
@@ -118,7 +118,7 @@ export function StudySettingsForm({ initial }: { initial: StudySettings }) {
         <div>
           <label className={fieldLabel}>New vocabulary per day</label>
           <div className="flex items-center gap-2.5">
-            <button type="button" className={stepperBtn} onClick={() => adjustVocab(-1)} disabled={newVocabPerDay <= 0}>
+            <button type="button" className={stepperBtn} onClick={() => adjustVocab(-1)} disabled={newVocabPerDay <= 6}>
               −
             </button>
             <span className={stepperVal}>{newVocabPerDay}</span>
@@ -133,7 +133,7 @@ export function StudySettingsForm({ initial }: { initial: StudySettings }) {
         <div>
           <label className={fieldLabel}>Max reviews per day</label>
           <div className="flex items-center gap-2.5">
-            <button type="button" className={stepperBtn} onClick={() => adjustReviews(-1)} disabled={maxReviewsPerDay <= 0}>
+            <button type="button" className={stepperBtn} onClick={() => adjustReviews(-1)} disabled={maxReviewsPerDay <= REVIEWS_STEP}>
               −
             </button>
             <span className={stepperVal}>{maxReviewsPerDay}</span>

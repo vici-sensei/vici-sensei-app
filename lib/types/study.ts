@@ -11,6 +11,13 @@ export interface NewKanjiIntroWord {
   };
 }
 
+export interface RatingPreviews {
+  again: string;
+  hard: string;
+  good: string;
+  easy: string;
+}
+
 export interface DueCard {
   exercise_type: ExerciseType;
   progress_id: number;
@@ -25,6 +32,7 @@ export interface DueCard {
   other_readings: string[] | null;
   furiganas: string[] | null;
   word_meanings: string[] | null;
+  rating_previews: RatingPreviews;
 }
 
 export interface NewKanjiCandidate {
