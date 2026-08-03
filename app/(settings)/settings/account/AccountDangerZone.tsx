@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Button } from "@/app/components/ui/Button";
+import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
 import { FaTriangleExclamation } from "react-icons/fa6";
 
 export function AccountDangerZone() {
@@ -66,6 +67,7 @@ export function AccountDangerZone() {
             placeholder="DELETE"
             value={word}
             onChange={(e) => setWord(e.target.value)}
+            onFocus={scrollIntoViewOnFocus}
           />
         </div>
         <Button danger className="w-full" disabled={!canDelete || deleting} onClick={handleDelete}>

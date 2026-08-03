@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
+import { scrollWindowToTopOnFocus } from "@/lib/scrollFocus";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 
 interface Props {
@@ -53,6 +54,7 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
             placeholder={placeholder}
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
+            onFocus={scrollWindowToTopOnFocus}
           />
         </div>
       </div>

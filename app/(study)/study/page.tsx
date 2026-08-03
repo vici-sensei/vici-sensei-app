@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useStudyQueue } from "./useStudyQueue";
+import { useViewportHeight } from "./useViewportHeight";
 import { QueueProgressBar } from "@/app/components/study/QueueProgressBar";
 import { UndoPill } from "@/app/components/study/UndoPill";
 import { ReviewCardKanjiMeaning } from "@/app/components/study/ReviewCardKanjiMeaning";
@@ -43,6 +44,7 @@ function StudyQueueSkeleton() {
 
 export default function StudyPage() {
   const router = useRouter();
+  useViewportHeight();
   const { status, error, current, completedCount, totalKnown, nextDueAt, lastReview, actionPending, actions } =
     useStudyQueue();
 
@@ -66,14 +68,14 @@ export default function StudyPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg-main">
+    <div className="flex flex-col bg-bg-main" style={{ height: "var(--app-height, 100dvh)" }}>
       <QueueProgressBar
         completed={completedCount}
         total={totalKnown}
         nextDueAt={nextDueAt}
         onExit={() => router.push("/dashboard")}
       />
-      <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 pb-15 pt-5">
         {/* Rating/introducing is optimistic — the next card is already what's shown here,
             so there's nothing in-flight for *this* card to wait on. */}
         {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (

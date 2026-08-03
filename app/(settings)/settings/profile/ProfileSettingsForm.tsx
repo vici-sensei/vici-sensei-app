@@ -9,6 +9,7 @@ import { Button } from "@/app/components/ui/Button";
 import { AvatarCropModal } from "./AvatarCropModal";
 import type { UserProfile, UserProfilePatch } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
+import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
 import { FaCircleExclamation, FaClock, FaPenToSquare } from "react-icons/fa6";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -218,6 +219,7 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
                 setDisplayName(e.target.value);
                 setDirty(true);
               }}
+              onFocus={scrollIntoViewOnFocus}
             />
             <div className={fieldHint}>1–50 characters.</div>
           </div>
@@ -230,6 +232,7 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
+              onFocus={scrollIntoViewOnFocus}
             />
             {newEmail.trim() !== initial.email && (
               <div className="flex gap-2.5">

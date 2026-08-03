@@ -11,7 +11,6 @@ export function SettingsHeader({ user }: { user: UserProfile }) {
         className="inline-flex items-center gap-2 text-[0.88rem] font-bold text-text-muted hover:text-white [&>svg]:h-3.75 [&>svg]:w-3.75"
       >
         <FaArrowLeft />
-        Back to app
       </Link>
       <Link href="/dashboard" className="inline-flex items-center gap-2 text-[1.15rem] font-extrabold tracking-[-0.4px]">
         <FaToriiGate className="h-5 w-5 text-accent-red" />
