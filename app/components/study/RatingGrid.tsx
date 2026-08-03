@@ -22,18 +22,18 @@ const AGAIN_CLASSNAME =
 const ACCENT_TIERS: Record<CardAccent, { hard: string; good: string; easy: string }> = {
   violet: {
     hard: "border-accent-violet/35 bg-transparent text-accent-violet enabled:hover:bg-accent-violet/[0.06] enabled:hover:shadow-[0_6px_20px_rgba(167,139,250,0.15)]",
-    good: "border-accent-violet/45 bg-accent-violet/6 text-accent-violet enabled:hover:shadow-[0_6px_20px_rgba(167,139,250,0.22)]",
-    easy: "border-accent-violet/90 bg-accent-violet/20 text-accent-violet enabled:hover:shadow-[0_0_26px_rgba(167,139,250,0.55)]",
+    good: "border-accent-violet/45 bg-accent-violet/6 text-accent-violet enabled:hover:shadow-[0_6px_20px_rgba(167,139,250,0.20)]",
+    easy: "border-accent-violet/90 bg-accent-violet/20 text-accent-violet enabled:hover:shadow-[0_0_26px_rgba(167,139,250,0.25)]",
   },
   blue: {
     hard: "border-accent-blue/35 bg-transparent text-accent-blue enabled:hover:bg-accent-blue/[0.06] enabled:hover:shadow-[0_6px_20px_rgba(0,210,255,0.15)]",
-    good: "border-accent-blue/45 bg-accent-blue/6 text-accent-blue enabled:hover:shadow-[0_6px_20px_rgba(0,210,255,0.22)]",
-    easy: "border-accent-blue/90 bg-accent-blue/20 text-accent-blue enabled:hover:shadow-[0_0_26px_rgba(0,210,255,0.55)]",
+    good: "border-accent-blue/45 bg-accent-blue/6 text-accent-blue enabled:hover:shadow-[0_6px_20px_rgba(0,210,255,0.20)]",
+    easy: "border-accent-blue/90 bg-accent-blue/20 text-accent-blue enabled:hover:shadow-[0_0_26px_rgba(0,210,255,0.25)]",
   },
   orange: {
     hard: "border-accent-orange/35 bg-transparent text-accent-orange enabled:hover:bg-accent-orange/[0.06] enabled:hover:shadow-[0_6px_20px_rgba(251,146,60,0.15)]",
-    good: "border-accent-orange/45 bg-accent-orange/6 text-accent-orange enabled:hover:shadow-[0_6px_20px_rgba(251,146,60,0.22)]",
-    easy: "border-accent-orange/90 bg-accent-orange/20 text-accent-orange enabled:hover:shadow-[0_0_26px_rgba(251,146,60,0.55)]",
+    good: "border-accent-orange/45 bg-accent-orange/6 text-accent-orange enabled:hover:shadow-[0_6px_20px_rgba(251,146,60,0.20)]",
+    easy: "border-accent-orange/90 bg-accent-orange/20 text-accent-orange enabled:hover:shadow-[0_0_26px_rgba(251,146,60,0.25)]",
   },
 };
 

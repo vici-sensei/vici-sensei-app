@@ -28,20 +28,37 @@ function buildQueue(data: StudyQueueResponse): QueueItem[] {
   return items;
 }
 
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 // Reviews always come before new material, so a review that becomes due mid-session
 // (e.g. a learning-step retest) never gets stuck behind new cards that were already queued.
+// Within each group the order is shuffled so a session doesn't always present cards in the
+// same due_at/id order.
 function reviewsFirst(items: QueueItem[]): QueueItem[] {
-  const reviews = items.filter((i) => i.kind === "review");
-  const newCards = items.filter((i) => i.kind !== "review");
+  const reviews = shuffle(items.filter((i) => i.kind === "review"));
+  const newCards = shuffle(items.filter((i) => i.kind !== "review"));
   return [...reviews, ...newCards];
 }
 
 // Same priority, but leaves the card currently on screen in place so a merge never
-// yanks it out from under the user mid-answer.
+// yanks it out from under the user mid-answer, and leaves already-queued cards in place too --
+// only the newly-fetched additions get shuffled in, so the rest of the queue doesn't visibly
+// reorder itself out from under the user on every poll.
 function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueItem[] {
   if (prev.length === 0) return reviewsFirst(additions);
   const [current, ...rest] = prev;
-  return [current, ...reviewsFirst([...rest, ...additions])];
+  const restReviews = rest.filter((i) => i.kind === "review");
+  const restNew = rest.filter((i) => i.kind !== "review");
+  const addReviews = shuffle(additions.filter((i) => i.kind === "review"));
+  const addNew = shuffle(additions.filter((i) => i.kind !== "review"));
+  return [current, ...restReviews, ...addReviews, ...restNew, ...addNew];
 }
 
 function reviewBody(card: DueCard, rating: Rating) {
@@ -133,7 +150,7 @@ export function useStudyQueue() {
         sessionIdRef.current = sessionId;
 
         if (cancelled) return;
-        const items = buildQueue(data);
+        const items = reviewsFirst(buildQueue(data));
         setQueue(items);
         setNextDueAt(data.next_due_at);
 
