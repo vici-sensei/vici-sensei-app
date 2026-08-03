@@ -67,7 +67,7 @@ export function ReviewCardShell({
       <div className="mt-8.5">
         {revealed &&
           (correct ? (
-            <RatingGrid visible disabled={disabled} hideAgain previews={ratingPreviews} onRate={onRate} />
+            <RatingGrid visible disabled={disabled} hideAgain accent={accent} previews={ratingPreviews} onRate={onRate} />
           ) : (
             <Button variant="secondary" className="w-full" disabled={disabled} onClick={onContinue}>
               Continue
