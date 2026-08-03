@@ -35,6 +35,7 @@
 
 html {
   color-scheme: dark;
+  scrollbar-gutter: stable;
 }
 
 html,
@@ -66,6 +67,13 @@ body {
 
   svg {
     display: block;
+  }
+
+  a[href],
+  button,
+  [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 

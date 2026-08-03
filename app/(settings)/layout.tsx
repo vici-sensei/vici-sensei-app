@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
 import { getStudySettings } from "@/lib/data/studySettings";
 import { getUserProfile } from "@/lib/data/userProfile";
-import { SettingsHeader } from "@/app/components/shell/SettingsHeader";
+import { Header } from "@/app/components/shell/Header";
 import { SettingsNav } from "./SettingsNav";
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
@@ -20,10 +20,10 @@ export default async function SettingsLayout({ children }: { children: React.Rea
 
   return (
     <div>
-      <SettingsHeader user={user} />
-      <div className="mx-auto flex max-w-[1000px] flex-col gap-6 px-6 pb-[90px] pt-9 md:flex-row md:gap-10 md:pb-20">
+      <Header user={user} showBack />
+      <div className="flex flex-col md:flex-row">
         <SettingsNav />
-        <div className="min-w-0 flex-1">{children}</div>
+        <div className="md:max-w-[1000px] flex-1 px-5 pb-[90px] pt-5 pb-[90px] pt-5 md:px-10 md:pb-8 md:pt-8">{children}</div>
       </div>
     </div>
   );
