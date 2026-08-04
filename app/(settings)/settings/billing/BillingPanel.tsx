@@ -4,10 +4,28 @@ import { useState } from "react";
 import { apiPost, ApiError } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
-import { Button } from "@/app/components/ui/Button";
+import { Button, buttonClasses } from "@/app/components/ui/Button";
 import { FaCheck } from "react-icons/fa6";
 
-export function BillingPanel({ isPremium }: { isPremium: boolean }) {
+// Planurile sunt Stripe Payment Links (pagini găzduite de Stripe), nu sesiuni
+// de Checkout create din cod — client_reference_id/prefilled_email în URL
+// sunt ce leagă plata de contul userului pentru webhook (vezi app/api/stripe/webhook).
+function buildPaymentLinkUrl(baseUrl: string, userId: string, email: string) {
+  const url = new URL(baseUrl);
+  url.searchParams.set("client_reference_id", userId);
+  url.searchParams.set("prefilled_email", email);
+  return url.toString();
+}
+
+export function BillingPanel({
+  isPremium,
+  userId,
+  email,
+}: {
+  isPremium: boolean;
+  userId: string;
+  email: string;
+}) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -21,6 +39,17 @@ export function BillingPanel({ isPremium }: { isPremium: boolean }) {
       setLoading(false);
     }
   }
+
+  const monthlyLink = buildPaymentLinkUrl(
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_MONTHLY!,
+    userId,
+    email
+  );
+  const yearlyLink = buildPaymentLinkUrl(
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_YEARLY!,
+    userId,
+    email
+  );
 
   return (
     <div>
@@ -65,9 +94,14 @@ export function BillingPanel({ isPremium }: { isPremium: boolean }) {
                 </li>
               </ul>
             </div>
-            <Button onClick={() => handleAction("/api/stripe/create-checkout-session")} disabled={loading}>
-              {loading ? "Redirecting…" : "Upgrade to Premium"}
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <a href={monthlyLink} className={buttonClasses({ hover: "hover" })}>
+                $19 / 4 weeks
+              </a>
+              <a href={yearlyLink} className={buttonClasses({ variant: "secondary", hover: "hover" })}>
+                $149 / year
+              </a>
+            </div>
           </div>
         )}
       </div>

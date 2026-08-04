@@ -8,5 +8,5 @@ export default async function SettingsBillingPage() {
   // Cached per-request (React.cache) — the settings layout above this page already fetched
   // the profile, so this reuses that result instead of re-querying.
   const user = await getUserProfile(supabase, authedUser.id);
-  return <BillingPanel isPremium={user.is_premium} />;
+  return <BillingPanel isPremium={user.is_premium} userId={authedUser.id} email={user.email} />;
 }
