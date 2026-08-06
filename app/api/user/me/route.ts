@@ -48,10 +48,18 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  // Comparăm cu Host (nu cu new URL(request.url).origin): sub Cloudflare
+  // Workers/OpenNext, request.url e reconstruit intern de workerd și poate
+  // diferi de host-ul real văzut de client (ex. normalizează la "localhost"
+  // chiar dacă requestul a venit pe 127.0.0.1), ceea ce bloca fals cereri
+  // same-origin legitime.
   const requestOrigin = request.headers.get('origin')
-  const expectedOrigin = new URL(request.url).origin
-  if (requestOrigin && requestOrigin !== expectedOrigin) {
-    return jsonError(403, 'Cross-origin requests are not allowed for this action.')
+  if (requestOrigin) {
+    const expectedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
+    const requestOriginHost = new URL(requestOrigin).host
+    if (!expectedHost || requestOriginHost !== expectedHost) {
+      return jsonError(403, 'Cross-origin requests are not allowed for this action.')
+    }
   }
 
   const supabase = await createClient()

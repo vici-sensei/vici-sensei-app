@@ -3,9 +3,10 @@ import type Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripeClient } from '@/lib/stripe/client'
 import { jsonError } from '@/lib/api/errors'
+import { getServerEnv } from '@/lib/env'
 
 export async function POST(request: Request) {
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  const webhookSecret = getServerEnv('STRIPE_WEBHOOK_SECRET')
   if (!webhookSecret) {
     return jsonError(500, 'STRIPE_WEBHOOK_SECRET is not set. Add it to .env.local before enabling the webhook.')
   }
