@@ -1,45 +1,67 @@
+"use client";
+
+import { Suspense } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
-import { getStudySettings } from "@/lib/data/studySettings";
-import { fetchKanjiList } from "@/lib/data/kanji";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { useStudySettings } from "@/lib/client-data/studySettings";
+import { useKanjiList } from "@/lib/client-data/kanji";
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { BrowseTabs } from "../BrowseTabs";
 import { BrowseControls } from "../BrowseControls";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 
 const PAGE_SIZE = 50;
 
-interface PageProps {
-  searchParams: Promise<{ search?: string; level?: string; offset?: string }>;
-}
-
-function parseLevels(raw: string | undefined, fallback: JlptLevel[]): JlptLevel[] {
-  if (raw === undefined) return fallback;
+function parseLevels(raw: string | null, fallback: JlptLevel[]): JlptLevel[] {
+  if (raw === null) return fallback;
   if (raw === "") return [];
   return raw.split(",").filter((l): l is JlptLevel => (JLPT_LEVELS as readonly string[]).includes(l));
 }
 
-export default async function BrowseKanjiPage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const supabase = await getSupabaseServerClient();
-  const user = await getAuthedUser();
-  // Cached per-request (React.cache) — the shell layout above this page already fetched
-  // settings, so this reuses that result instead of re-querying.
-  const settings = await getStudySettings(supabase, user.id);
-  if (!settings) redirect("/onboarding");
-  const levels = parseLevels(params.level, settings.enabled_levels);
-  const search = params.search ?? "";
-  const offset = Math.max(Number(params.offset) || 0, 0);
+function BrowseKanjiListing() {
+  const { user } = useAuth();
+  const { data: settings, status: settingsStatus } = useStudySettings(user);
+  const searchParams = useSearchParams();
 
-  const result = await fetchKanjiList({ search: search || null, levels, limit: PAGE_SIZE, offset });
+  const search = searchParams.get("search") ?? "";
+  const rawLevel = searchParams.get("level");
+  const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
+
+  if (settingsStatus === "loading" || !settings) {
+    return <ListSkeleton />;
+  }
+
+  return (
+    <BrowseKanjiResults
+      search={search}
+      levels={parseLevels(rawLevel, settings.enabled_levels)}
+      rawLevel={rawLevel}
+      offset={offset}
+    />
+  );
+}
+
+function BrowseKanjiResults({
+  search,
+  levels,
+  rawLevel,
+  offset,
+}: {
+  search: string;
+  levels: JlptLevel[];
+  rawLevel: string | null;
+  offset: number;
+}) {
+  const { data: result, status } = useKanjiList({ search: search || null, levels, limit: PAGE_SIZE, offset });
 
   const basePath = "/browse/kanji";
   const preservedParams = new URLSearchParams();
   if (search) preservedParams.set("search", search);
-  if (params.level !== undefined) preservedParams.set("level", params.level);
+  if (rawLevel !== null) preservedParams.set("level", rawLevel);
 
   function pageHref(newOffset: number) {
     const p = new URLSearchParams(preservedParams);
@@ -47,9 +69,6 @@ export default async function BrowseKanjiPage({ searchParams }: PageProps) {
     const qs = p.toString();
     return qs ? `${basePath}?${qs}` : basePath;
   }
-
-  const totalPages = Math.max(1, Math.ceil(result.count / PAGE_SIZE));
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   return (
     <div>
@@ -63,7 +82,9 @@ export default async function BrowseKanjiPage({ searchParams }: PageProps) {
 
       <div className="mt-6 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Results</div>
 
-      {result.data.length === 0 ? (
+      {status === "loading" || !result ? (
+        <ListSkeleton />
+      ) : result.data.length === 0 ? (
         <div className="px-5 py-15 text-center text-text-muted">
           <div className="mx-auto mb-4.5 flex h-15 w-15 items-center justify-center rounded-full border border-border-soft bg-white/[0.04] [&>svg]:h-6.5 [&>svg]:w-6.5">
             <FaMagnifyingGlass />
@@ -77,7 +98,7 @@ export default async function BrowseKanjiPage({ searchParams }: PageProps) {
             {result.data.map((row) => (
               <Link
                 key={row.id}
-                href={`/browse/kanji/${row.id}`}
+                href={`/browse/kanji/detail?id=${row.id}`}
                 className="flex cursor-pointer items-center gap-4.5 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
               >
                 <div className="w-13 shrink-0 text-[1.9rem] font-extrabold">{row.kanji}</div>
@@ -103,7 +124,8 @@ export default async function BrowseKanjiPage({ searchParams }: PageProps) {
               </Button>
             )}
             <span className="text-[0.85rem] font-semibold text-text-muted">
-              Page {currentPage} of {totalPages} &nbsp;·&nbsp; {result.count} results
+              Page {Math.floor(offset / PAGE_SIZE) + 1} of {Math.max(1, Math.ceil(result.count / PAGE_SIZE))} &nbsp;·&nbsp;{" "}
+              {result.count} results
             </span>
             {offset + PAGE_SIZE < result.count ? (
               <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(offset + PAGE_SIZE)}>
@@ -118,5 +140,23 @@ export default async function BrowseKanjiPage({ searchParams }: PageProps) {
         </>
       )}
     </div>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="mb-6 flex flex-col gap-2.5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="h-[72px] rounded-2xl" />
+      ))}
+    </div>
+  );
+}
+
+export default function BrowseKanjiPage() {
+  return (
+    <Suspense fallback={<ListSkeleton />}>
+      <BrowseKanjiListing />
+    </Suspense>
   );
 }

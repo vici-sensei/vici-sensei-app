@@ -1,12 +1,17 @@
-import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
-import { getUserProfile } from "@/lib/data/userProfile";
+"use client";
+
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { useUserProfile } from "@/lib/client-data/userProfile";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { BillingPanel } from "./BillingPanel";
 
-export default async function SettingsBillingPage() {
-  const supabase = await getSupabaseServerClient();
-  const authedUser = await getAuthedUser();
-  // Cached per-request (React.cache) — the settings layout above this page already fetched
-  // the profile, so this reuses that result instead of re-querying.
-  const user = await getUserProfile(supabase, authedUser.id);
-  return <BillingPanel isPremium={user.is_premium} userId={authedUser.id} email={user.email} />;
+export default function SettingsBillingPage() {
+  const { user } = useAuth();
+  const { data: profile, status } = useUserProfile(user);
+
+  if (status === "loading" || !profile || !user) {
+    return <Skeleton className="h-56 rounded-2xl" />;
+  }
+
+  return <BillingPanel isPremium={profile.is_premium} userId={user.id} email={profile.email} />;
 }

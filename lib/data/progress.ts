@@ -1,4 +1,4 @@
-import type { SupabaseServerClient } from "@/lib/supabase/server";
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { KanjiProgressResponse, KanjiReadingProgress, ProgressStatusCounts, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";
 import { PROGRESS_STATUSES } from "@/lib/srs/constants";
 
@@ -11,7 +11,7 @@ function countByStatus(rows: { status: string }[]): ProgressStatusCounts {
 }
 
 export async function fetchKanjiProgress(
-  supabase: SupabaseServerClient,
+  supabase: AppSupabaseClient,
   userId: string,
   kanjiId: number
 ): Promise<KanjiProgressResponse> {
@@ -31,7 +31,7 @@ export async function fetchKanjiProgress(
 }
 
 export async function fetchVocabularyProgress(
-  supabase: SupabaseServerClient,
+  supabase: AppSupabaseClient,
   userId: string,
   wordId: number
 ): Promise<VocabularyProgress | null> {
@@ -47,7 +47,7 @@ export async function fetchVocabularyProgress(
 }
 
 export async function fetchProgressSummary(
-  supabase: SupabaseServerClient,
+  supabase: AppSupabaseClient,
   userId: string
 ): Promise<ProgressSummaryResponse> {
   const [meaning, reading, vocab] = await Promise.all([

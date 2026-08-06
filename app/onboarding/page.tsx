@@ -7,20 +7,24 @@ import { LevelGrid, enabledLevelsFor } from "@/app/components/ui/LevelGrid";
 import { Button } from "@/app/components/ui/Button";
 import { Badge } from "@/app/components/ui/Badge";
 import { useToast } from "@/app/components/ui/Toast";
-import { apiPost, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { completeOnboarding } from "@/lib/client-data/studySettings";
 
 export default function OnboardingPage() {
   const [level, setLevel] = useState<JlptLevel>("N5");
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
+  const { user } = useAuth();
   const router = useRouter();
 
   const included = enabledLevelsFor(level);
 
   async function handleContinue() {
+    if (!user) return;
     setSubmitting(true);
     try {
-      await apiPost("/api/onboarding/complete", { enabled_levels: included });
+      await completeOnboarding(user.id, included);
       router.push("/dashboard");
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Something went wrong. Please try again.", "error");

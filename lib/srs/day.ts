@@ -29,8 +29,8 @@ function timezoneOffsetMs(timezone: string, date: Date): number {
  *
  * Without a `timezone`, the day is the UTC calendar day — daily quotas then reset at UTC
  * midnight, which can be hours off from the user's actual local midnight. Pass the IANA
- * timezone name (from the `tz` cookie, see lib/data/timezone.ts) to reset at the user's
- * local midnight instead.
+ * timezone name (`Intl.DateTimeFormat().resolvedOptions().timeZone` in the browser) to
+ * reset at the user's local midnight instead.
  */
 export function utcDayBounds(reference: Date = new Date(), timezone?: string) {
   if (!timezone) {

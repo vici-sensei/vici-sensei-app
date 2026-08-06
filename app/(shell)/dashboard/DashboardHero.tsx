@@ -3,6 +3,7 @@
 import { GiPartyPopper } from "react-icons/gi";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { cardsRemainingToday } from "@/lib/study/stats";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { StartStudyButton } from "./StartStudyButton";
 import { NextReviewTime } from "./NextReviewTime";
 
@@ -10,6 +11,18 @@ export function DashboardHero() {
   // Shared with the nav's Study link (see StudyStatsProvider in the shell layout) so both
   // reflect the same live count instead of drifting apart.
   const { stats, studyDisabled: allDone, stale } = useStudyStats();
+
+  if (!stats) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-6 rounded-[20px] border border-border-soft bg-bg-cards p-10 backdrop-blur-[10px]">
+        <div className="w-full max-w-md space-y-3">
+          <Skeleton className="h-9 w-3/4" />
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="mt-2.5 h-[52px] w-40 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
 
   const remainingKanji = Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0);
   const remainingVocab = Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0);

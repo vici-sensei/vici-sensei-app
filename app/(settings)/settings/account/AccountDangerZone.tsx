@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
+import { deleteAccount } from "@/lib/client-data/account";
 import { useToast } from "@/app/components/ui/Toast";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Button } from "@/app/components/ui/Button";
@@ -22,7 +23,7 @@ export function AccountDangerZone() {
   async function handleDelete() {
     setDeleting(true);
     try {
-      await apiFetch("/api/user/me", { method: "DELETE" });
+      await deleteAccount();
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push("/login");

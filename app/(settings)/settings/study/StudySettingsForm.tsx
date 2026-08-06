@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LevelGrid, enabledLevelsFor, mostAdvancedLevel } from "@/app/components/ui/LevelGrid";
-import { apiPatch, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { updateStudySettings } from "@/lib/client-data/studySettings";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import type { StudySettings, StudySettingsPatch } from "@/lib/types";
@@ -12,8 +13,8 @@ import { FaLink, FaCircleExclamation } from "react-icons/fa6";
 
 const REVIEWS_STEP = 10;
 
-export function StudySettingsForm({ initial }: { initial: StudySettings }) {
-  const router = useRouter();
+export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings; onSaved: () => void }) {
+  const { user } = useAuth();
   const { showToast } = useToast();
 
   const [newKanjiPerDay, setNewKanjiPerDay] = useState(initial.new_kanji_per_day);
@@ -62,6 +63,7 @@ export function StudySettingsForm({ initial }: { initial: StudySettings }) {
   }
 
   async function handleSave() {
+    if (!user) return;
     setSaving(true);
     const body: StudySettingsPatch = {
       new_kanji_per_day: newKanjiPerDay,
@@ -72,10 +74,10 @@ export function StudySettingsForm({ initial }: { initial: StudySettings }) {
       study_vocabulary: studyVocabulary,
     };
     try {
-      await apiPatch<StudySettings>("/api/study-settings", body);
+      await updateStudySettings(user.id, body);
       setDirty(false);
       showToast("Study settings saved");
-      router.refresh();
+      onSaved();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Could not save your settings.", "error");
     } finally {

@@ -1,9 +1,8 @@
-import { cache } from "react";
-import type { SupabaseServerClient } from "@/lib/supabase/server";
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { StudySettings } from "@/lib/types";
 
 export async function fetchStudySettings(
-  supabase: SupabaseServerClient,
+  supabase: AppSupabaseClient,
   userId: string
 ): Promise<StudySettings | null> {
   const { data, error } = await supabase
@@ -15,6 +14,3 @@ export async function fetchStudySettings(
   if (error) throw new Error(error.message);
   return data;
 }
-
-/** Cached per-request so every layout/page that needs settings shares one query. */
-export const getStudySettings = cache(fetchStudySettings);

@@ -2,10 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
+import {
+  endSession as endStudySessionApi,
+  getStudyQueue,
+  introduceKanji as introduceKanjiApi,
+  introduceVocabulary as introduceVocabularyApi,
+  startSession as startStudySessionApi,
+  submitReview as submitReviewApi,
+  undoReview as undoReviewApi,
+} from "@/lib/client-data/study";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
-import type { DueCard, Rating, StudyQueueResponse, StudySessionStart } from "@/lib/types";
+import type { DueCard, Rating, ReviewRequestBody, StudyQueueResponse } from "@/lib/types";
 import { newKanjiKey, newVocabKey, reviewKey, type QueueItem } from "./types";
 
 const REFRESH_INTERVAL_MS = 45_000;
@@ -61,11 +70,11 @@ function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueIt
   return [current, ...restReviews, ...addReviews, ...restNew, ...addNew];
 }
 
-function reviewBody(card: DueCard, rating: Rating) {
-  const body: Record<string, unknown> = { exercise_type: card.exercise_type, rating };
-  if (card.exercise_type === "kanji_meaning") body.kanji_id = card.kanji_id;
-  else if (card.exercise_type === "kanji_reading") body.kanji_word_id = card.kanji_word_id;
-  else body.word_id = card.word_id;
+function reviewBody(card: DueCard, rating: Rating): ReviewRequestBody {
+  const body: ReviewRequestBody = { exercise_type: card.exercise_type, rating };
+  if (card.exercise_type === "kanji_meaning") body.kanji_id = card.kanji_id ?? undefined;
+  else if (card.exercise_type === "kanji_reading") body.kanji_word_id = card.kanji_word_id ?? undefined;
+  else body.word_id = card.word_id ?? undefined;
   return body;
 }
 
@@ -106,7 +115,7 @@ export function useStudyQueue() {
       const sessionId = sessionIdRef.current;
       try {
         if (sessionId != null) {
-          await apiPost("/api/study/session/end", { session_id: sessionId });
+          await endStudySessionApi(sessionId);
           clearStoredSessionId();
         }
       } catch {
@@ -120,7 +129,7 @@ export function useStudyQueue() {
 
   const refreshQueue = useCallback(async () => {
     try {
-      const data = await apiGet<StudyQueueResponse>("/api/study/queue");
+      const data = await getStudyQueue();
       const incoming = buildQueue(data);
       setNextDueAt(data.next_due_at);
       setQueue((prev) => {
@@ -142,8 +151,8 @@ export function useStudyQueue() {
         // Neither of these depends on the other's result, so they fire together instead
         // of the queue fetch waiting on session/start to finish first.
         const [started, data] = await Promise.all([
-          storedSessionId == null ? apiPost<StudySessionStart>("/api/study/session/start") : Promise.resolve(null),
-          apiGet<StudyQueueResponse>("/api/study/queue"),
+          storedSessionId == null ? startStudySessionApi() : Promise.resolve(null),
+          getStudyQueue(),
         ]);
         const sessionId = storedSessionId ?? started!.session_id;
         if (started) setStoredSessionId(sessionId);
@@ -216,7 +225,7 @@ export function useStudyQueue() {
 
       enqueueMutation(async () => {
         try {
-          await apiPost("/api/study/review", reviewBody(card, rating));
+          await submitReviewApi(reviewBody(card, rating));
         } catch (err) {
           setCompletedCount((c) => Math.max(0, c - 1));
           setLastReview((prev) => (prev?.card === card ? null : prev));
@@ -236,10 +245,7 @@ export function useStudyQueue() {
 
       enqueueMutation(async () => {
         try {
-          await apiPost("/api/study/kanji/introduce", {
-            kanji_id: item.candidate.id,
-            session_id: sessionIdRef.current,
-          });
+          await introduceKanjiApi(item.candidate.id, sessionIdRef.current ?? undefined);
         } catch (err) {
           if (err instanceof ApiError && err.status === 409) return; // already introduced elsewhere — not a failure
           setCompletedCount((c) => Math.max(0, c - 1));
@@ -259,10 +265,7 @@ export function useStudyQueue() {
 
       enqueueMutation(async () => {
         try {
-          await apiPost("/api/study/vocabulary/introduce", {
-            word_id: item.candidate.id,
-            session_id: sessionIdRef.current,
-          });
+          await introduceVocabularyApi(item.candidate.id, sessionIdRef.current ?? undefined);
         } catch (err) {
           if (err instanceof ApiError && err.status === 409) return; // already introduced elsewhere — not a failure
           setCompletedCount((c) => Math.max(0, c - 1));
@@ -283,7 +286,7 @@ export function useStudyQueue() {
     // has definitely landed on the server before the undo request fires.
     enqueueMutation(async () => {
       try {
-        await apiPost("/api/study/review/undo");
+        await undoReviewApi();
         setCompletedCount((c) => Math.max(0, c - 1));
         setQueue((prev) => [{ key: reviewKey(toUndo.card), kind: "review", card: toUndo.card }, ...prev]);
         setLastReview((prev) => (prev === toUndo ? null : prev));

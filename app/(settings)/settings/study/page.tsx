@@ -1,14 +1,17 @@
-import { redirect } from "next/navigation";
-import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
-import { getStudySettings } from "@/lib/data/studySettings";
+"use client";
+
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { useStudySettings } from "@/lib/client-data/studySettings";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { StudySettingsForm } from "./StudySettingsForm";
 
-export default async function SettingsStudyPage() {
-  const supabase = await getSupabaseServerClient();
-  const user = await getAuthedUser();
-  // Cached per-request (React.cache) — the settings layout above this page already fetched
-  // settings, so this reuses that result instead of re-querying.
-  const settings = await getStudySettings(supabase, user.id);
-  if (!settings) redirect("/onboarding");
-  return <StudySettingsForm initial={settings} />;
+export default function SettingsStudyPage() {
+  const { user } = useAuth();
+  const { data: settings, status, refetch } = useStudySettings(user);
+
+  if (status === "loading" || !settings) {
+    return <Skeleton className="h-96 rounded-2xl" />;
+  }
+
+  return <StudySettingsForm initial={settings} onSaved={refetch} />;
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { apiPost } from "@/lib/api/client";
+import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
 
@@ -67,12 +67,11 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
   async function handleLogout() {
     setLoggingOut(true);
     try {
-      await apiPost("/api/auth/logout");
+      await createClient().auth.signOut();
     } catch {
       // even if the request fails, still send the user back to /login
     } finally {
       router.push("/login");
-      router.refresh();
     }
   }
 

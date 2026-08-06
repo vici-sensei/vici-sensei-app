@@ -1,17 +1,10 @@
-import { redirect } from "next/navigation";
-import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
-import { getStudySettings } from "@/lib/data/studySettings";
+"use client";
 
-export default async function StudyLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await getSupabaseServerClient();
-  const user = await getAuthedUser();
+import { useRequireOnboarded } from "@/lib/auth/useRequireOnboarded";
+import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 
-  // See app/(shell)/layout.tsx — a settings row always exists after signup;
-  // onboarding_completed is the real gate, not row existence.
-  const settings = await getStudySettings(supabase, user.id);
-  if (!settings || !settings.onboarding_completed) {
-    redirect("/onboarding");
-  }
-
+export default function StudyLayout({ children }: { children: React.ReactNode }) {
+  const { ready } = useRequireOnboarded();
+  if (!ready) return <FullScreenLoader />;
   return <>{children}</>;
 }

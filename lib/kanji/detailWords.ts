@@ -1,4 +1,4 @@
-import type { SupabaseServerClient } from "@/lib/supabase/server";
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { KanjiDetailWord, NewKanjiIntroWord } from "@/lib/types";
 
 type KanjiDetailWordRow = {
@@ -10,7 +10,7 @@ type KanjiDetailWordRow = {
 };
 
 export async function fetchKanjiDetailWords(
-  supabase: SupabaseServerClient,
+  supabase: AppSupabaseClient,
   kanjiId: number
 ): Promise<{ words: KanjiDetailWord[]; error: string | null }> {
   const { data: wordRows, error } = await supabase.rpc("get_kanji_detail_words", {
@@ -44,7 +44,7 @@ type KanjiIntroWordBatchRow = {
 
 /** Batched version of fetchKanjiDetailWords — one RPC round trip for many kanji ids instead of one per id. */
 export async function fetchKanjiDetailWordsBatch(
-  supabase: SupabaseServerClient,
+  supabase: AppSupabaseClient,
   kanjiIds: number[]
 ): Promise<{ wordsByKanjiId: Map<number, NewKanjiIntroWord[]>; error: string | null }> {
   if (kanjiIds.length === 0) return { wordsByKanjiId: new Map(), error: null };

@@ -1,12 +1,11 @@
-import { cache } from "react";
-import type { SupabaseServerClient } from "@/lib/supabase/server";
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { UserProfile } from "@/lib/types";
 
 const PROFILE_ROW_MISSING = "PGRST116";
 const PROFILE_FETCH_RETRIES = 3;
 const PROFILE_FETCH_RETRY_DELAY_MS = 200;
 
-export async function fetchUserProfile(supabase: SupabaseServerClient, userId: string): Promise<UserProfile> {
+export async function fetchUserProfile(supabase: AppSupabaseClient, userId: string): Promise<UserProfile> {
   // Right after a brand-new sign-up, the handle_new_user trigger's insert into `users` can
   // still be committing when this first post-auth request lands, so .single() sees 0 rows
   // and errors with PGRST116. A couple of short retries absorb that race instead of crashing
@@ -27,6 +26,3 @@ export async function fetchUserProfile(supabase: SupabaseServerClient, userId: s
 
   throw new Error("Failed to load user profile.");
 }
-
-/** Cached per-request so every layout/page that needs the profile shares one query. */
-export const getUserProfile = cache(fetchUserProfile);

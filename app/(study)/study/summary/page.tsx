@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import confetti from "canvas-confetti";
-import { apiPost, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
+import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
 import type { StudySessionEnd } from "@/lib/types";
 import { Badge } from "@/app/components/ui/Badge";
@@ -52,7 +53,7 @@ export default function StudySummaryPage() {
 
     (async () => {
       try {
-        const result = await apiPost<StudySessionEnd>("/api/study/session/end", { session_id: sessionId });
+        const result = await endSession(sessionId);
         clearStoredSessionId();
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setSummary(result);

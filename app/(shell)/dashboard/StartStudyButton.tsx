@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPost, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
+import { startSession } from "@/lib/client-data/study";
 import { setStoredSessionId } from "@/lib/study/session";
-import type { StudySessionStart } from "@/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 
@@ -16,7 +16,7 @@ export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
   async function handleStart() {
     setLoading(true);
     try {
-      const session = await apiPost<StudySessionStart>("/api/study/session/start");
+      const session = await startSession();
       setStoredSessionId(session.session_id);
       router.push("/study");
     } catch (err) {

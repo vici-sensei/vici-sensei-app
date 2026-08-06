@@ -1,5 +1,4 @@
-import { cache } from "react";
-import type { SupabaseServerClient } from "@/lib/supabase/server";
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { StudyStats } from "@/lib/types";
 import { utcDayBounds } from "@/lib/srs/day";
 import { getNextDue } from "@/lib/srs/nextDue";
@@ -11,7 +10,7 @@ const RETENTION_WINDOW_DAYS = 30;
 const DUE_PROGRESS_TABLES = ["user_kanji_meaning_progress", "user_kanji_reading_progress", "user_vocabulary_progress"] as const;
 
 export async function fetchStudyStats(
-  supabase: SupabaseServerClient,
+  supabase: AppSupabaseClient,
   userId: string,
   timezone?: string
 ): Promise<StudyStats> {
@@ -86,6 +85,3 @@ export async function fetchStudyStats(
     next_due_is_today: nextDueIsToday,
   };
 }
-
-/** Cached per-request so every layout/page that needs stats shares one set of queries. */
-export const getStudyStats = cache(fetchStudyStats);

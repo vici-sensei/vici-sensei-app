@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { apiPatch, apiUpload, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
+import { updateDisplayName, uploadAvatar } from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { AvatarCropModal } from "./AvatarCropModal";
-import type { UserProfile, UserProfilePatch } from "@/lib/types";
+import type { UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
 import { FaCircleExclamation, FaClock, FaPenToSquare } from "react-icons/fa6";
@@ -16,12 +16,6 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 // Target side length for uploaded avatars: comfortably sharp at the size we display
 // them (including retina), without shipping multi-megabyte originals to storage.
 const AVATAR_TARGET_SIZE = 640;
-const EXT_BY_MIME: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function initials(name: string | null, email: string) {
@@ -31,8 +25,15 @@ function initials(name: string | null, email: string) {
   return source.slice(0, 2).toUpperCase();
 }
 
-export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
-  const router = useRouter();
+export function ProfileSettingsForm({
+  initial,
+  userId,
+  onSaved,
+}: {
+  initial: UserProfile;
+  userId: string;
+  onSaved: () => void;
+}) {
   const { showToast } = useToast();
   const [displayName, setDisplayName] = useState(initial.display_name ?? "");
   const [avatarUrl, setAvatarUrl] = useState(initial.avatar_url ?? "");
@@ -62,12 +63,11 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
 
   async function handleSave() {
     setSaving(true);
-    const body: UserProfilePatch = { display_name: displayName.trim() };
     try {
-      await apiPatch<UserProfile>("/api/user/me", body);
+      await updateDisplayName(userId, displayName.trim());
       setDirty(false);
       showToast("Profile saved");
-      router.refresh();
+      onSaved();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Could not save your profile.", "error");
     } finally {
@@ -97,14 +97,11 @@ export function ProfileSettingsForm({ initial }: { initial: UserProfile }) {
 
     setUploadingAvatar(true);
     try {
-      const ext = EXT_BY_MIME[cropped.type] ?? "jpg";
-      const formData = new FormData();
-      formData.append("file", cropped, `avatar.${ext}`);
-      const updated = await apiUpload<UserProfile>("/api/user/me/avatar", formData);
+      const updated = await uploadAvatar(userId, cropped);
       setAvatarUrl(updated.avatar_url ?? "");
       setAvatarFailed(false);
       showToast("Photo updated");
-      router.refresh();
+      onSaved();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Could not upload your photo.", "error");
     } finally {

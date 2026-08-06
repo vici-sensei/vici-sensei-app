@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { apiGet } from "@/lib/api/client";
+import { getStudyStats } from "@/lib/client-data/studyStats";
 import { cardsRemainingToday } from "@/lib/study/stats";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import type { StudyStats } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -11,7 +12,8 @@ const POLL_INTERVAL_MS = 30_000;
 const CAUGHT_UP_POLL_INTERVAL_MS = 10_000;
 
 interface StudyStatsContextValue {
-  stats: StudyStats;
+  stats: StudyStats | null;
+  /** True while stats are unset (first load hasn't landed yet) or all caught up — safe default: don't let the user click into an empty/unknown study session. */
   studyDisabled: boolean;
   /** True once a poll has failed and no later poll has succeeded yet — stats may be out of date. */
   stale: boolean;
@@ -20,20 +22,16 @@ interface StudyStatsContextValue {
 
 const StudyStatsContext = createContext<StudyStatsContextValue | null>(null);
 
-export function StudyStatsProvider({
-  initialStats,
-  children,
-}: {
-  initialStats: StudyStats;
-  children: ReactNode;
-}) {
-  const [stats, setStats] = useState(initialStats);
+export function StudyStatsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const [stats, setStats] = useState<StudyStats | null>(null);
   const [stale, setStale] = useState(false);
   const cancelledRef = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (!user) return;
     try {
-      const fresh = await apiGet<StudyStats>("/api/study/stats");
+      const fresh = await getStudyStats(user.id);
       if (!cancelledRef.current) {
         setStats(fresh);
         setStale(false);
@@ -41,14 +39,13 @@ export function StudyStatsProvider({
     } catch {
       if (!cancelledRef.current) setStale(true);
     }
-  }, []);
+  }, [user]);
 
-  const allDone = cardsRemainingToday(stats) === 0;
+  const allDone = stats ? cardsRemainingToday(stats) === 0 : false;
 
   useEffect(() => {
+    if (!user) return;
     cancelledRef.current = false;
-    // Don't wait a full interval for the first update after mount — otherwise the button
-    // stays frozen at the server-rendered snapshot for up to POLL_INTERVAL_MS after load.
     void refresh();
 
     const intervalMs = allDone ? CAUGHT_UP_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
@@ -65,10 +62,10 @@ export function StudyStatsProvider({
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
     // Re-armed whenever allDone flips so the poll cadence switches immediately.
-  }, [allDone, refresh]);
+  }, [user, allDone, refresh]);
 
   return (
-    <StudyStatsContext.Provider value={{ stats, studyDisabled: allDone, stale, refresh }}>
+    <StudyStatsContext.Provider value={{ stats, studyDisabled: !stats || allDone, stale, refresh }}>
       {children}
     </StudyStatsContext.Provider>
   );

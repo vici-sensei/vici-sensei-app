@@ -1,8 +1,11 @@
+"use client";
+
 import type { CSSProperties, ReactNode } from "react";
-import { getAuthedUser, getSupabaseServerClient } from "@/lib/data/session";
-import { fetchProgressSummary } from "@/lib/data/progress";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { useProgressSummary } from "@/lib/client-data/progress";
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaBook, FaFont, FaPenToSquare } from "react-icons/fa6";
 import { StartStudyingLink } from "./StartStudyingLink";
 
@@ -54,10 +57,26 @@ function total(counts: ProgressStatusCounts): number {
   return PROGRESS_STATUSES.reduce((sum, s) => sum + counts[s], 0);
 }
 
-export default async function ProgressPage() {
-  const supabase = await getSupabaseServerClient();
-  const user = await getAuthedUser();
-  const summary = await fetchProgressSummary(supabase, user.id);
+export default function ProgressPage() {
+  const { user } = useAuth();
+  const { data: summary, status } = useProgressSummary(user);
+
+  if (status === "loading" || !summary) {
+    return (
+      <div>
+        <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Your progress</h1>
+        <p className="mb-7.5 text-base leading-[1.6] text-text-muted">
+          How your cards are distributed across the three exercise types.
+        </p>
+        <div className="space-y-[22px]">
+          {BLOCKS.map((b) => (
+            <Skeleton key={b.key} className="h-40 rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const grandTotal = BLOCKS.reduce((sum, b) => sum + total(summary[b.key]), 0);
 
   return (

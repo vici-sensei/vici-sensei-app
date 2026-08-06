@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { FaToriiGate } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
+import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
+  const { status } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "authed") router.replace("/dashboard");
+  }, [status, router]);
 
   async function handleGoogleLogin() {
     setLoading(true);
@@ -32,6 +41,8 @@ export default function LoginPage() {
     }
     // On success the browser navigates away to Google — no further state change needed.
   }
+
+  if (status !== "anon") return <FullScreenLoader />;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">

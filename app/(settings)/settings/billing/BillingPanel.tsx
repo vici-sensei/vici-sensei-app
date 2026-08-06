@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { apiPost, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
+import { createBillingPortalSession } from "@/lib/client-data/billing";
 import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
@@ -29,10 +30,10 @@ export function BillingPanel({
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  async function handleAction(path: string) {
+  async function handleManageSubscription() {
     setLoading(true);
     try {
-      const { url } = await apiPost<{ url: string }>(path);
+      const url = await createBillingPortalSession(`${window.location.origin}/settings/billing`);
       window.location.href = url;
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Could not start the checkout flow.", "error");
@@ -67,11 +68,7 @@ export function BillingPanel({
                 Renews monthly. Manage payment method, invoices, or cancel from the Stripe billing portal.
               </p>
             </div>
-            <Button
-              variant="secondary"
-              onClick={() => handleAction("/api/stripe/create-portal-session")}
-              disabled={loading}
-            >
+            <Button variant="secondary" onClick={handleManageSubscription} disabled={loading}>
               {loading ? "Redirecting…" : "Manage subscription"}
             </Button>
           </div>
