@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "vici-sensei-cf-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "cf:preview"],
+      "port": 8787
     }
   ]
 }
