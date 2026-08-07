@@ -56,7 +56,7 @@ export function AccountDangerZone() {
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
           />
-          I understand this action is permanent and cannot be reversed.
+          <span className="cursor-text">I understand this action is permanent and cannot be reversed.</span>
         </label>
         <div className="mb-[22px]">
           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted">

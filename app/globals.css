@@ -143,7 +143,7 @@ textarea:not(:read-only):not(:disabled),
 
 :disabled,
 [aria-disabled="true"],
-input:read-only,
+input:not([type="checkbox"]):not([type="radio"]):read-only,
 textarea:read-only,
 .cursor-not-allowed,
 input:disabled ~ span {
