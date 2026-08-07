@@ -55,10 +55,10 @@ export function DashboardHero() {
           : "before:bg-[radial-gradient(circle_at_15%_20%,rgb(255_74_90/0.12)_0%,transparent_55%)]"
       }`}
     >
-      <div className="relative">
+      <div className="relative text-center sm:text-left">
         {allDone ? (
           <>
-            <h1 className="mb-2 flex items-center gap-3 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
+            <h1 className="mb-2 flex items-center justify-center gap-3 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] sm:justify-start">
               You&apos;re all done for {dueLaterToday ? "now" : "today"}
               <GiPartyPopper className="h-14 w-14 text-accent-gold" />
             </h1>

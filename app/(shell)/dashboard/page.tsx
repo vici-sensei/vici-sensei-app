@@ -4,10 +4,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
+import { cardsRemainingToday } from "@/lib/study/stats";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { DashboardHero } from "./DashboardHero";
 import { CheckoutBanner } from "./CheckoutBanner";
+import { WeekStreak } from "./WeekStreak";
 import { FaBook, FaPenToSquare, FaFire, FaClock, FaArrowRight } from "react-icons/fa6";
 
 function CheckoutBannerFromQuery() {
@@ -17,6 +19,42 @@ function CheckoutBannerFromQuery() {
   return <CheckoutBanner status={checkout} />;
 }
 
+function StreakCard() {
+  // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
+  // no separate fetch here.
+  const { stats } = useStudyStats();
+
+  if (!stats) {
+    return (
+      <GlassCard padding="sm">
+        <div className="flex flex-col items-center gap-4 sm:flex-row">
+          <Skeleton className="h-9 w-9 rounded-lg" />
+          <Skeleton className="h-8 w-16" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+      </GlassCard>
+    );
+  }
+
+  return (
+    <GlassCard padding="sm">
+      <div className="flex flex-col items-center gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left">
+        <div className="flex items-center gap-3.5">
+          <div className="flex flex-col items-center sm:gap-2">
+            <div className="text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{stats.streak}</div>
+            <div className="text-sm font-semibold text-text-muted">Day streak</div>
+          </div>
+        </div>
+        <WeekStreak
+          activity={stats.weekly_activity}
+          streak={stats.streak}
+          todayDone={cardsRemainingToday(stats) === 0}
+        />
+      </div>
+    </GlassCard>
+  );
+}
+
 function StatCards() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
   // no separate fetch here.
@@ -24,9 +62,9 @@ function StatCards() {
 
   if (!stats) {
     return (
-      <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <GlassCard key={i} padding="sm">
+      <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <GlassCard key={i} padding="sm" className="flex flex-col items-center sm:items-start">
             <Skeleton className="mb-3.5 h-9 w-9 rounded-lg" />
             <Skeleton className="mb-1.5 h-8 w-16" />
             <Skeleton className="h-4 w-24" />
@@ -37,8 +75,8 @@ function StatCards() {
   }
 
   return (
-    <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-4">
-      <GlassCard padding="sm">
+    <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-3">
+      <GlassCard padding="sm" className="flex flex-col items-center text-center sm:items-start sm:text-left">
         <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
           <FaBook className="h-4 w-4" />
         </div>
@@ -49,7 +87,7 @@ function StatCards() {
         <div className="text-sm font-semibold text-text-muted">New kanji today</div>
       </GlassCard>
 
-      <GlassCard padding="sm">
+      <GlassCard padding="sm" className="flex flex-col items-center text-center sm:items-start sm:text-left">
         <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
           <FaPenToSquare className="h-4 w-4" />
         </div>
@@ -60,15 +98,7 @@ function StatCards() {
         <div className="text-sm font-semibold text-text-muted">New vocab today</div>
       </GlassCard>
 
-      <GlassCard padding="sm">
-        <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-gold/[0.12] text-accent-gold">
-          <FaFire className="h-4 w-4" />
-        </div>
-        <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{stats.streak}</div>
-        <div className="text-sm font-semibold text-text-muted">Day streak</div>
-      </GlassCard>
-
-      <GlassCard padding="sm">
+      <GlassCard padding="sm" className="flex flex-col items-center text-center sm:items-start sm:text-left">
         <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-red/10 text-accent-red">
           <FaClock className="h-4 w-4" />
         </div>
@@ -94,7 +124,11 @@ export default function DashboardPage() {
         <CheckoutBannerFromQuery />
       </Suspense>
 
-      <DashboardHero />
+      <StreakCard />
+
+      <div className="mt-[18px]">
+        <DashboardHero />
+      </div>
 
       <StatCards />
 

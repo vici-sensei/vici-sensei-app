@@ -20,7 +20,10 @@ export function Header({ user, showBack = false }: { user: UserProfile; showBack
         prefetch={false}
         className="absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-[1.15rem] font-extrabold tracking-[-0.4px]"
       >
-        <FaToriiGate className="h-5 w-5 text-accent-red" />
+        <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center border-[1.3px] border-accent-red">
+          <span className="pointer-events-none absolute inset-[2px] border border-accent-red/50" />
+          <FaToriiGate className="relative h-4 w-4 text-accent-red" />
+        </span>
         Vici Sensei
       </Link>
       <ProfileMenu user={user} />

@@ -63,13 +63,22 @@ export interface StudyQueueResponse {
   next_due_at: string | null;
 }
 
+export interface WeeklyActivityDay {
+  /** Local calendar date (YYYY-MM-DD) in the user's timezone. */
+  date: string;
+  active: boolean;
+}
+
 export interface StudyStats {
   due_today: number;
   new_kanji_today: number;
   new_kanji_limit: number;
   new_vocab_today: number;
   new_vocab_limit: number;
+  /** Current unbroken run of days studied, ending today. */
   streak: number;
+  /** Raw per-day activity for the last 7 local days, oldest first, ending today -- independent of `streak`. */
+  weekly_activity: WeeklyActivityDay[];
   retention_rate: number | null;
   next_due_at: string | null;
   next_due_is_today: boolean;

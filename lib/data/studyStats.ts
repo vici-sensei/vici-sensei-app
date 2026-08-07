@@ -20,8 +20,16 @@ export async function fetchStudyStats(
 
   // All of these are independent of one another (each only needs userId/nowIso), so they
   // run as one batch instead of the sequential awaits the /api/study/stats route used to do.
-  const [settingsResult, dueCounters, nextDue, newKanjiResult, newVocabResult, retentionResult, streakResult] =
-    await Promise.all([
+  const [
+    settingsResult,
+    dueCounters,
+    nextDue,
+    newKanjiResult,
+    newVocabResult,
+    retentionResult,
+    streakResult,
+    weeklyActivityResult,
+  ] = await Promise.all([
       supabase
         .from("user_study_settings")
         .select("new_kanji_per_day, new_vocab_per_day")
@@ -56,6 +64,7 @@ export async function fetchStudyStats(
       // pulling every review_logs row in the window and computing the ratio in JS.
       supabase.rpc("get_retention_rate", { p_user_id: userId, p_window_start: windowStart }),
       supabase.rpc("get_review_streak", { p_user_id: userId }),
+      supabase.rpc("get_review_activity", { p_user_id: userId, p_timezone: timezone ?? "UTC", p_days: 7 }),
     ]);
 
   if (settingsResult.error) throw new Error(settingsResult.error.message);
@@ -67,6 +76,7 @@ export async function fetchStudyStats(
   if (newVocabResult.error) throw new Error(newVocabResult.error.message);
   if (retentionResult.error) throw new Error(retentionResult.error.message);
   if (streakResult.error) throw new Error(streakResult.error.message);
+  if (weeklyActivityResult.error) throw new Error(weeklyActivityResult.error.message);
 
   const newKanjiPerDay = settingsResult.data?.new_kanji_per_day ?? DEFAULT_NEW_KANJI_PER_DAY;
   const newVocabPerDay = settingsResult.data?.new_vocab_per_day ?? DEFAULT_NEW_VOCAB_PER_DAY;
@@ -80,6 +90,10 @@ export async function fetchStudyStats(
     new_vocab_today: newVocabResult.count ?? 0,
     new_vocab_limit: newVocabPerDay,
     streak: streakResult.data,
+    weekly_activity: (weeklyActivityResult.data ?? []).map((row: { day: string; has_activity: boolean }) => ({
+      date: row.day,
+      active: row.has_activity,
+    })),
     retention_rate: retentionResult.data,
     next_due_at: nextDueAt,
     next_due_is_today: nextDueIsToday,

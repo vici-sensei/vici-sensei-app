@@ -184,3 +184,24 @@ input:disabled ~ span {
     transform: translateY(-22px);
   }
 }
+
+/* Day streak flame icons (WeekStreak.tsx) -- sway on every lit flame, plus a glow pulse
+   layered on top once the streak hits the 7-day gold milestone. */
+@keyframes vici-flame-sway {
+  0% {
+    transform: rotate(-6deg);
+  }
+  100% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes vici-flame-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1px currentColor) brightness(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 9px currentColor) brightness(1.4);
+  }
+}
