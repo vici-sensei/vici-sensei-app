@@ -101,7 +101,7 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
         role="menu"
       >
         <div className="flex flex-col items-center gap-2 px-2 py-3 text-center">
-          <Link href="/settings/profile" onClick={() => setOpen(false)}>
+          <Link href="/settings/profile" prefetch={false} onClick={() => setOpen(false)}>
             <Avatar
               user={user}
               avatarFailed={avatarFailed}
@@ -119,16 +119,16 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
           </div>
         </div>
         <hr className="mx-1 mb-1.5 border-border-soft" />
-        <Link href="/settings/study" className={menuItemClasses} onClick={() => setOpen(false)}>
+        <Link href="/settings/study" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
           Settings
         </Link>
-        <Link href="/settings/profile" className={menuItemClasses} onClick={() => setOpen(false)}>
+        <Link href="/settings/profile" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
           Profile
         </Link>
-        <Link href="/settings/billing" className={menuItemClasses} onClick={() => setOpen(false)}>
+        <Link href="/settings/billing" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
           Subscription
         </Link>
-        <Link href="/settings/account" className={menuItemClasses} onClick={() => setOpen(false)}>
+        <Link href="/settings/account" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
           Account
         </Link>
         <hr className="mx-1 my-1.5 border-border-soft" />

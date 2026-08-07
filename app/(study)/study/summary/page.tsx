@@ -132,7 +132,7 @@ export default function StudySummaryPage() {
             <div className="text-[0.78rem] font-semibold text-text-muted">Duration</div>
           </div>
         </div>
-        <Link href="/dashboard" className={buttonClasses({ hover: "hover" })}>
+        <Link href="/dashboard" prefetch={false} className={buttonClasses({ hover: "hover" })}>
           Back to Home
         </Link>
       </div>

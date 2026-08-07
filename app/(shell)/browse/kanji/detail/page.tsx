@@ -18,7 +18,7 @@ function NotFound() {
     <div className="px-5 py-15 text-center text-text-muted">
       <h3 className="mb-2 text-[1.15rem] text-white">Kanji not found</h3>
       <p>This kanji doesn&apos;t exist or may have been removed.</p>
-      <Link href="/browse/kanji" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mt-4" })}>
+      <Link href="/browse/kanji" prefetch={false} className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mt-4" })}>
         ← Back to results
       </Link>
     </div>
@@ -78,7 +78,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
 
   return (
     <div>
-      <Link href="/browse/kanji" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mb-6" })}>
+      <Link href="/browse/kanji" prefetch={false} className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mb-6" })}>
         ← Back to results
       </Link>
 

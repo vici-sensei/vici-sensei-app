@@ -99,6 +99,7 @@ function BrowseKanjiResults({
               <Link
                 key={row.id}
                 href={`/browse/kanji/detail?id=${row.id}`}
+                prefetch={false}
                 className="flex cursor-pointer items-center gap-4.5 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
               >
                 <div className="w-13 shrink-0 text-[1.9rem] font-extrabold">{row.kanji}</div>
@@ -115,7 +116,7 @@ function BrowseKanjiResults({
 
           <div className="flex items-center justify-center gap-3.5">
             {offset > 0 ? (
-              <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(Math.max(0, offset - PAGE_SIZE))}>
+              <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(Math.max(0, offset - PAGE_SIZE))} prefetch={false}>
                 ← Previous
               </Link>
             ) : (
@@ -128,7 +129,7 @@ function BrowseKanjiResults({
               {result.count} results
             </span>
             {offset + PAGE_SIZE < result.count ? (
-              <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(offset + PAGE_SIZE)}>
+              <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(offset + PAGE_SIZE)} prefetch={false}>
                 Next →
               </Link>
             ) : (

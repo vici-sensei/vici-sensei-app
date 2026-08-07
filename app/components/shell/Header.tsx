@@ -10,12 +10,14 @@ export function Header({ user, showBack = false }: { user: UserProfile; showBack
         href="/dashboard"
         aria-hidden={!showBack}
         tabIndex={showBack ? undefined : -1}
+        prefetch={false}
         className={`inline-flex items-center gap-2 text-[0.88rem] font-bold text-text-muted hover:text-white [&>svg]:h-3.75 [&>svg]:w-3.75 ${showBack ? "" : "invisible pointer-events-none"}`}
       >
         <FaArrowLeft />
       </Link>
       <Link
         href="/dashboard"
+        prefetch={false}
         className="absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-[1.15rem] font-extrabold tracking-[-0.4px]"
       >
         <FaToriiGate className="h-5 w-5 text-accent-red" />

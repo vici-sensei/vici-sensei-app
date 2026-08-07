@@ -43,6 +43,7 @@ export function NavItem({ href, icon, label, mobileLabel, active, disabled, dang
   return (
     <Link
       href={href}
+      prefetch={false}
       className={`${sharedClasses} cursor-pointer ${active ? (danger ? activeDangerClasses : activeClasses) : inactiveClasses}`}
     >
       {icon}

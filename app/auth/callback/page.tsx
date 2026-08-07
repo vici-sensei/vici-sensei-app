@@ -21,11 +21,27 @@ function AuthCallbackInner() {
     const supabase = createClient();
     const next = searchParams.get("next") ?? "/dashboard";
 
+    // A self-service email change (auth.updateUser({ email })) links a new "email"
+    // identity alongside the existing Google one as a GoTrue side effect. We only
+    // support Google sign-in, so drop it right after the change is confirmed.
+    async function dropStrayEmailIdentity() {
+      try {
+        const { data } = await supabase.auth.getUserIdentities();
+        const identities = data?.identities ?? [];
+        const emailIdentity = identities.find((i) => i.provider === "email");
+        if (emailIdentity && identities.some((i) => i.provider === "google")) {
+          await supabase.auth.unlinkIdentity(emailIdentity);
+        }
+      } catch {
+        // Best-effort cleanup; never block sign-in on it.
+      }
+    }
+
     // detectSessionInUrl: true (set in lib/supabase/client.ts) makes the client exchange the
     // ?code= param for a session automatically — we just wait for the resulting SIGNED_IN event.
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        router.replace(next);
+        dropStrayEmailIdentity().finally(() => router.replace(next));
       }
     });
 

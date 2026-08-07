@@ -8,10 +8,10 @@ export function BrowseTabs({ active }: { active: "kanji" | "vocabulary" }) {
 
   return (
     <div className="mb-5.5 inline-flex gap-1 rounded-xl border border-border-soft bg-white/[0.03] p-1">
-      <Link href="/browse/kanji" className={tabClasses(active === "kanji")}>
+      <Link href="/browse/kanji" prefetch={false} className={tabClasses(active === "kanji")}>
         Kanji
       </Link>
-      <Link href="/browse/vocabulary" className={tabClasses(active === "vocabulary")}>
+      <Link href="/browse/vocabulary" prefetch={false} className={tabClasses(active === "vocabulary")}>
         Vocabulary
       </Link>
     </div>

@@ -20,7 +20,7 @@ export function StartStudyingLink() {
   }
 
   return (
-    <Link href="/study" className={buttonClasses({ hover: "hover", className: "mt-2.5" })}>
+    <Link href="/study" prefetch={false} className={buttonClasses({ hover: "hover", className: "mt-2.5" })}>
       Start studying
     </Link>
   );

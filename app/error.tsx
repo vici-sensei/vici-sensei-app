@@ -23,7 +23,7 @@ export default function Error({
             <FaArrowRotateRight className="h-3.5 w-3.5" />
             Try again
           </Button>
-          <Link href="/dashboard" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}>
+          <Link href="/dashboard" prefetch={false} className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}>
             <FaHouse className="h-3.5 w-3.5" />
             Go to Dashboard
           </Link>
