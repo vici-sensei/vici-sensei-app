@@ -158,6 +158,17 @@ export function ProfileSettingsForm({
   const previewInitials = initials(displayName, initial.email);
   const canSave = dirty && displayName.trim().length > 0 && displayName.trim().length <= 50;
 
+  const trimmedEmail = newEmail.trim();
+  const emailChanged = trimmedEmail !== initial.email;
+  const emailValid = EMAIL_PATTERN.test(trimmedEmail);
+  const emailError = !emailChanged
+    ? null
+    : trimmedEmail.length === 0
+      ? "Email is required."
+      : !emailValid
+        ? "Enter a valid email address ending in @gmail.com."
+        : null;
+
   const fieldLabel = "mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted";
   const fieldInput =
     "w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40 read-only:cursor-not-allowed read-only:text-text-muted";
@@ -233,7 +244,12 @@ export function ProfileSettingsForm({
             />
             {newEmail.trim() !== initial.email && (
               <div className="flex gap-2.5">
-                <Button type="button" size="sm" onClick={handleEmailChange} disabled={emailSubmitting}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleEmailChange}
+                  disabled={emailSubmitting || !emailValid}
+                >
                   {emailSubmitting ? "Saving..." : "Save"}
                 </Button>
                 <Button
@@ -264,8 +280,11 @@ export function ProfileSettingsForm({
               </button>
             </div>
           )}
+          {emailError && (
+            <div className="mt-1.5 text-[0.8rem] leading-normal text-accent-red">{emailError}</div>
+          )}
           <div className={fieldHint}>
-            Must be a @gmail.com address. You still sign in with Google — changing this only updates your account
+            You still sign in with Google — changing this only updates your account
             email.
           </div>
         </div>
