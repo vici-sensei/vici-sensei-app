@@ -29,7 +29,25 @@ function DetailSkeleton() {
   return (
     <div>
       <Skeleton className="mb-6 h-9 w-32 rounded-xl" />
-      <Skeleton className="h-24 w-full rounded-2xl" />
+
+      <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
+        <div className="min-w-55 flex-1">
+          <Skeleton className="mt-1 mb-3 h-5 w-24" />
+          <Skeleton className="mb-3 h-11 w-52" />
+          <Skeleton className="mb-3 h-6 w-40" />
+          <div className="flex flex-wrap gap-6">
+            {["w-16", "w-12", "w-20"].map((w) => (
+              <div key={w}>
+                <Skeleton className="mb-1.5 h-3 w-16" />
+                <Skeleton className={`h-5 ${w}`} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <Skeleton className="mt-8 mb-3.5 h-3.5 w-28" />
+      <Skeleton className="h-15 w-full rounded-xl" />
     </div>
   );
 }

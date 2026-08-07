@@ -11,6 +11,13 @@ function AuthCallbackInner() {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    // Supabase redirects back here with ?error=... (no ?code=) when it rejects the sign-in
+    // server-side — e.g. our @gmail.com-only trigger blocking a non-gmail Google account.
+    if (searchParams.get("error")) {
+      router.replace("/login?error=auth_callback_failed");
+      return;
+    }
+
     const supabase = createClient();
     const next = searchParams.get("next") ?? "/dashboard";
 

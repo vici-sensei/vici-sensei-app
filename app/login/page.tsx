@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { FaToriiGate } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +10,19 @@ import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+
+function LoginErrorNotice() {
+  const searchParams = useSearchParams();
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    if (searchParams.get("error")) {
+      showToast("Couldn't sign you in. Only @gmail.com Google accounts are supported.", "error");
+    }
+  }, [searchParams, showToast]);
+
+  return null;
+}
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -31,6 +44,9 @@ export default function LoginPage() {
         queryParams: {
           access_type: "offline",
           prompt: "select_account",
+          // Best-effort hint to Google's account chooser — not a real guarantee,
+          // the @gmail.com requirement is enforced in the database.
+          hd: "gmail.com",
         },
       },
     });
@@ -46,6 +62,9 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">
+      <Suspense fallback={null}>
+        <LoginErrorNotice />
+      </Suspense>
       <div className="relative w-full max-w-[460px]">
         <div className="mb-7 flex items-center justify-center gap-2.5 text-2xl font-extrabold tracking-[-0.5px]">
           <FaToriiGate className="h-[26px] w-[26px] text-accent-red" />

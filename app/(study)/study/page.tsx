@@ -16,7 +16,7 @@ import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
 
 function StudyQueueSkeleton() {
   return (
-    <div className="flex min-h-screen flex-col bg-bg-main">
+    <div className="flex flex-col bg-bg-main" style={{ minHeight: "var(--app-height, 100dvh)" }}>
       <div className="px-7 py-5">
         <div className="flex items-center gap-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-text-muted/40 [&>svg]:h-4 [&>svg]:w-4">

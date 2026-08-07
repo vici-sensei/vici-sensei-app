@@ -16,7 +16,7 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 // Target side length for uploaded avatars: comfortably sharp at the size we display
 // them (including retina), without shipping multi-megabyte originals to storage.
 const AVATAR_TARGET_SIZE = 640;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_PATTERN = /^[^\s@]+@gmail\.com$/i;
 
 function initials(name: string | null, email: string) {
   const source = name?.trim() || email;
@@ -112,7 +112,7 @@ export function ProfileSettingsForm({
   async function handleEmailChange() {
     const trimmed = newEmail.trim();
     if (!EMAIL_PATTERN.test(trimmed)) {
-      showToast("Please enter a valid email address.", "error");
+      showToast("Email must be a @gmail.com address.", "error");
       return;
     }
     if (trimmed === initial.email) {
@@ -265,7 +265,8 @@ export function ProfileSettingsForm({
             </div>
           )}
           <div className={fieldHint}>
-            You still sign in with Google — changing this only updates your account email.
+            Must be a @gmail.com address. You still sign in with Google — changing this only updates your account
+            email.
           </div>
         </div>
       </div>
