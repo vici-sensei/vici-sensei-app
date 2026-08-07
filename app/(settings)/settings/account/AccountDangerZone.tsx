@@ -52,7 +52,7 @@ export function AccountDangerZone() {
         <label className="my-5 flex items-start gap-2.5 text-[0.9rem] text-text-muted">
           <input
             type="checkbox"
-            className="mt-[3px] h-4 w-4 shrink-0 accent-accent-red"
+            className="mt-[3px] h-4 w-4 shrink-0 accent-accent-red cursor-pointer"
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
           />
