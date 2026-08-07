@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) {
-    return jsonResponse({ error: "You are not logged in. Please log in." }, 401);
+    return jsonResponse(req, { error: "You are not logged in. Please log in." }, 401);
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     .single();
 
   if (profileError) {
-    return jsonResponse({ error: profileError.message }, 500);
+    return jsonResponse(req, { error: profileError.message }, 500);
   }
 
   let hadActiveSubscription = false;
@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
       stripeCustomerDeleted = true;
     } catch (err) {
       return jsonResponse(
+        req,
         {
           error: `Could not cancel the Stripe subscription or remove the Stripe customer before deleting the account: ${
             err instanceof Error ? err.message : "unknown error"
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
   if (deleteError) {
-    return jsonResponse({ error: deleteError.message }, 500);
+    return jsonResponse(req, { error: deleteError.message }, 500);
   }
 
   const { error: auditError } = await admin.from("account_deletion_log").insert({
@@ -80,5 +81,5 @@ Deno.serve(async (req) => {
     console.error("Failed to write account_deletion_log entry:", auditError.message);
   }
 
-  return new Response(null, { status: 204, headers: corsHeaders });
+  return new Response(null, { status: 204, headers: corsHeaders(req) });
 });

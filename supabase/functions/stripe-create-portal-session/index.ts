@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) {
-    return jsonResponse({ error: "You are not logged in. Please log in." }, 401);
+    return jsonResponse(req, { error: "You are not logged in. Please log in." }, 401);
   }
 
   const body = await req.json().catch(() => ({}));
@@ -27,9 +27,9 @@ Deno.serve(async (req) => {
     .eq("id", user.id)
     .single();
 
-  if (profileError) return jsonResponse({ error: profileError.message }, 500);
+  if (profileError) return jsonResponse(req, { error: profileError.message }, 500);
   if (!profile.stripe_customer_id) {
-    return jsonResponse({ error: "This account has no Stripe billing profile yet." }, 400);
+    return jsonResponse(req, { error: "This account has no Stripe billing profile yet." }, 400);
   }
 
   try {
@@ -39,9 +39,13 @@ Deno.serve(async (req) => {
       return_url: returnUrl ?? `${Deno.env.get("APP_ORIGIN")}/dashboard`,
     });
     return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (err) {
-    return jsonResponse({ error: err instanceof Error ? err.message : "Stripe portal session creation failed." }, 500);
+    return jsonResponse(
+      req,
+      { error: err instanceof Error ? err.message : "Stripe portal session creation failed." },
+      500
+    );
   }
 });
