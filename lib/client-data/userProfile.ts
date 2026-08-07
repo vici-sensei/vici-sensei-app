@@ -24,7 +24,9 @@ export function useUserProfile(user: User | null) {
 
   const refetch = useCallback(async () => {
     if (!user) return;
-    setStatus("loading");
+    // Only show the loading state for the first fetch — a background revalidation
+    // (e.g. after saving a field) shouldn't unmount already-rendered content.
+    setStatus((prev) => (prev === "loaded" ? prev : "loading"));
     try {
       const supabase = createClient();
       const profile = await fetchUserProfile(supabase, user.id);

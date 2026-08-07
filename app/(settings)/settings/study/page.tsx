@@ -72,13 +72,9 @@ function StudySettingsSkeleton() {
         <Skeleton className="mt-3.5 h-3.5 w-full max-w-sm" />
       </div>
 
-      <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+      <div className="rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
         <ToggleRowSkeleton />
         <ToggleRowSkeleton />
-      </div>
-
-      <div className="mt-7 flex items-center justify-end border-t border-border-soft pt-[22px]">
-        <Skeleton className="h-11 w-36 rounded-lg" />
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { UserIdentity } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
 import { updateDisplayName, uploadAvatar } from "@/lib/client-data/userProfile";
@@ -10,13 +12,45 @@ import { AvatarCropModal } from "./AvatarCropModal";
 import type { UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
-import { FaCircleExclamation, FaClock, FaPenToSquare } from "react-icons/fa6";
+import { FaCheck, FaPenToSquare } from "react-icons/fa6";
+import { FcGoogle } from "react-icons/fc";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 // Target side length for uploaded avatars: comfortably sharp at the size we display
 // them (including retina), without shipping multi-megabyte originals to storage.
 const AVATAR_TARGET_SIZE = 640;
-const EMAIL_PATTERN = /^[^\s@]+@gmail\.com$/i;
+
+// Keys are short codes we or GoTrue produce; anything else (e.g. a message
+// already relayed verbatim from the switch-google-account Edge Function) is
+// shown as-is, since it's already a human-readable sentence.
+const SWITCH_ERROR_MESSAGES: Record<string, string> = {
+  no_new_account: "Couldn't detect a new Google account. Please try again.",
+  access_denied: "You didn't approve the Google sign-in.",
+  identity_already_exists: "That Google account is already used by another profile.",
+};
+
+function switchErrorMessage(code: string): string {
+  return SWITCH_ERROR_MESSAGES[code] ?? code;
+}
+
+/** Reads ?switched=/?switchError= left by the auth callback and strips them once shown. */
+function SwitchResultNotice() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    const switched = searchParams.get("switched");
+    const switchError = searchParams.get("switchError");
+    if (!switched && !switchError) return;
+
+    if (switched) showToast("Now signed in with your new Google account");
+    if (switchError) showToast(switchErrorMessage(switchError), "error");
+    router.replace("/settings/profile");
+  }, [searchParams, router, showToast]);
+
+  return null;
+}
 
 function initials(name: string | null, email: string) {
   const source = name?.trim() || email;
@@ -36,24 +70,24 @@ export function ProfileSettingsForm({
 }) {
   const { showToast } = useToast();
   const [displayName, setDisplayName] = useState(initial.display_name ?? "");
+  const [savedName, setSavedName] = useState(initial.display_name ?? "");
+  const [nameStatus, setNameStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [avatarUrl, setAvatarUrl] = useState(initial.avatar_url ?? "");
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [newEmail, setNewEmail] = useState(initial.email);
-  const [emailSubmitting, setEmailSubmitting] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [identities, setIdentities] = useState<UserIdentity[]>([]);
+  const [switching, setSwitching] = useState(false);
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (!cancelled && data.user?.new_email) {
-        setPendingEmail(data.user.new_email);
+    supabase.auth.getUserIdentities().then(({ data }) => {
+      if (!cancelled) {
+        setIdentities((data?.identities ?? []).filter((i) => i.provider === "google"));
       }
     });
     return () => {
@@ -61,18 +95,42 @@ export function ProfileSettingsForm({
     };
   }, []);
 
-  async function handleSave() {
-    setSaving(true);
+  async function saveDisplayName(trimmed: string) {
+    if (trimmed === savedName || nameStatus === "saving") return;
+
+    if (trimmed.length === 0 || trimmed.length > 50) {
+      showToast("Name must be 1–50 characters.", "error");
+      setDisplayName(savedName);
+      return;
+    }
+
+    setNameStatus("saving");
     try {
-      await updateDisplayName(userId, displayName.trim());
-      setDirty(false);
-      showToast("Profile saved");
+      await updateDisplayName(userId, trimmed);
+      setSavedName(trimmed);
+      setNameStatus("saved");
       onSaved();
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not save your profile.", "error");
-    } finally {
-      setSaving(false);
+      showToast(err instanceof ApiError ? err.message : "Could not save your name.", "error");
+      setDisplayName(savedName);
+      setNameStatus("idle");
     }
+  }
+
+  // Autosave a beat after the user stops typing. Invalid/empty values are left
+  // alone here (no toast mid-edit) — handleNameBlur below is what validates and
+  // reverts once the user actually leaves the field.
+  useEffect(() => {
+    const trimmed = displayName.trim();
+    if (trimmed === savedName || trimmed.length === 0 || trimmed.length > 50) return;
+
+    const timeout = setTimeout(() => saveDisplayName(trimmed), 800);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- saveDisplayName closes over stable state/props each render
+  }, [displayName, savedName]);
+
+  async function handleNameBlur() {
+    await saveDisplayName(displayName.trim());
   }
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -109,65 +167,45 @@ export function ProfileSettingsForm({
     }
   }
 
-  async function handleEmailChange() {
-    const trimmed = newEmail.trim();
-    if (!EMAIL_PATTERN.test(trimmed)) {
-      showToast("Email must be a @gmail.com address.", "error");
-      return;
-    }
-    if (trimmed === initial.email) {
-      showToast("That's already your current email.", "error");
-      return;
-    }
-
-    setEmailSubmitting(true);
+  async function handleSwitchGoogleAccount() {
+    setSwitching(true);
     try {
       const supabase = createClient();
-      const { error: updateError } = await supabase.auth.updateUser(
-        { email: trimmed },
-        { emailRedirectTo: `${window.location.origin}/auth/callback?next=/settings/profile` }
-      );
-      if (updateError) throw updateError;
-      setPendingEmail(trimmed);
-      setNewEmail(initial.email);
+      const { error: linkError } = await supabase.auth.linkIdentity({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/settings/profile&switch=1`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "select_account",
+            hd: "gmail.com",
+          },
+        },
+      });
+      if (linkError) throw linkError;
+      // On success the browser navigates away to Google — no further state change needed.
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Could not start the email change.", "error");
-    } finally {
-      setEmailSubmitting(false);
+      showToast(err instanceof Error ? err.message : "Could not start switching your Google account.", "error");
+      setSwitching(false);
     }
   }
 
-  async function handleResendConfirmation() {
-    if (!pendingEmail) return;
-    setEmailSubmitting(true);
+  async function handleUnlinkIdentity(identity: UserIdentity) {
+    setUnlinkingId(identity.identity_id);
     try {
       const supabase = createClient();
-      const { error: updateError } = await supabase.auth.updateUser(
-        { email: pendingEmail },
-        { emailRedirectTo: `${window.location.origin}/auth/callback?next=/settings/profile` }
-      );
-      if (updateError) throw updateError;
-      showToast("Confirmation email resent");
+      const { error: unlinkError } = await supabase.auth.unlinkIdentity(identity);
+      if (unlinkError) throw unlinkError;
+      setIdentities((prev) => prev.filter((i) => i.identity_id !== identity.identity_id));
+      showToast("Google account unlinked");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Could not resend the confirmation email.", "error");
+      showToast(err instanceof Error ? err.message : "Could not unlink that Google account.", "error");
     } finally {
-      setEmailSubmitting(false);
+      setUnlinkingId(null);
     }
   }
 
   const previewInitials = initials(displayName, initial.email);
-  const canSave = dirty && displayName.trim().length > 0 && displayName.trim().length <= 50;
-
-  const trimmedEmail = newEmail.trim();
-  const emailChanged = trimmedEmail !== initial.email;
-  const emailValid = EMAIL_PATTERN.test(trimmedEmail);
-  const emailError = !emailChanged
-    ? null
-    : trimmedEmail.length === 0
-      ? "Email is required."
-      : !emailValid
-        ? "Enter a valid email address ending in @gmail.com."
-        : null;
 
   const fieldLabel = "mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted";
   const fieldInput =
@@ -218,77 +256,77 @@ export function ProfileSettingsForm({
           </div>
           <div className="w-full md:flex-1">
             <label className={fieldLabel}>Full name</label>
-            <input
-              className={fieldInput}
-              type="text"
-              maxLength={50}
-              value={displayName}
-              onChange={(e) => {
-                setDisplayName(e.target.value);
-                setDirty(true);
-              }}
-              onFocus={scrollIntoViewOnFocus}
-            />
-            <div className={fieldHint}>1–50 characters.</div>
+            <div className="relative">
+              <span className="pointer-events-none absolute right-3.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center">
+                {nameStatus === "saving" && (
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/25 border-t-white" />
+                )}
+                {nameStatus === "saved" && <FaCheck className="h-3.5 w-3.5 text-accent-green" />}
+              </span>
+              <input
+                className={`${fieldInput} pr-10`}
+                type="text"
+                maxLength={50}
+                value={displayName}
+                onChange={(e) => {
+                  setDisplayName(e.target.value);
+                  if (nameStatus === "saved") setNameStatus("idle");
+                }}
+                onFocus={scrollIntoViewOnFocus}
+                onBlur={handleNameBlur}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+              />
+            </div>
+            <div className={fieldHint}>1–50 characters</div>
           </div>
         </div>
         <div>
-          <label className={fieldLabel}>Email</label>
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-            <input
-              className={`${fieldInput} sm:flex-1`}
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              onFocus={scrollIntoViewOnFocus}
-            />
-            {newEmail.trim() !== initial.email && (
-              <div className="flex gap-2.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleEmailChange}
-                  disabled={emailSubmitting || !emailValid}
-                >
-                  {emailSubmitting ? "Saving..." : "Save"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setNewEmail(initial.email)}
-                  disabled={emailSubmitting}
-                >
-                  Cancel
-                </Button>
-              </div>
-            )}
+          <label className={fieldLabel}>Linked to Google</label>
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <span className="flex items-center gap-2 py-3 text-[0.95rem] text-white">
+              <FcGoogle className="h-4 w-4 shrink-0 rounded-full bg-white p-0.5" />
+              {initial.email}
+            </span>
+            <Button type="button" variant="secondary" size="sm" loading={switching} onClick={handleSwitchGoogleAccount}>
+              Switch Google account
+            </Button>
           </div>
-          {pendingEmail && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-2.5 rounded-lg border border-accent-gold/30 bg-accent-gold/10 px-3.5 py-2.5">
-              <FaClock className="h-3.5 w-3.5 shrink-0 text-accent-gold" />
-              <p className="flex-1 text-[0.8rem] leading-normal text-accent-gold">
-                Not confirmed yet — check <strong>{pendingEmail}</strong> for the confirmation link.
-              </p>
-              <button
-                type="button"
-                onClick={handleResendConfirmation}
-                disabled={emailSubmitting}
-                className="text-[0.8rem] font-bold text-accent-gold underline underline-offset-2 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Resend
-              </button>
+          {identities.length > 1 && (
+            <div className="mt-2.5 flex flex-col gap-2">
+              {identities.map((identity) => (
+                <div
+                  key={identity.identity_id}
+                  className="flex flex-wrap items-center gap-2.5 rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-2.5"
+                >
+                  <FcGoogle className="h-4 w-4 shrink-0 rounded-full bg-white p-0.5" />
+                  <span className="flex-1 text-[0.85rem] text-white">
+                    {identity.identity_data?.email ?? "Unknown Google account"}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    danger
+                    loading={unlinkingId === identity.identity_id}
+                    onClick={() => handleUnlinkIdentity(identity)}
+                  >
+                    Unlink
+                  </Button>
+                </div>
+              ))}
             </div>
           )}
-          {emailError && (
-            <div className="mt-1.5 text-[0.8rem] leading-normal text-accent-red">{emailError}</div>
-          )}
           <div className={fieldHint}>
-            You still sign in with Google — changing this only updates your account
-            email.
+            Synced from your Google account — switching won&apos;t change your name, photo, or progress.
           </div>
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <SwitchResultNotice />
+      </Suspense>
 
       {cropFile && (
         <AvatarCropModal
@@ -298,20 +336,6 @@ export function ProfileSettingsForm({
           onCropped={handleAvatarCropped}
         />
       )}
-
-      <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-[22px]">
-        <div
-          className={`flex items-center gap-2 text-[0.85rem] text-accent-gold transition-opacity duration-200 [&>svg]:h-3.5 [&>svg]:w-3.5 ${
-            dirty ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <FaCircleExclamation />
-          Unsaved changes
-        </div>
-        <Button onClick={handleSave} disabled={saving || !canSave}>
-          {saving ? "Saving..." : "Save changes"}
-        </Button>
-      </div>
     </div>
   );
 }

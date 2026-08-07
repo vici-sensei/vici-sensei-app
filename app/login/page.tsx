@@ -3,13 +3,13 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
-import { FaToriiGate } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+import { Logo } from "@/app/components/ui/Logo";
 
 function LoginErrorNotice() {
   const searchParams = useSearchParams();
@@ -66,10 +66,7 @@ export default function LoginPage() {
         <LoginErrorNotice />
       </Suspense>
       <div className="relative w-full max-w-[460px]">
-        <div className="mb-7 flex items-center justify-center gap-2.5 text-2xl font-extrabold tracking-[-0.5px]">
-          <FaToriiGate className="h-[26px] w-[26px] text-accent-red" />
-          Vici Sensei
-        </div>
+        <Logo size={112} className="mx-auto mb-7" />
         <Badge>Spaced repetition, Anki style</Badge>
         <h1 className="mb-2 text-[2.6rem] font-extrabold leading-tight tracking-[-0.8px]">
           Learn Japanese

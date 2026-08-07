@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { switchGoogleAccount } from "@/lib/client-data/account";
+import { ApiError } from "@/lib/api/client";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 
 function AuthCallbackInner() {
@@ -11,19 +13,35 @@ function AuthCallbackInner() {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    const supabase = createClient();
+
     // Supabase redirects back here with ?error=... (no ?code=) when it rejects the sign-in
-    // server-side — e.g. our @gmail.com-only trigger blocking a non-gmail Google account.
-    if (searchParams.get("error")) {
-      router.replace("/login?error=auth_callback_failed");
+    // or the linkIdentity() OAuth attempt server-side — e.g. the @gmail.com-only trigger
+    // blocking a non-gmail Google account, or the account already being linked elsewhere
+    // (?error=server_error&error_code=identity_already_exists&error_description=...).
+    // error_code is the specific, stable machine-readable value — prefer it over the
+    // generic top-level `error` bucket and the (less predictable) human description.
+    // A switch attempt happens while already authenticated, so route its failures back to
+    // Settings instead of bouncing an already-logged-in user out to /login.
+    const errorCode =
+      searchParams.get("error_code") ?? searchParams.get("error_description") ?? searchParams.get("error");
+    if (errorCode) {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          router.replace(`/settings/profile?switchError=${encodeURIComponent(errorCode)}`);
+        } else {
+          router.replace("/login?error=auth_callback_failed");
+        }
+      });
       return;
     }
 
-    const supabase = createClient();
     const next = searchParams.get("next") ?? "/dashboard";
+    const isSwitch = searchParams.get("switch") === "1";
 
-    // A self-service email change (auth.updateUser({ email })) links a new "email"
-    // identity alongside the existing Google one as a GoTrue side effect. We only
-    // support Google sign-in, so drop it right after the change is confirmed.
+    // A self-service email change (the old manual "change email" flow) used to link a new
+    // "email" identity alongside the existing Google one as a GoTrue side effect. We only
+    // support Google sign-in, so drop it if it's ever still present.
     async function dropStrayEmailIdentity() {
       try {
         const { data } = await supabase.auth.getUserIdentities();
@@ -37,12 +55,63 @@ function AuthCallbackInner() {
       }
     }
 
-    // detectSessionInUrl: true (set in lib/supabase/client.ts) makes the client exchange the
-    // ?code= param for a session automatically — we just wait for the resulting SIGNED_IN event.
-    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        dropStrayEmailIdentity().finally(() => router.replace(next));
+    // Finishes a "Switch Google account" attempt: the freshly-linked Google identity (the
+    // one with the latest created_at) becomes the account's email via the Edge Function
+    // (bypassing the normal confirmation-email flow, since Google OAuth already proved
+    // ownership), then the previous Google identity is unlinked so it's no longer associated.
+    async function completeGoogleAccountSwitch(): Promise<{ ok: true } | { ok: false; code: string }> {
+      const { data } = await supabase.auth.getUserIdentities();
+      const googleIdentities = (data?.identities ?? [])
+        .filter((i) => i.provider === "google")
+        .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+
+      if (googleIdentities.length < 2) {
+        return { ok: false, code: "no_new_account" };
       }
+
+      const [newest, ...rest] = googleIdentities;
+      try {
+        await switchGoogleAccount(newest.identity_id);
+      } catch (err) {
+        // Leave both identities linked — safe fallback state, nothing broken, can retry.
+        return { ok: false, code: err instanceof ApiError ? err.message : "update_failed" };
+      }
+
+      // Best-effort: the email switch already succeeded, so this is just cleanup.
+      await Promise.allSettled(rest.map((identity) => supabase.auth.unlinkIdentity(identity)));
+      return { ok: true };
+    }
+
+    // detectSessionInUrl: true (set in lib/supabase/client.ts) makes the client exchange the
+    // ?code= param for a session automatically — we just wait for the resulting session. This
+    // isn't guaranteed to be a SIGNED_IN event for a linkIdentity() return, so any event that
+    // carries a session is treated as "ready". Guarded so a second event (e.g. a subsequent
+    // TOKEN_REFRESHED) can't re-run the switch/redirect logic.
+    let handled = false;
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session || handled) return;
+      handled = true;
+
+      async function finish() {
+        if (isSwitch) {
+          const result = await completeGoogleAccountSwitch();
+          // admin.updateUserById({ email }) has the same GoTrue side effect as the old
+          // self-service email change: it links a stray "email" identity. Drop it after
+          // the switch (successful or not) rather than before, since it doesn't exist yet
+          // at the start of this flow.
+          await dropStrayEmailIdentity();
+          if (!result.ok) {
+            router.replace(`/settings/profile?switchError=${encodeURIComponent(result.code)}`);
+            return;
+          }
+          router.replace("/settings/profile?switched=1");
+          return;
+        }
+        await dropStrayEmailIdentity();
+        router.replace(next);
+      }
+
+      finish();
     });
 
     // If there was never a code to exchange (bad/expired link), bail out instead of spinning forever.

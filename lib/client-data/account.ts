@@ -21,3 +21,17 @@ export async function deleteAccount(): Promise<void> {
     throw new ApiError(500, await extractFunctionErrorMessage(error, "Could not delete your account. Please try again."));
   }
 }
+
+export async function switchGoogleAccount(newIdentityId: string): Promise<{ email: string }> {
+  const supabase = createClient();
+  const { data, error } = await supabase.functions.invoke("switch-google-account", {
+    body: { newIdentityId },
+  });
+  if (error) {
+    throw new ApiError(
+      500,
+      await extractFunctionErrorMessage(error, "Could not switch your Google account. Please try again.")
+    );
+  }
+  return data;
+}

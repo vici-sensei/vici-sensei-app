@@ -37,10 +37,6 @@ function ProfileSkeleton() {
           <Skeleton className="mt-1.5 h-3 w-64" />
         </div>
       </div>
-
-      <div className="mt-7 flex items-center justify-end border-t border-border-soft pt-[22px]">
-        <Skeleton className="h-11 w-36 rounded-lg" />
-      </div>
     </div>
   );
 }
