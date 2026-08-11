@@ -3,7 +3,7 @@ import type { KanjiDetailWord, NewKanjiIntroWord } from "@/lib/types";
 
 type KanjiDetailWordRow = {
   kanji_word_id: number;
-  reading_number: number | null;
+  reading_group: number | null;
   word: string;
   kana_reading: string | null;
   meanings: string[] | null;
@@ -21,7 +21,7 @@ export async function fetchKanjiDetailWords(
 
   const words = ((wordRows ?? []) as KanjiDetailWordRow[]).map((row) => ({
     id: row.kanji_word_id,
-    reading_number: row.reading_number,
+    reading_group: row.reading_group,
     vocabulary: {
       word: row.word,
       kana_reading: row.kana_reading,

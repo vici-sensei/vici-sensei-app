@@ -112,9 +112,9 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
             <div className="text-[0.85rem] font-bold text-accent-blue">{w.vocabulary.kana_reading}</div>
             <div className="mb-1.5 text-2xl font-extrabold">{w.vocabulary.word}</div>
             <div className="text-[0.8rem] leading-[1.4] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
-            {w.reading_number != null && (
+            {w.reading_group != null && (
               <div className="mt-2 inline-block rounded-md bg-white/5 px-2 py-0.5 text-[0.68rem] font-extrabold text-text-muted">
-                Reading group {w.reading_number}
+                Reading group {w.reading_group}
               </div>
             )}
           </div>

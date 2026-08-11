@@ -13,11 +13,11 @@ scripts:
         pm.expect(body.words.length).to.be.at.most(3);
       });
 
-      pm.test('at most one word per reading_number', () => {
+      pm.test('at most one word per reading_group', () => {
         const seen = new Set();
         for (const w of body.words) {
-          pm.expect(seen.has(w.reading_number)).to.equal(false);
-          seen.add(w.reading_number);
+          pm.expect(seen.has(w.reading_group)).to.equal(false);
+          seen.add(w.reading_group);
         }
       });
 

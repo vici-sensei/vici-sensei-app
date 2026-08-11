@@ -16,7 +16,7 @@ export interface KanjiListResponse {
 
 export interface KanjiDetailWord {
   id: number;
-  reading_number: number | null;
+  reading_group: number | null;
   vocabulary: {
     word: string;
     kana_reading: string | null;

@@ -19,7 +19,7 @@ export async function fetchKanjiProgress(
     supabase.from("user_kanji_meaning_progress").select("status, due_at").eq("user_id", userId).eq("kanji_id", kanjiId).maybeSingle(),
     supabase
       .from("user_kanji_reading_progress")
-      .select("id, status, due_at, kanji_word_id, kanji_word:kanji_word_id(reading_number, vocabulary:id_word(word, kana_reading))")
+      .select("id, status, due_at, kanji_word_id, kanji_word:kanji_word_id(reading_group, vocabulary:id_word(word, kana_reading))")
       .eq("user_id", userId)
       .eq("kanji_id", kanjiId),
   ]);

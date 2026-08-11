@@ -12,7 +12,7 @@ export interface KanjiReadingProgress {
   kanji_word_id: number;
   /** Only present on GET /api/progress/kanji/[id], via join. */
   kanji_word?: {
-    reading_number: number | null;
+    reading_group: number | null;
     vocabulary: { word: string; kana_reading: string | null } | null;
   };
 }
