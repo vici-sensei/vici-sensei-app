@@ -27,7 +27,7 @@ function StudyQueueSkeleton() {
         </div>
       </div>
       <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
-        <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 md:px-10 md:py-14 text-center backdrop-blur-[10px]">
+        <div className="relative w-full max-w-[620px] rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 md:px-10 md:py-14 text-center backdrop-blur-[10px]">
           <Skeleton className="mx-auto mb-6 h-3 w-28" />
           <Skeleton className="mx-auto mb-2 h-24 w-24 rounded-2xl" />
           <Skeleton className="mx-auto mt-1 h-3.5 w-48" />
@@ -78,8 +78,11 @@ export default function StudyPage() {
       <div className="flex flex-1 flex-col items-center px-4 md:px-6 md:py-5">
         {/* my-auto (not justify-center) so that when the card is taller than the
             remaining space it aligns to the top instead of clipping equally on both ends;
-            the page itself scrolls (progress bar included) rather than just this section. */}
-        <div className="my-auto flex w-full justify-center">
+            the page itself scrolls (progress bar included) rather than just this section.
+            min-h-max stops the flex row from ever shrinking the card below its natural
+            content height (the default flex-shrink would otherwise squeeze it shorter
+            than its content, leaving text/buttons rendered outside the card's background). */}
+        <div className="my-auto flex w-full min-h-max justify-center">
           {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
             <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
           )}
