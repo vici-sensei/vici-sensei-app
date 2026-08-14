@@ -65,7 +65,7 @@ export default function OnboardingPage() {
           <label htmlFor="onboarding-country" className="mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted">
             Country
           </label>
-          <CountrySelect id="onboarding-country" value={country} onChange={setCountry} />
+          <CountrySelect id="onboarding-country" value={country} onChange={setCountry} placement="auto" />
         </div>
 
         <Button onClick={handleContinue} loading={submitting} disabled={!country} className="w-full">

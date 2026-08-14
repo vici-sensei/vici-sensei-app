@@ -61,19 +61,19 @@ export default function LoginPage() {
   if (status !== "anon") return <FullScreenLoader />;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-y-auto px-6 py-6 text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">
       <Suspense fallback={null}>
         <LoginErrorNotice />
       </Suspense>
       <div className="relative w-full max-w-[460px]">
-        <Logo size={112} className="mx-auto mb-7" />
-        <Badge>Spaced repetition, Anki style</Badge>
-        <h1 className="mb-2 text-[2.6rem] font-extrabold leading-tight tracking-[-0.8px]">
+        <Logo size={112} className="mx-auto mb-[clamp(1.75rem,4dvh,4rem)]" />
+        <Badge className="mb-[clamp(0.75rem,2.5dvh,2.5rem)]">Spaced repetition, Anki style</Badge>
+        <h1 className="mb-[clamp(0.5rem,1.5dvh,1.75rem)] text-[2.6rem] font-extrabold leading-tight tracking-[-0.8px]">
           Learn Japanese
           <br />
           at your own pace.
         </h1>
-        <p className="mb-10 text-base leading-[1.6] text-text-muted">
+        <p className="mb-[clamp(2.5rem,6dvh,5.5rem)] text-base leading-[1.6] text-text-muted">
           Kanji, readings, and vocabulary organized by JLPT level, scheduled for exactly when your brain needs to
           see them again.
         </p>
@@ -87,10 +87,6 @@ export default function LoginPage() {
           <FcGoogle className="h-5 w-5 shrink-0 rounded-full bg-white p-0.5" />
           Continue with Google
         </Button>
-
-        <p className="mt-[18px] text-[0.85rem] text-text-muted">
-          No passwords. Secure sign-in exclusively through your Google account.
-        </p>
       </div>
     </div>
   );
