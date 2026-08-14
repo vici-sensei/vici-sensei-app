@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import { forwardRef, type HTMLAttributes } from "react";
 
 interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
   padding?: "md" | "sm" | "lg";
@@ -16,9 +16,12 @@ const TONE = {
   danger: "border-accent-red/25 bg-[linear-gradient(135deg,rgb(255_34_0/0.06)_0%,rgb(17_24_39/0.8)_100%)]",
 };
 
-export function GlassCard({ padding = "md", tone = "default", className, children, ...rest }: GlassCardProps) {
+export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(function GlassCard(
+  { padding = "md", tone = "default", className, children, ...rest },
+  ref
+) {
   const classes = [
-    "relative rounded-2xl border backdrop-blur-[10px] transition-[transform,border-color] duration-300 ease-in-out",
+    "relative rounded-2xl border backdrop-blur-[10px] transition-[transform,border-color] duration-300 ease-in-out h-full",
     TONE[tone],
     PADDING[padding],
     className ?? "",
@@ -27,8 +30,8 @@ export function GlassCard({ padding = "md", tone = "default", className, childre
     .join(" ");
 
   return (
-    <div className={classes} {...rest}>
+    <div ref={ref} className={classes} {...rest}>
       {children}
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import type { ExerciseType } from "@/lib/srs/constants";
+import type { ExerciseType, JlptLevel } from "@/lib/srs/constants";
 
 export interface NewKanjiIntroWord {
   id: number;
@@ -73,6 +73,24 @@ export interface WeeklyActivityDay {
   active: boolean;
 }
 
+export interface LevelProgressCategory {
+  /** Introduced at least once (has a progress row). */
+  seen: number;
+  /** Graduated past the initial learning phase at least once (status review/relearning). */
+  learned: number;
+  /** Total items that exist at this level. */
+  total: number;
+}
+
+export interface LevelProgress {
+  /** The student's current (most advanced enabled) JLPT level. */
+  level: JlptLevel;
+  kanji: LevelProgressCategory;
+  /** Vocabulary entries used to drill a kanji's reading (kanji_detail_words). */
+  kanji_reading: LevelProgressCategory;
+  vocabulary: LevelProgressCategory;
+}
+
 export interface StudyStats {
   due_today: number;
   new_kanji_today: number;
@@ -86,6 +104,8 @@ export interface StudyStats {
   retention_rate: number | null;
   next_due_at: string | null;
   next_due_is_today: boolean;
+  /** Null only if the user has no study settings row yet (shouldn't happen once onboarded). */
+  level_progress: LevelProgress | null;
 }
 
 export type Rating = 0 | 1 | 2 | 3;

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LevelGrid, enabledLevelsFor, mostAdvancedLevel } from "@/app/components/ui/LevelGrid";
+import { LevelGrid, enabledLevelsFor } from "@/app/components/ui/LevelGrid";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { updateStudySettings } from "@/lib/client-data/studySettings";
 import { useToast } from "@/app/components/ui/Toast";
 import type { StudySettings, StudySettingsPatch } from "@/lib/types";
-import type { JlptLevel } from "@/lib/srs/constants";
+import { mostAdvancedLevel, type JlptLevel } from "@/lib/srs/constants";
 import { FaLink } from "react-icons/fa6";
 
 const REVIEWS_STEP = 10;
@@ -18,6 +18,7 @@ type Snapshot = {
   newVocabPerDay: number;
   maxReviewsPerDay: number;
   level: JlptLevel;
+  includeLowerLevels: boolean;
   studyKanji: boolean;
   studyVocabulary: boolean;
   leaderboardOptOut: boolean;
@@ -29,6 +30,7 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     newVocabPerDay: settings.new_vocab_per_day,
     maxReviewsPerDay: settings.max_reviews_per_day,
     level: mostAdvancedLevel(settings.enabled_levels),
+    includeLowerLevels: settings.include_lower_levels,
     studyKanji: settings.study_kanji,
     studyVocabulary: settings.study_vocabulary,
     leaderboardOptOut: settings.leaderboard_opt_out,
@@ -41,6 +43,7 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
     a.newVocabPerDay === b.newVocabPerDay &&
     a.maxReviewsPerDay === b.maxReviewsPerDay &&
     a.level === b.level &&
+    a.includeLowerLevels === b.includeLowerLevels &&
     a.studyKanji === b.studyKanji &&
     a.studyVocabulary === b.studyVocabulary &&
     a.leaderboardOptOut === b.leaderboardOptOut
@@ -55,6 +58,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
   const [newVocabPerDay, setNewVocabPerDay] = useState(initial.new_vocab_per_day);
   const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(initial.max_reviews_per_day);
   const [level, setLevel] = useState<JlptLevel>(mostAdvancedLevel(initial.enabled_levels));
+  const [includeLowerLevels, setIncludeLowerLevels] = useState(initial.include_lower_levels);
   const [studyKanji, setStudyKanji] = useState(initial.study_kanji);
   const [studyVocabulary, setStudyVocabulary] = useState(initial.study_vocabulary);
   const [leaderboardOptOut, setLeaderboardOptOut] = useState(initial.leaderboard_opt_out);
@@ -91,6 +95,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
     setNewVocabPerDay(snapshot.newVocabPerDay);
     setMaxReviewsPerDay(snapshot.maxReviewsPerDay);
     setLevel(snapshot.level);
+    setIncludeLowerLevels(snapshot.includeLowerLevels);
     setStudyKanji(snapshot.studyKanji);
     setStudyVocabulary(snapshot.studyVocabulary);
     setLeaderboardOptOut(snapshot.leaderboardOptOut);
@@ -107,6 +112,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
       newVocabPerDay,
       maxReviewsPerDay,
       level,
+      includeLowerLevels,
       studyKanji,
       studyVocabulary,
       leaderboardOptOut,
@@ -119,6 +125,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
         new_vocab_per_day: current.newVocabPerDay,
         max_reviews_per_day: current.maxReviewsPerDay,
         enabled_levels: enabledLevelsFor(current.level),
+        include_lower_levels: current.includeLowerLevels,
         study_kanji: current.studyKanji,
         study_vocabulary: current.studyVocabulary,
         leaderboard_opt_out: current.leaderboardOptOut,
@@ -135,9 +142,20 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
 
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- revertTo/onSaved/showToast close over stable state each render
-  }, [newKanjiPerDay, newVocabPerDay, maxReviewsPerDay, level, studyKanji, studyVocabulary, leaderboardOptOut, saved, user]);
+  }, [
+    newKanjiPerDay,
+    newVocabPerDay,
+    maxReviewsPerDay,
+    level,
+    includeLowerLevels,
+    studyKanji,
+    studyVocabulary,
+    leaderboardOptOut,
+    saved,
+    user,
+  ]);
 
-  const includedLevels = enabledLevelsFor(level);
+  const includedLevels = includeLowerLevels ? enabledLevelsFor(level) : [level];
 
   const fieldLabel = "mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted";
   const fieldHint = "mt-1.5 text-[0.8rem] leading-normal text-text-muted";
@@ -201,10 +219,26 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
 
       <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
         <label className={`${fieldLabel} mb-3.5`}>Enabled JLPT levels</label>
-        <LevelGrid value={level} onChange={setLevel} size="sm" />
-        <div className={fieldHint}>
-          Studying {includedLevels.slice().reverse().join(", ")}. Levels normalize automatically — picking a higher
-          level enables the ones below it.
+        <LevelGrid value={level} onChange={setLevel} cascade={includeLowerLevels} size="sm" />
+        <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
+
+        <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+          <div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
+            <div className="text-sm text-text-muted">
+              Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
+              either way.
+            </div>
+          </div>
+          <label className="relative h-[26px] w-[46px] shrink-0">
+            <input
+              type="checkbox"
+              className="peer h-0 w-0 opacity-0"
+              checked={includeLowerLevels}
+              onChange={() => setIncludeLowerLevels(!includeLowerLevels)}
+            />
+            <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 before:absolute before:left-[3px] before:top-[3px] before:h-5 before:w-5 before:rounded-full before:bg-white before:transition-transform before:duration-200 peer-checked:bg-accent-red peer-checked:before:translate-x-5" />
+          </label>
         </div>
       </div>
 

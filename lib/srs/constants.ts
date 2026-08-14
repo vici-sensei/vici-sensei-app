@@ -1,6 +1,16 @@
 export const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const
 export type JlptLevel = (typeof JLPT_LEVELS)[number]
 
+/** The most advanced level present in an enabled_levels array (defaults to N5). */
+export function mostAdvancedLevel(levels: readonly string[]): JlptLevel {
+  let best = 0
+  for (const level of levels) {
+    const idx = JLPT_LEVELS.indexOf(level as JlptLevel)
+    if (idx > best) best = idx
+  }
+  return JLPT_LEVELS[best]
+}
+
 export const LEARNING_STEPS_MINUTES = [1, 10] as const
 
 export const MIN_EASE_FACTOR = 1.3

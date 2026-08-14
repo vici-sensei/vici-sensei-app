@@ -5,6 +5,7 @@ export interface StudySettings {
   new_kanji_per_day: number;
   max_reviews_per_day: number;
   enabled_levels: JlptLevel[];
+  include_lower_levels: boolean;
   study_kanji: boolean;
   study_vocabulary: boolean;
   updated_at: string;
@@ -18,6 +19,7 @@ export interface StudySettingsPatch {
   new_vocab_per_day?: number;
   max_reviews_per_day?: number;
   enabled_levels?: JlptLevel[];
+  include_lower_levels?: boolean;
   study_kanji?: boolean;
   study_vocabulary?: boolean;
   leaderboard_opt_out?: boolean;

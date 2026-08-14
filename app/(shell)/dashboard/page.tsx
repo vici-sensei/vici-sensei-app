@@ -10,6 +10,7 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { DashboardHero } from "./DashboardHero";
 import { CheckoutBanner } from "./CheckoutBanner";
 import { WeekStreak } from "./WeekStreak";
+import { LevelProgressCard } from "./LevelProgressCard";
 import { FaBook, FaPenToSquare, FaFire, FaClock, FaArrowRight } from "react-icons/fa6";
 
 function CheckoutBannerFromQuery() {
@@ -38,7 +39,7 @@ function StreakCard() {
 
   return (
     <GlassCard padding="sm">
-      <div className="flex flex-col items-center gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left">
+      <div className="flex flex-col gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left justify-center items-center h-full">
         <div className="flex items-center gap-3.5">
           <div className="flex flex-col items-center sm:gap-2">
             <div className="text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{stats.streak}</div>
@@ -124,10 +125,14 @@ export default function DashboardPage() {
         <CheckoutBannerFromQuery />
       </Suspense>
 
-      <StreakCard />
-
-      <div className="mt-[18px]">
-        <DashboardHero />
+      <div className="flex flex-col gap-[18px] md:flex-row md:flex-wrap">
+        <div className="md:flex-1">
+          <StreakCard />
+        </div>
+        <LevelProgressCard />
+        <div className="order-2 md:order-3 md:basis-full">
+          <DashboardHero />
+        </div>
       </div>
 
       <StatCards />

@@ -12,14 +12,16 @@ const DESCRIPTIONS: Record<JlptLevel, string> = {
 };
 
 interface LevelGridProps {
-  /** The most advanced level selected — lower levels are implicitly included. */
+  /** The most advanced level selected. */
   value: JlptLevel;
   onChange: (level: JlptLevel) => void;
+  /** Whether levels below `value` are actually included — tints them to show they're active too. When false, only `value` is highlighted. */
+  cascade: boolean;
   size?: "md" | "sm";
 }
 
 /** Shared JLPT level selector — used identically by /onboarding and /settings/study. */
-export function LevelGrid({ value, onChange, size = "md" }: LevelGridProps) {
+export function LevelGrid({ value, onChange, cascade, size = "md" }: LevelGridProps) {
   const maxIdx = JLPT_LEVELS.indexOf(value);
 
   const pillSize = size === "sm" ? "h-[62px] w-[62px] gap-0.5 rounded-xl" : "h-21 w-21 gap-1 rounded-2xl";
@@ -27,7 +29,7 @@ export function LevelGrid({ value, onChange, size = "md" }: LevelGridProps) {
   return (
     <div className="flex flex-wrap justify-center gap-2.5">
       {JLPT_LEVELS.map((level, idx) => {
-        const state = idx === maxIdx ? "selected" : idx < maxIdx ? "included" : "";
+        const state = idx === maxIdx ? "selected" : cascade && idx < maxIdx ? "included" : "";
         return (
           <button
             key={level}
@@ -71,14 +73,4 @@ export function LevelGrid({ value, onChange, size = "md" }: LevelGridProps) {
 export function enabledLevelsFor(mostAdvanced: JlptLevel): JlptLevel[] {
   const idx = JLPT_LEVELS.indexOf(mostAdvanced);
   return JLPT_LEVELS.slice(0, idx + 1);
-}
-
-/** The most advanced level present in an enabled_levels array (defaults to N5). */
-export function mostAdvancedLevel(levels: JlptLevel[]): JlptLevel {
-  let best = 0;
-  for (const level of levels) {
-    const idx = JLPT_LEVELS.indexOf(level);
-    if (idx > best) best = idx;
-  }
-  return JLPT_LEVELS[best];
 }

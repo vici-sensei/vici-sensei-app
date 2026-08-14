@@ -54,11 +54,11 @@ export default function OnboardingPage() {
         <Badge color="blue" className="mb-4">Last step</Badge>
         <h1 className="mb-2 text-[1.5rem] font-extrabold tracking-[-0.5px]">What JLPT level are you studying?</h1>
         <p className="mx-auto mb-6 max-w-md text-sm leading-[1.6] text-text-muted">
-          Lower levels are included automatically.
+          You can also include easier levels later, in Settings.
         </p>
 
         <div className="mb-6">
-          <LevelGrid value={level} onChange={setLevel} />
+          <LevelGrid value={level} onChange={setLevel} cascade={false} />
         </div>
 
         <div className="mb-6 text-left">
