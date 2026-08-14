@@ -27,7 +27,13 @@ export function buildFuriganaSegments(word: string, furiganas: string[] | null |
   return segments;
 }
 
-export function renderWordWithFurigana(word: string, furiganas: string[] | null | undefined): ReactNode {
+export function renderWordWithFurigana(
+  word: string,
+  furiganas: string[] | null | undefined,
+  furiganaClassName = "text-base font-normal text-text-muted",
+  furiganaBgClassName = "bg-white/5",
+  furiganaSelectable = false
+): ReactNode {
   const segments = buildFuriganaSegments(word, furiganas);
   const lastFuriganaIndex = segments.reduce((acc, s, idx) => (s.furigana ? idx : acc), -1);
   return segments.map((segment, i) =>
@@ -35,8 +41,8 @@ export function renderWordWithFurigana(word: string, furiganas: string[] | null 
       <ruby key={i} className={i === lastFuriganaIndex ? "" : "mr-[0.2em]"}>
         {segment.text}
         <rt
-          className={`mb-[0.5em] select-none text-base font-normal text-text-muted ${
-            segment.text.length > 1 ? "rounded-md bg-white/5 px-1 pb-1" : ""
+          className={`mb-[0.5em] ${furiganaSelectable ? "" : "select-none"} ${furiganaClassName} ${
+            segment.text.length > 1 ? `rounded-md ${furiganaBgClassName} px-1 pb-1` : ""
           }`}
         >
           {segment.furigana}

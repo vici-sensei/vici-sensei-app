@@ -21,6 +21,7 @@ export interface KanjiDetailWord {
     word: string;
     kana_reading: string | null;
     meanings: string[] | null;
+    furiganas: string[] | null;
   };
 }
 

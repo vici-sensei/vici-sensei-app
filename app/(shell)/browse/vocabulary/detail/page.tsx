@@ -12,6 +12,7 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { CardActions } from "@/app/components/browse/CardActions";
 import { formatDueAt } from "@/lib/format";
 import { buttonClasses } from "@/app/components/ui/Button";
+import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 function NotFound() {
   return (
@@ -70,8 +71,9 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="min-w-55 flex-1">
-          <div className="mt-1 text-lg text-accent-blue">{word.kana_reading}</div>
-          <div className="text-5xl leading-[1.1] mb-3">{word.word}</div>
+          <div className="pt-[0.6em] text-5xl leading-[1.1] mb-3">
+            {renderWordWithFurigana(word.word, word.furiganas, "text-lg text-accent-blue", "bg-accent-blue/10", true)}
+          </div>
           <div className="mb-3 text-[1.35rem] font-bold">{word.meanings?.join(", ")}</div>
           <div className="flex flex-wrap gap-6">
             <div>

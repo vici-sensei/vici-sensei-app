@@ -30,4 +30,5 @@ export interface VocabularyDetailRow {
   parts_of_speech: string[] | null;
   jlpt_level: string | null;
   other_readings: string[] | null;
+  furiganas: string[] | null;
 }

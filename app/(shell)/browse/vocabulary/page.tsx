@@ -13,6 +13,7 @@ import { Button, buttonClasses } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaMagnifyingGlass } from "react-icons/fa6";
+import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 const PAGE_SIZE = 50;
 
@@ -96,7 +97,7 @@ function BrowseVocabularyResults({
                 prefetch={false}
                 className="flex cursor-pointer items-center gap-4.5 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
               >
-                <div className="w-auto min-w-13 shrink-0 text-3xl">{row.word}</div>
+                <div className="w-auto min-w-13 shrink-0 pt-[0.6em] text-3xl">{renderWordWithFurigana(row.word, row.furiganas)}</div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-0.5 text-base font-bold">{row.meanings?.join(", ")}</div>
                 </div>

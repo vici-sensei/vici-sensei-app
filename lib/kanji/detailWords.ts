@@ -7,6 +7,7 @@ type KanjiDetailWordRow = {
   word: string;
   kana_reading: string | null;
   meanings: string[] | null;
+  furiganas: string[] | null;
 };
 
 export async function fetchKanjiDetailWords(
@@ -26,6 +27,7 @@ export async function fetchKanjiDetailWords(
       word: row.word,
       kana_reading: row.kana_reading,
       meanings: row.meanings,
+      furiganas: row.furiganas,
     },
   }));
 

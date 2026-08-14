@@ -12,6 +12,7 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { CardActions } from "@/app/components/browse/CardActions";
 import { formatDueAt } from "@/lib/format";
 import { buttonClasses } from "@/app/components/ui/Button";
+import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 function NotFound() {
   return (
@@ -109,8 +110,9 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       <div className="grid grid-cols-3 gap-3 text-left max-[700px]:grid-cols-1">
         {kanji.words.map((w) => (
           <div className="rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-4" key={w.id}>
-            <div className="text-base text-accent-blue">{w.vocabulary.kana_reading}</div>
-            <div className="mb-1.5 text-3xl">{w.vocabulary.word}</div>
+            <div className="mb-1.5 pt-[0.6em] text-3xl">
+              {renderWordWithFurigana(w.vocabulary.word, w.vocabulary.furiganas, "text-base text-accent-blue")}
+            </div>
             <div className="text-[0.8rem] leading-[1.4] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
             {w.reading_group != null && (
               <div className="mt-2 inline-block rounded-md bg-white/5 px-2 py-0.5 text-[0.68rem] font-extrabold text-text-muted">
