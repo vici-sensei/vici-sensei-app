@@ -8,10 +8,12 @@ import { createClient } from "@/lib/supabase/client";
 import { updateDisplayName, updateCountry, uploadAvatar } from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { CountrySelect } from "@/app/components/ui/CountrySelect";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
+import { ProBadge } from "@/app/components/ui/ProBadge";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
 import { FaCheck, FaPenToSquare } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
@@ -83,6 +85,7 @@ export function ProfileSettingsForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [identities, setIdentities] = useState<UserIdentity[]>([]);
+  const [identitiesStatus, setIdentitiesStatus] = useState<"loading" | "loaded">("loading");
   const [switching, setSwitching] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
 
@@ -92,6 +95,7 @@ export function ProfileSettingsForm({
     supabase.auth.getUserIdentities().then(({ data }) => {
       if (!cancelled) {
         setIdentities((data?.identities ?? []).filter((i) => i.provider === "google"));
+        setIdentitiesStatus("loaded");
       }
     });
     return () => {
@@ -173,16 +177,22 @@ export function ProfileSettingsForm({
       return;
     }
 
+    const previousAvatarUrl = avatarUrl;
+    const objectUrl = URL.createObjectURL(cropped);
+    setAvatarUrl(objectUrl);
+    setAvatarFailed(false);
+
     setUploadingAvatar(true);
     try {
       const updated = await uploadAvatar(userId, cropped);
       setAvatarUrl(updated.avatar_url ?? "");
-      setAvatarFailed(false);
       showToast("Photo updated");
       onSaved();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Could not upload your photo.", "error");
+      setAvatarUrl(previousAvatarUrl);
     } finally {
+      URL.revokeObjectURL(objectUrl);
       setUploadingAvatar(false);
     }
   }
@@ -212,13 +222,15 @@ export function ProfileSettingsForm({
 
   async function handleUnlinkIdentity(identity: UserIdentity) {
     setUnlinkingId(identity.identity_id);
+    const previousIdentities = identities;
+    setIdentities((prev) => prev.filter((i) => i.identity_id !== identity.identity_id));
     try {
       const supabase = createClient();
       const { error: unlinkError } = await supabase.auth.unlinkIdentity(identity);
       if (unlinkError) throw unlinkError;
-      setIdentities((prev) => prev.filter((i) => i.identity_id !== identity.identity_id));
       showToast("Google account unlinked");
     } catch (err) {
+      setIdentities(previousIdentities);
       showToast(err instanceof Error ? err.message : "Could not unlink that Google account.", "error");
     } finally {
       setUnlinkingId(null);
@@ -234,9 +246,6 @@ export function ProfileSettingsForm({
 
   return (
     <div>
-      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Profile</h2>
-      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">Update how your name and avatar appear in the app.</p>
-
       <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
         <div className="mb-6.5 flex flex-col items-center gap-4 md:flex-row md:gap-5">
           <div className="relative h-40 w-40 shrink-0">
@@ -253,6 +262,7 @@ export function ProfileSettingsForm({
                 previewInitials
               )}
             </div>
+            {initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -325,7 +335,11 @@ export function ProfileSettingsForm({
               Switch Google account
             </Button>
           </div>
-          {identities.length > 1 && (
+          {identitiesStatus === "loading" ? (
+            <div className="mt-2.5">
+              <Skeleton className="h-[46px] w-full rounded-lg" />
+            </div>
+          ) : identities.length > 1 ? (
             <div className="mt-2.5 flex flex-col gap-2">
               {identities.map((identity) => (
                 <div
@@ -349,7 +363,7 @@ export function ProfileSettingsForm({
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
           <div className={fieldHint}>
             Synced from your Google account — switching won&apos;t change your name, photo, or progress.
           </div>

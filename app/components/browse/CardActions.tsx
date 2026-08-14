@@ -12,21 +12,25 @@ interface Props {
   type: CardType;
   id: number;
   status: ProgressStatus;
+  onOptimisticUpdate: (action: "suspend" | "reset") => void;
   onSuccess: () => void;
+  onError: () => void;
 }
 
-export function CardActions({ type, id, status, onSuccess }: Props) {
+export function CardActions({ type, id, status, onOptimisticUpdate, onSuccess, onError }: Props) {
   const { showToast } = useToast();
   const [pending, setPending] = useState<"suspend" | "reset" | null>(null);
 
   async function handle(action: "suspend" | "reset") {
     setPending(action);
+    onOptimisticUpdate(action);
     try {
       if (action === "suspend") await suspendCard(type, id);
       else await resetCard(type, id);
       onSuccess();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : `Could not ${action} this card.`, "error");
+      onError();
     } finally {
       setPending(null);
     }

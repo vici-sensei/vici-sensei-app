@@ -5,6 +5,7 @@ import Image from "next/image";
 import { FaMedal } from "react-icons/fa6";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { ProBadge } from "@/app/components/ui/ProBadge";
 import { avatarSrc } from "@/lib/avatar";
 import type { LeaderboardEntry, LeaderboardMetric } from "@/lib/types";
 
@@ -35,23 +36,34 @@ function initials(name: string | null): string {
   return source.slice(0, 2).toUpperCase();
 }
 
-function LeaderboardAvatar({ displayName, avatarUrl }: { displayName: string | null; avatarUrl: string | null }) {
+function LeaderboardAvatar({
+  displayName,
+  avatarUrl,
+  isPremium,
+}: {
+  displayName: string | null;
+  avatarUrl: string | null;
+  isPremium: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   const showAvatar = Boolean(avatarUrl) && !failed;
   return (
-    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[0.85rem] font-extrabold text-white">
-      {showAvatar ? (
-        <Image
-          src={avatarSrc(avatarUrl as string, 96)}
-          alt=""
-          fill
-          sizes="40px"
-          className="object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        initials(displayName)
-      )}
+    <div className="relative h-10 w-10 shrink-0">
+      <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[0.85rem] font-extrabold text-white">
+        {showAvatar ? (
+          <Image
+            src={avatarSrc(avatarUrl as string, 96)}
+            alt=""
+            fill
+            sizes="40px"
+            className="object-cover"
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          initials(displayName)
+        )}
+      </div>
+      {isPremium ? <ProBadge className="-top-1.5 -right-1.5" /> : null}
     </div>
   );
 }
@@ -128,7 +140,11 @@ export function LeaderboardList({
               }`}
             >
               <RankBadge rank={entry.rank} />
-              <LeaderboardAvatar displayName={entry.display_name} avatarUrl={entry.avatar_url} />
+              <LeaderboardAvatar
+                displayName={entry.display_name}
+                avatarUrl={entry.avatar_url}
+                isPremium={entry.is_premium}
+              />
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-[0.92rem] font-bold text-white">
                   {entry.country ? (

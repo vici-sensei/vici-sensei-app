@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useVocabularyDetail } from "@/lib/client-data/vocabulary";
 import { useVocabularyProgress } from "@/lib/client-data/progress";
+import { optimisticCardUpdate } from "@/lib/client-data/cards";
 import { StatusPill } from "@/app/components/ui/StatusPill";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -56,7 +57,12 @@ function DetailSkeleton() {
 function VocabularyDetailContent({ wordId }: { wordId: number }) {
   const { user } = useAuth();
   const { data: word, status: wordStatus } = useVocabularyDetail(wordId);
-  const { data: progress, status: progressStatus, refetch: refetchProgress } = useVocabularyProgress(user, wordId);
+  const {
+    data: progress,
+    status: progressStatus,
+    refetch: refetchProgress,
+    mutate: mutateProgress,
+  } = useVocabularyProgress(user, wordId);
 
   if (wordStatus === "loading" || progressStatus === "loading") return <DetailSkeleton />;
   if (!word) return <NotFound />;
@@ -103,7 +109,14 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
               <StatusPill status={progress.status} />
               <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(progress.due_at)}</span>
             </div>
-            <CardActions type="vocab" id={word.id} status={progress.status} onSuccess={refetchProgress} />
+            <CardActions
+              type="vocab"
+              id={word.id}
+              status={progress.status}
+              onOptimisticUpdate={(action) => mutateProgress((prev) => (prev ? { ...prev, ...optimisticCardUpdate(action) } : prev))}
+              onSuccess={refetchProgress}
+              onError={refetchProgress}
+            />
           </div>
         </div>
       ) : (

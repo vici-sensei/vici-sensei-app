@@ -13,7 +13,7 @@ export async function fetchUserProfile(supabase: AppSupabaseClient, userId: stri
   for (let attempt = 1; attempt <= PROFILE_FETCH_RETRIES; attempt++) {
     const { data, error } = await supabase
       .from("users")
-      .select("email, display_name, avatar_url, country, is_premium, created_at")
+      .select("email, display_name, avatar_url, country, is_premium, stripe_customer_id, created_at")
       .eq("id", userId)
       .single();
 

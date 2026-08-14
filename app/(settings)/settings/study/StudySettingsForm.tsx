@@ -165,11 +165,6 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
 
   return (
     <div>
-      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Study settings</h2>
-      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">
-        Control how many new cards you see per day and which JLPT levels are active.
-      </p>
-
       <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
         <div className="mb-[22px]">
           <label className={fieldLabel}>New kanji per day</label>

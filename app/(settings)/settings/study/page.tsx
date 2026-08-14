@@ -9,11 +9,20 @@ export default function SettingsStudyPage() {
   const { user } = useAuth();
   const { data: settings, status, refetch } = useStudySettings(user);
 
-  if (status === "loading" || !settings) {
-    return <StudySettingsSkeleton />;
-  }
+  return (
+    <div>
+      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Study settings</h2>
+      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">
+        Control how many new cards you see per day and which JLPT levels are active.
+      </p>
 
-  return <StudySettingsForm initial={settings} onSaved={refetch} />;
+      {status === "loading" || !settings ? (
+        <StudySettingsSkeleton />
+      ) : (
+        <StudySettingsForm initial={settings} onSaved={refetch} />
+      )}
+    </div>
+  );
 }
 
 function StepperSkeleton() {
@@ -40,10 +49,7 @@ function ToggleRowSkeleton() {
 
 function StudySettingsSkeleton() {
   return (
-    <div>
-      <Skeleton className="mb-2 h-9 w-56" />
-      <Skeleton className="mb-6.5 h-5 w-full max-w-lg" />
-
+    <>
       <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
         <div className="mb-[22px]">
           <Skeleton className="mb-2 h-3.5 w-36" />
@@ -76,6 +82,6 @@ function StudySettingsSkeleton() {
         <ToggleRowSkeleton />
         <ToggleRowSkeleton />
       </div>
-    </div>
+    </>
   );
 }

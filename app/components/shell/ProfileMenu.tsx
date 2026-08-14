@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
+import { ProBadge } from "@/app/components/ui/ProBadge";
 
 function initials(name: string | null, email: string) {
   const source = name?.trim() || email;
@@ -28,21 +29,22 @@ function Avatar({
 }) {
   const showAvatar = Boolean(user.avatar_url) && !avatarFailed;
   return (
-    <div
-      className={`relative flex items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 font-extrabold text-white ${className}`}
-    >
-      {showAvatar ? (
-        <Image
-          src={avatarSrc(user.avatar_url as string, 128)}
-          alt=""
-          fill
-          sizes="64px"
-          className="object-cover"
-          onError={onAvatarError}
-        />
-      ) : (
-        initials(user.display_name, user.email)
-      )}
+    <div className={`relative ${className}`}>
+      <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 font-extrabold text-white">
+        {showAvatar ? (
+          <Image
+            src={avatarSrc(user.avatar_url as string, 128)}
+            alt=""
+            fill
+            sizes="64px"
+            className="object-cover"
+            onError={onAvatarError}
+          />
+        ) : (
+          initials(user.display_name, user.email)
+        )}
+      </div>
+      {user.is_premium ? <ProBadge className="-top-1.5 -right-1.5" /> : null}
     </div>
   );
 }

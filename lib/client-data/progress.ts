@@ -15,7 +15,7 @@ export function useKanjiProgress(user: User | null, kanjiId: number | null) {
 
   const refetch = useCallback(async () => {
     if (!user || kanjiId == null) return;
-    setStatus("loading");
+    setStatus((prev) => (prev === "loaded" ? prev : "loading"));
     try {
       const result = await fetchKanjiProgress(createClient(), user.id, kanjiId);
       setData(result);
@@ -30,7 +30,7 @@ export function useKanjiProgress(user: User | null, kanjiId: number | null) {
     void refetch();
   }, [refetch]);
 
-  return { data, status, error, refetch };
+  return { data, status, error, refetch, mutate: setData };
 }
 
 export function useVocabularyProgress(user: User | null, wordId: number | null) {
@@ -40,7 +40,7 @@ export function useVocabularyProgress(user: User | null, wordId: number | null) 
 
   const refetch = useCallback(async () => {
     if (!user || wordId == null) return;
-    setStatus("loading");
+    setStatus((prev) => (prev === "loaded" ? prev : "loading"));
     try {
       const result = await fetchVocabularyProgress(createClient(), user.id, wordId);
       setData(result);
@@ -55,7 +55,7 @@ export function useVocabularyProgress(user: User | null, wordId: number | null) 
     void refetch();
   }, [refetch]);
 
-  return { data, status, error, refetch };
+  return { data, status, error, refetch, mutate: setData };
 }
 
 export function useProgressSummary(user: User | null) {
@@ -65,7 +65,7 @@ export function useProgressSummary(user: User | null) {
 
   const refetch = useCallback(async () => {
     if (!user) return;
-    setStatus("loading");
+    setStatus((prev) => (prev === "loaded" ? prev : "loading"));
     try {
       const result = await fetchProgressSummary(createClient(), user.id);
       setData(result);

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useKanjiDetail } from "@/lib/client-data/kanji";
 import { useKanjiProgress } from "@/lib/client-data/progress";
+import { optimisticCardUpdate } from "@/lib/client-data/cards";
 import { StatusPill } from "@/app/components/ui/StatusPill";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -69,7 +70,12 @@ function DetailSkeleton() {
 function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
   const { user } = useAuth();
   const { data: kanji, status: kanjiStatus } = useKanjiDetail(kanjiId);
-  const { data: progress, status: progressStatus, refetch: refetchProgress } = useKanjiProgress(user, kanjiId);
+  const {
+    data: progress,
+    status: progressStatus,
+    refetch: refetchProgress,
+    mutate: mutateProgress,
+  } = useKanjiProgress(user, kanjiId);
 
   if (kanjiStatus === "loading" || progressStatus === "loading") return <DetailSkeleton />;
   if (!kanji) return <NotFound />;
@@ -133,7 +139,18 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                   <StatusPill status={progress.meaning.status} />
                   <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(progress.meaning.due_at)}</span>
                 </div>
-                <CardActions type="meaning" id={kanji.id} status={progress.meaning.status} onSuccess={refetchProgress} />
+                <CardActions
+                  type="meaning"
+                  id={kanji.id}
+                  status={progress.meaning.status}
+                  onOptimisticUpdate={(action) =>
+                    mutateProgress((prev) =>
+                      prev && prev.meaning ? { ...prev, meaning: { ...prev.meaning, ...optimisticCardUpdate(action) } } : prev
+                    )
+                  }
+                  onSuccess={refetchProgress}
+                  onError={refetchProgress}
+                />
               </div>
             </div>
           )}
@@ -153,7 +170,25 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                   <StatusPill status={r.status} />
                   <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(r.due_at)}</span>
                 </div>
-                <CardActions type="reading" id={r.kanji_word_id} status={r.status} onSuccess={refetchProgress} />
+                <CardActions
+                  type="reading"
+                  id={r.kanji_word_id}
+                  status={r.status}
+                  onOptimisticUpdate={(action) =>
+                    mutateProgress((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            readings: prev.readings.map((reading) =>
+                              reading.id === r.id ? { ...reading, ...optimisticCardUpdate(action) } : reading
+                            ),
+                          }
+                        : prev
+                    )
+                  }
+                  onSuccess={refetchProgress}
+                  onError={refetchProgress}
+                />
               </div>
             </div>
           ))}

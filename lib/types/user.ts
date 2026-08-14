@@ -7,6 +7,7 @@ export interface UserProfile {
   avatar_url: string | null;
   country: string | null;
   is_premium: boolean;
+  stripe_customer_id: string | null;
   created_at: string;
 }
 

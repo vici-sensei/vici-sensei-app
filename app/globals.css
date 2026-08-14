@@ -206,3 +206,20 @@ input:disabled ~ span {
     filter: drop-shadow(0 0 9px currentColor) brightness(1.4);
   }
 }
+
+/* PRO badge (ProBadge.tsx) -- a light sweep drifting across the glass
+   background, layered as a second background-image so it composites with
+   the base gold tint instead of replacing it. */
+@keyframes vici-badge-shimmer {
+  0% {
+    background-position:
+      0 0,
+      -130% -130%;
+  }
+  55%,
+  100% {
+    background-position:
+      0 0,
+      130% 130%;
+  }
+}
