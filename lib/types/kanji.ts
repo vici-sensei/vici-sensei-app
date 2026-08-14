@@ -22,6 +22,7 @@ export interface KanjiDetailWord {
     kana_reading: string | null;
     meanings: string[] | null;
     furiganas: string[] | null;
+    jlpt_level: string | null;
   };
 }
 

@@ -33,7 +33,7 @@ export function CardActions({ type, id, status, onSuccess }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex flex-wrap items-center gap-2.5">
       {status !== "suspended" && (
         <Button variant="secondary" size="sm" onClick={() => handle("suspend")} disabled={pending !== null}>
           {pending === "suspend" ? "Suspending…" : "Suspend"}

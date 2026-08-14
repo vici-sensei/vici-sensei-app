@@ -52,11 +52,11 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
   return (
     <>
       <div className="mb-4.5 flex flex-wrap gap-3">
-        <div className="flex min-w-55 flex-1 items-center gap-2.5 rounded-xl border border-border-soft bg-white/[0.03] px-4 py-3">
+        <div className="flex min-w-2 flex-1 items-center gap-2.5 rounded-xl border border-border-soft bg-white/[0.03] px-4 py-3">
           <FaMagnifyingGlass className="h-4 w-4 shrink-0 text-text-muted" />
           <input
             type="text"
-            className="flex-1 bg-transparent text-[0.95rem] text-white outline-none placeholder:text-text-muted"
+            className="min-w-[100px] flex-1 truncate bg-transparent text-[0.95rem] text-white outline-none placeholder:text-text-muted"
             placeholder={placeholder}
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
@@ -64,7 +64,7 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
           />
         </div>
       </div>
-      <div className="mb-4.5 flex flex-wrap gap-2">
+      <div className="mb-4.5 flex flex-wrap justify-center gap-2 md:justify-start">
         {JLPT_LEVELS.map((level) => {
           const active = levels.includes(level);
           return (

@@ -12,7 +12,7 @@ import { BrowseControls } from "../BrowseControls";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { FaMagnifyingGlass } from "react-icons/fa6";
+import { FaArrowLeft, FaArrowRight, FaMagnifyingGlass } from "react-icons/fa6";
 
 const PAGE_SIZE = 50;
 
@@ -74,7 +74,7 @@ function BrowseKanjiResults({
         placeholder="Search by character, reading, or meaning..."
       />
 
-      <div className="mt-6 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Results</div>
+      <div className="mt-6 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted text-center md:text-start">Results</div>
 
       {status === "loading" || !result ? (
         <ListSkeleton />
@@ -94,41 +94,58 @@ function BrowseKanjiResults({
                 key={row.id}
                 href={`/browse/kanji/detail?id=${row.id}`}
                 prefetch={false}
-                className="flex cursor-pointer items-center gap-4.5 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
+                className="flex flex-wrap cursor-pointer items-center gap-x-8 gap-y-2 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
               >
-                <div className="w-13 shrink-0 text-3xl">{row.kanji}</div>
-                <div className="min-w-0 flex-1">
+                <div className="shrink-0 text-3xl">{row.kanji}</div>
+                <div className="min-w-55 flex-1">
                   <div className="mb-0.5 text-[1.05rem] font-bold">{row.meanings?.join(", ")}</div>
                   <div className="text-[0.85rem] text-text-muted">
                     kun: {row.kun_readings?.join("、") || "—"} &nbsp;·&nbsp; on: {row.on_readings?.join("、") || "—"}
                   </div>
                 </div>
-                <LevelBadge level={row.level} className="shrink-0" />
+                <LevelBadge level={row.level} className="ml-auto shrink-0" />
               </Link>
             ))}
           </div>
 
           <div className="flex items-center justify-center gap-3.5">
             {offset > 0 ? (
-              <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(Math.max(0, offset - PAGE_SIZE))} prefetch={false}>
-                ← Previous
+              <Link
+                className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
+                href={pageHref(Math.max(0, offset - PAGE_SIZE))}
+                prefetch={false}
+                aria-label="Previous"
+              >
+                <FaArrowLeft className="md:hidden" />
+                <span className="hidden md:inline">← Previous</span>
               </Link>
             ) : (
-              <Button variant="secondary" size="sm" disabled>
-                ← Previous
+              <Button variant="secondary" size="sm" disabled aria-label="Previous">
+                <FaArrowLeft className="md:hidden" />
+                <span className="hidden md:inline">← Previous</span>
               </Button>
             )}
-            <span className="text-[0.85rem] font-semibold text-text-muted">
-              Page {Math.floor(offset / PAGE_SIZE) + 1} of {Math.max(1, Math.ceil(result.count / PAGE_SIZE))} &nbsp;·&nbsp;{" "}
-              {result.count} results
-            </span>
+            <div className="text-[0.85rem] font-semibold text-text-muted flex flex-col md:flex-row items-center gap-0.5 md:gap-1.5">
+              <div>
+                Page {Math.floor(offset / PAGE_SIZE) + 1} of {Math.max(1, Math.ceil(result.count / PAGE_SIZE))}
+              </div>
+              <div className="hidden md:block">·</div>
+              <div>{result.count} results</div>
+            </div>
             {offset + PAGE_SIZE < result.count ? (
-              <Link className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })} href={pageHref(offset + PAGE_SIZE)} prefetch={false}>
-                Next →
+              <Link
+                className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
+                href={pageHref(offset + PAGE_SIZE)}
+                prefetch={false}
+                aria-label="Next"
+              >
+                <FaArrowRight className="md:hidden" />
+                <span className="hidden md:inline">Next →</span>
               </Link>
             ) : (
-              <Button variant="secondary" size="sm" disabled>
-                Next →
+              <Button variant="secondary" size="sm" disabled aria-label="Next">
+                <FaArrowRight className="md:hidden" />
+                <span className="hidden md:inline">Next →</span>
               </Button>
             )}
           </div>

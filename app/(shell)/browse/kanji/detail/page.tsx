@@ -47,7 +47,7 @@ function DetailSkeleton() {
       </div>
 
       <Skeleton className="mt-8 mb-3.5 h-3.5 w-32" />
-      <div className="grid grid-cols-3 gap-3 max-[700px]:grid-cols-1">
+      <div className="grid grid-cols-1 gap-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <div className="rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-4" key={i}>
             <Skeleton className="mb-2 h-3.5 w-12" />
@@ -107,18 +107,17 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       </div>
 
       <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Example words</div>
-      <div className="grid grid-cols-3 gap-3 text-left max-[700px]:grid-cols-1">
+      <div className="grid grid-cols-1 gap-3 text-left">
         {kanji.words.map((w) => (
-          <div className="rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-4" key={w.id}>
-            <div className="mb-1.5 pt-[0.6em] text-3xl">
-              {renderWordWithFurigana(w.vocabulary.word, w.vocabulary.furiganas, "text-base text-accent-blue")}
+          <div
+            className="flex flex-wrap items-center gap-x-8 gap-y-1.5 rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-3"
+            key={w.id}
+          >
+            <div className="pt-[0.6em] text-3xl leading-none">
+              {renderWordWithFurigana(w.vocabulary.word, w.vocabulary.furiganas, "text-base text-accent-blue", "bg-accent-blue/10")}
             </div>
-            <div className="text-[0.8rem] leading-[1.4] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
-            {w.reading_group != null && (
-              <div className="mt-2 inline-block rounded-md bg-white/5 px-2 py-0.5 text-[0.68rem] font-extrabold text-text-muted">
-                Reading group {w.reading_group}
-              </div>
-            )}
+            <div className="text-[0.85rem] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
+            <LevelBadge level={w.vocabulary.jlpt_level} size="md" className="ml-auto shrink-0" />
           </div>
         ))}
       </div>
@@ -130,8 +129,10 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
             <div className="mb-2 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-soft bg-white/[0.02] px-4.5 py-3.5">
               <div className="text-[0.92rem] font-bold">Meaning — &quot;{kanji.meanings?.[0] ?? kanji.kanji}&quot;</div>
               <div className="flex flex-wrap items-center gap-3.5">
-                <StatusPill status={progress.meaning.status} />
-                <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(progress.meaning.due_at)}</span>
+                <div className="flex flex-wrap items-center gap-3.5">
+                  <StatusPill status={progress.meaning.status} />
+                  <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(progress.meaning.due_at)}</span>
+                </div>
                 <CardActions type="meaning" id={kanji.id} status={progress.meaning.status} onSuccess={refetchProgress} />
               </div>
             </div>
@@ -148,8 +149,10 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-3.5">
-                <StatusPill status={r.status} />
-                <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(r.due_at)}</span>
+                <div className="flex flex-wrap items-center gap-3.5">
+                  <StatusPill status={r.status} />
+                  <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(r.due_at)}</span>
+                </div>
                 <CardActions type="reading" id={r.kanji_word_id} status={r.status} onSuccess={refetchProgress} />
               </div>
             </div>

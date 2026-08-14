@@ -99,8 +99,10 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
         <div className="mb-2 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-soft bg-white/[0.02] px-4.5 py-3.5">
           <div className="text-[0.92rem] font-bold">Meaning — &quot;{word.meanings?.[0] ?? word.word}&quot;</div>
           <div className="flex flex-wrap items-center gap-3.5">
-            <StatusPill status={progress.status} />
-            <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(progress.due_at)}</span>
+            <div className="flex flex-wrap items-center gap-3.5">
+              <StatusPill status={progress.status} />
+              <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(progress.due_at)}</span>
+            </div>
             <CardActions type="vocab" id={word.id} status={progress.status} onSuccess={refetchProgress} />
           </div>
         </div>
