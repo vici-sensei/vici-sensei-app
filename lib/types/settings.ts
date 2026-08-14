@@ -10,6 +10,7 @@ export interface StudySettings {
   updated_at: string;
   new_vocab_per_day: number;
   onboarding_completed: boolean;
+  leaderboard_opt_out: boolean;
 }
 
 export interface StudySettingsPatch {
@@ -19,4 +20,5 @@ export interface StudySettingsPatch {
   enabled_levels?: JlptLevel[];
   study_kanji?: boolean;
   study_vocabulary?: boolean;
+  leaderboard_opt_out?: boolean;
 }

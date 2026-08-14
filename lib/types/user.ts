@@ -1,3 +1,6 @@
+/** Must match the users_display_name_length_check constraint (20260814_cap_display_name_length.sql). */
+export const MAX_DISPLAY_NAME_LENGTH = 50;
+
 export interface UserProfile {
   email: string;
   display_name: string | null;

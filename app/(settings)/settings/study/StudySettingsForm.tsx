@@ -20,6 +20,7 @@ type Snapshot = {
   level: JlptLevel;
   studyKanji: boolean;
   studyVocabulary: boolean;
+  leaderboardOptOut: boolean;
 };
 
 function snapshotFrom(settings: StudySettings): Snapshot {
@@ -30,6 +31,7 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     level: mostAdvancedLevel(settings.enabled_levels),
     studyKanji: settings.study_kanji,
     studyVocabulary: settings.study_vocabulary,
+    leaderboardOptOut: settings.leaderboard_opt_out,
   };
 }
 
@@ -40,7 +42,8 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
     a.maxReviewsPerDay === b.maxReviewsPerDay &&
     a.level === b.level &&
     a.studyKanji === b.studyKanji &&
-    a.studyVocabulary === b.studyVocabulary
+    a.studyVocabulary === b.studyVocabulary &&
+    a.leaderboardOptOut === b.leaderboardOptOut
   );
 }
 
@@ -54,6 +57,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
   const [level, setLevel] = useState<JlptLevel>(mostAdvancedLevel(initial.enabled_levels));
   const [studyKanji, setStudyKanji] = useState(initial.study_kanji);
   const [studyVocabulary, setStudyVocabulary] = useState(initial.study_vocabulary);
+  const [leaderboardOptOut, setLeaderboardOptOut] = useState(initial.leaderboard_opt_out);
   const [saved, setSaved] = useState<Snapshot>(() => snapshotFrom(initial));
 
   function adjustKanji(delta: number) {
@@ -89,6 +93,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
     setLevel(snapshot.level);
     setStudyKanji(snapshot.studyKanji);
     setStudyVocabulary(snapshot.studyVocabulary);
+    setLeaderboardOptOut(snapshot.leaderboardOptOut);
   }
 
   // Autosave a beat after the user stops adjusting settings, batching rapid
@@ -97,7 +102,15 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
   // rather than guessing which individual change caused it.
   useEffect(() => {
     if (!user) return;
-    const current: Snapshot = { newKanjiPerDay, newVocabPerDay, maxReviewsPerDay, level, studyKanji, studyVocabulary };
+    const current: Snapshot = {
+      newKanjiPerDay,
+      newVocabPerDay,
+      maxReviewsPerDay,
+      level,
+      studyKanji,
+      studyVocabulary,
+      leaderboardOptOut,
+    };
     if (sameSnapshot(current, saved)) return;
 
     const timeout = setTimeout(async () => {
@@ -108,6 +121,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
         enabled_levels: enabledLevelsFor(current.level),
         study_kanji: current.studyKanji,
         study_vocabulary: current.studyVocabulary,
+        leaderboard_opt_out: current.leaderboardOptOut,
       };
       try {
         await updateStudySettings(user.id, body);
@@ -121,7 +135,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
 
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- revertTo/onSaved/showToast close over stable state each render
-  }, [newKanjiPerDay, newVocabPerDay, maxReviewsPerDay, level, studyKanji, studyVocabulary, saved, user]);
+  }, [newKanjiPerDay, newVocabPerDay, maxReviewsPerDay, level, studyKanji, studyVocabulary, leaderboardOptOut, saved, user]);
 
   const includedLevels = enabledLevelsFor(level);
 
@@ -228,6 +242,26 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
           </label>
         </div>
         <div className={`${fieldHint} mt-2.5`}>At least one must stay on — you can&apos;t disable both.</div>
+      </div>
+
+      <div className="mt-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+        <div className="flex items-center justify-between gap-5 py-1">
+          <div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">Hide me from leaderboards</div>
+            <div className="text-sm text-text-muted">
+              Other students won&apos;t see you ranked on any leaderboard. You can still see your own stats.
+            </div>
+          </div>
+          <label className="relative h-[26px] w-[46px] shrink-0">
+            <input
+              type="checkbox"
+              className="peer h-0 w-0 opacity-0"
+              checked={leaderboardOptOut}
+              onChange={() => setLeaderboardOptOut(!leaderboardOptOut)}
+            />
+            <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 before:absolute before:left-[3px] before:top-[3px] before:h-5 before:w-5 before:rounded-full before:bg-white before:transition-transform before:duration-200 peer-checked:bg-accent-red peer-checked:before:translate-x-5" />
+          </label>
+        </div>
       </div>
     </div>
   );

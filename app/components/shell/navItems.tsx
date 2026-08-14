@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn } from "react-icons/fa6";
+import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy } from "react-icons/fa6";
 
 export interface NavItem {
   href: string;
@@ -32,5 +32,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Progress",
     isActive: (p) => p.startsWith("/progress"),
     icon: <FaChartColumn />,
+  },
+  {
+    href: "/leaderboard",
+    label: "Leaderboard",
+    isActive: (p) => p.startsWith("/leaderboard"),
+    icon: <FaTrophy />,
   },
 ];

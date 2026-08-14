@@ -9,7 +9,7 @@ import { updateDisplayName, uploadAvatar } from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { AvatarCropModal } from "./AvatarCropModal";
-import type { UserProfile } from "@/lib/types";
+import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
 import { FaCheck, FaPenToSquare } from "react-icons/fa6";
@@ -98,8 +98,8 @@ export function ProfileSettingsForm({
   async function saveDisplayName(trimmed: string) {
     if (trimmed === savedName || nameStatus === "saving") return;
 
-    if (trimmed.length === 0 || trimmed.length > 50) {
-      showToast("Name must be 1–50 characters.", "error");
+    if (trimmed.length === 0 || trimmed.length > MAX_DISPLAY_NAME_LENGTH) {
+      showToast(`Name must be 1–${MAX_DISPLAY_NAME_LENGTH} characters.`, "error");
       setDisplayName(savedName);
       return;
     }
@@ -122,7 +122,7 @@ export function ProfileSettingsForm({
   // reverts once the user actually leaves the field.
   useEffect(() => {
     const trimmed = displayName.trim();
-    if (trimmed === savedName || trimmed.length === 0 || trimmed.length > 50) return;
+    if (trimmed === savedName || trimmed.length === 0 || trimmed.length > MAX_DISPLAY_NAME_LENGTH) return;
 
     const timeout = setTimeout(() => saveDisplayName(trimmed), 800);
     return () => clearTimeout(timeout);
@@ -266,7 +266,7 @@ export function ProfileSettingsForm({
               <input
                 className={`${fieldInput} pr-10`}
                 type="text"
-                maxLength={50}
+                maxLength={MAX_DISPLAY_NAME_LENGTH}
                 value={displayName}
                 onChange={(e) => {
                   setDisplayName(e.target.value);
@@ -279,7 +279,7 @@ export function ProfileSettingsForm({
                 }}
               />
             </div>
-            <div className={fieldHint}>1–50 characters</div>
+            <div className={fieldHint}>1–{MAX_DISPLAY_NAME_LENGTH} characters</div>
           </div>
         </div>
         <div>
