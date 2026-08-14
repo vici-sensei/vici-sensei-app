@@ -6,6 +6,8 @@ import { checkKanjiReadingAnswer } from "@/lib/study/kanjiReadingMatch";
 import { renderTargetWord } from "@/lib/study/furigana";
 import { useTypedReviewCard } from "./useTypedReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
+import { CardHeading } from "./CardHeading";
+import { Accent } from "./Accent";
 import { AnswerForm } from "./AnswerForm";
 import { TokenDiffList } from "./TokenDiffList";
 
@@ -28,15 +30,13 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
       label="Word reading"
       accent="blue"
       prompt={
-        <div
-          className={`mb-2 pt-[0.6em] text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none ${revealed ? "" : "select-none"}`}
-        >
+        <CardHeading furigana masked={!revealed}>
           {card.word ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas) : card.kanji_char}
-        </div>
+        </CardHeading>
       }
       subtitle={
         <>
-          How is this <span className="font-extrabold text-accent-blue">word read</span>?
+          How is this <Accent accent="blue">word read</Accent>?
         </>
       }
       revealed={revealed}
@@ -58,10 +58,12 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
       revealContent={
         result && (
           <>
-            <div className="flex items-center justify-center gap-2 text-[1.3rem] font-bold text-white">
-              {result.correct && <FaCheck className="text-accent-green" />}
-              <span>{card.kana_reading}</span>
-            </div>
+            {!(!result.correct && result.targetDiff.map((c) => c.char).join("") === card.kana_reading) && (
+              <div className="flex items-center justify-center gap-2 text-[1.3rem] font-bold text-white">
+                {result.correct && <FaCheck className="text-accent-green" />}
+                <span>{card.kana_reading}</span>
+              </div>
+            )}
             {!result.correct && (
               <TokenDiffList
                 tokens={[{ raw: "", correct: false, userDiff: result.userDiff, targetDiff: result.targetDiff }]}

@@ -60,7 +60,7 @@ export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueP
   const showCountdown = remainingMs !== null && remainingMs > 0;
 
   return (
-    <div className="px-4 py-2 md:px-7 md:py-5">
+    <div className="px-4 pt-1 pb-2">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -70,11 +70,18 @@ export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueP
         >
           <FaXmark />
         </button>
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-          <div
-            className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-accent-red),var(--color-accent-blue))] transition-[width] duration-400 ease-linear"
-            style={{ width: `${pct}%` }}
-          />
+        <div className="flex flex-1 flex-col mt-5">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div
+              className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-accent-red),var(--color-accent-blue))] transition-[width] duration-400 ease-linear"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p
+            className={`text-center text-[0.75rem] text-text-muted/70 ${showCountdown ? "" : "invisible"}`}
+          >
+            Next card in {showCountdown ? formatCountdown(remainingMs) : "0s"}
+          </p>
         </div>
         <div className="relative whitespace-nowrap text-[0.85rem] font-bold tabular-nums text-text-muted">
           {completed} / {total}
@@ -89,11 +96,6 @@ export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueP
           )}
         </div>
       </div>
-      <p
-        className={`mt-1 md:mt-2 text-center text-[0.75rem] text-text-muted/70 ${showCountdown ? "" : "invisible"}`}
-      >
-        Next card in {showCountdown ? formatCountdown(remainingMs) : "0s"}
-      </p>
     </div>
   );
 }

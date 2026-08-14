@@ -1,17 +1,13 @@
 import { useEffect, type ReactNode } from "react";
 import type { Rating, RatingPreviews } from "@/lib/types";
+import type { ReviewAccent } from "@/lib/study/accent";
 import { RatingGrid } from "./RatingGrid";
+import { StudyCardShell } from "./StudyCardShell";
 import { Button } from "@/app/components/ui/Button";
-
-const ACCENT_CLASSES = {
-  violet: "text-accent-violet",
-  blue: "text-accent-blue",
-  orange: "text-accent-orange",
-} as const;
 
 interface Props {
   label: string;
-  accent: keyof typeof ACCENT_CLASSES;
+  accent: ReviewAccent;
   prompt: ReactNode;
   subtitle: ReactNode;
   revealed: boolean;
@@ -53,16 +49,14 @@ export function ReviewCardShell({
   }, [showContinue, disabled, onContinue]);
 
   return (
-    <div className="relative w-full max-w-[560px] rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 md:px-10 md:py-14 text-center backdrop-blur-[10px]">
-      <div className={`mb-6 text-xs font-extrabold uppercase tracking-[1.5px] ${ACCENT_CLASSES[accent]}`}>{label}</div>
-
+    <StudyCardShell label={label} accent={accent}>
       {prompt}
 
       <div className="mt-1 text-[1.1rem] font-medium text-text-muted">{subtitle}</div>
 
       {!revealed && answerForm}
 
-      {revealed && <div className="mt-7 border-t border-border-soft pt-7">{revealContent}</div>}
+      {revealed && <div className="mt-7 border-t border-border-soft pt-3">{revealContent}</div>}
 
       <div className="mt-8.5">
         {revealed &&
@@ -74,6 +68,6 @@ export function ReviewCardShell({
             </Button>
           ))}
       </div>
-    </div>
+    </StudyCardShell>
   );
 }

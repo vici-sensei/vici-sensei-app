@@ -5,6 +5,8 @@ import { checkKanjiMeaningAnswer } from "@/lib/study/kanjiMeaningMatch";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 import { useTypedReviewCard } from "./useTypedReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
+import { CardHeading } from "./CardHeading";
+import { Accent } from "./Accent";
 import { AnswerForm } from "./AnswerForm";
 import { MeaningList } from "./MeaningList";
 import { TokenDiffList } from "./TokenDiffList";
@@ -28,15 +30,13 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate }: Props) {
       label="Vocabulary"
       accent="orange"
       prompt={
-        <div
-          className={`mb-2 pt-[0.6em] text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none ${revealed ? "" : "select-none"}`}
-        >
+        <CardHeading furigana masked={!revealed}>
           {card.word ? renderWordWithFurigana(card.word, card.furiganas) : card.word}
-        </div>
+        </CardHeading>
       }
       subtitle={
         <>
-          What does this <span className="font-extrabold text-accent-orange">word mean</span>?
+          What does this <Accent accent="orange">word mean</Accent>?
         </>
       }
       revealed={revealed}

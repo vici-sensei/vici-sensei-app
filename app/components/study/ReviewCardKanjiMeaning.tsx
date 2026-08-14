@@ -4,6 +4,8 @@ import type { DueCard, Rating } from "@/lib/types";
 import { checkKanjiMeaningAnswer } from "@/lib/study/kanjiMeaningMatch";
 import { useTypedReviewCard } from "./useTypedReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
+import { CardHeading } from "./CardHeading";
+import { Accent } from "./Accent";
 import { AnswerForm } from "./AnswerForm";
 import { MeaningList } from "./MeaningList";
 import { TokenDiffList } from "./TokenDiffList";
@@ -27,15 +29,13 @@ export function ReviewCardKanjiMeaning({ card, disabled, onRate }: Props) {
       label="Kanji meaning"
       accent="violet"
       prompt={
-        <div
-          className={`mb-2 text-[clamp(4rem,12vw,6.5rem)] font-extrabold leading-none ${revealed ? "" : "select-none"}`}
-        >
+        <CardHeading masked={!revealed}>
           {card.kanji_char}
-        </div>
+        </CardHeading>
       }
       subtitle={
         <>
-          What does this <span className="font-extrabold text-accent-violet">kanji mean</span>?
+          What does this <Accent accent="violet">kanji mean</Accent>?
         </>
       }
       revealed={revealed}

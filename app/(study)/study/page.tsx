@@ -16,8 +16,8 @@ import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
 
 function StudyQueueSkeleton() {
   return (
-    <div className="flex flex-col bg-bg-main" style={{ minHeight: "var(--app-height, 100dvh)" }}>
-      <div className="px-7 py-5">
+    <div className="flex flex-col overflow-hidden bg-bg-main" style={{ height: "var(--app-height, 100dvh)" }}>
+      <div className="shrink-0 px-7 py-5">
         <div className="flex items-center gap-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-text-muted/40 [&>svg]:h-4 [&>svg]:w-4">
             <FaXmark />
@@ -26,8 +26,8 @@ function StudyQueueSkeleton() {
           <Skeleton className="h-4 w-12 shrink-0" />
         </div>
       </div>
-      <div className="flex flex-1 items-center justify-center px-6 pb-15 pt-5">
-        <div className="relative w-full max-w-[620px] rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 md:px-10 md:py-14 text-center backdrop-blur-[10px]">
+      <div className="flex flex-1 min-h-0 items-center justify-center px-6 pb-15 pt-5">
+        <div className="relative w-full max-w-[620px] max-h-full overflow-y-auto rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 text-center backdrop-blur-[10px]">
           <Skeleton className="mx-auto mb-6 h-3 w-28" />
           <Skeleton className="mx-auto mb-2 h-24 w-24 rounded-2xl" />
           <Skeleton className="mx-auto mt-1 h-3.5 w-48" />
@@ -37,7 +37,7 @@ function StudyQueueSkeleton() {
           </div>
         </div>
       </div>
-      <div className="min-h-14 px-6 pb-7" />
+      <div className="min-h-14 shrink-0 px-6 pb-7" />
     </div>
   );
 }
@@ -68,51 +68,49 @@ export default function StudyPage() {
   }
 
   return (
-    <div className="flex flex-col bg-bg-main" style={{ minHeight: "var(--app-height, 100dvh)" }}>
-      <QueueProgressBar
-        completed={completedCount}
-        total={totalKnown}
-        nextDueAt={nextDueAt}
-        onExit={() => router.push("/dashboard")}
-      />
-      <div className="flex flex-1 flex-col items-center px-4 md:px-6 md:py-5">
-        {/* my-auto (not justify-center) so that when the card is taller than the
-            remaining space it aligns to the top instead of clipping equally on both ends;
-            the page itself scrolls (progress bar included) rather than just this section.
-            min-h-max stops the flex row from ever shrinking the card below its natural
-            content height (the default flex-shrink would otherwise squeeze it shorter
-            than its content, leaving text/buttons rendered outside the card's background). */}
-        <div className="my-auto flex w-full min-h-max justify-center">
-          {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
-            <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
-          )}
-          {current.kind === "review" && current.card.exercise_type === "kanji_reading" && (
-            <ReviewCardKanjiReading key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
-          )}
-          {current.kind === "review" && current.card.exercise_type === "vocab_meaning" && (
-            <ReviewCardVocabMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
-          )}
-          {current.kind === "new_kanji" && (
-            <NewKanjiIntroCard
-              key={current.key}
-              candidate={current.candidate}
-              disabled={false}
-              onConfirm={() => actions.introduceKanji(current)}
-            />
-          )}
-          {current.kind === "new_vocab" && (
-            <NewVocabIntroCard
-              key={current.key}
-              candidate={current.candidate}
-              disabled={false}
-              onConfirm={() => actions.introduceVocab(current)}
-            />
-          )}
-        </div>
+    <div className="flex flex-col overflow-hidden bg-bg-main" style={{ height: "var(--app-height, 100dvh)" }}>
+      <div className="shrink-0">
+        <QueueProgressBar
+          completed={completedCount}
+          total={totalKnown}
+          nextDueAt={nextDueAt}
+          onExit={() => router.push("/dashboard")}
+        />
       </div>
-      {<div className="flex md:min-h-14 justify-center px-4 py-2 md:px-6 md:py-7">
+      {/* items-center + justify-center safely center the card because the card itself
+          (StudyCardShell) is capped at max-h-full with its own overflow-y-auto -- it can
+          never grow past this section, so overflow becomes an internal card scrollbar
+          instead of pushing the page past 100vh. */}
+      <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4">
+        {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
+          <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+        )}
+        {current.kind === "review" && current.card.exercise_type === "kanji_reading" && (
+          <ReviewCardKanjiReading key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+        )}
+        {current.kind === "review" && current.card.exercise_type === "vocab_meaning" && (
+          <ReviewCardVocabMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+        )}
+        {current.kind === "new_kanji" && (
+          <NewKanjiIntroCard
+            key={current.key}
+            candidate={current.candidate}
+            disabled={false}
+            onConfirm={() => actions.introduceKanji(current)}
+          />
+        )}
+        {current.kind === "new_vocab" && (
+          <NewVocabIntroCard
+            key={current.key}
+            candidate={current.candidate}
+            disabled={false}
+            onConfirm={() => actions.introduceVocab(current)}
+          />
+        )}
+      </div>
+      <div className="flex shrink-0 justify-center px-4 py-2">
         <UndoPill visible={lastReview !== null} disabled={actionPending} onUndo={actions.undoLast} />
-      </div>}
+      </div>
     </div>
   );
 }

@@ -7,7 +7,7 @@ interface Props {
 
 export function TokenDiffList({ tokens }: Props) {
   return (
-    <div className="mt-5 space-y-2.5 text-left">
+    <div className="mt-3 space-y-2.5 text-left">
       {tokens.map((token, i) => (
         <div
           key={i}

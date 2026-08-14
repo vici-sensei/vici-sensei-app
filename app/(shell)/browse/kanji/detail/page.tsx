@@ -83,7 +83,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       </Link>
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
-        <div className="text-[clamp(4.5rem,10vw,6rem)] font-extrabold leading-none">{kanji.kanji}</div>
+        <div className="text-[5rem] font-extrabold leading-none">{kanji.kanji}</div>
         <div className="min-w-55 flex-1">
           <div className="mb-3 text-[1.35rem] font-bold">{kanji.meanings?.join(", ")}</div>
           <div className="flex flex-wrap gap-6">
