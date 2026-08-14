@@ -5,6 +5,7 @@ export interface LeaderboardEntry {
   user_id: string;
   display_name: string | null;
   avatar_url: string | null;
+  country: string | null;
   score: number;
   rank: number;
 }

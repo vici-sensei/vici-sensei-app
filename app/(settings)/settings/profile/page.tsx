@@ -31,6 +31,10 @@ function ProfileSkeleton() {
             <Skeleton className="mt-1.5 h-3 w-28" />
           </div>
         </div>
+        <div className="mb-6.5">
+          <Skeleton className="mb-2 h-3.5 w-16" />
+          <Skeleton className="h-[46px] w-full rounded-lg" />
+        </div>
         <div>
           <Skeleton className="mb-2 h-3.5 w-14" />
           <Skeleton className="h-[46px] w-full rounded-lg" />

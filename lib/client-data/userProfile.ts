@@ -52,7 +52,20 @@ export async function updateDisplayName(userId: string, displayName: string): Pr
     .from("users")
     .update({ display_name: displayName, updated_at: new Date().toISOString() })
     .eq("id", userId)
-    .select("email, display_name, avatar_url, is_premium, created_at")
+    .select("email, display_name, avatar_url, country, is_premium, created_at")
+    .single();
+
+  if (error) throw new ApiError(500, error.message);
+  return data;
+}
+
+export async function updateCountry(userId: string, country: string): Promise<UserProfile> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("users")
+    .update({ country, updated_at: new Date().toISOString() })
+    .eq("id", userId)
+    .select("email, display_name, avatar_url, country, is_premium, created_at")
     .single();
 
   if (error) throw new ApiError(500, error.message);
@@ -86,7 +99,7 @@ export async function uploadAvatar(userId: string, file: Blob): Promise<UserProf
     .from("users")
     .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
     .eq("id", userId)
-    .select("email, display_name, avatar_url, is_premium, created_at")
+    .select("email, display_name, avatar_url, country, is_premium, created_at")
     .single();
 
   if (error) throw new ApiError(500, error.message);

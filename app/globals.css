@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "flag-icons/css/flag-icons.min.css";
 
 /* ============================================================
    Design tokens — ported 1:1 from vici-sensei-plan-design.md §1

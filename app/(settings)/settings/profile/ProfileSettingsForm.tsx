@@ -5,9 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { UserIdentity } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
-import { updateDisplayName, uploadAvatar } from "@/lib/client-data/userProfile";
+import { updateDisplayName, updateCountry, uploadAvatar } from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
+import { CountrySelect } from "@/app/components/ui/CountrySelect";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
@@ -72,6 +73,9 @@ export function ProfileSettingsForm({
   const [displayName, setDisplayName] = useState(initial.display_name ?? "");
   const [savedName, setSavedName] = useState(initial.display_name ?? "");
   const [nameStatus, setNameStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [country, setCountry] = useState<string | null>(initial.country);
+  const [savedCountry, setSavedCountry] = useState<string | null>(initial.country);
+  const [countryStatus, setCountryStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [avatarUrl, setAvatarUrl] = useState(initial.avatar_url ?? "");
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -131,6 +135,22 @@ export function ProfileSettingsForm({
 
   async function handleNameBlur() {
     await saveDisplayName(displayName.trim());
+  }
+
+  async function handleCountryChange(code: string) {
+    if (code === savedCountry || countryStatus === "saving") return;
+    setCountry(code);
+    setCountryStatus("saving");
+    try {
+      await updateCountry(userId, code);
+      setSavedCountry(code);
+      setCountryStatus("saved");
+      onSaved();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Could not save your country.", "error");
+      setCountry(savedCountry);
+      setCountryStatus("idle");
+    }
   }
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -281,6 +301,18 @@ export function ProfileSettingsForm({
             </div>
             <div className={fieldHint}>1–{MAX_DISPLAY_NAME_LENGTH} characters</div>
           </div>
+        </div>
+        <div className="mb-6.5">
+          <div className="mb-2 flex items-center gap-2">
+            <label htmlFor="profile-country" className="text-sm font-bold uppercase tracking-[0.6px] text-text-muted">
+              Country
+            </label>
+            {countryStatus === "saving" && (
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/25 border-t-white" />
+            )}
+            {countryStatus === "saved" && <FaCheck className="h-3 w-3 text-accent-green" />}
+          </div>
+          <CountrySelect id="profile-country" value={country} onChange={handleCountryChange} />
         </div>
         <div>
           <label className={fieldLabel}>Linked to Google</label>

@@ -130,7 +130,13 @@ export function LeaderboardList({
               <RankBadge rank={entry.rank} />
               <LeaderboardAvatar displayName={entry.display_name} avatarUrl={entry.avatar_url} />
               <div className="min-w-0 flex-1">
-                <p className="text-[0.92rem] font-bold text-white">
+                <p className="flex items-center gap-1.5 text-[0.92rem] font-bold text-white">
+                  {entry.country ? (
+                    <span
+                      aria-label={entry.country}
+                      className={`fi fi-${entry.country.toLowerCase()} shrink-0 rounded-[2px] ring-1 ring-white/10`}
+                    />
+                  ) : null}
                   {entry.display_name?.trim() || "Anonymous user"}
                   {isViewer ? <span className="ml-1.5 text-[0.75rem] font-semibold text-accent-red">(you)</span> : null}
                 </p>

@@ -5,6 +5,7 @@ export interface UserProfile {
   email: string;
   display_name: string | null;
   avatar_url: string | null;
+  country: string | null;
   is_premium: boolean;
   created_at: string;
 }
