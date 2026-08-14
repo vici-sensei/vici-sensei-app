@@ -28,7 +28,7 @@ export function LeaderboardCountdown({ period, clockOffsetMs }: { period: Leader
   const remaining = new Date(periodEnd).getTime() - now;
   return (
     <p className="mb-5.5 text-sm text-text-muted">
-      Resets in <span className="font-semibold text-white">{formatTimeLeft(remaining)}</span>
+      Resets in <span className="font-semibold text-accent-blue/80">{formatTimeLeft(remaining)}</span>
       {Math.abs(clockOffsetMs) > NOTABLE_SKEW_MS ? (
         <span className="block text-xs text-text-muted/70">
           Your device clock looks off, so this is synced to server time instead.
