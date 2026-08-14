@@ -56,6 +56,57 @@ function StreakCard() {
   );
 }
 
+const RING_SIZE = 56;
+const RING_STROKE = 4;
+const RING_CENTER = RING_SIZE / 2;
+const RING_RADIUS = RING_CENTER - RING_STROKE / 2 - 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+function statPct(value: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((value / total) * 100)));
+}
+
+function StatRing({
+  icon,
+  percent,
+  colorClass,
+}: {
+  icon: React.ReactNode;
+  percent: number;
+  colorClass: string;
+}) {
+  const offset = RING_CIRCUMFERENCE * (1 - percent / 100);
+  return (
+    <div className="relative mb-3.5 h-14 w-14 shrink-0">
+      <svg viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} className="h-full w-full -rotate-90">
+        <circle
+          cx={RING_CENTER}
+          cy={RING_CENTER}
+          r={RING_RADIUS}
+          fill="none"
+          strokeWidth={RING_STROKE}
+          className="stroke-white/10"
+        />
+        <circle
+          cx={RING_CENTER}
+          cy={RING_CENTER}
+          r={RING_RADIUS}
+          fill="none"
+          strokeWidth={RING_STROKE}
+          strokeLinecap="round"
+          strokeDasharray={RING_CIRCUMFERENCE}
+          strokeDashoffset={offset}
+          className={`${colorClass} transition-[stroke-dashoffset] duration-500`}
+        />
+      </svg>
+      <div className={`absolute inset-0 flex items-center justify-center ${colorClass.replace("stroke-", "text-")}`}>
+        {icon}
+      </div>
+    </div>
+  );
+}
+
 function StatCards() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
   // no separate fetch here.
@@ -65,8 +116,8 @@ function StatCards() {
     return (
       <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <GlassCard key={i} padding="sm" className="flex flex-col items-center sm:items-start">
-            <Skeleton className="mb-3.5 h-9 w-9 rounded-lg" />
+          <GlassCard key={i} padding="sm" className="flex flex-col items-center justify-center sm:items-start sm:justify-start">
+            <Skeleton className="mb-3.5 h-14 w-14 rounded-full" />
             <Skeleton className="mb-1.5 h-8 w-16" />
             <Skeleton className="h-4 w-24" />
           </GlassCard>
@@ -77,10 +128,12 @@ function StatCards() {
 
   return (
     <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-3">
-      <GlassCard padding="sm" className="flex flex-col items-center text-center sm:items-start sm:text-left">
-        <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
-          <FaBook className="h-4 w-4" />
-        </div>
+      <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
+        <StatRing
+          icon={<FaBook className="h-4 w-4" />}
+          percent={statPct(stats.new_kanji_today, stats.new_kanji_limit)}
+          colorClass="stroke-accent-blue"
+        />
         <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
           {stats.new_kanji_today}
           <span className="text-[1.1rem] text-text-muted">/{stats.new_kanji_limit}</span>
@@ -88,10 +141,12 @@ function StatCards() {
         <div className="text-sm font-semibold text-text-muted">New kanji today</div>
       </GlassCard>
 
-      <GlassCard padding="sm" className="flex flex-col items-center text-center sm:items-start sm:text-left">
-        <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
-          <FaPenToSquare className="h-4 w-4" />
-        </div>
+      <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
+        <StatRing
+          icon={<FaPenToSquare className="h-4 w-4" />}
+          percent={statPct(stats.new_vocab_today, stats.new_vocab_limit)}
+          colorClass="stroke-accent-violet"
+        />
         <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
           {stats.new_vocab_today}
           <span className="text-[1.1rem] text-text-muted">/{stats.new_vocab_limit}</span>
@@ -99,10 +154,12 @@ function StatCards() {
         <div className="text-sm font-semibold text-text-muted">New vocab today</div>
       </GlassCard>
 
-      <GlassCard padding="sm" className="flex flex-col items-center text-center sm:items-start sm:text-left">
-        <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-red/10 text-accent-red">
-          <FaClock className="h-4 w-4" />
-        </div>
+      <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
+        <StatRing
+          icon={<FaClock className="h-4 w-4" />}
+          percent={stats.retention_rate != null ? Math.round(stats.retention_rate * 100) : 0}
+          colorClass="stroke-accent-red"
+        />
         <div
           className={
             stats.retention_rate != null

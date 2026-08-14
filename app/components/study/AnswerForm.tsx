@@ -30,11 +30,16 @@ export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disa
         value={answer}
         onChange={(e) => onAnswerChange(e.target.value)}
         onPaste={preventClipboardBypass}
+        onCopy={preventClipboardBypass}
+        onCut={preventClipboardBypass}
         onDrop={preventClipboardBypass}
         onContextMenu={(e) => e.preventDefault()}
         disabled={disabled}
         placeholder={placeholder}
-        className={`w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-center text-[0.95rem] text-white outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${ACCENT_FOCUS_BORDER_CLASSES[accent]}`}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        className={`w-full select-none rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-center text-[0.95rem] text-white outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${ACCENT_FOCUS_BORDER_CLASSES[accent]}`}
       />
       <Button type="submit" variant="secondary" className="w-full" disabled={disabled || !answer.trim()}>
         Check
