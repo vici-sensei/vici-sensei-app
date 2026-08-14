@@ -13,7 +13,7 @@ export function NavBar() {
   useViewportHeight();
 
   return (
-    <nav className={navBarClasses}>
+    <nav data-shell-navbar className={navBarClasses}>
       {NAV_ITEMS.map((item) => (
         <NavItem
           key={item.href}

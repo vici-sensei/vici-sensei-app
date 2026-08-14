@@ -49,23 +49,19 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-[60px]">
+    <div className="flex min-h-screen items-center justify-center px-6 py-10">
       <div className="w-full max-w-[560px] text-center">
-        <Badge color="blue" className="mb-5">Last step</Badge>
-        <h1 className="mb-3.5 text-[2.1rem] font-extrabold tracking-[-1px]">What JLPT level are you studying?</h1>
-        <p className="mx-auto mb-9 max-w-md text-base leading-[1.6] text-text-muted">
-          Choose the most advanced level you&apos;re studying now. Lower levels are enabled automatically — if you
-          know N3, we assume you know N5/N4 too.
+        <Badge color="blue" className="mb-4">Last step</Badge>
+        <h1 className="mb-2 text-[1.5rem] font-extrabold tracking-[-0.5px]">What JLPT level are you studying?</h1>
+        <p className="mx-auto mb-6 max-w-md text-sm leading-[1.6] text-text-muted">
+          Lower levels are included automatically.
         </p>
 
-        <LevelGrid value={level} onChange={setLevel} />
-
-        <div className="mb-8 mt-3.5 rounded-lg border border-border-soft bg-white/[0.03] px-4 py-3 text-sm text-text-muted">
-          You&apos;ll study <strong className="text-white">{included.slice().reverse().join(", ")}</strong>. You can change this anytime in
-          Settings.
+        <div className="mb-6">
+          <LevelGrid value={level} onChange={setLevel} />
         </div>
 
-        <div className="mb-8 text-left">
+        <div className="mb-6 text-left">
           <label htmlFor="onboarding-country" className="mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted">
             Country
           </label>

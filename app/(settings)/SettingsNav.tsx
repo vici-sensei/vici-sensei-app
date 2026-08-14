@@ -45,7 +45,7 @@ export function SettingsNav() {
   useViewportHeight();
 
   return (
-    <nav className={navBarClasses}>
+    <nav data-shell-navbar className={navBarClasses}>
       {ITEMS.map((item) => (
         <NavItem
           key={item.href}

@@ -312,7 +312,7 @@ export function ProfileSettingsForm({
             )}
             {countryStatus === "saved" && <FaCheck className="h-3 w-3 text-accent-green" />}
           </div>
-          <CountrySelect id="profile-country" value={country} onChange={handleCountryChange} />
+          <CountrySelect id="profile-country" value={country} onChange={handleCountryChange} placement="auto" />
         </div>
         <div>
           <label className={fieldLabel}>Linked to Google</label>
