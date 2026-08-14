@@ -15,18 +15,56 @@ interface Props {
   onConfirm: () => void;
 }
 
+// Gentle one-time "peek" scroll to hint the word list is scrollable.
+const NUDGE_DISTANCE = 14;
+const NUDGE_DURATION = 380;
+const NUDGE_DELAY = 450;
+
+function easeInOutQuad(t: number) {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+function animateScrollTop(
+  el: HTMLElement,
+  to: number,
+  duration: number,
+  isCancelled: () => boolean,
+  onDone?: () => void,
+) {
+  const from = el.scrollTop;
+  const start = performance.now();
+
+  function step(now: number) {
+    if (isCancelled()) return;
+    const t = Math.min(1, (now - start) / duration);
+    el.scrollTop = from + (to - from) * easeInOutQuad(t);
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      onDone?.();
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
 export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
   const words = candidate.words;
   const listRef = useRef<HTMLDivElement>(null);
   const [showFade, setShowFade] = useState(false);
+  const [isScrollable, setIsScrollable] = useState(false);
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
 
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
 
     const updateFade = () => {
+      const scrollable = el.scrollHeight - el.clientHeight > 1;
       const atBottom = el.scrollHeight - el.clientHeight - el.scrollTop <= 1;
-      setShowFade(el.scrollHeight - el.clientHeight > 1 && !atBottom);
+      setShowFade(scrollable && !atBottom);
+      setIsScrollable(scrollable);
+      if (atBottom) setHasScrolledToBottom(true);
     };
 
     const observer = new ResizeObserver(updateFade);
@@ -34,9 +72,35 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
     el.addEventListener("scroll", updateFade);
     updateFade();
 
+    let cancelled = false;
+    let userScrolled = false;
+    const markUserScrolled = () => {
+      userScrolled = true;
+    };
+    el.addEventListener("wheel", markUserScrolled, { passive: true });
+    el.addEventListener("touchstart", markUserScrolled, { passive: true });
+
+    const nudgeTimeout = window.setTimeout(() => {
+      if (cancelled || userScrolled || el.scrollHeight - el.clientHeight <= 1) return;
+      animateScrollTop(
+        el,
+        NUDGE_DISTANCE,
+        NUDGE_DURATION,
+        () => cancelled || userScrolled,
+        () => {
+          if (cancelled || userScrolled) return;
+          animateScrollTop(el, 0, NUDGE_DURATION, () => cancelled);
+        },
+      );
+    }, NUDGE_DELAY);
+
     return () => {
+      cancelled = true;
       observer.disconnect();
       el.removeEventListener("scroll", updateFade);
+      el.removeEventListener("wheel", markUserScrolled);
+      el.removeEventListener("touchstart", markUserScrolled);
+      window.clearTimeout(nudgeTimeout);
     };
   }, []);
 
@@ -72,7 +136,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
       </div>
 
       {words.length > 0 && (
-        <div className="relative mt-4 min-h-[100px]">
+        <div className="relative mt-4 min-h-[130px]">
           <div
             ref={listRef}
             className="h-full max-h-full overflow-y-auto divide-y divide-border-soft rounded-xl border border-border-soft bg-white/[0.03] text-left"
@@ -81,16 +145,16 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
               <WordPreviewRow key={w.id} vocabulary={w.vocabulary} />
             ))}
           </div>
-          {showFade && (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-b-xl bg-gradient-to-t from-bg-cards to-transparent"
-            />
-          )}
+          <div
+            aria-hidden
+            className={`pointer-events-none absolute inset-x-0 bottom-0 h-16 rounded-b-xl bg-gradient-to-t from-[#111827] to-transparent transition-opacity duration-400 ease-out ${
+              showFade ? "opacity-100" : "opacity-0"
+            }`}
+          />
         </div>
       )}
       <div className="mt-4 shrink-0">
-        <Button className="w-full" disabled={disabled} onClick={onConfirm}>
+        <Button className="w-full" disabled={disabled || (isScrollable && !hasScrolledToBottom)} onClick={onConfirm}>
           Next
         </Button>
       </div>

@@ -17,27 +17,30 @@ import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
 function StudyQueueSkeleton() {
   return (
     <div className="flex flex-col overflow-hidden bg-bg-main" style={{ height: "var(--app-height, 100dvh)" }}>
-      <div className="shrink-0 px-7 py-5">
+      <div className="shrink-0 px-4 pt-1 pb-2">
         <div className="flex items-center gap-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-text-muted/40 [&>svg]:h-4 [&>svg]:w-4">
             <FaXmark />
           </div>
-          <Skeleton className="h-1.5 flex-1 rounded-full" />
+          <div className="flex flex-1 flex-col mt-5">
+            <Skeleton className="h-1.5 w-full rounded-full" />
+            <p className="invisible text-center text-[0.75rem] text-text-muted/70">Next card in 0s</p>
+          </div>
           <Skeleton className="h-4 w-12 shrink-0" />
         </div>
       </div>
-      <div className="flex flex-1 min-h-0 items-center justify-center px-6 pb-15 pt-5">
-        <div className="relative w-full max-w-[620px] max-h-full overflow-y-auto rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 text-center backdrop-blur-[10px]">
-          <Skeleton className="mx-auto mb-6 h-3 w-28" />
-          <Skeleton className="mx-auto mb-2 h-24 w-24 rounded-2xl" />
-          <Skeleton className="mx-auto mt-1 h-3.5 w-48" />
+      <div className="flex flex-1 min-h-0 items-center justify-center px-4">
+        <div className="relative w-full max-w-[560px] max-h-full overflow-y-auto rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 text-center backdrop-blur-[10px]">
+          <Skeleton className="mx-auto mb-6 h-3 w-24" />
+          <Skeleton className="mx-auto mb-2 h-8 w-16 rounded-lg" />
+          <Skeleton className="mx-auto mt-1 h-4 w-52" />
           <div className="mt-7 flex flex-col items-center gap-3">
-            <Skeleton className="h-11 w-full rounded-lg" />
-            <Skeleton className="h-11 w-full rounded-xl" />
+            <Skeleton className="h-[46px] w-full rounded-lg" />
+            <Skeleton className="h-[52px] w-full rounded-xl" />
           </div>
         </div>
       </div>
-      <div className="min-h-14 shrink-0 px-6 pb-7" />
+      <div className="shrink-0 px-4 py-2" />
     </div>
   );
 }

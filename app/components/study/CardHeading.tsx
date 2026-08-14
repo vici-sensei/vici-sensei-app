@@ -13,7 +13,7 @@ interface Props {
 /** Shared large central kanji/word heading used by every card on /study. */
 export function CardHeading({ children, furigana = false, masked = false }: Props) {
   const classes = [
-    "mb-2 text-[2rem] leading-none",
+    "mb-2 text-3xl leading-none",
     furigana && "pt-[0.6em]",
     masked && "select-none",
   ]
