@@ -22,7 +22,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate }: Props) {
     card,
     disabled,
     onRate,
-    (input) => checkKanjiMeaningAnswer(input, card.word_meanings ?? [])
+    (input) => checkKanjiMeaningAnswer(input, card.all_word_meanings ?? card.word_meanings ?? [])
   );
 
   return (

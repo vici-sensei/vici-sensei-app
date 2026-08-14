@@ -22,7 +22,13 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
     card,
     disabled,
     onRate,
-    (input) => checkKanjiReadingAnswer(input, card.kana_reading, card.romaji_reading, card.other_readings)
+    (input) =>
+      checkKanjiReadingAnswer(
+        input,
+        card.kana_reading,
+        card.romaji_reading,
+        [...(card.other_readings ?? []), ...(card.all_word_readings ?? [])]
+      )
   );
 
   return (

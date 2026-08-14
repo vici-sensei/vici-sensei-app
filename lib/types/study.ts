@@ -32,6 +32,10 @@ export interface DueCard {
   other_readings: string[] | null;
   furiganas: string[] | null;
   word_meanings: string[] | null;
+  /** Meanings from every vocabulary row sharing this word -- the student can't tell which row a card was built from. */
+  all_word_meanings: string[] | null;
+  /** Readings (kana/romaji/other) from every vocabulary row sharing this word -- same reasoning. */
+  all_word_readings: string[] | null;
   rating_previews: RatingPreviews;
 }
 
