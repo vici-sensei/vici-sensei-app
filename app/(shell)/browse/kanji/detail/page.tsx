@@ -83,7 +83,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       </Link>
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
-        <div className="text-[5rem] font-extrabold leading-none">{kanji.kanji}</div>
+        <div className="text-8xl leading-none mx-auto">{kanji.kanji}</div>
         <div className="min-w-55 flex-1">
           <div className="mb-3 text-[1.35rem] font-bold">{kanji.meanings?.join(", ")}</div>
           <div className="flex flex-wrap gap-6">
@@ -109,8 +109,8 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       <div className="grid grid-cols-3 gap-3 text-left max-[700px]:grid-cols-1">
         {kanji.words.map((w) => (
           <div className="rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-4" key={w.id}>
-            <div className="text-[0.85rem] font-bold text-accent-blue">{w.vocabulary.kana_reading}</div>
-            <div className="mb-1.5 text-2xl font-extrabold">{w.vocabulary.word}</div>
+            <div className="text-base text-accent-blue">{w.vocabulary.kana_reading}</div>
+            <div className="mb-1.5 text-3xl">{w.vocabulary.word}</div>
             <div className="text-[0.8rem] leading-[1.4] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
             {w.reading_group != null && (
               <div className="mt-2 inline-block rounded-md bg-white/5 px-2 py-0.5 text-[0.68rem] font-extrabold text-text-muted">

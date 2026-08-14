@@ -92,10 +92,20 @@ export function BillingPanel({
               </ul>
             </div>
             <div className="flex flex-wrap gap-3">
-              <a href={monthlyLink} className={buttonClasses({ hover: "hover" })}>
+              <a
+                href={monthlyLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonClasses({ hover: "hover" })}
+              >
                 $19 / 4 weeks
               </a>
-              <a href={yearlyLink} className={buttonClasses({ variant: "secondary", hover: "hover" })}>
+              <a
+                href={yearlyLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonClasses({ variant: "secondary", hover: "hover" })}
+              >
                 $149 / year
               </a>
             </div>

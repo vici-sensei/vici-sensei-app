@@ -3,10 +3,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useAuth } from "@/lib/auth/AuthProvider";
-import { useStudySettings } from "@/lib/client-data/studySettings";
 import { useKanjiList } from "@/lib/client-data/kanji";
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
+import { readStoredLevels } from "@/lib/browse/levelsStorage";
+import { readStoredSearch } from "@/lib/browse/searchStorage";
 import { BrowseTabs } from "../BrowseTabs";
 import { BrowseControls } from "../BrowseControls";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
@@ -23,22 +23,16 @@ function parseLevels(raw: string | null, fallback: JlptLevel[]): JlptLevel[] {
 }
 
 function BrowseKanjiListing() {
-  const { user } = useAuth();
-  const { data: settings, status: settingsStatus } = useStudySettings(user);
   const searchParams = useSearchParams();
 
-  const search = searchParams.get("search") ?? "";
+  const search = searchParams.get("search") ?? readStoredSearch();
   const rawLevel = searchParams.get("level");
   const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
-
-  if (settingsStatus === "loading" || !settings) {
-    return <ListSkeleton />;
-  }
 
   return (
     <BrowseKanjiResults
       search={search}
-      levels={parseLevels(rawLevel, settings.enabled_levels)}
+      levels={parseLevels(rawLevel, readStoredLevels())}
       rawLevel={rawLevel}
       offset={offset}
     />
@@ -102,7 +96,7 @@ function BrowseKanjiResults({
                 prefetch={false}
                 className="flex cursor-pointer items-center gap-4.5 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
               >
-                <div className="w-13 shrink-0 text-[1.9rem] font-extrabold">{row.kanji}</div>
+                <div className="w-13 shrink-0 text-3xl">{row.kanji}</div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-0.5 text-[1.05rem] font-bold">{row.meanings?.join(", ")}</div>
                   <div className="text-[0.85rem] text-text-muted">

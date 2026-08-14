@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { scrollWindowToTopOnFocus } from "@/lib/scrollFocus";
+import { writeStoredLevels } from "@/lib/browse/levelsStorage";
+import { writeStoredSearch } from "@/lib/browse/searchStorage";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 
 interface Props {
@@ -33,13 +35,17 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
 
   function handleSearchChange(value: string) {
     setSearch(value);
+    writeStoredSearch(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => pushUrl(value, levels), DEBOUNCE_MS);
   }
 
   function toggleLevel(level: JlptLevel) {
+    // At least one level must stay selected.
+    if (levels.includes(level) && levels.length === 1) return;
     const next = levels.includes(level) ? levels.filter((l) => l !== level) : [...levels, level];
     setLevels(next);
+    writeStoredLevels(next);
     pushUrl(search, next);
   }
 

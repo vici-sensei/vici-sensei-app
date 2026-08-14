@@ -70,8 +70,8 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="min-w-55 flex-1">
-          <div className="mt-1 text-[1.2rem] font-bold text-accent-blue">{word.kana_reading}</div>
-          <div className="text-[2.5rem] font-extrabold leading-[1.1] mb-3">{word.word}</div>
+          <div className="mt-1 text-lg text-accent-blue">{word.kana_reading}</div>
+          <div className="text-5xl leading-[1.1] mb-3">{word.word}</div>
           <div className="mb-3 text-[1.35rem] font-bold">{word.meanings?.join(", ")}</div>
           <div className="flex flex-wrap gap-6">
             <div>
