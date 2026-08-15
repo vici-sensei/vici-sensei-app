@@ -209,14 +209,16 @@ input:disabled ~ span {
 
 /* PRO badge (ProBadge.tsx) -- a light sweep drifting across the glass
    background, layered as a second background-image so it composites with
-   the base gold tint instead of replacing it. */
+   the base gold tint instead of replacing it. Element uses
+   animation-direction: alternate (see the Tailwind class), so odd passes
+   play 0%->100% (sweeps one way) and even passes play 100%->0% (sweeps
+   back) -- no hold frame, or the reversed pass stutters at the start. */
 @keyframes vici-badge-shimmer {
   0% {
     background-position:
       0 0,
       -130% -130%;
   }
-  55%,
   100% {
     background-position:
       0 0,
