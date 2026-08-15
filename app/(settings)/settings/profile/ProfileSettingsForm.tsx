@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { UserIdentity } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
-import { updateDisplayName, updateCountry, uploadAvatar } from "@/lib/client-data/userProfile";
+import { updateDisplayName, updateCountry, uploadAvatar, removeAvatar } from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -15,7 +15,7 @@ import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
 import { ProBadge } from "@/app/components/ui/ProBadge";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
-import { FaCheck, FaPenToSquare } from "react-icons/fa6";
+import { FaCheck, FaPenToSquare, FaTrash } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -30,6 +30,7 @@ const SWITCH_ERROR_MESSAGES: Record<string, string> = {
   no_new_account: "Couldn't detect a new Google account. Please try again.",
   access_denied: "You didn't approve the Google sign-in.",
   identity_already_exists: "That Google account is already used by another profile.",
+  identity_already_own_account: "You're already signed in with that Google account.",
 };
 
 function switchErrorMessage(code: string): string {
@@ -48,7 +49,10 @@ function SwitchResultNotice() {
     if (!switched && !switchError) return;
 
     if (switched) showToast("Now signed in with your new Google account");
-    if (switchError) showToast(switchErrorMessage(switchError), "error");
+    // Not a failure — the user just re-picked the account they were already on — so
+    // show it with the success styling instead of the red error toast.
+    if (switchError === "identity_already_own_account") showToast(switchErrorMessage(switchError));
+    else if (switchError) showToast(switchErrorMessage(switchError), "error");
     router.replace("/settings/profile");
   }, [searchParams, router, showToast]);
 
@@ -81,6 +85,7 @@ export function ProfileSettingsForm({
   const [avatarUrl, setAvatarUrl] = useState(initial.avatar_url ?? "");
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -197,6 +202,25 @@ export function ProfileSettingsForm({
     }
   }
 
+  async function handleRemoveAvatar() {
+    if (!window.confirm("Remove your profile photo?")) return;
+
+    const previousAvatarUrl = avatarUrl;
+    setRemovingAvatar(true);
+    try {
+      const updated = await removeAvatar(userId);
+      setAvatarUrl(updated.avatar_url ?? "");
+      setAvatarFailed(false);
+      showToast("Photo removed");
+      onSaved();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Could not remove your photo.", "error");
+      setAvatarUrl(previousAvatarUrl);
+    } finally {
+      setRemovingAvatar(false);
+    }
+  }
+
   async function handleSwitchGoogleAccount() {
     setSwitching(true);
     try {
@@ -263,6 +287,21 @@ export function ProfileSettingsForm({
               )}
             </div>
             {initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
+            {avatarUrl && !avatarFailed ? (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                disabled={removingAvatar || uploadingAvatar}
+                aria-label="Remove profile photo"
+                className="absolute -bottom-2.5 -left-2.5 flex h-10 w-10 items-center justify-center rounded-full border border-border-soft bg-bg-cards text-text-muted shadow-[0_4px_10px_rgba(0,0,0,0.4)] transition-colors hover:text-accent-red disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {removingAvatar ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                ) : (
+                  <FaTrash className="h-4 w-4" />
+                )}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -364,9 +403,6 @@ export function ProfileSettingsForm({
               ))}
             </div>
           ) : null}
-          <div className={fieldHint}>
-            Synced from your Google account — switching won&apos;t change your name, photo, or progress.
-          </div>
         </div>
       </div>
 

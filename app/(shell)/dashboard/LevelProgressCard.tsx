@@ -13,8 +13,8 @@ const CENTER = SIZE / 2;
 
 // Outermost first -- each ring nests inside the previous one, sharing a center.
 const RINGS: { key: keyof Pick<LevelProgress, "kanji" | "kanji_reading" | "vocabulary">; label: string; dot: string; stroke: string }[] = [
-  { key: "kanji", label: "Kanji", dot: "bg-accent-violet", stroke: "stroke-accent-violet" },
-  { key: "kanji_reading", label: "Kanji readings", dot: "bg-accent-blue", stroke: "stroke-accent-blue" },
+  { key: "kanji", label: "Kanji meaning", dot: "bg-accent-violet", stroke: "stroke-accent-violet" },
+  { key: "kanji_reading", label: "Kanji reading", dot: "bg-accent-blue", stroke: "stroke-accent-blue" },
   { key: "vocabulary", label: "Vocabulary", dot: "bg-accent-orange", stroke: "stroke-accent-orange" },
 ];
 

@@ -15,9 +15,10 @@ interface Props {
   card: DueCard;
   disabled: boolean;
   onRate: (card: DueCard, rating: Rating) => void;
+  onCancelableChange?: (cancel: (() => void) | null) => void;
 }
 
-export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
+export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableChange }: Props) {
   const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
     card,
     disabled,
@@ -28,7 +29,8 @@ export function ReviewCardKanjiReading({ card, disabled, onRate }: Props) {
         card.kana_reading,
         card.romaji_reading,
         [...(card.other_readings ?? []), ...(card.all_word_readings ?? [])]
-      )
+      ),
+    onCancelableChange
   );
 
   return (

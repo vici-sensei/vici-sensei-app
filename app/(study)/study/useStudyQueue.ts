@@ -88,6 +88,7 @@ export function useStudyQueue() {
   const [nextDueAt, setNextDueAt] = useState<string | null>(null);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const [undoPending, setUndoPending] = useState(false);
+  const [undoDisabled, setUndoDisabled] = useState(false);
 
   const sessionIdRef = useRef<number | null>(null);
   const endingRef = useRef(false);
@@ -162,6 +163,7 @@ export function useStudyQueue() {
         const items = reviewsFirst(buildQueue(data));
         setQueue(items);
         setNextDueAt(data.next_due_at);
+        setUndoDisabled(data.undo_disabled);
 
         if (items.length === 0) {
           void endSession(false);
@@ -278,7 +280,7 @@ export function useStudyQueue() {
   );
 
   const undoLast = useCallback(() => {
-    if (!lastReview) return;
+    if (!lastReview || undoDisabled) return;
     const toUndo = lastReview;
     setUndoPending(true);
 
@@ -296,7 +298,7 @@ export function useStudyQueue() {
         setUndoPending(false);
       }
     });
-  }, [enqueueMutation, lastReview, showToast]);
+  }, [enqueueMutation, lastReview, showToast, undoDisabled]);
 
   return {
     status,
@@ -307,6 +309,7 @@ export function useStudyQueue() {
     nextDueAt,
     lastReview,
     actionPending: undoPending,
+    undoDisabled,
     actions: { rate, introduceKanji, introduceVocab, undoLast },
   };
 }

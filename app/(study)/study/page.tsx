@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStudyQueue } from "./useStudyQueue";
 import { useViewportHeight } from "@/lib/useViewportHeight";
@@ -48,8 +49,24 @@ function StudyQueueSkeleton() {
 export default function StudyPage() {
   const router = useRouter();
   useViewportHeight();
-  const { status, error, current, completedCount, totalKnown, nextDueAt, lastReview, actionPending, actions } =
+  const { status, error, current, completedCount, totalKnown, nextDueAt, lastReview, actionPending, undoDisabled, actions } =
     useStudyQueue();
+  // Set while the current card has an un-rated Check showing, so Undo can cancel that
+  // Check (letting the user fix a typo) instead of undoing the previously submitted review.
+  const [cancelCheck, setCancelCheck] = useState<(() => void) | null>(null);
+  // setCancelCheck expects a plain value here, but a bare function argument is treated by
+  // useState as an updater fn and invoked immediately -- wrap it so React always stores it as-is.
+  const handleCancelableChange = useCallback((cancel: (() => void) | null) => {
+    setCancelCheck(() => cancel);
+  }, []);
+
+  const handleUndo = () => {
+    if (cancelCheck) {
+      cancelCheck();
+      return;
+    }
+    actions.undoLast();
+  };
 
   if (status === "loading" || status === "ending" || !current) {
     return <StudyQueueSkeleton />;
@@ -86,13 +103,31 @@ export default function StudyPage() {
           instead of pushing the page past 100vh. */}
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4">
         {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
-          <ReviewCardKanjiMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+          <ReviewCardKanjiMeaning
+            key={current.key}
+            card={current.card}
+            disabled={false}
+            onRate={actions.rate}
+            onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
+          />
         )}
         {current.kind === "review" && current.card.exercise_type === "kanji_reading" && (
-          <ReviewCardKanjiReading key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+          <ReviewCardKanjiReading
+            key={current.key}
+            card={current.card}
+            disabled={false}
+            onRate={actions.rate}
+            onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
+          />
         )}
         {current.kind === "review" && current.card.exercise_type === "vocab_meaning" && (
-          <ReviewCardVocabMeaning key={current.key} card={current.card} disabled={false} onRate={actions.rate} />
+          <ReviewCardVocabMeaning
+            key={current.key}
+            card={current.card}
+            disabled={false}
+            onRate={actions.rate}
+            onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
+          />
         )}
         {current.kind === "new_kanji" && (
           <NewKanjiIntroCard
@@ -112,7 +147,11 @@ export default function StudyPage() {
         )}
       </div>
       <div className="flex shrink-0 justify-center px-4 py-2">
-        <UndoPill visible={lastReview !== null} disabled={actionPending} onUndo={actions.undoLast} />
+        <UndoPill
+          visible={!undoDisabled && (lastReview !== null || cancelCheck !== null)}
+          disabled={cancelCheck === null && actionPending}
+          onUndo={handleUndo}
+        />
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
   danger?: boolean;
   loading?: boolean;
+  loadingIconPosition?: "left" | "right";
   children: ReactNode;
 }
 
@@ -55,6 +56,7 @@ export function Button({
   size = "md",
   danger = false,
   loading = false,
+  loadingIconPosition = "left",
   disabled,
   className,
   children,
@@ -62,14 +64,19 @@ export function Button({
 }: ButtonProps) {
   const classes = buttonClasses({ variant, size, danger, className });
 
+  const spinner = (
+    <span
+      className={`h-[18px] w-[18px] shrink-0 animate-spin rounded-full border-[2.5px] border-white/35 border-t-white ${
+        loading ? "inline-block" : "hidden"
+      }`}
+    />
+  );
+
   return (
     <button className={classes} disabled={disabled || loading} {...rest}>
-      <span
-        className={`h-[18px] w-[18px] shrink-0 animate-spin rounded-full border-[2.5px] border-white/35 border-t-white ${
-          loading ? "inline-block" : "hidden"
-        }`}
-      />
+      {loadingIconPosition === "left" && spinner}
       <span className={`inline-flex items-center gap-2 ${loading ? "opacity-85" : ""}`}>{children}</span>
+      {loadingIconPosition === "right" && spinner}
     </button>
   );
 }

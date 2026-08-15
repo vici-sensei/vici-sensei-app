@@ -34,6 +34,16 @@ export default function LoginPage() {
     if (status === "authed") router.replace("/dashboard");
   }, [status, router]);
 
+  useEffect(() => {
+    // Restoring from bfcache after the user hits Back on Google's account
+    // chooser leaves `loading` stuck true — the page never remounts.
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) setLoading(false);
+    }
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
   async function handleGoogleLogin() {
     setLoading(true);
     const supabase = createClient();
@@ -82,6 +92,7 @@ export default function LoginPage() {
           type="button"
           className="w-full max-w-[360px]"
           loading={loading}
+          loadingIconPosition="right"
           onClick={handleGoogleLogin}
         >
           <FcGoogle className="h-5 w-5 shrink-0 rounded-full bg-white p-0.5" />

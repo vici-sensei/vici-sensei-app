@@ -17,7 +17,7 @@ export function UndoPill({ visible, onUndo, disabled }: UndoPillProps) {
       disabled={disabled}
     >
       <FaRotateLeft />
-      Undo last answer
+      Undo
     </button>
   );
 }

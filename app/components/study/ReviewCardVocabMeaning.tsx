@@ -15,14 +15,16 @@ interface Props {
   card: DueCard;
   disabled: boolean;
   onRate: (card: DueCard, rating: Rating) => void;
+  onCancelableChange?: (cancel: (() => void) | null) => void;
 }
 
-export function ReviewCardVocabMeaning({ card, disabled, onRate }: Props) {
+export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableChange }: Props) {
   const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
     card,
     disabled,
     onRate,
-    (input) => checkKanjiMeaningAnswer(input, card.all_word_meanings ?? card.word_meanings ?? [])
+    (input) => checkKanjiMeaningAnswer(input, card.all_word_meanings ?? card.word_meanings ?? []),
+    onCancelableChange
   );
 
   return (

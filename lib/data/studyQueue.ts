@@ -36,7 +36,7 @@ export async function fetchStudyQueue(
   const nowIso = new Date().toISOString();
   const { start: todayStart, end: todayEnd } = utcDayBounds(new Date(), timezone);
 
-  const [dueCardsResult, nextDue, kanjiCountResult, vocabCountResult] = await Promise.all([
+  const [dueCardsResult, nextDue, kanjiCountResult, vocabCountResult, userFlagsResult] = await Promise.all([
     supabase.rpc("get_due_cards", {
       p_user_id: userId,
       p_enabled_levels: enabledLevels,
@@ -64,12 +64,14 @@ export async function fetchStudyQueue(
           .gte("created_at", todayStart)
           .lt("created_at", todayEnd)
       : Promise.resolve({ count: 0, error: null }),
+    supabase.from("users").select("undo_disabled").eq("id", userId).single(),
   ]);
 
   if (dueCardsResult.error) throw new Error(dueCardsResult.error.message);
   if (nextDue.error !== null) throw new Error(nextDue.error);
   if (kanjiCountResult.error) throw new Error(kanjiCountResult.error.message);
   if (vocabCountResult.error) throw new Error(vocabCountResult.error.message);
+  if (userFlagsResult.error) throw new Error(userFlagsResult.error.message);
 
   const kanjiRemaining = settings.study_kanji
     ? Math.max(settings.new_kanji_per_day - (kanjiCountResult.count ?? 0), 0)
@@ -115,5 +117,6 @@ export async function fetchStudyQueue(
     new_kanji_to_introduce: newKanjiToIntroduce,
     new_vocab_to_introduce: vocabCandidatesResult.data ?? [],
     next_due_at: nextDue.data.next_due_at,
+    undo_disabled: userFlagsResult.data?.undo_disabled ?? false,
   };
 }

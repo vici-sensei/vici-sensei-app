@@ -23,12 +23,24 @@ function AuthCallbackInner() {
     // generic top-level `error` bucket and the (less predictable) human description.
     // A switch attempt happens while already authenticated, so route its failures back to
     // Settings instead of bouncing an already-logged-in user out to /login.
-    const errorCode =
-      searchParams.get("error_code") ?? searchParams.get("error_description") ?? searchParams.get("error");
+    const errorCodeParam = searchParams.get("error_code");
+    const errorDescription = searchParams.get("error_description");
+    const errorCode = errorCodeParam ?? errorDescription ?? searchParams.get("error");
     if (errorCode) {
       supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
-          router.replace(`/settings/profile?switchError=${encodeURIComponent(errorCode)}`);
+          // GoTrue reuses identity_already_exists for two different situations, distinguishable
+          // only by error_description: re-picking the Google account you already have linked
+          // ("Identity is already linked") vs one already linked to a different Supabase user
+          // ("Identity is already linked to another user"). Surface the former as its own code
+          // so Settings can show "you're already using that account" instead of a false
+          // "used by another profile" warning.
+          const isOwnIdentity =
+            errorCodeParam === "identity_already_exists" &&
+            !!errorDescription &&
+            !errorDescription.toLowerCase().includes("another user");
+          const switchError = isOwnIdentity ? "identity_already_own_account" : errorCode;
+          router.replace(`/settings/profile?switchError=${encodeURIComponent(switchError)}`);
         } else {
           router.replace("/login?error=auth_callback_failed");
         }

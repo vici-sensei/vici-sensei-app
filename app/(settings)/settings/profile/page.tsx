@@ -1,48 +1,19 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useUserProfile } from "@/lib/client-data/userProfile";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { useUserProfileContext } from "@/lib/client-data/UserProfileContext";
 import { ProfileSettingsForm } from "./ProfileSettingsForm";
 
 export default function SettingsProfilePage() {
   const { user } = useAuth();
-  const { data: profile, status, refetch } = useUserProfile(user);
+  const { profile, refetch } = useUserProfileContext();
+
+  if (!user) return null;
 
   return (
     <div>
-      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Profile</h2>
-      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">Update how your name and avatar appear in the app.</p>
-
-      {status === "loading" || !profile || !user ? (
-        <ProfileCardSkeleton />
-      ) : (
-        <ProfileSettingsForm initial={profile} userId={user.id} onSaved={refetch} />
-      )}
-    </div>
-  );
-}
-
-function ProfileCardSkeleton() {
-  return (
-    <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
-      <div className="mb-6.5 flex flex-col items-center gap-4 md:flex-row md:gap-5">
-        <Skeleton className="h-40 w-40 shrink-0 rounded-2xl" />
-        <div className="w-full md:flex-1">
-          <Skeleton className="mb-2 h-3.5 w-20" />
-          <Skeleton className="h-[46px] w-full rounded-lg" />
-          <Skeleton className="mt-1.5 h-3 w-28" />
-        </div>
-      </div>
-      <div className="mb-6.5">
-        <Skeleton className="mb-2 h-3.5 w-16" />
-        <Skeleton className="h-[46px] w-full rounded-lg" />
-      </div>
-      <div>
-        <Skeleton className="mb-2 h-3.5 w-14" />
-        <Skeleton className="h-[46px] w-full rounded-lg" />
-        <Skeleton className="mt-1.5 h-3 w-64" />
-      </div>
+      <h2 className="mb-6.5 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Profile</h2>
+      <ProfileSettingsForm initial={profile} userId={user.id} onSaved={refetch} />
     </div>
   );
 }

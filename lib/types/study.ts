@@ -65,6 +65,8 @@ export interface StudyQueueResponse {
   new_kanji_to_introduce: NewKanjiCandidate[];
   new_vocab_to_introduce: NewVocabCandidate[];
   next_due_at: string | null;
+  /** Manually flagged accounts (see 20260815_undo_disabled_flag.sql) lose the Undo button on /study. */
+  undo_disabled: boolean;
 }
 
 export interface WeeklyActivityDay {
