@@ -154,7 +154,6 @@ export function LeaderboardList({
                     />
                   ) : null}
                   {entry.display_name?.trim() || "Anonymous user"}
-                  {isViewer ? <span className="ml-1.5 text-[0.75rem] font-semibold text-accent-red">(you)</span> : null}
                 </p>
               </div>
               <div className="shrink-0 text-[0.92rem] font-extrabold tabular-nums text-white">

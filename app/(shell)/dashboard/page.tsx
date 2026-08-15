@@ -169,7 +169,7 @@ function StatCards() {
         >
           {stats.retention_rate != null ? `${Math.round(stats.retention_rate * 100)}%` : "N/A"}
         </div>
-        <div className="text-sm font-semibold text-text-muted">Retention (30d)</div>
+        <div className="text-sm font-semibold text-text-muted">Accuracy (30d)</div>
       </GlassCard>
     </div>
   );

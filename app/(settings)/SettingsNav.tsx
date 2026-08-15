@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { FaBook, FaUser, FaCreditCard, FaTriangleExclamation } from "react-icons/fa6";
 import { NavItem } from "@/app/components/shell/NavItem";
 import { navBarClasses } from "@/app/components/shell/navBarClasses";
+import { useKeyboardOpen } from "@/lib/useKeyboardOpen";
 import { useViewportHeight } from "@/lib/useViewportHeight";
 
 interface Item {
@@ -42,10 +43,11 @@ const ITEMS: Item[] = [
 
 export function SettingsNav() {
   const pathname = usePathname();
+  const keyboardOpen = useKeyboardOpen();
   useViewportHeight();
 
   return (
-    <nav data-shell-navbar className={navBarClasses}>
+    <nav data-shell-navbar className={navBarClasses} style={keyboardOpen ? { display: "none" } : undefined}>
       {ITEMS.map((item) => (
         <NavItem
           key={item.href}

@@ -1,11 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import { FaArrowLeft, FaToriiGate } from "react-icons/fa6";
 import type { UserProfile } from "@/lib/types";
+import { useKeyboardOpen } from "@/lib/useKeyboardOpen";
 import { ProfileMenu } from "./ProfileMenu";
 
 export function Header({ user, showBack = false }: { user: UserProfile; showBack?: boolean }) {
+  const keyboardOpen = useKeyboardOpen();
+
   return (
-    <header className="sticky top-0 z-50 relative flex h-17 items-center justify-between border-b border-border-soft bg-bg-main/85 px-7 backdrop-blur-[12px]">
+    <header
+      className="sticky top-0 z-50 relative flex h-17 items-center justify-between border-b border-border-soft bg-bg-main/85 px-7 backdrop-blur-[12px]"
+      style={keyboardOpen ? { display: "none" } : undefined}
+    >
       <Link
         href="/dashboard"
         aria-hidden={!showBack}
