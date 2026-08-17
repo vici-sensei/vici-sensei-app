@@ -84,6 +84,14 @@ export function ProfileSettingsForm({
   const [countryStatus, setCountryStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [avatarUrl, setAvatarUrl] = useState(initial.avatar_url ?? "");
   const [avatarFailed, setAvatarFailed] = useState(false);
+
+  // `initial` can still be loading (or get refetched) after this component has
+  // already mounted with a stale/empty value — resync instead of trusting the
+  // one-time useState initializer, and give a fresh URL a chance to load again.
+  useEffect(() => {
+    setAvatarUrl(initial.avatar_url ?? "");
+    setAvatarFailed(false);
+  }, [initial.avatar_url]);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
