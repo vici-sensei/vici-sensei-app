@@ -1,15 +1,15 @@
 "use client";
 
 import type { DueCard, Rating } from "@/lib/types";
-import { checkKanjiMeaningAnswer } from "@/lib/study/kanjiMeaningMatch";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
-import { useTypedReviewCard } from "./useTypedReviewCard";
+import { useVocabMeaningReviewCard } from "./useVocabMeaningReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
 import { Accent } from "./Accent";
 import { AnswerForm } from "./AnswerForm";
 import { MeaningList } from "./MeaningList";
 import { TokenDiffList } from "./TokenDiffList";
+import { ConfirmedAnswersList } from "./ConfirmedAnswersList";
 
 interface Props {
   card: DueCard;
@@ -19,13 +19,10 @@ interface Props {
 }
 
 export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableChange }: Props) {
-  const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
-    card,
-    disabled,
-    onRate,
-    (input) => checkKanjiMeaningAnswer(input, card.all_word_meanings ?? card.word_meanings ?? []),
-    onCancelableChange
-  );
+  const { answer, setAnswer, result, revealed, confirmedAlternates, handleCheck, handleRate, handleContinue } =
+    useVocabMeaningReviewCard(card, disabled, onRate, onCancelableChange);
+
+  const askingForAnother = confirmedAlternates.length > 0 && !revealed;
 
   return (
     <ReviewCardShell
@@ -37,9 +34,15 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
         </CardHeading>
       }
       subtitle={
-        <>
-          What does this <Accent accent="orange">word mean</Accent>?
-        </>
+        askingForAnother ? (
+          <>
+            What <Accent accent="orange">other meaning</Accent> does this word have?
+          </>
+        ) : (
+          <>
+            What does this <Accent accent="orange">word mean</Accent>?
+          </>
+        )
       }
       revealed={revealed}
       correct={result?.correct ?? false}
@@ -48,21 +51,25 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
       onRate={handleRate}
       onContinue={handleContinue}
       answerForm={
-        <AnswerForm
-          answer={answer}
-          onAnswerChange={setAnswer}
-          onSubmit={handleCheck}
-          placeholder="Type a meaning…"
-          disabled={disabled}
-          accent="orange"
-        />
+        <div className="flex flex-col items-center gap-5">
+          <ConfirmedAnswersList answers={confirmedAlternates} />
+          <AnswerForm
+            answer={answer}
+            onAnswerChange={setAnswer}
+            onSubmit={handleCheck}
+            placeholder="Type a meaning…"
+            disabled={disabled}
+            accent="orange"
+          />
+        </div>
       }
       revealContent={
         result && (
-          <>
+          <div className="flex flex-col items-center gap-3">
+            <ConfirmedAnswersList answers={confirmedAlternates} subdued />
             <MeaningList meanings={card.word_meanings ?? []} matchedMeanings={result.matchedMeanings} correct={result.correct} />
             {!result.correct && <TokenDiffList tokens={result.tokens} />}
-          </>
+          </div>
         )
       }
     />

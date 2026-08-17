@@ -2,14 +2,14 @@
 
 import type { DueCard, Rating } from "@/lib/types";
 import { FaCheck } from "react-icons/fa6";
-import { checkKanjiReadingAnswer } from "@/lib/study/kanjiReadingMatch";
 import { renderTargetWord } from "@/lib/study/furigana";
-import { useTypedReviewCard } from "./useTypedReviewCard";
+import { useKanjiReadingReviewCard } from "./useKanjiReadingReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
 import { Accent } from "./Accent";
 import { AnswerForm } from "./AnswerForm";
 import { TokenDiffList } from "./TokenDiffList";
+import { ConfirmedAnswersList } from "./ConfirmedAnswersList";
 
 interface Props {
   card: DueCard;
@@ -19,19 +19,10 @@ interface Props {
 }
 
 export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableChange }: Props) {
-  const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
-    card,
-    disabled,
-    onRate,
-    (input) =>
-      checkKanjiReadingAnswer(
-        input,
-        card.kana_reading,
-        card.romaji_reading,
-        [...(card.other_readings ?? []), ...(card.all_word_readings ?? [])]
-      ),
-    onCancelableChange
-  );
+  const { answer, setAnswer, result, revealed, confirmedAlternates, handleCheck, handleRate, handleContinue } =
+    useKanjiReadingReviewCard(card, disabled, onRate, onCancelableChange);
+
+  const askingForAnother = confirmedAlternates.length > 0 && !revealed;
 
   return (
     <ReviewCardShell
@@ -45,9 +36,15 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
         </CardHeading>
       }
       subtitle={
-        <>
-          How is this <Accent accent="blue">word read</Accent>?
-        </>
+        askingForAnother ? (
+          <>
+            What <Accent accent="blue">other reading</Accent> does this word have?
+          </>
+        ) : (
+          <>
+            How is this <Accent accent="blue">word read</Accent>?
+          </>
+        )
       }
       revealed={revealed}
       correct={result?.correct ?? false}
@@ -56,18 +53,22 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
       onRate={handleRate}
       onContinue={handleContinue}
       answerForm={
-        <AnswerForm
-          answer={answer}
-          onAnswerChange={setAnswer}
-          onSubmit={handleCheck}
-          placeholder="Type the reading…"
-          disabled={disabled}
-          accent="blue"
-        />
+        <div className="flex flex-col items-center gap-5">
+          <ConfirmedAnswersList answers={confirmedAlternates} />
+          <AnswerForm
+            answer={answer}
+            onAnswerChange={setAnswer}
+            onSubmit={handleCheck}
+            placeholder="Type the reading…"
+            disabled={disabled}
+            accent="blue"
+          />
+        </div>
       }
       revealContent={
         result && (
-          <>
+          <div className="flex flex-col items-center gap-3">
+            <ConfirmedAnswersList answers={confirmedAlternates} subdued />
             {!(!result.correct && result.targetDiff.map((c) => c.char).join("") === card.kana_reading) && (
               <div className="flex items-center justify-center gap-2 text-[1.3rem] font-bold text-white">
                 {result.correct && <FaCheck className="text-accent-green" />}
@@ -79,7 +80,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
                 tokens={[{ raw: "", correct: false, userDiff: result.userDiff, targetDiff: result.targetDiff }]}
               />
             )}
-          </>
+          </div>
         )
       }
     />

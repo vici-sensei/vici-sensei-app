@@ -130,3 +130,78 @@ export function checkKanjiMeaningAnswer(input: string, acceptedMeanings: string[
 
   return { correct: results.every((r) => r.correct), tokens: results, matchedMeanings };
 }
+
+export type VocabMeaningOutcome =
+  | { kind: "target"; result: MeaningCheckResult; siblingMeanings: string[] }
+  | { kind: "alternate"; meanings: string[] }
+  | { kind: "wrong"; result: MeaningCheckResult; siblingMeanings: string[] };
+
+/**
+ * public.vocabulary.word isn't unique -- the same written word can have several
+ * rows with different senses, and get_due_cards.all_word_meanings aggregates
+ * meanings across every row sharing this row's (word, kana_reading) pair.
+ * Typing one of those sibling meanings is a real, valid sense of the word, but
+ * not the one this card is testing, so it's reported as "alternate" rather than
+ * accepted outright -- the caller should prompt for another meaning instead of
+ * ending the review. A match against this row's own word_meanings ("target")
+ * ends the review as correct, even if the answer also names a sibling meaning
+ * alongside it.
+ *
+ * This function only classifies a single answer -- it has no memory of sibling
+ * meanings confirmed by earlier answers in the same review, so "alternate" and
+ * "wrong" report the *matched meanings*, not a ready-to-display string. The
+ * caller (which does track what's already been confirmed) decides which of
+ * those meanings are actually new before displaying anything, so re-typing an
+ * already-confirmed meaning -- alone or grouped with another already-confirmed
+ * one -- doesn't add a duplicate checkmark.
+ */
+export function checkVocabMeaningAnswer(input: string, wordMeanings: string[], allWordMeanings: string[]): VocabMeaningOutcome {
+  const combinedResult = checkKanjiMeaningAnswer(input, allWordMeanings);
+  if (!combinedResult.correct) {
+    // At least one typed token isn't a valid meaning anywhere. A token that matches
+    // nothing gets diffed against this row's own meanings, so the suggestion points
+    // at what's actually being tested. A token that matches only a sibling row's
+    // meaning is still a genuinely valid answer -- rather than diffing it too (or
+    // showing it as a plain correct token here), its meaning is reported via
+    // siblingMeanings, so the caller can surface it the same way a standalone
+    // sibling answer would: a confirmed checkmark above the target, not a token
+    // in this list.
+    const targetResult = checkKanjiMeaningAnswer(input, wordMeanings);
+    const tokens: TokenResult[] = [];
+    const seenRaw = new Set<string>();
+    combinedResult.tokens.forEach((token, i) => {
+      const targetToken = targetResult.tokens[i] ?? token;
+      const matchesOnlySibling = !targetToken.correct && token.correct;
+      if (matchesOnlySibling) return;
+      // Typing the same token twice (e.g. "a, a") would otherwise produce two
+      // identical boxes here -- same raw text always means the same diff/closest
+      // guess, so only the first occurrence is worth showing.
+      const key = targetToken.raw.trim().toLowerCase();
+      if (seenRaw.has(key)) return;
+      seenRaw.add(key);
+      tokens.push(targetToken);
+    });
+
+    const siblingMeanings = combinedResult.matchedMeanings
+      .filter((m) => !wordMeanings.includes(m.meaning))
+      .map((m) => m.meaning);
+
+    return { kind: "wrong", result: { correct: false, tokens, matchedMeanings: targetResult.matchedMeanings }, siblingMeanings };
+  }
+
+  // Every typed token is a valid meaning somewhere. If any of them is one of this
+  // row's own meanings, the answer demonstrates the tested sense -- end the review,
+  // even if another token alongside it only matches a sibling row's meaning. That
+  // sibling meaning is still reported (as siblingMeanings), so the caller shows it
+  // the same confirmed-checkmark way a standalone sibling answer would, instead of
+  // silently dropping it just because the review happened to end on this answer.
+  const matchesTarget = combinedResult.matchedMeanings.some((m) => wordMeanings.includes(m.meaning));
+  if (matchesTarget) {
+    const siblingMeanings = combinedResult.matchedMeanings
+      .filter((m) => !wordMeanings.includes(m.meaning))
+      .map((m) => m.meaning);
+    return { kind: "target", result: combinedResult, siblingMeanings };
+  }
+
+  return { kind: "alternate", meanings: combinedResult.matchedMeanings.map((m) => m.meaning) };
+}
