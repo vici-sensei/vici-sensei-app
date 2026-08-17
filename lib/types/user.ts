@@ -6,6 +6,7 @@ export interface UserProfile {
   display_name: string | null;
   avatar_url: string | null;
   country: string | null;
+  show_country_on_leaderboard: boolean;
   is_premium: boolean;
   stripe_customer_id: string | null;
   created_at: string;

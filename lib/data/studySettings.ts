@@ -7,7 +7,7 @@ export async function fetchStudySettings(
 ): Promise<StudySettings | null> {
   const { data, error } = await supabase
     .from("user_study_settings")
-    .select("*")
+    .select("*, leaderboard_alias:leaderboard_aliases(adjective, noun)")
     .eq("user_id", userId)
     .maybeSingle();
 

@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { LevelGrid, enabledLevelsFor } from "@/app/components/ui/LevelGrid";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { updateStudySettings } from "@/lib/client-data/studySettings";
+import { updateStudySettings, rerollLeaderboardAlias } from "@/lib/client-data/studySettings";
 import { useToast } from "@/app/components/ui/Toast";
-import type { StudySettings, StudySettingsPatch } from "@/lib/types";
+import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 import { mostAdvancedLevel, type JlptLevel } from "@/lib/srs/constants";
 import { FaLink } from "react-icons/fa6";
+import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
 
 const REVIEWS_STEP = 10;
 const AUTOSAVE_DELAY_MS = 500;
@@ -21,7 +22,7 @@ type Snapshot = {
   includeLowerLevels: boolean;
   studyKanji: boolean;
   studyVocabulary: boolean;
-  leaderboardOptOut: boolean;
+  leaderboardAnonymous: boolean;
 };
 
 function snapshotFrom(settings: StudySettings): Snapshot {
@@ -33,7 +34,7 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     includeLowerLevels: settings.include_lower_levels,
     studyKanji: settings.study_kanji,
     studyVocabulary: settings.study_vocabulary,
-    leaderboardOptOut: settings.leaderboard_opt_out,
+    leaderboardAnonymous: settings.leaderboard_anonymous,
   };
 }
 
@@ -46,7 +47,7 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
     a.includeLowerLevels === b.includeLowerLevels &&
     a.studyKanji === b.studyKanji &&
     a.studyVocabulary === b.studyVocabulary &&
-    a.leaderboardOptOut === b.leaderboardOptOut
+    a.leaderboardAnonymous === b.leaderboardAnonymous
   );
 }
 
@@ -61,8 +62,17 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
   const [includeLowerLevels, setIncludeLowerLevels] = useState(initial.include_lower_levels);
   const [studyKanji, setStudyKanji] = useState(initial.study_kanji);
   const [studyVocabulary, setStudyVocabulary] = useState(initial.study_vocabulary);
-  const [leaderboardOptOut, setLeaderboardOptOut] = useState(initial.leaderboard_opt_out);
+  const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous);
+  const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(initial.leaderboard_alias);
   const [saved, setSaved] = useState<Snapshot>(() => snapshotFrom(initial));
+
+  // A background refetch (any autosave calls onSaved -> refetch) hands us a fresh
+  // `initial` — resync the alias from it the same way ProfileSettingsForm resyncs
+  // avatarUrl, since the alias can also change server-side (the assignment trigger)
+  // independent of whatever patch this component itself just sent.
+  useEffect(() => {
+    setLeaderboardAlias(initial.leaderboard_alias);
+  }, [initial.leaderboard_alias]);
 
   function adjustKanji(delta: number) {
     const next = Math.max(1, newKanjiPerDay + delta);
@@ -98,7 +108,16 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
     setIncludeLowerLevels(snapshot.includeLowerLevels);
     setStudyKanji(snapshot.studyKanji);
     setStudyVocabulary(snapshot.studyVocabulary);
-    setLeaderboardOptOut(snapshot.leaderboardOptOut);
+    setLeaderboardAnonymous(snapshot.leaderboardAnonymous);
+  }
+
+  async function handleReroll() {
+    try {
+      const alias = await rerollLeaderboardAlias();
+      setLeaderboardAlias(alias);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Could not reroll your name.", "error");
+    }
   }
 
   // Autosave a beat after the user stops adjusting settings, batching rapid
@@ -115,7 +134,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
       includeLowerLevels,
       studyKanji,
       studyVocabulary,
-      leaderboardOptOut,
+      leaderboardAnonymous,
     };
     if (sameSnapshot(current, saved)) return;
 
@@ -128,11 +147,12 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
         include_lower_levels: current.includeLowerLevels,
         study_kanji: current.studyKanji,
         study_vocabulary: current.studyVocabulary,
-        leaderboard_opt_out: current.leaderboardOptOut,
+        leaderboard_anonymous: current.leaderboardAnonymous,
       };
       try {
-        await updateStudySettings(user.id, body);
+        const updated = await updateStudySettings(user.id, body);
         setSaved(current);
+        setLeaderboardAlias(updated.leaderboard_alias);
         onSaved();
       } catch (err) {
         showToast(err instanceof ApiError ? err.message : "Could not save your settings.", "error");
@@ -150,7 +170,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
     includeLowerLevels,
     studyKanji,
     studyVocabulary,
-    leaderboardOptOut,
+    leaderboardAnonymous,
     saved,
     user,
   ]);
@@ -276,21 +296,35 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
       <div className="mt-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
         <div className="flex items-center justify-between gap-5 py-1">
           <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Hide me from leaderboards</div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">Appear anonymously on leaderboard</div>
             <div className="text-sm text-text-muted">
-              Other students won&apos;t see you ranked on any leaderboard. You can still see your own stats.
+              Your rank stays visible, but with a random name, no photo, and no country flag.
             </div>
           </div>
           <label className="relative h-[26px] w-[46px] shrink-0">
             <input
               type="checkbox"
               className="peer h-0 w-0 opacity-0"
-              checked={leaderboardOptOut}
-              onChange={() => setLeaderboardOptOut(!leaderboardOptOut)}
+              checked={leaderboardAnonymous}
+              onChange={() => setLeaderboardAnonymous(!leaderboardAnonymous)}
             />
             <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 before:absolute before:left-[3px] before:top-[3px] before:h-5 before:w-5 before:rounded-full before:bg-white before:transition-transform before:duration-200 peer-checked:bg-accent-red peer-checked:before:translate-x-5" />
           </label>
         </div>
+
+        {leaderboardAnonymous ? (
+          <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+            <div>
+              <div className="mb-0.5 text-sm font-bold uppercase tracking-[0.6px] text-text-muted">
+                Your random name
+              </div>
+              <div className="text-[1.05rem] font-extrabold">
+                {leaderboardAlias ? `${leaderboardAlias.adjective} ${leaderboardAlias.noun}` : "…"}
+              </div>
+            </div>
+            <LeaderboardAliasDice onReroll={handleReroll} disabled={!leaderboardAlias} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import { fetchStudySettings } from "@/lib/data/studySettings";
 import { JLPT_LEVELS } from "@/lib/srs/constants";
 import { ApiError } from "@/lib/api/client";
 import type { JlptLevel } from "@/lib/srs/constants";
-import type { StudySettings, StudySettingsPatch } from "@/lib/types";
+import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 
 type Status = "loading" | "loaded" | "error";
 
@@ -70,11 +70,20 @@ export async function updateStudySettings(userId: string, patch: StudySettingsPa
     .from("user_study_settings")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("user_id", userId)
-    .select("*")
+    .select("*, leaderboard_alias:leaderboard_aliases(adjective, noun)")
     .single();
 
   if (error) throw new ApiError(500, error.message);
   return data;
+}
+
+/** Assigns a new random leaderboard alias to the current user (the settings page's dice button). */
+export async function rerollLeaderboardAlias(): Promise<LeaderboardAlias> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("reroll_leaderboard_alias").single();
+
+  if (error) throw new ApiError(500, error.message);
+  return data as LeaderboardAlias;
 }
 
 export async function completeOnboarding(userId: string, enabledLevels: JlptLevel[]): Promise<void> {

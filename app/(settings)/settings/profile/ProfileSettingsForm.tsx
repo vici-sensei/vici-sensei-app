@@ -5,9 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { UserIdentity } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
-import { updateDisplayName, updateCountry, uploadAvatar, removeAvatar } from "@/lib/client-data/userProfile";
+import {
+  updateDisplayName,
+  updateCountry,
+  updateShowCountryOnLeaderboard,
+  uploadAvatar,
+  removeAvatar,
+} from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
+import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { CountrySelect } from "@/app/components/ui/CountrySelect";
 import { AvatarCropModal } from "./AvatarCropModal";
@@ -82,6 +89,7 @@ export function ProfileSettingsForm({
   const [country, setCountry] = useState<string | null>(initial.country);
   const [savedCountry, setSavedCountry] = useState<string | null>(initial.country);
   const [countryStatus, setCountryStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [showCountryOnLeaderboard, setShowCountryOnLeaderboard] = useState(initial.show_country_on_leaderboard);
   const [avatarUrl, setAvatarUrl] = useState(initial.avatar_url ?? "");
   const [avatarFailed, setAvatarFailed] = useState(false);
 
@@ -94,6 +102,7 @@ export function ProfileSettingsForm({
   }, [initial.avatar_url]);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
+  const [confirmingRemoveAvatar, setConfirmingRemoveAvatar] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -170,6 +179,18 @@ export function ProfileSettingsForm({
     }
   }
 
+  async function handleShowCountryOnLeaderboardChange() {
+    const next = !showCountryOnLeaderboard;
+    setShowCountryOnLeaderboard(next);
+    try {
+      await updateShowCountryOnLeaderboard(userId, next);
+      onSaved();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Could not save your preference.", "error");
+      setShowCountryOnLeaderboard(!next);
+    }
+  }
+
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -211,9 +232,8 @@ export function ProfileSettingsForm({
   }
 
   async function handleRemoveAvatar() {
-    if (!window.confirm("Remove your profile photo?")) return;
-
     const previousAvatarUrl = avatarUrl;
+    setConfirmingRemoveAvatar(false);
     setRemovingAvatar(true);
     try {
       const updated = await removeAvatar(userId);
@@ -298,7 +318,7 @@ export function ProfileSettingsForm({
             {avatarUrl && !avatarFailed ? (
               <button
                 type="button"
-                onClick={handleRemoveAvatar}
+                onClick={() => setConfirmingRemoveAvatar(true)}
                 disabled={removingAvatar || uploadingAvatar}
                 aria-label="Remove profile photo"
                 className="absolute -bottom-2.5 -left-2.5 flex h-10 w-10 items-center justify-center rounded-full border border-border-soft bg-bg-cards text-text-muted shadow-[0_4px_10px_rgba(0,0,0,0.4)] transition-colors hover:text-accent-red disabled:cursor-not-allowed disabled:opacity-60"
@@ -370,6 +390,23 @@ export function ProfileSettingsForm({
             {countryStatus === "saved" && <FaCheck className="h-3 w-3 text-accent-green" />}
           </div>
           <CountrySelect id="profile-country" value={country} onChange={handleCountryChange} placement="auto" />
+          <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-border-soft bg-white/[0.02] px-3.5 py-3">
+            <div>
+              <div className="text-sm font-bold">Show country on leaderboard</div>
+              <div className="mt-0.5 text-[0.8rem] text-text-muted">
+                Display your flag next to your name on leaderboards.
+              </div>
+            </div>
+            <label className="relative h-[26px] w-[46px] shrink-0">
+              <input
+                type="checkbox"
+                className="peer h-0 w-0 opacity-0"
+                checked={showCountryOnLeaderboard}
+                onChange={handleShowCountryOnLeaderboardChange}
+              />
+              <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 before:absolute before:left-[3px] before:top-[3px] before:h-5 before:w-5 before:rounded-full before:bg-white before:transition-transform before:duration-200 peer-checked:bg-accent-red peer-checked:before:translate-x-5" />
+            </label>
+          </div>
         </div>
         <div>
           <label className={fieldLabel}>Linked to Google</label>
@@ -424,6 +461,17 @@ export function ProfileSettingsForm({
           outputSize={AVATAR_TARGET_SIZE}
           onCancel={() => setCropFile(null)}
           onCropped={handleAvatarCropped}
+        />
+      )}
+
+      {confirmingRemoveAvatar && (
+        <ConfirmDialog
+          title="Remove profile photo?"
+          confirmLabel="Remove"
+          danger
+          loading={removingAvatar}
+          onConfirm={handleRemoveAvatar}
+          onCancel={() => setConfirmingRemoveAvatar(false)}
         />
       )}
     </div>

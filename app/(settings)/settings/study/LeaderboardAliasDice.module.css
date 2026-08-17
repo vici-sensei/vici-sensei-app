@@ -1,0 +1,82 @@
+/* 3D die geometry (perspective, preserve-3d, translateZ, pip grid) — the one
+   part of this component Tailwind utilities can't express. Button chrome
+   (size, border, hover) is plain Tailwind on the <button> in the .tsx file. */
+
+.dieScene {
+  width: 36px;
+  height: 36px;
+  perspective: 200px;
+}
+
+.dieFloat {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 85%;
+}
+
+.dieCube {
+  width: 28px;
+  height: 28px;
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  transform-style: preserve-3d;
+}
+
+.dieFace {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 17%;
+  background: linear-gradient(155deg, #ff7181 0%, #e23b4d 55%, #c22638 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    inset 0 -7px 10px rgba(0, 0, 0, 0.28),
+    inset 0 4px 6px rgba(255, 255, 255, 0.2);
+}
+.faceFront { transform: translateZ(14px); }
+.faceBack { transform: rotateY(180deg) translateZ(14px); }
+.faceRight { transform: rotateY(90deg) translateZ(14px); }
+.faceLeft { transform: rotateY(-90deg) translateZ(14px); }
+.faceTop { transform: rotateX(90deg) translateZ(14px); }
+.faceBottom { transform: rotateX(-90deg) translateZ(14px); }
+
+.pip {
+  aspect-ratio: 1;
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+  border-radius: 50%;
+  background: #fff9f2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 -1px 1px rgba(0, 0, 0, 0.12);
+}
+.posC { grid-column: 2; grid-row: 2; }
+.posTl { grid-column: 1; grid-row: 1; }
+.posTr { grid-column: 3; grid-row: 1; }
+.posBl { grid-column: 1; grid-row: 3; }
+.posBr { grid-column: 3; grid-row: 3; }
+.posMl { grid-column: 1; grid-row: 2; }
+.posMr { grid-column: 3; grid-row: 2; }
+
+/* Toss + squash on the roll — kept separate from the cube's own rotation
+   (driven imperatively via the Web Animations API in the component) so the
+   two never fight over the same `transform` property. */
+.bounceAnim {
+  animation: bounce-toss 0.7s cubic-bezier(0.3, 0.15, 0.25, 1) 1;
+}
+@keyframes bounce-toss {
+  0% { transform: translateY(0) scale(1, 1); }
+  8% { transform: translateY(1px) scale(1.12, 0.84); }
+  32% { transform: translateY(-34px) scale(0.92, 1.08); }
+  58% { transform: translateY(-38px) scale(0.94, 1.06); }
+  78% { transform: translateY(1px) scale(1.15, 0.82); }
+  90% { transform: translateY(-6px) scale(0.97, 1.04); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bounceAnim { animation: none; }
+}

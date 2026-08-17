@@ -52,7 +52,9 @@ export async function updateDisplayName(userId: string, displayName: string): Pr
     .from("users")
     .update({ display_name: displayName })
     .eq("id", userId)
-    .select("email, display_name, avatar_url, country, is_premium, stripe_customer_id, created_at")
+    .select(
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+    )
     .single();
 
   if (error) throw new ApiError(500, error.message);
@@ -65,7 +67,24 @@ export async function updateCountry(userId: string, country: string): Promise<Us
     .from("users")
     .update({ country })
     .eq("id", userId)
-    .select("email, display_name, avatar_url, country, is_premium, stripe_customer_id, created_at")
+    .select(
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+    )
+    .single();
+
+  if (error) throw new ApiError(500, error.message);
+  return data;
+}
+
+export async function updateShowCountryOnLeaderboard(userId: string, show: boolean): Promise<UserProfile> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("users")
+    .update({ show_country_on_leaderboard: show })
+    .eq("id", userId)
+    .select(
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+    )
     .single();
 
   if (error) throw new ApiError(500, error.message);
@@ -99,7 +118,9 @@ export async function uploadAvatar(userId: string, file: Blob): Promise<UserProf
     .from("users")
     .update({ avatar_url: avatarUrl })
     .eq("id", userId)
-    .select("email, display_name, avatar_url, country, is_premium, stripe_customer_id, created_at")
+    .select(
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+    )
     .single();
 
   if (error) throw new ApiError(500, error.message);
@@ -118,7 +139,9 @@ export async function removeAvatar(userId: string): Promise<UserProfile> {
     .from("users")
     .update({ avatar_url: null })
     .eq("id", userId)
-    .select("email, display_name, avatar_url, country, is_premium, stripe_customer_id, created_at")
+    .select(
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+    )
     .single();
 
   if (error) throw new ApiError(500, error.message);
