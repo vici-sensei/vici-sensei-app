@@ -38,7 +38,7 @@ function Avatar({
           <FaUser className="h-[45%] w-[45%]" />
         )}
       </div>
-      {user.is_premium ? <ProBadge className="-top-1.5 -right-1.5" /> : null}
+      {user.is_premium ? <ProBadge className="-top-2.5 -right-1.5" /> : null}
     </div>
   );
 }

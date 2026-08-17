@@ -36,14 +36,15 @@ export default function LeaderboardPage() {
       </p>
 
       <LeaderboardTabs active={metric} onChange={handleMetricChange} />
-      {metric === "streak" ? (
-        <p className="mb-5.5 text-sm text-text-muted">Current streak — this one doesn&apos;t reset by period.</p>
-      ) : (
+      {metric === "streak" ? null : (
         <>
           <LeaderboardPeriodSelector active={period} onChange={handlePeriodChange} />
           <LeaderboardCountdown period={period} clockOffsetMs={clockOffsetMs} />
         </>
       )}
+      {metric === "xp" ? (
+        <p className="mb-5.5 text-sm text-text-muted">Earn 10 XP for every correct review, 2 XP even if you miss one, and 25 XP for each new card you start.</p>
+      ) : null}
       <LeaderboardList entries={data} status={status} metric={metric} viewerId={user?.id} />
     </div>
   );

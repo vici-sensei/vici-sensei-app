@@ -20,9 +20,9 @@ function isSaturday(date: string) {
 // Written as complete, literal class strings (not built up at runtime) so Tailwind's
 // content scanner can find and generate them -- it only sees the source text, not the
 // evaluated result of a template expression.
-const SWAY_CLASS = "origin-bottom animate-[vici-flame-sway_2.2s_ease-in-out_infinite_alternate]";
+const SWAY_CLASS = "origin-bottom animate-[vici-flame-sway_0.6s_ease-in-out_infinite_alternate]";
 const SWAY_AND_GLOW_CLASS =
-  "origin-bottom animate-[vici-flame-sway_2.2s_ease-in-out_infinite_alternate,vici-flame-glow_2s_ease-in-out_infinite]";
+  "origin-bottom animate-[vici-flame-sway_0.6s_ease-in-out_infinite_alternate,vici-flame-glow_1s_ease-in-out_infinite]";
 
 interface WeekStreakProps {
   /** Raw per-day activity for the last 7 days, oldest first, ending today. */
