@@ -93,6 +93,11 @@ export function useStudyQueue() {
   const sessionIdRef = useRef<number | null>(null);
   const endingRef = useRef(false);
   const hasProcessedAnyRef = useRef(false);
+  // The review_logs id of the most recently *confirmed-submitted* review from this tab, or
+  // null while a submit is in flight/failed. Undo reads this (after the mutation chain has
+  // caught it up) instead of asking the server to guess "the latest review" -- that guess can
+  // pick the wrong row under multi-tab use or a submit/undo race, duplicating cards in the queue.
+  const lastReviewLogIdRef = useRef<number | null>(null);
   // Background mutations (review/introduce/undo) are chained through this instead of
   // awaited by the UI, so the next card can show immediately while still guaranteeing
   // the server sees them in the order the user actually answered — important for undo,
@@ -221,18 +226,36 @@ export function useStudyQueue() {
   const rate = useCallback(
     (card: DueCard, rating: Rating) => {
       hasProcessedAnyRef.current = true;
+      // Invalidated until the submit below actually confirms an id -- guards Undo against
+      // firing on a stale id from an earlier review while this one is still in flight.
+      lastReviewLogIdRef.current = null;
       setLastReview({ card });
       setCompletedCount((c) => c + 1);
       setQueue((prev) => prev.filter((i) => i.key !== reviewKey(card)));
 
       enqueueMutation(async () => {
         try {
-          await submitReviewApi(reviewBody(card, rating));
+          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating));
+          lastReviewLogIdRef.current = reviewLogId;
         } catch (err) {
           setCompletedCount((c) => Math.max(0, c - 1));
           setLastReview((prev) => (prev?.card === card ? null : prev));
-          setQueue((prev) => [{ key: reviewKey(card), kind: "review", card }, ...prev]);
-          showToast(err instanceof ApiError ? err.message : "Could not submit your answer. Please try again.", "error");
+          // A 400/404 means the server rejected this specific card -- its progress row was
+          // suspended, reset, or deleted (e.g. from /browse/ in another tab) since it was
+          // queued here. Retrying would fail identically forever, so drop the card instead of
+          // re-queuing it -- otherwise it re-fails every time it comes back up and the session
+          // can never end if it was the last card left. Anything else (network blip, 500) is
+          // presumed transient and worth retrying.
+          const isStale = err instanceof ApiError && (err.status === 400 || err.status === 404);
+          if (!isStale) setQueue((prev) => [{ key: reviewKey(card), kind: "review", card }, ...prev]);
+          showToast(
+            isStale
+              ? "This card changed elsewhere and was skipped."
+              : err instanceof ApiError
+                ? err.message
+                : "Could not submit your answer. Please try again.",
+            "error"
+          );
         }
       });
     },
@@ -287,12 +310,30 @@ export function useStudyQueue() {
     // Chained behind rate()/introduceKanji()/introduceVocab() so the review being undone
     // has definitely landed on the server before the undo request fires.
     enqueueMutation(async () => {
+      // Read only now that the chain has caught up: if the submit this undo targets failed,
+      // or a previous queued undo already consumed it, this is null and there is nothing to
+      // undo -- calling the API anyway would fall back to "undo the latest review" server-side
+      // and silently revert an unrelated card while re-queuing this one a second time.
+      const reviewLogId = lastReviewLogIdRef.current;
+      if (reviewLogId == null) {
+        setUndoPending(false);
+        return;
+      }
+
       try {
-        await undoReviewApi();
+        await undoReviewApi(reviewLogId);
+        lastReviewLogIdRef.current = null;
         setCompletedCount((c) => Math.max(0, c - 1));
         setQueue((prev) => [{ key: reviewKey(toUndo.card), kind: "review", card: toUndo.card }, ...prev]);
         setLastReview((prev) => (prev === toUndo ? null : prev));
       } catch (err) {
+        // A 404 means this review is already undone (e.g. from another tab) -- there's
+        // nothing left to undo, so clear it instead of leaving an Undo pill that would
+        // just fail the same way on every retry.
+        if (err instanceof ApiError && err.status === 404) {
+          lastReviewLogIdRef.current = null;
+          setLastReview((prev) => (prev === toUndo ? null : prev));
+        }
         showToast(err instanceof ApiError ? err.message : "Could not undo your last answer.", "error");
       } finally {
         setUndoPending(false);

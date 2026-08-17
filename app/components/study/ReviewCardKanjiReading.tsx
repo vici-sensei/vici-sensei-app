@@ -53,7 +53,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
       onRate={handleRate}
       onContinue={handleContinue}
       answerForm={
-        <div className="flex flex-col items-center gap-5">
+        <div className="flex flex-col gap-5">
           <ConfirmedAnswersList answers={confirmedAlternates} />
           <AnswerForm
             answer={answer}
@@ -67,7 +67,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
       }
       revealContent={
         result && (
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col gap-3">
             <ConfirmedAnswersList answers={confirmedAlternates} subdued />
             {!(!result.correct && result.targetDiff.map((c) => c.char).join("") === card.kana_reading) && (
               <div className="flex items-center justify-center gap-2 text-[1.3rem] font-bold text-white">

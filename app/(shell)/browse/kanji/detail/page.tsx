@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useKanjiDetail } from "@/lib/client-data/kanji";
 import { useKanjiProgress } from "@/lib/client-data/progress";
-import { optimisticCardUpdate } from "@/lib/client-data/cards";
 import { StatusPill } from "@/app/components/ui/StatusPill";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -144,9 +143,12 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                   id={kanji.id}
                   status={progress.meaning.status}
                   onOptimisticUpdate={(action) =>
-                    mutateProgress((prev) =>
-                      prev && prev.meaning ? { ...prev, meaning: { ...prev.meaning, ...optimisticCardUpdate(action) } } : prev
-                    )
+                    mutateProgress((prev) => {
+                      if (!prev) return prev;
+                      // Reset forgets the whole kanji server-side (see lib/data/cards.ts), readings included.
+                      if (action === "reset") return { ...prev, meaning: null, readings: [] };
+                      return prev.meaning ? { ...prev, meaning: { ...prev.meaning, status: "suspended" } } : prev;
+                    })
                   }
                   onSuccess={refetchProgress}
                   onError={refetchProgress}
@@ -175,16 +177,14 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                   id={r.kanji_word_id}
                   status={r.status}
                   onOptimisticUpdate={(action) =>
-                    mutateProgress((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            readings: prev.readings.map((reading) =>
-                              reading.id === r.id ? { ...reading, ...optimisticCardUpdate(action) } : reading
-                            ),
-                          }
-                        : prev
-                    )
+                    mutateProgress((prev) => {
+                      if (!prev) return prev;
+                      if (action === "reset") return { ...prev, readings: prev.readings.filter((reading) => reading.id !== r.id) };
+                      return {
+                        ...prev,
+                        readings: prev.readings.map((reading) => (reading.id === r.id ? { ...reading, status: "suspended" } : reading)),
+                      };
+                    })
                   }
                   onSuccess={refetchProgress}
                   onError={refetchProgress}

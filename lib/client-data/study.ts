@@ -4,7 +4,7 @@ import { fetchStudyQueue } from "@/lib/data/studyQueue";
 import { submitReview as submitReviewData, undoReview as undoReviewData } from "@/lib/data/reviews";
 import { startStudySession, endStudySession } from "@/lib/data/studySessions";
 import { introduceKanji as introduceKanjiData, introduceVocabulary as introduceVocabularyData } from "@/lib/data/introduce";
-import type { ReviewRequestBody, StudyQueueResponse, StudySessionEnd, StudySessionStart } from "@/lib/types";
+import type { ReviewRequestBody, StudyQueueResponse, StudySessionEnd, StudySessionStart, SubmitReviewResult } from "@/lib/types";
 
 async function requireUserId(): Promise<string> {
   const supabase = createClient();
@@ -22,10 +22,10 @@ export async function getStudyQueue(): Promise<StudyQueueResponse> {
   return fetchStudyQueue(supabase, userId, timezone);
 }
 
-export async function submitReview(input: ReviewRequestBody): Promise<void> {
+export async function submitReview(input: ReviewRequestBody): Promise<SubmitReviewResult> {
   const supabase = createClient();
   const userId = await requireUserId();
-  await submitReviewData(supabase, userId, input);
+  return submitReviewData(supabase, userId, input);
 }
 
 export async function undoReview(reviewLogId?: number): Promise<void> {

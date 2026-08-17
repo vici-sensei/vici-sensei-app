@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useVocabularyDetail } from "@/lib/client-data/vocabulary";
 import { useVocabularyProgress } from "@/lib/client-data/progress";
-import { optimisticCardUpdate } from "@/lib/client-data/cards";
 import { StatusPill } from "@/app/components/ui/StatusPill";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -113,7 +112,9 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
               type="vocab"
               id={word.id}
               status={progress.status}
-              onOptimisticUpdate={(action) => mutateProgress((prev) => (prev ? { ...prev, ...optimisticCardUpdate(action) } : prev))}
+              onOptimisticUpdate={(action) =>
+                mutateProgress((prev) => (action === "reset" ? null : prev ? { ...prev, status: "suspended" } : prev))
+              }
               onSuccess={refetchProgress}
               onError={refetchProgress}
             />

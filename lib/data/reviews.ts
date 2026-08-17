@@ -1,6 +1,6 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { EXERCISE_TYPES, type ExerciseType } from "@/lib/srs/constants";
-import type { ReviewRequestBody } from "@/lib/types";
+import type { ReviewRequestBody, SubmitReviewResult } from "@/lib/types";
 import { PROGRESS_TABLES } from "@/lib/srs/progressTables";
 import { applyReview } from "@/lib/srs/scheduler";
 import { ApiError } from "@/lib/api/client";
@@ -16,7 +16,7 @@ function validateReviewInput(input: ReviewInput): void {
   }
 }
 
-export async function submitReview(supabase: AppSupabaseClient, userId: string, input: ReviewInput): Promise<void> {
+export async function submitReview(supabase: AppSupabaseClient, userId: string, input: ReviewInput): Promise<SubmitReviewResult> {
   validateReviewInput(input);
   const { exercise_type, rating, user_answer } = input;
 
@@ -77,27 +77,33 @@ export async function submitReview(supabase: AppSupabaseClient, userId: string, 
     .limit(1)
     .maybeSingle();
 
-  const { error: logError } = await supabase.from("review_logs").insert({
-    user_id: userId,
-    session_id: openSession?.id ?? null,
-    exercise_type,
-    kanji_id: kanjiIdForLog,
-    word_id: wordIdForLog,
-    rating,
-    correct: rating >= 2,
-    user_answer: user_answer ?? null,
-    ease_factor_before: current.ease_factor,
-    ease_factor_after: updated.ease_factor,
-    interval_before: current.interval_days,
-    interval_after: updated.interval_days,
-    status_before: current.status,
-    repetitions_before: current.repetitions,
-    lapses_before: current.lapses,
-    learning_step_before: current.learning_step,
-    due_at_before: current.due_at,
-  });
+  const { data: log, error: logError } = await supabase
+    .from("review_logs")
+    .insert({
+      user_id: userId,
+      session_id: openSession?.id ?? null,
+      exercise_type,
+      kanji_id: kanjiIdForLog,
+      word_id: wordIdForLog,
+      rating,
+      correct: rating >= 2,
+      user_answer: user_answer ?? null,
+      ease_factor_before: current.ease_factor,
+      ease_factor_after: updated.ease_factor,
+      interval_before: current.interval_days,
+      interval_after: updated.interval_days,
+      status_before: current.status,
+      repetitions_before: current.repetitions,
+      lapses_before: current.lapses,
+      learning_step_before: current.learning_step,
+      due_at_before: current.due_at,
+    })
+    .select("id")
+    .single();
 
   if (logError) throw new ApiError(500, logError.message);
+
+  return { reviewLogId: log.id };
 }
 
 export async function undoReview(supabase: AppSupabaseClient, userId: string, reviewLogId?: number): Promise<void> {

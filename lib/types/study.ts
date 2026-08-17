@@ -123,6 +123,11 @@ export interface ReviewRequestBody {
   user_answer?: string;
 }
 
+export interface SubmitReviewResult {
+  /** review_logs.id for the row just inserted -- pass this to undoReview so it targets exactly this review. */
+  reviewLogId: number;
+}
+
 export interface StudySessionStart {
   session_id: number;
   started_at: string;

@@ -51,7 +51,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
       onRate={handleRate}
       onContinue={handleContinue}
       answerForm={
-        <div className="flex flex-col items-center gap-5">
+        <div className="flex flex-col gap-5">
           <ConfirmedAnswersList answers={confirmedAlternates} />
           <AnswerForm
             answer={answer}
@@ -65,7 +65,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
       }
       revealContent={
         result && (
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col gap-3">
             <ConfirmedAnswersList answers={confirmedAlternates} subdued />
             <MeaningList meanings={card.word_meanings ?? []} matchedMeanings={result.matchedMeanings} correct={result.correct} />
             {!result.correct && <TokenDiffList tokens={result.tokens} />}
