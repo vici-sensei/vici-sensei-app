@@ -54,12 +54,21 @@ export function renderWordWithFurigana(
   );
 }
 
-// Shows furigana above every kanji in the word except the one being tested,
-// so the target's reading isn't given away before the user answers.
-export function renderTargetWord(word: string, target: string, furiganas: string[] | null | undefined): ReactNode {
+// Shows furigana above every kanji in the word except the one being tested
+// (so the target's reading isn't given away before the user answers) and
+// except any "sibling" kanji whose exact reading the student has already
+// mastered (known_kanji_chars) -- if every character in a segment is known,
+// that segment's furigana is hidden too.
+export function renderTargetWord(
+  word: string,
+  target: string,
+  furiganas: string[] | null | undefined,
+  knownKanjiChars?: string[] | null
+): ReactNode {
   const idx = target ? word.indexOf(target) : -1;
   const segments = buildFuriganaSegments(word, furiganas);
   const lastFuriganaIndex = segments.reduce((acc, s, i) => (s.furigana ? i : acc), -1);
+  const knownSet = new Set(knownKanjiChars ?? []);
 
   let pos = 0;
   return (
@@ -69,6 +78,8 @@ export function renderTargetWord(word: string, target: string, furiganas: string
         const segEnd = pos + segment.text.length;
         pos = segEnd;
         const overlapsTarget = idx !== -1 && segStart < idx + target.length && segEnd > idx;
+        const isKnownSibling =
+          !overlapsTarget && segment.text.length > 0 && [...segment.text].every((ch) => knownSet.has(ch));
 
         if (overlapsTarget) {
           const before = segment.text.slice(0, Math.max(idx, segStart) - segStart);
@@ -81,6 +92,9 @@ export function renderTargetWord(word: string, target: string, furiganas: string
               {after}
             </span>
           );
+        }
+        if (isKnownSibling) {
+          return <span key={i}>{segment.text}</span>;
         }
         if (segment.furigana) {
           return (

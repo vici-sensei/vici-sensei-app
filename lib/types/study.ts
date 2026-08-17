@@ -36,6 +36,8 @@ export interface DueCard {
   all_word_meanings: string[] | null;
   /** Readings (kana/romaji/other) from every vocabulary row sharing this word -- same reasoning. */
   all_word_readings: string[] | null;
+  /** Sibling kanji (not the target) in this word whose specific reading the student has already mastered -- furigana can be hidden for them. kanji_reading cards only. */
+  known_kanji_chars: string[] | null;
   rating_previews: RatingPreviews;
 }
 

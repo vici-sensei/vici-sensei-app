@@ -39,7 +39,9 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
       accent="blue"
       prompt={
         <CardHeading furigana masked={!revealed}>
-          {card.word ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas) : card.kanji_char}
+          {card.word
+            ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas, card.known_kanji_chars)
+            : card.kanji_char}
         </CardHeading>
       }
       subtitle={
