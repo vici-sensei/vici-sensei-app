@@ -6,6 +6,13 @@ const PROFILE_FETCH_RETRIES = 3;
 const PROFILE_FETCH_RETRY_DELAY_MS = 200;
 
 export async function fetchUserProfile(supabase: AppSupabaseClient, userId: string): Promise<UserProfile> {
+  // Google's avatar_url claim (session.user.user_metadata) lands before the DB row does, so if
+  // it's present but the row we just fetched still has avatar_url: null, handle_new_user's insert
+  // or the metadata-change backfill trigger is still catching up -- worth a retry rather than
+  // treating a momentary null as the final answer.
+  const { data: authData } = await supabase.auth.getUser();
+  const pendingAvatarUrl = authData.user?.user_metadata?.avatar_url as string | undefined;
+
   // Right after a brand-new sign-up, the handle_new_user trigger's insert into `users` can
   // still be committing when this first post-auth request lands, so .single() sees 0 rows
   // and errors with PGRST116. A couple of short retries absorb that race instead of crashing
@@ -19,8 +26,10 @@ export async function fetchUserProfile(supabase: AppSupabaseClient, userId: stri
       .eq("id", userId)
       .single();
 
-    if (!error) return data;
-    if (error.code !== PROFILE_ROW_MISSING || attempt === PROFILE_FETCH_RETRIES) {
+    if (!error) {
+      const stillSyncingAvatar = !data.avatar_url && !!pendingAvatarUrl;
+      if (!stillSyncingAvatar || attempt === PROFILE_FETCH_RETRIES) return data;
+    } else if (error.code !== PROFILE_ROW_MISSING || attempt === PROFILE_FETCH_RETRIES) {
       throw new Error(error.message);
     }
     await new Promise((resolve) => setTimeout(resolve, PROFILE_FETCH_RETRY_DELAY_MS * attempt));

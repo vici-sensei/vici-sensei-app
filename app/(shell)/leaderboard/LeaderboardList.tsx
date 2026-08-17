@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { FaMedal } from "react-icons/fa6";
+import { FaMedal, FaUser } from "react-icons/fa6";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { ProBadge } from "@/app/components/ui/ProBadge";
@@ -28,20 +28,10 @@ function formatScore(metric: LeaderboardMetric, score: number): string {
   }
 }
 
-function initials(name: string | null): string {
-  const source = name?.trim();
-  if (!source) return "?";
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return source.slice(0, 2).toUpperCase();
-}
-
 function LeaderboardAvatar({
-  displayName,
   avatarUrl,
   isPremium,
 }: {
-  displayName: string | null;
   avatarUrl: string | null;
   isPremium: boolean;
 }) {
@@ -60,7 +50,7 @@ function LeaderboardAvatar({
             onError={() => setFailed(true)}
           />
         ) : (
-          initials(displayName)
+          <FaUser className="h-[45%] w-[45%]" />
         )}
       </div>
       {isPremium ? <ProBadge className="-top-1.5 -right-1.5" /> : null}
@@ -125,26 +115,17 @@ export function LeaderboardList({
 
   return (
     <GlassCard padding="sm" className="flex flex-col gap-1">
-      {entries.map((entry, i) => {
-        const prev = entries[i - 1];
-        const showGap = Boolean(prev && entry.rank !== prev.rank + 1);
+      {entries.map((entry) => {
         const isViewer = entry.user_id === viewerId;
         return (
           <div key={entry.user_id}>
-            {showGap ? (
-              <div className="py-1 text-center text-lg font-bold tracking-[0.3em] text-text-muted">···</div>
-            ) : null}
             <div
               className={`flex flex-wrap items-center gap-3.5 rounded-xl border px-3 py-3 ${
                 isViewer ? "border-accent-red bg-accent-red/10" : "border-transparent"
               }`}
             >
               <RankBadge rank={entry.rank} />
-              <LeaderboardAvatar
-                displayName={entry.display_name}
-                avatarUrl={entry.avatar_url}
-                isPremium={entry.is_premium}
-              />
+              <LeaderboardAvatar avatarUrl={entry.avatar_url} isPremium={entry.is_premium} />
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-[0.92rem] font-bold text-white">
                   {entry.country ? (

@@ -8,13 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
 import { ProBadge } from "@/app/components/ui/ProBadge";
-
-function initials(name: string | null, email: string) {
-  const source = name?.trim() || email;
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return source.slice(0, 2).toUpperCase();
-}
+import { FaUser } from "react-icons/fa6";
 
 function Avatar({
   user,
@@ -41,7 +35,7 @@ function Avatar({
             onError={onAvatarError}
           />
         ) : (
-          initials(user.display_name, user.email)
+          <FaUser className="h-[45%] w-[45%]" />
         )}
       </div>
       {user.is_premium ? <ProBadge className="-top-1.5 -right-1.5" /> : null}
