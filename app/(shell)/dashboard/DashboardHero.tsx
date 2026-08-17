@@ -5,7 +5,7 @@ import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { StartStudyButton } from "./StartStudyButton";
-import { NextReviewTime } from "./NextReviewTime";
+import { NextCardCountdown } from "./NextCardCountdown";
 
 export function DashboardHero() {
   // Shared with the nav's Study link (see StudyStatsProvider in the shell layout) so both
@@ -28,24 +28,24 @@ export function DashboardHero() {
   const remainingVocab = Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0);
   const cardsToday = cardsRemainingToday(stats);
   const dueLaterToday = allDone && stats.next_due_is_today;
-  const kanjiPending = remainingKanji > 0;
-  const vocabPending = remainingVocab > 0;
-  const hasNewContent = kanjiPending || vocabPending;
 
-  let newContentPhrase = "";
-  if (kanjiPending && vocabPending) newContentPhrase = "new kanji and vocabulary";
-  else if (kanjiPending) newContentPhrase = "new kanji";
-  else if (vocabPending) newContentPhrase = "new vocabulary";
+  // Phase, not card category, is what changes how a review behaves: learning/relearning cards
+  // resurface later in the same session (LEARNING_STEPS_MINUTES), review cards won't come back
+  // until a future day.
+  const reviewParts: string[] = [];
+  if (stats.due_learning > 0) reviewParts.push(`${stats.due_learning} in learning`);
+  if (stats.due_review > 0) reviewParts.push(`${stats.due_review} up for review`);
 
-  let summaryText: string;
-  if (stats.due_today > 0 && hasNewContent) {
-    summaryText = `${stats.due_today} review${stats.due_today === 1 ? "" : "s"} due, plus ${newContentPhrase} ready to introduce.`;
-  } else if (stats.due_today > 0) {
-    summaryText = `${stats.due_today} review${stats.due_today === 1 ? "" : "s"} due today.`;
-  } else {
-    const verb = kanjiPending && vocabPending ? "are" : "is";
-    summaryText = `${newContentPhrase.charAt(0).toUpperCase() + newContentPhrase.slice(1)} ${verb} ready to introduce.`;
-  }
+  const newParts: string[] = [];
+  if (remainingKanji > 0) newParts.push(`${remainingKanji} new kanji`);
+  if (remainingVocab > 0)
+    newParts.push(`${remainingVocab} new vocabulary word${remainingVocab === 1 ? "" : "s"}`);
+
+  const sentenceParts: string[] = [];
+  if (reviewParts.length > 0) sentenceParts.push(reviewParts.join(" and "));
+  if (newParts.length > 0) sentenceParts.push(`${newParts.join(" and ")} ready to learn`);
+
+  const summaryText = `${sentenceParts.join(", plus ")}.`;
 
   return (
     <div
@@ -65,8 +65,8 @@ export function DashboardHero() {
             <p className="text-base leading-[1.6] text-text-muted">
               {dueLaterToday && stats.next_due_at ? (
                 <>
-                  Your next review is at <NextReviewTime dueAt={stats.next_due_at} />. Explore the dictionary in the
-                  meantime.
+                  Your next card is ready in <NextCardCountdown dueAt={stats.next_due_at} />. Explore the dictionary
+                  in the meantime.
                 </>
               ) : (
                 "Come back tomorrow for your next reviews, or explore the dictionary in the meantime."

@@ -2,31 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FaXmark } from "react-icons/fa6";
+import { formatCountdown } from "@/lib/study/countdown";
 
 interface QueueProgressBarProps {
   completed: number;
   total: number;
   nextDueAt: string | null;
   onExit: () => void;
-}
-
-const MINUTE = 60;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-const WEEK = 7 * DAY;
-const MONTH = 30 * DAY;
-const YEAR = 365 * DAY;
-
-function formatCountdown(ms: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-
-  if (totalSeconds >= YEAR) return `${Math.floor(totalSeconds / YEAR)}y`;
-  if (totalSeconds >= MONTH) return `${Math.floor(totalSeconds / MONTH)}mo`;
-  if (totalSeconds >= WEEK) return `${Math.floor(totalSeconds / WEEK)}w`;
-  if (totalSeconds >= DAY) return `${Math.floor(totalSeconds / DAY)}d`;
-  if (totalSeconds >= HOUR) return `${Math.floor(totalSeconds / HOUR)}h`;
-  if (totalSeconds >= MINUTE) return `${Math.floor(totalSeconds / MINUTE)}m`;
-  return `${totalSeconds}s`;
 }
 
 export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueProgressBarProps) {

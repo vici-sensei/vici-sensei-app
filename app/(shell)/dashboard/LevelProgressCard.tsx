@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { FaRegCircleQuestion } from "react-icons/fa6";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { useAnimatedPercent } from "@/lib/useAnimatedPercent";
+import { useInView } from "@/lib/useInView";
 import type { LevelProgress } from "@/lib/types";
 
 const SIZE = 150;
@@ -12,10 +15,10 @@ const GAP = 6;
 const CENTER = SIZE / 2;
 
 // Outermost first -- each ring nests inside the previous one, sharing a center.
-const RINGS: { key: keyof Pick<LevelProgress, "kanji" | "kanji_reading" | "vocabulary">; label: string; dot: string; stroke: string }[] = [
-  { key: "kanji", label: "Kanji meaning", dot: "bg-accent-violet", stroke: "stroke-accent-violet" },
-  { key: "kanji_reading", label: "Kanji reading", dot: "bg-accent-blue", stroke: "stroke-accent-blue" },
-  { key: "vocabulary", label: "Vocabulary", dot: "bg-accent-orange", stroke: "stroke-accent-orange" },
+const RINGS: { key: keyof Pick<LevelProgress, "kanji" | "kanji_reading" | "vocabulary">; label: string; dot: string; stroke: string; text: string; textDim: string }[] = [
+  { key: "kanji", label: "Kanji meaning", dot: "bg-accent-violet", stroke: "stroke-accent-violet", text: "text-accent-violet", textDim: "text-accent-violet/70" },
+  { key: "kanji_reading", label: "Kanji reading", dot: "bg-accent-blue", stroke: "stroke-accent-blue", text: "text-accent-blue", textDim: "text-accent-blue/70" },
+  { key: "vocabulary", label: "Vocabulary", dot: "bg-accent-orange", stroke: "stroke-accent-orange", text: "text-accent-orange", textDim: "text-accent-orange/70" },
 ];
 
 function pct(seen: number, total: number): number {
@@ -26,12 +29,61 @@ function radiusFor(index: number): number {
   return CENTER - 4 - STROKE / 2 - index * (STROKE + GAP);
 }
 
+function LevelRing({
+  radius,
+  seenPct,
+  learnedPct,
+  strokeClass,
+  inView,
+}: {
+  radius: number;
+  seenPct: number;
+  learnedPct: number;
+  strokeClass: string;
+  inView: boolean;
+}) {
+  const animatedSeenPct = useAnimatedPercent(seenPct, inView);
+  const animatedLearnedPct = useAnimatedPercent(learnedPct, inView);
+  const circumference = 2 * Math.PI * radius;
+  const seenOffset = circumference * (1 - animatedSeenPct / 100);
+  const learnedOffset = circumference * (1 - animatedLearnedPct / 100);
+
+  return (
+    <g>
+      <circle cx={CENTER} cy={CENTER} r={radius} fill="none" strokeWidth={STROKE} className="stroke-white/10" />
+      <circle
+        cx={CENTER}
+        cy={CENTER}
+        r={radius}
+        fill="none"
+        strokeWidth={STROKE}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={seenOffset}
+        className={`${strokeClass}/35 transition-[stroke-dashoffset] duration-1000 ease-out`}
+      />
+      <circle
+        cx={CENTER}
+        cy={CENTER}
+        r={radius}
+        fill="none"
+        strokeWidth={STROKE}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={learnedOffset}
+        className={`${strokeClass} transition-[stroke-dashoffset] duration-1000 ease-out`}
+      />
+    </g>
+  );
+}
+
 export function LevelProgressCard() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
   // no separate fetch here.
   const { stats } = useStudyStats();
   const [legendOpen, setLegendOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const [ringsRef, ringsInView] = useInView<HTMLDivElement>();
 
   useEffect(() => {
     if (!legendOpen) return;
@@ -53,6 +105,25 @@ export function LevelProgressCard() {
   const progress = stats.level_progress;
   if (!progress) return null;
 
+  const legendRows = RINGS.map((ring) => {
+    const cat = progress[ring.key];
+    return (
+      <div key={ring.key} className="flex items-center gap-2 text-sm">
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${ring.dot}`} />
+        <span className="font-semibold text-white">{ring.label}</span>
+        <span className="ml-auto flex items-center gap-4 text-[0.75rem]">
+          <span className={ring.textDim}>
+            {cat.seen}/{cat.total}
+          </span>
+          <span className="text-text-muted">·</span>
+          <span className={`font-semibold ${ring.text}`}>
+            {cat.learned}/{cat.total}
+          </span>
+        </span>
+      </div>
+    );
+  });
+
   return (
     <GlassCard
       ref={cardRef}
@@ -70,42 +141,23 @@ export function LevelProgressCard() {
           setLegendOpen((o) => !o);
         }
       }}
-      className={`order-3 flex w-full cursor-pointer select-none items-center justify-center md:order-2 md:w-fit md:shrink-0 ${legendOpen ? "z-10" : ""}`}
+      className={`order-3 flex w-full flex-wrap !cursor-default select-none items-start justify-center gap-x-4 gap-y-3 md:order-2 md:w-fit md:shrink-0 md:flex-nowrap md:items-center md:gap-0 md:!cursor-pointer ${legendOpen ? "z-10" : ""}`}
     >
-      <div className="relative h-[110px] w-[110px] shrink-0 md:h-[150px] md:w-[150px]">
+      <FaRegCircleQuestion className="absolute right-3 top-3 hidden h-3.5 w-3.5 text-text-muted/50 md:block" />
+
+      <div ref={ringsRef} className="relative h-[110px] w-[110px] shrink-0 md:h-[150px] md:w-[150px]">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full -rotate-90">
           {RINGS.map((ring, i) => {
-            const r = radiusFor(i);
-            const circumference = 2 * Math.PI * r;
             const cat = progress[ring.key];
-            const seenOffset = circumference * (1 - pct(cat.seen, cat.total) / 100);
-            const learnedOffset = circumference * (1 - pct(cat.learned, cat.total) / 100);
             return (
-              <g key={ring.key}>
-                <circle cx={CENTER} cy={CENTER} r={r} fill="none" strokeWidth={STROKE} className="stroke-white/10" />
-                <circle
-                  cx={CENTER}
-                  cy={CENTER}
-                  r={r}
-                  fill="none"
-                  strokeWidth={STROKE}
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={seenOffset}
-                  className={`${ring.stroke}/35 transition-[stroke-dashoffset] duration-500`}
-                />
-                <circle
-                  cx={CENTER}
-                  cy={CENTER}
-                  r={r}
-                  fill="none"
-                  strokeWidth={STROKE}
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={learnedOffset}
-                  className={`${ring.stroke} transition-[stroke-dashoffset] duration-500`}
-                />
-              </g>
+              <LevelRing
+                key={ring.key}
+                radius={radiusFor(i)}
+                seenPct={pct(cat.seen, cat.total)}
+                learnedPct={pct(cat.learned, cat.total)}
+                strokeClass={ring.stroke}
+                inView={ringsInView}
+              />
             );
           })}
         </svg>
@@ -114,30 +166,24 @@ export function LevelProgressCard() {
         </div>
       </div>
 
+      {/* Mobile: plain legend text inline in the card, no modal/box styling. */}
+      <div className="min-w-[220px] max-w-full flex-1 select-text cursor-text text-left md:hidden">
+        <div className="mb-2.5 text-[0.7rem] leading-normal text-text-muted">
+          Lighter ring = seen at least once. <br /> Solid ring = already learned.
+        </div>
+        <div className="space-y-2">{legendRows}</div>
+      </div>
+
+      {/* Desktop: hover/click dropdown, unchanged. */}
       {legendOpen && (
         <div
-          className="absolute left-1/2 top-full z-40 mt-2 w-64 -translate-x-1/2 rounded-xl border border-border-soft bg-bg-main p-3.5 text-left shadow-[0_12px_30px_rgba(0,0,0,0.5)]"
+          className="absolute left-1/2 top-full z-40 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-border-soft bg-bg-main p-3.5 text-left shadow-[0_12px_30px_rgba(0,0,0,0.5)] md:block"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-2.5 text-[0.7rem] leading-normal text-text-muted">
-            Lighter ring = seen at least once. <br/> Solid ring = already learned.
+            Lighter ring = seen at least once. <br /> Solid ring = already learned.
           </div>
-          <div className="space-y-2">
-            {RINGS.map((ring) => {
-              const cat = progress[ring.key];
-              return (
-                <div key={ring.key} className="flex items-center gap-2 text-sm">
-                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${ring.dot}`} />
-                  <span className="font-semibold text-white">{ring.label}</span>
-                  <span className="ml-auto flex items-center gap-4 text-[0.75rem] text-text-muted">
-                    <span>{pct(cat.seen, cat.total)}%</span>
-                    <span>·</span>
-                    <span>{pct(cat.learned, cat.total)}%</span>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <div className="space-y-2">{legendRows}</div>
         </div>
       )}
     </GlassCard>

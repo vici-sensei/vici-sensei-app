@@ -5,13 +5,27 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { cardsRemainingToday } from "@/lib/study/stats";
+import { useAnimatedPercent } from "@/lib/useAnimatedPercent";
+import { useInView } from "@/lib/useInView";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { DashboardHero } from "./DashboardHero";
+import { NextCardCountdown } from "./NextCardCountdown";
 import { CheckoutBanner } from "./CheckoutBanner";
 import { WeekStreak } from "./WeekStreak";
 import { LevelProgressCard } from "./LevelProgressCard";
-import { FaBook, FaPenToSquare, FaFire, FaClock, FaArrowRight } from "react-icons/fa6";
+import { FaBook, FaFire, FaArrowRight, FaArrowsRotate } from "react-icons/fa6";
+
+// mingcute:target-fill (https://icon-sets.iconify.design/mingcute/target-fill) -- react-icons
+// doesn't bundle the MingCute set, so inlined as a one-off rather than pulling in a whole new
+// icon-set dependency for a single icon.
+function TargetFillIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10s10-4.477 10-10c0-.895-.12-1.763-.34-2.589l-2.124 2.124a3 3 0 0 1-.537.422L19 12a7 7 0 1 1-7-7l.043.001c.12-.192.259-.374.422-.537l2.124-2.124C13.763 2.12 12.895 2 12 2m-.414 5.018a5 5 0 1 0 5.395 5.396h-2.395q-.084 0-.167-.005l-.54.54a2 2 0 0 1-2.828-2.828l.54-.54a3 3 0 0 1-.005-.167zm6.918-4.892a1 1 0 0 0-1.09.217L13.88 5.879a1 1 0 0 0-.293.707V9l-1.83 1.828a1 1 0 0 0 1.416 1.414L15 10.414h2.414a1 1 0 0 0 .707-.293l3.535-3.535a1 1 0 0 0-.707-1.707h-1.828v-1.83a1 1 0 0 0-.617-.923" />
+    </svg>
+  );
+}
 
 function CheckoutBannerFromQuery() {
   const searchParams = useSearchParams();
@@ -76,9 +90,11 @@ function StatRing({
   percent: number;
   colorClass: string;
 }) {
-  const offset = RING_CIRCUMFERENCE * (1 - percent / 100);
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const animatedPercent = useAnimatedPercent(percent, inView);
+  const offset = RING_CIRCUMFERENCE * (1 - animatedPercent / 100);
   return (
-    <div className="relative mb-3.5 h-14 w-14 shrink-0">
+    <div ref={ref} className="relative mb-3.5 h-14 w-14 shrink-0">
       <svg viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} className="h-full w-full -rotate-90">
         <circle
           cx={RING_CENTER}
@@ -97,7 +113,7 @@ function StatRing({
           strokeLinecap="round"
           strokeDasharray={RING_CIRCUMFERENCE}
           strokeDashoffset={offset}
-          className={`${colorClass} transition-[stroke-dashoffset] duration-500`}
+          className={`${colorClass} transition-[stroke-dashoffset] duration-1000 ease-out`}
         />
       </svg>
       <div className={`absolute inset-0 flex items-center justify-center ${colorClass.replace("stroke-", "text-")}`}>
@@ -115,7 +131,7 @@ function StatCards() {
   if (!stats) {
     return (
       <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <GlassCard key={i} padding="sm" className="flex flex-col items-center justify-center sm:items-start sm:justify-start">
             <Skeleton className="mb-3.5 h-14 w-14 rounded-full" />
             <Skeleton className="mb-1.5 h-8 w-16" />
@@ -130,7 +146,7 @@ function StatCards() {
     <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-3">
       <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
         <StatRing
-          icon={<FaBook className="h-4 w-4" />}
+          icon={<span className="text-3xl font-bold leading-none">竜</span>}
           percent={statPct(stats.new_kanji_today, stats.new_kanji_limit)}
           colorClass="stroke-accent-blue"
         />
@@ -143,7 +159,7 @@ function StatCards() {
 
       <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
         <StatRing
-          icon={<FaPenToSquare className="h-4 w-4" />}
+          icon={<FaBook className="h-6 w-6" />}
           percent={statPct(stats.new_vocab_today, stats.new_vocab_limit)}
           colorClass="stroke-accent-violet"
         />
@@ -156,7 +172,25 @@ function StatCards() {
 
       <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
         <StatRing
-          icon={<FaClock className="h-4 w-4" />}
+          icon={<FaArrowsRotate className="h-6 w-6" />}
+          percent={statPct(stats.reviewed_today, stats.reviewed_today + stats.due_today)}
+          colorClass="stroke-accent-orange"
+        />
+        <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
+          {stats.reviewed_today}
+          <span className="text-[1.1rem] text-text-muted">/{stats.reviewed_today + stats.due_today}</span>
+        </div>
+        <div className="text-sm font-semibold text-text-muted">Reviews done today</div>
+        {stats.due_today === 0 && stats.next_due_is_today && stats.next_due_at && (
+          <div className="mt-1 text-[0.7rem] font-semibold text-accent-gold">
+            Next card in <NextCardCountdown dueAt={stats.next_due_at} />
+          </div>
+        )}
+      </GlassCard>
+
+      <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
+        <StatRing
+          icon={<TargetFillIcon className="h-8 w-8" />}
           percent={stats.retention_rate != null ? Math.round(stats.retention_rate * 100) : 0}
           colorClass="stroke-accent-red"
         />

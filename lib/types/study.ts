@@ -97,6 +97,12 @@ export interface LevelProgress {
 
 export interface StudyStats {
   due_today: number;
+  /** Due cards still mid-ladder (status learning/relearning) -- resurface later today. Subset of due_today. */
+  due_learning: number;
+  /** Due cards in the long-interval review phase (status review) -- won't come back until a future day. Subset of due_today. */
+  due_review: number;
+  /** Cards already reviewed today, across all categories. */
+  reviewed_today: number;
   new_kanji_today: number;
   new_kanji_limit: number;
   new_vocab_today: number;

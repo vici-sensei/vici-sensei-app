@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
 import { ProBadge } from "@/app/components/ui/ProBadge";
-import { FaUser } from "react-icons/fa6";
+import { FaUser, FaCreditCard, FaTriangleExclamation, FaRightFromBracket } from "react-icons/fa6";
 
 function Avatar({
   user,
@@ -72,7 +72,7 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
   }
 
   const menuItemClasses =
-    "block w-full rounded-lg px-3 py-2.5 text-left text-[0.88rem] font-semibold text-text-muted hover:bg-white/5 hover:text-white";
+    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[0.88rem] font-semibold text-text-muted hover:bg-white/5 hover:text-white [&>svg]:h-3.75 [&>svg]:w-3.75 [&>svg]:shrink-0";
 
   return (
     <div className="relative" ref={wrapRef}>
@@ -115,16 +115,16 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
           </div>
         </div>
         <hr className="mx-1 mb-1.5 border-border-soft" />
-        <Link href="/settings/study" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
-          Settings
-        </Link>
         <Link href="/settings/profile" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
+          <FaUser />
           Profile
         </Link>
         <Link href="/settings/billing" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
+          <FaCreditCard />
           Subscription
         </Link>
         <Link href="/settings/account" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
+          <FaTriangleExclamation />
           Account
         </Link>
         <hr className="mx-1 my-1.5 border-border-soft" />
@@ -134,6 +134,7 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
           onClick={handleLogout}
           disabled={loggingOut}
         >
+          <FaRightFromBracket />
           {loggingOut ? "Logging out…" : "Log out"}
         </button>
       </div>

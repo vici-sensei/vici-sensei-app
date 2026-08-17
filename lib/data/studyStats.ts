@@ -34,6 +34,8 @@ export async function fetchStudyStats(
 
   const [
     dueCounters,
+    dueLearningCounters,
+    reviewedTodayResult,
     nextDue,
     newKanjiResult,
     newVocabResult,
@@ -52,6 +54,25 @@ export async function fetchStudyStats(
             .neq("status", "suspended")
         )
       ),
+      // Subset of dueCounters still mid-ladder (learning/relearning) -- these resurface later
+      // today; the rest of dueCounters (status 'review') won't come back until a future day.
+      Promise.all(
+        DUE_PROGRESS_TABLES.map((table) =>
+          supabase
+            .from(table)
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .lte("due_at", nowIso)
+            .in("status", ["learning", "relearning"])
+        )
+      ),
+      supabase
+        .from("review_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("undone", false)
+        .gte("reviewed_at", todayStart)
+        .lt("reviewed_at", todayEnd),
       getNextDue(supabase, userId, nowIso, timezone),
       supabase
         .from("user_kanji_meaning_progress")
@@ -80,6 +101,10 @@ export async function fetchStudyStats(
   for (const result of dueCounters) {
     if (result.error) throw new Error(result.error.message);
   }
+  for (const result of dueLearningCounters) {
+    if (result.error) throw new Error(result.error.message);
+  }
+  if (reviewedTodayResult.error) throw new Error(reviewedTodayResult.error.message);
   if (nextDue.error !== null) throw new Error(nextDue.error);
   if (newKanjiResult.error) throw new Error(newKanjiResult.error.message);
   if (newVocabResult.error) throw new Error(newVocabResult.error.message);
@@ -91,6 +116,8 @@ export async function fetchStudyStats(
   const newKanjiPerDay = settingsResult.data?.new_kanji_per_day ?? DEFAULT_NEW_KANJI_PER_DAY;
   const newVocabPerDay = settingsResult.data?.new_vocab_per_day ?? DEFAULT_NEW_VOCAB_PER_DAY;
   const dueToday = dueCounters.reduce((sum, r) => sum + (r.count ?? 0), 0);
+  const dueLearning = dueLearningCounters.reduce((sum, r) => sum + (r.count ?? 0), 0);
+  const dueReview = dueToday - dueLearning;
   const { next_due_at: nextDueAt, next_due_is_today: nextDueIsToday } = nextDue.data;
   const levelProgressRows = levelProgressResult.data as
     | { category: "kanji" | "kanji_reading" | "vocabulary"; seen: number; learned: number; total: number }[]
@@ -102,6 +129,9 @@ export async function fetchStudyStats(
 
   return {
     due_today: dueToday,
+    due_learning: dueLearning,
+    due_review: dueReview,
+    reviewed_today: reviewedTodayResult.count ?? 0,
     new_kanji_today: newKanjiResult.count ?? 0,
     new_kanji_limit: newKanjiPerDay,
     new_vocab_today: newVocabResult.count ?? 0,

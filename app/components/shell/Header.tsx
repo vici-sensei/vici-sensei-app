@@ -1,32 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { FaArrowLeft, FaToriiGate } from "react-icons/fa6";
+import { FaToriiGate } from "react-icons/fa6";
 import type { UserProfile } from "@/lib/types";
 import { useKeyboardOpen } from "@/lib/useKeyboardOpen";
+import { MenuIcon } from "./MenuIcon";
+import { useMobileMenu } from "./MobileMenuContext";
 import { ProfileMenu } from "./ProfileMenu";
 
-export function Header({ user, showBack = false }: { user: UserProfile; showBack?: boolean }) {
+export function Header({ user }: { user: UserProfile }) {
   const keyboardOpen = useKeyboardOpen();
+  const { open, toggle } = useMobileMenu();
 
   return (
     <header
-      className="sticky top-0 z-50 relative flex h-17 items-center justify-between border-b border-border-soft bg-bg-main/85 px-7 backdrop-blur-[12px]"
+      className="sticky top-0 z-50 grid h-17 grid-cols-[2.25rem_1fr_2.25rem] items-center gap-2 border-b border-border-soft bg-bg-main/85 px-7 backdrop-blur-[12px]"
       style={keyboardOpen ? { display: "none" } : undefined}
     >
-      <Link
-        href="/dashboard"
-        aria-hidden={!showBack}
-        tabIndex={showBack ? undefined : -1}
-        prefetch={false}
-        className={`inline-flex items-center gap-2 text-[0.88rem] font-bold text-text-muted hover:text-white [&>svg]:h-3.75 [&>svg]:w-3.75 ${showBack ? "" : "invisible pointer-events-none"}`}
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={open ? "Close menu" : "Open menu"}
+        aria-expanded={open}
+        className="col-start-1 inline-flex h-9 w-9 items-center justify-center md:hidden"
       >
-        <FaArrowLeft />
-      </Link>
+        <MenuIcon open={open} />
+      </button>
       <Link
         href="/dashboard"
         prefetch={false}
-        className="absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-[1.15rem] font-extrabold tracking-[-0.4px]"
+        className="col-start-2 flex items-center justify-self-center gap-2 text-[1.15rem] font-extrabold tracking-[-0.4px]"
       >
         <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center border-[1.3px] border-accent-red">
           <span className="pointer-events-none absolute inset-[2px] border border-accent-red/50" />
@@ -34,7 +37,9 @@ export function Header({ user, showBack = false }: { user: UserProfile; showBack
         </span>
         Vici Sensei
       </Link>
-      <ProfileMenu user={user} />
+      <div className="col-start-3 justify-self-end">
+        <ProfileMenu user={user} />
+      </div>
     </header>
   );
 }

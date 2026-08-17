@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
-import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy } from "react-icons/fa6";
+import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear } from "react-icons/fa6";
 
 export interface NavItem {
   href: string;
   label: string;
   isActive: (pathname: string) => boolean;
   icon: ReactNode;
+  danger?: boolean;
 }
 
+// Single source of truth for both the desktop sidebar and the mobile full-screen menu --
+// every item here always shows in both, regardless of which section the user is in.
 export const NAV_ITEMS: NavItem[] = [
   {
     href: "/dashboard",
@@ -38,5 +41,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Leaderboard",
     isActive: (p) => p.startsWith("/leaderboard"),
     icon: <FaTrophy />,
+  },
+  {
+    href: "/settings/study",
+    label: "Settings",
+    isActive: (p) => p.startsWith("/settings"),
+    icon: <FaGear />,
   },
 ];
