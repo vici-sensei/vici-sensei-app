@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LevelGrid, enabledLevelsFor } from "@/app/components/ui/LevelGrid";
+import { LevelGrid } from "@/app/components/ui/LevelGrid";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { updateStudySettings, rerollLeaderboardAlias } from "@/lib/client-data/studySettings";
 import { useToast } from "@/app/components/ui/Toast";
 import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
-import { mostAdvancedLevel, type JlptLevel } from "@/lib/srs/constants";
+import { JLPT_LEVELS, mostAdvancedLevel, leastAdvancedLevel, levelsInRange, type JlptLevel } from "@/lib/srs/constants";
 import { FaLink } from "react-icons/fa6";
 import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
 
@@ -19,7 +19,7 @@ type Snapshot = {
   newVocabPerDay: number;
   maxReviewsPerDay: number;
   level: JlptLevel;
-  includeLowerLevels: boolean;
+  floor: JlptLevel;
   studyKanji: boolean;
   studyVocabulary: boolean;
   leaderboardAnonymous: boolean;
@@ -31,7 +31,7 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     newVocabPerDay: settings.new_vocab_per_day,
     maxReviewsPerDay: settings.max_reviews_per_day,
     level: mostAdvancedLevel(settings.enabled_levels),
-    includeLowerLevels: settings.include_lower_levels,
+    floor: leastAdvancedLevel(settings.enabled_levels),
     studyKanji: settings.study_kanji,
     studyVocabulary: settings.study_vocabulary,
     leaderboardAnonymous: settings.leaderboard_anonymous,
@@ -44,7 +44,7 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
     a.newVocabPerDay === b.newVocabPerDay &&
     a.maxReviewsPerDay === b.maxReviewsPerDay &&
     a.level === b.level &&
-    a.includeLowerLevels === b.includeLowerLevels &&
+    a.floor === b.floor &&
     a.studyKanji === b.studyKanji &&
     a.studyVocabulary === b.studyVocabulary &&
     a.leaderboardAnonymous === b.leaderboardAnonymous
@@ -59,7 +59,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
   const [newVocabPerDay, setNewVocabPerDay] = useState(initial.new_vocab_per_day);
   const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(initial.max_reviews_per_day);
   const [level, setLevel] = useState<JlptLevel>(mostAdvancedLevel(initial.enabled_levels));
-  const [includeLowerLevels, setIncludeLowerLevels] = useState(initial.include_lower_levels);
+  const [floor, setFloor] = useState<JlptLevel>(leastAdvancedLevel(initial.enabled_levels));
   const [studyKanji, setStudyKanji] = useState(initial.study_kanji);
   const [studyVocabulary, setStudyVocabulary] = useState(initial.study_vocabulary);
   const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous);
@@ -90,6 +90,27 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
     setMaxReviewsPerDay((v) => Math.max(REVIEWS_STEP, v + delta * REVIEWS_STEP));
   }
 
+  function handleLevelChange(nextLevel: JlptLevel) {
+    // If lower levels weren't included before, they shouldn't switch on just because the
+    // current level moved — keep the toggle off by tracking the floor to the new level too.
+    // Otherwise, just keep the floor from ever sitting above the newly picked level.
+    const wasOff = floor === level;
+    setLevel(nextLevel);
+    if (wasOff || JLPT_LEVELS.indexOf(floor) > JLPT_LEVELS.indexOf(nextLevel)) setFloor(nextLevel);
+  }
+
+  function toggleLowerLevels() {
+    setFloor(floor === level ? "N5" : level);
+  }
+
+  function adjustFloor(delta: number) {
+    // Capped one below the current level — narrowing all the way to "just the current level"
+    // is what the toggle above is for, so the stepper never makes this row collapse on its own.
+    const maxFloorIdx = JLPT_LEVELS.indexOf(level) - 1;
+    const next = JLPT_LEVELS.indexOf(floor) + delta;
+    setFloor(JLPT_LEVELS[Math.max(0, Math.min(maxFloorIdx, next))]);
+  }
+
   function toggleStudyKanji() {
     if (studyKanji && !studyVocabulary) return;
     setStudyKanji(!studyKanji);
@@ -105,7 +126,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
     setNewVocabPerDay(snapshot.newVocabPerDay);
     setMaxReviewsPerDay(snapshot.maxReviewsPerDay);
     setLevel(snapshot.level);
-    setIncludeLowerLevels(snapshot.includeLowerLevels);
+    setFloor(snapshot.floor);
     setStudyKanji(snapshot.studyKanji);
     setStudyVocabulary(snapshot.studyVocabulary);
     setLeaderboardAnonymous(snapshot.leaderboardAnonymous);
@@ -131,7 +152,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
       newVocabPerDay,
       maxReviewsPerDay,
       level,
-      includeLowerLevels,
+      floor,
       studyKanji,
       studyVocabulary,
       leaderboardAnonymous,
@@ -143,8 +164,8 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
         new_kanji_per_day: current.newKanjiPerDay,
         new_vocab_per_day: current.newVocabPerDay,
         max_reviews_per_day: current.maxReviewsPerDay,
-        enabled_levels: enabledLevelsFor(current.level),
-        include_lower_levels: current.includeLowerLevels,
+        enabled_levels: levelsInRange(current.floor, current.level),
+        include_lower_levels: current.floor !== current.level,
         study_kanji: current.studyKanji,
         study_vocabulary: current.studyVocabulary,
         leaderboard_anonymous: current.leaderboardAnonymous,
@@ -167,7 +188,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
     newVocabPerDay,
     maxReviewsPerDay,
     level,
-    includeLowerLevels,
+    floor,
     studyKanji,
     studyVocabulary,
     leaderboardAnonymous,
@@ -175,7 +196,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
     user,
   ]);
 
-  const includedLevels = includeLowerLevels ? enabledLevelsFor(level) : [level];
+  const includedLevels = levelsInRange(floor, level);
 
   const fieldLabel = "mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted";
   const fieldHint = "mt-1.5 text-[0.8rem] leading-normal text-text-muted";
@@ -234,7 +255,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
 
       <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
         <label className={`${fieldLabel} mb-3.5`}>Enabled JLPT levels</label>
-        <LevelGrid value={level} onChange={setLevel} cascade={includeLowerLevels} size="sm" />
+        <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" />
         <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
 
         <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
@@ -246,15 +267,38 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
             </div>
           </div>
           <label className="relative h-[26px] w-[46px] shrink-0">
-            <input
-              type="checkbox"
-              className="peer h-0 w-0 opacity-0"
-              checked={includeLowerLevels}
-              onChange={() => setIncludeLowerLevels(!includeLowerLevels)}
-            />
+            <input type="checkbox" className="peer h-0 w-0 opacity-0" checked={floor !== level} onChange={toggleLowerLevels} />
             <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 before:absolute before:left-[3px] before:top-[3px] before:h-5 before:w-5 before:rounded-full before:bg-white before:transition-transform before:duration-200 peer-checked:bg-accent-red peer-checked:before:translate-x-5" />
           </label>
         </div>
+
+        {floor !== level ? (
+          <div className="mt-4 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Lowest level to include</div>
+              <div className="text-sm text-text-muted">You&apos;ll study everything from here up to your current level.</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2.5">
+              <button
+                type="button"
+                className={stepperBtn}
+                onClick={() => adjustFloor(-1)}
+                disabled={JLPT_LEVELS.indexOf(floor) <= 0}
+              >
+                −
+              </button>
+              <span className={stepperVal}>{floor}</span>
+              <button
+                type="button"
+                className={stepperBtn}
+                onClick={() => adjustFloor(1)}
+                disabled={JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level) - 1}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">

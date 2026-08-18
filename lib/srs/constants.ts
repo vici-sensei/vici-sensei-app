@@ -11,6 +11,23 @@ export function mostAdvancedLevel(levels: readonly string[]): JlptLevel {
   return JLPT_LEVELS[best]
 }
 
+/** The least advanced level present in an enabled_levels array (defaults to N1). */
+export function leastAdvancedLevel(levels: readonly string[]): JlptLevel {
+  let worst = JLPT_LEVELS.length - 1
+  for (const level of levels) {
+    const idx = JLPT_LEVELS.indexOf(level as JlptLevel)
+    if (idx >= 0 && idx < worst) worst = idx
+  }
+  return JLPT_LEVELS[worst]
+}
+
+/** Every level from `floor` up to and including `ceiling`. */
+export function levelsInRange(floor: JlptLevel, ceiling: JlptLevel): JlptLevel[] {
+  const floorIdx = JLPT_LEVELS.indexOf(floor)
+  const ceilingIdx = JLPT_LEVELS.indexOf(ceiling)
+  return JLPT_LEVELS.slice(floorIdx, ceilingIdx + 1)
+}
+
 export const LEARNING_STEPS_MINUTES = [1, 10] as const
 
 export const MIN_EASE_FACTOR = 1.3

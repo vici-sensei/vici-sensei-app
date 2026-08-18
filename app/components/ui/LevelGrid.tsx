@@ -15,21 +15,26 @@ interface LevelGridProps {
   /** The most advanced level selected. */
   value: JlptLevel;
   onChange: (level: JlptLevel) => void;
-  /** Whether levels below `value` are actually included — tints them to show they're active too. When false, only `value` is highlighted. */
-  cascade: boolean;
+  /**
+   * Whether/how far levels below `value` are also included — tints them to show they're active
+   * too. `false`: only `value` is highlighted. `true`: every level down to N5 is included. A
+   * specific `JlptLevel`: every level from that floor up to `value` is included.
+   */
+  cascade: boolean | JlptLevel;
   size?: "md" | "sm";
 }
 
 /** Shared JLPT level selector — used identically by /onboarding and /settings/study. */
 export function LevelGrid({ value, onChange, cascade, size = "md" }: LevelGridProps) {
   const maxIdx = JLPT_LEVELS.indexOf(value);
+  const floorIdx = cascade === false ? maxIdx : cascade === true ? 0 : JLPT_LEVELS.indexOf(cascade);
 
   const pillSize = size === "sm" ? "h-[62px] w-[62px] gap-0.5 rounded-xl" : "h-21 w-21 gap-1 rounded-2xl";
 
   return (
     <div className="flex flex-wrap justify-center gap-2.5">
       {JLPT_LEVELS.map((level, idx) => {
-        const state = idx === maxIdx ? "selected" : cascade && idx < maxIdx ? "included" : "";
+        const state = idx === maxIdx ? "selected" : idx >= floorIdx && idx < maxIdx ? "included" : "";
         return (
           <button
             key={level}

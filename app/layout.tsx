@@ -33,6 +33,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0b0f19",
+  // "cover" lets fullscreen UI (e.g. CountrySelect's mobile picker) read env(safe-area-inset-*)
+  // for the iPhone notch/Dynamic Island and home indicator -- without it those resolve to 0.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
