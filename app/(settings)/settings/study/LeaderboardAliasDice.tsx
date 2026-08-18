@@ -22,10 +22,13 @@ function prefersReducedMotion(): boolean {
 export function LeaderboardAliasDice({
   onReroll,
   disabled,
+  interactive = true,
 }: {
-  /** Must not throw — catch and toast internally; the dice always finishes its animation regardless of outcome. */
-  onReroll: () => Promise<void>;
+  /** Must not throw — catch and toast internally; the dice always finishes its animation regardless of outcome. Unused when `interactive` is false. */
+  onReroll?: () => Promise<void>;
   disabled?: boolean;
+  /** false renders just the idle-floating die with no click/reroll -- for decorating a name elsewhere (e.g. a leaderboard row) without offering a reroll action out of context. */
+  interactive?: boolean;
 }) {
   const cubeRef = useRef<HTMLDivElement>(null);
   const floatRef = useRef<HTMLDivElement>(null);
@@ -50,7 +53,7 @@ export function LeaderboardAliasDice({
   }, []);
 
   async function handleClick() {
-    if (rolling || disabled) return;
+    if (!interactive || rolling || disabled || !onReroll) return;
     const cube = cubeRef.current;
     const floatEl = floatRef.current;
     if (!cube || !floatEl) {
@@ -107,6 +110,56 @@ export function LeaderboardAliasDice({
     setRolling(false);
   }
 
+  const scene = (
+    <div className={styles.dieScene}>
+      <div className={styles.dieFloat} ref={floatRef}>
+        <div className={styles.dieCube} ref={cubeRef}>
+          <div className={`${styles.dieFace} ${styles.faceFront}`}>
+            <span className={`${styles.pip} ${styles.posC}`} />
+          </div>
+          <div className={`${styles.dieFace} ${styles.faceBack}`}>
+            <span className={`${styles.pip} ${styles.posTl}`} />
+            <span className={`${styles.pip} ${styles.posMl}`} />
+            <span className={`${styles.pip} ${styles.posBl}`} />
+            <span className={`${styles.pip} ${styles.posTr}`} />
+            <span className={`${styles.pip} ${styles.posMr}`} />
+            <span className={`${styles.pip} ${styles.posBr}`} />
+          </div>
+          <div className={`${styles.dieFace} ${styles.faceRight}`}>
+            <span className={`${styles.pip} ${styles.posTl}`} />
+            <span className={`${styles.pip} ${styles.posC}`} />
+            <span className={`${styles.pip} ${styles.posBr}`} />
+          </div>
+          <div className={`${styles.dieFace} ${styles.faceLeft}`}>
+            <span className={`${styles.pip} ${styles.posTl}`} />
+            <span className={`${styles.pip} ${styles.posTr}`} />
+            <span className={`${styles.pip} ${styles.posBl}`} />
+            <span className={`${styles.pip} ${styles.posBr}`} />
+          </div>
+          <div className={`${styles.dieFace} ${styles.faceTop}`}>
+            <span className={`${styles.pip} ${styles.posTl}`} />
+            <span className={`${styles.pip} ${styles.posTr}`} />
+            <span className={`${styles.pip} ${styles.posC}`} />
+            <span className={`${styles.pip} ${styles.posBl}`} />
+            <span className={`${styles.pip} ${styles.posBr}`} />
+          </div>
+          <div className={`${styles.dieFace} ${styles.faceBottom}`}>
+            <span className={`${styles.pip} ${styles.posTl}`} />
+            <span className={`${styles.pip} ${styles.posBr}`} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!interactive) {
+    return (
+      <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center" aria-hidden>
+        {scene}
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -116,45 +169,7 @@ export function LeaderboardAliasDice({
       title="Reroll"
       className="flex h-13 w-13 shrink-0 cursor-pointer items-center justify-center rounded-[13px] border border-border-soft bg-white/[0.035] transition-colors enabled:hover:border-accent-red/30 enabled:hover:bg-white/[0.06] disabled:cursor-not-allowed"
     >
-      <div className={styles.dieScene}>
-        <div className={styles.dieFloat} ref={floatRef}>
-          <div className={styles.dieCube} ref={cubeRef}>
-            <div className={`${styles.dieFace} ${styles.faceFront}`}>
-              <span className={`${styles.pip} ${styles.posC}`} />
-            </div>
-            <div className={`${styles.dieFace} ${styles.faceBack}`}>
-              <span className={`${styles.pip} ${styles.posTl}`} />
-              <span className={`${styles.pip} ${styles.posMl}`} />
-              <span className={`${styles.pip} ${styles.posBl}`} />
-              <span className={`${styles.pip} ${styles.posTr}`} />
-              <span className={`${styles.pip} ${styles.posMr}`} />
-              <span className={`${styles.pip} ${styles.posBr}`} />
-            </div>
-            <div className={`${styles.dieFace} ${styles.faceRight}`}>
-              <span className={`${styles.pip} ${styles.posTl}`} />
-              <span className={`${styles.pip} ${styles.posC}`} />
-              <span className={`${styles.pip} ${styles.posBr}`} />
-            </div>
-            <div className={`${styles.dieFace} ${styles.faceLeft}`}>
-              <span className={`${styles.pip} ${styles.posTl}`} />
-              <span className={`${styles.pip} ${styles.posTr}`} />
-              <span className={`${styles.pip} ${styles.posBl}`} />
-              <span className={`${styles.pip} ${styles.posBr}`} />
-            </div>
-            <div className={`${styles.dieFace} ${styles.faceTop}`}>
-              <span className={`${styles.pip} ${styles.posTl}`} />
-              <span className={`${styles.pip} ${styles.posTr}`} />
-              <span className={`${styles.pip} ${styles.posC}`} />
-              <span className={`${styles.pip} ${styles.posBl}`} />
-              <span className={`${styles.pip} ${styles.posBr}`} />
-            </div>
-            <div className={`${styles.dieFace} ${styles.faceBottom}`}>
-              <span className={`${styles.pip} ${styles.posTl}`} />
-              <span className={`${styles.pip} ${styles.posBr}`} />
-            </div>
-          </div>
-        </div>
-      </div>
+      {scene}
     </button>
   );
 }

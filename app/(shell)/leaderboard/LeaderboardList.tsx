@@ -69,7 +69,7 @@ function RankBadge({ rank }: { rank: number }) {
   if (rank <= 3) {
     return (
       <div
-        className="flex h-9 shrink-0 items-center justify-center text-xl"
+        className="flex h-9 w-5 shrink-0 items-center justify-center text-xl"
         style={{ color: MEDAL_COLORS[rank] }}
       >
         <FaMedal />
@@ -77,7 +77,7 @@ function RankBadge({ rank }: { rank: number }) {
     );
   }
   return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center text-[0.95rem] font-bold text-text-muted">
+    <div className="flex h-9 w-5 shrink-0 items-center justify-center text-[0.95rem] font-bold text-text-muted">
       {rank}
     </div>
   );
@@ -88,11 +88,14 @@ export function LeaderboardList({
   status,
   metric,
   viewerId,
+  viewerAnonymous = false,
 }: {
   entries: LeaderboardEntry[];
   status: "loading" | "loaded" | "error";
   metric: LeaderboardMetric;
   viewerId: string | undefined;
+  /** Whether the viewer's own row is showing their random alias instead of their real name (settings' "Appear anonymously" toggle). */
+  viewerAnonymous?: boolean;
 }) {
   if (status === "loading") {
     return (
@@ -145,6 +148,11 @@ export function LeaderboardList({
                 </div>
                 <p className="text-[0.92rem] font-bold leading-10 text-white">
                   {entry.display_name?.trim() || "Anonymous user"}
+                  {isViewer && viewerAnonymous ? (
+                    <span className="ml-2 mb-1 inline-flex items-center gap-1 align-middle text-xs font-semibold text-accent-blue/70">
+                      (you)
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <span
@@ -152,7 +160,7 @@ export function LeaderboardList({
                 style={{ backgroundColor: `${METRIC_COLORS[metric]}1f`, color: METRIC_COLORS[metric] }}
               >
                 <b className="text-[0.95rem] font-extrabold leading-none tabular-nums">{value}</b>
-                <span className="text-[0.58rem] font-bold uppercase tracking-wider opacity-80">{unit}</span>
+                <span className="text-[0.58rem] font-bold uppercase tracking-wider opacity-80 text-center">{unit}</span>
               </span>
             </div>
           </div>

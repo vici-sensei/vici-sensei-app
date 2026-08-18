@@ -12,8 +12,8 @@ const DESCRIPTIONS: Record<JlptLevel, string> = {
 };
 
 interface LevelGridProps {
-  /** The most advanced level selected. */
-  value: JlptLevel;
+  /** The most advanced level selected, or `null` if the user hasn't picked one yet. */
+  value: JlptLevel | null;
   onChange: (level: JlptLevel) => void;
   /**
    * Whether/how far levels below `value` are also included — tints them to show they're active
@@ -26,7 +26,7 @@ interface LevelGridProps {
 
 /** Shared JLPT level selector — used identically by /onboarding and /settings/study. */
 export function LevelGrid({ value, onChange, cascade, size = "md" }: LevelGridProps) {
-  const maxIdx = JLPT_LEVELS.indexOf(value);
+  const maxIdx = value ? JLPT_LEVELS.indexOf(value) : -1;
   const floorIdx = cascade === false ? maxIdx : cascade === true ? 0 : JLPT_LEVELS.indexOf(cascade);
 
   const pillSize = size === "sm" ? "h-[62px] w-[62px] gap-0.5 rounded-xl" : "h-21 w-21 gap-1 rounded-2xl";

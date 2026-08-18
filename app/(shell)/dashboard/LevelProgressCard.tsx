@@ -85,7 +85,7 @@ export function LevelProgressCard() {
 
   if (!stats) {
     return (
-      <GlassCard padding="sm" className="order-3 flex w-full items-center justify-center md:w-fit md:shrink-0">
+      <GlassCard padding="sm" className="order-7 flex w-full items-center justify-center order-7 xl:order-3 xl:w-fit xl:shrink-0">
         <Skeleton className="h-[110px] w-[110px] rounded-full md:h-[150px] md:w-[150px]" />
       </GlassCard>
     );
@@ -94,16 +94,15 @@ export function LevelProgressCard() {
   const progress = stats.level_progress;
   if (!progress) return null;
 
+  // TO DO - order-?
   return (
     <GlassCard
       ref={cardRef}
       padding="sm"
-      role="button"
-      tabIndex={0}
       aria-label={`${progress.level} progress details`}
-      className={`order-3 flex flex-wrap items-center justify-center gap-5 md:gap-10 w-full xl:w-fit !cursor-default`}
+      className={`order-7 md:order-5 md:w-fit xl:order-3 flex flex-wrap items-center justify-center gap-5 xl:gap-10 w-full !cursor-default`}
     >
-      <div ref={ringsRef} className="relative h-[110px] w-[110px] shrink-0 md:h-[150px] md:w-[150px]">
+      <div ref={ringsRef} className="relative h-[110px] w-[110px] shrink-0 xl:h-[150px] xl:w-[150px]">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full -rotate-90">
           {RINGS.map((ring, i) => {
             const cat = progress[ring.key];
@@ -136,7 +135,10 @@ export function LevelProgressCard() {
           const cat = progress[ring.key];
           return (
             <Fragment key={ring.key}>
-              <div className="text-sm font-semibold text-white">{ring.label}</div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${ring.dot}`} />
+                {ring.label}
+              </div>
               <div className={`justify-self-center text-sm font-bold ${ring.textDim}`}>
                 {pct(cat.seen, cat.total)}%
               </div>

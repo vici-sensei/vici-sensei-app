@@ -34,7 +34,7 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     floor: leastAdvancedLevel(settings.enabled_levels),
     studyKanji: settings.study_kanji,
     studyVocabulary: settings.study_vocabulary,
-    leaderboardAnonymous: settings.leaderboard_anonymous,
+    leaderboardAnonymous: settings.leaderboard_anonymous ?? false,
   };
 }
 
@@ -62,7 +62,9 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
   const [floor, setFloor] = useState<JlptLevel>(leastAdvancedLevel(initial.enabled_levels));
   const [studyKanji, setStudyKanji] = useState(initial.study_kanji);
   const [studyVocabulary, setStudyVocabulary] = useState(initial.study_vocabulary);
-  const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous);
+  // Coerced to a definite boolean here -- null (onboarding not yet chosen) shouldn't reach this
+  // page in practice, since /onboarding gates access before it, but the toggle itself is binary.
+  const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous ?? false);
   const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(initial.leaderboard_alias);
   const [saved, setSaved] = useState<Snapshot>(() => snapshotFrom(initial));
 

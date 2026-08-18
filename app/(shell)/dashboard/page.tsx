@@ -130,7 +130,7 @@ function StatCards() {
 
   if (!stats) {
     return (
-      <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-[18px] md:grid-cols-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <GlassCard key={i} padding="sm" className="flex flex-col items-center justify-center sm:items-start sm:justify-start">
             <Skeleton className="mb-3.5 h-14 w-14 rounded-full" />
@@ -143,10 +143,10 @@ function StatCards() {
   }
 
   return (
-    <div className="mt-7 grid grid-cols-2 gap-[18px] md:grid-cols-3">
+    <div className="grid grid-cols-2 gap-[18px] md:grid-cols-3">
       <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
         <StatRing
-          icon={<span className="text-3xl font-bold leading-none">竜</span>}
+          icon={<span className="text-[27px] font-medium leading-none">竜</span>}
           percent={statPct(stats.new_kanji_today, stats.new_kanji_limit)}
           colorClass="stroke-accent-blue"
         />
@@ -172,7 +172,7 @@ function StatCards() {
 
       <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
         <StatRing
-          icon={<FaArrowsRotate className="h-6 w-6" />}
+          icon={<FaArrowsRotate className="h-7 w-7" />}
           percent={statPct(stats.reviewed_today, stats.reviewed_today + stats.due_today)}
           colorClass="stroke-accent-orange"
         />
@@ -224,9 +224,10 @@ export default function DashboardPage() {
           <StreakCard />
         </div>
         <LevelProgressCard />
+        <div className="order-3 md:order-4 md:basis-full">
+          <StatCards />
+        </div>
       </div>
-
-      <StatCards />
 
       <Link
         className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-text-muted transition-[color,gap] duration-200 hover:gap-2.5 hover:text-white"

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useLeaderboard } from "@/lib/client-data/leaderboard";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
+import { useStudySettings } from "@/lib/client-data/studySettings";
 import type { LeaderboardMetric, LeaderboardPeriod } from "@/lib/types";
 import { readStoredMetric, readStoredPeriod, writeStoredMetric, writeStoredPeriod } from "@/lib/leaderboard/storage";
 import { LeaderboardTabs } from "./LeaderboardTabs";
@@ -17,6 +18,7 @@ export default function LeaderboardPage() {
   const [period, setPeriod] = useState<LeaderboardPeriod>(() => readStoredPeriod("weekly"));
   const clockOffsetMs = useServerClockOffset();
   const { data, status } = useLeaderboard(user, metric, period, clockOffsetMs);
+  const { data: studySettings } = useStudySettings(user);
 
   function handleMetricChange(next: LeaderboardMetric) {
     setMetric(next);
@@ -45,7 +47,13 @@ export default function LeaderboardPage() {
       {metric === "xp" ? (
         <p className="mb-5.5 text-sm text-text-muted">Earn 10 XP for every correct review, 2 XP even if you miss one, and 25 XP for each new card you start.</p>
       ) : null}
-      <LeaderboardList entries={data} status={status} metric={metric} viewerId={user?.id} />
+      <LeaderboardList
+        entries={data}
+        status={status}
+        metric={metric}
+        viewerId={user?.id}
+        viewerAnonymous={studySettings?.leaderboard_anonymous ?? false}
+      />
     </div>
   );
 }

@@ -86,7 +86,11 @@ export async function rerollLeaderboardAlias(): Promise<LeaderboardAlias> {
   return data as LeaderboardAlias;
 }
 
-export async function completeOnboarding(userId: string, enabledLevels: JlptLevel[]): Promise<void> {
+export async function completeOnboarding(
+  userId: string,
+  enabledLevels: JlptLevel[],
+  leaderboardAnonymous: boolean
+): Promise<void> {
   if (enabledLevels.length === 0) {
     throw new ApiError(400, "enabled_levels must contain at least one valid JLPT level.");
   }
@@ -96,6 +100,7 @@ export async function completeOnboarding(userId: string, enabledLevels: JlptLeve
     .from("user_study_settings")
     .update({
       enabled_levels: enabledLevels,
+      leaderboard_anonymous: leaderboardAnonymous,
       onboarding_completed: true,
       updated_at: new Date().toISOString(),
     })
