@@ -217,13 +217,13 @@ export default function DashboardPage() {
       </Suspense>
 
       <div className="flex flex-col gap-[18px] md:flex-row md:flex-wrap">
-        <div className="md:flex-1">
+        <div className="order-1 md:basis-full">
+          <DashboardHero />
+        </div>
+        <div className="order-2 md:flex-1">
           <StreakCard />
         </div>
         <LevelProgressCard />
-        <div className="order-2 md:order-3 md:basis-full">
-          <DashboardHero />
-        </div>
       </div>
 
       <StatCards />

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { FaRegCircleQuestion } from "react-icons/fa6";
+import { Fragment, useRef } from "react";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -81,22 +80,12 @@ export function LevelProgressCard() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
   // no separate fetch here.
   const { stats } = useStudyStats();
-  const [legendOpen, setLegendOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const [ringsRef, ringsInView] = useInView<HTMLDivElement>();
 
-  useEffect(() => {
-    if (!legendOpen) return;
-    function onOutsideClick(e: MouseEvent) {
-      if (cardRef.current && !cardRef.current.contains(e.target as Node)) setLegendOpen(false);
-    }
-    document.addEventListener("click", onOutsideClick);
-    return () => document.removeEventListener("click", onOutsideClick);
-  }, [legendOpen]);
-
   if (!stats) {
     return (
-      <GlassCard padding="sm" className="order-3 flex w-full items-center justify-center md:order-2 md:w-fit md:shrink-0">
+      <GlassCard padding="sm" className="order-3 flex w-full items-center justify-center md:w-fit md:shrink-0">
         <Skeleton className="h-[110px] w-[110px] rounded-full md:h-[150px] md:w-[150px]" />
       </GlassCard>
     );
@@ -105,46 +94,15 @@ export function LevelProgressCard() {
   const progress = stats.level_progress;
   if (!progress) return null;
 
-  const legendRows = RINGS.map((ring) => {
-    const cat = progress[ring.key];
-    return (
-      <div key={ring.key} className="flex items-center gap-2 text-sm">
-        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${ring.dot}`} />
-        <span className="font-semibold text-white">{ring.label}</span>
-        <span className="ml-auto flex items-center gap-4 text-[0.75rem]">
-          <span className={ring.textDim}>
-            {cat.seen}/{cat.total}
-          </span>
-          <span className="text-text-muted">·</span>
-          <span className={`font-semibold ${ring.text}`}>
-            {cat.learned}/{cat.total}
-          </span>
-        </span>
-      </div>
-    );
-  });
-
   return (
     <GlassCard
       ref={cardRef}
       padding="sm"
       role="button"
       tabIndex={0}
-      aria-expanded={legendOpen}
       aria-label={`${progress.level} progress details`}
-      onMouseEnter={() => setLegendOpen(true)}
-      onMouseLeave={() => setLegendOpen(false)}
-      onClick={() => setLegendOpen((o) => !o)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          setLegendOpen((o) => !o);
-        }
-      }}
-      className={`order-3 flex w-full flex-wrap !cursor-default select-none items-start justify-center gap-x-4 gap-y-3 md:order-2 md:w-fit md:shrink-0 md:flex-nowrap md:items-center md:gap-0 md:!cursor-pointer ${legendOpen ? "z-10" : ""}`}
+      className={`order-3 flex flex-wrap items-center justify-center gap-5 md:gap-10 w-full xl:w-fit !cursor-default`}
     >
-      <FaRegCircleQuestion className="absolute right-3 top-3 hidden h-3.5 w-3.5 text-text-muted/50 md:block" />
-
       <div ref={ringsRef} className="relative h-[110px] w-[110px] shrink-0 md:h-[150px] md:w-[150px]">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full -rotate-90">
           {RINGS.map((ring, i) => {
@@ -166,26 +124,30 @@ export function LevelProgressCard() {
         </div>
       </div>
 
-      {/* Mobile: plain legend text inline in the card, no modal/box styling. */}
-      <div className="min-w-[220px] max-w-full flex-1 select-text cursor-text text-left md:hidden">
-        <div className="mb-2.5 text-[0.7rem] leading-normal text-text-muted">
-          Lighter ring = seen at least once. <br /> Solid ring = already learned.
-        </div>
-        <div className="space-y-2">{legendRows}</div>
-      </div>
+      {/* Legend */}
 
-      {/* Desktop: hover/click dropdown, unchanged. */}
-      {legendOpen && (
-        <div
-          className="absolute left-1/2 top-full z-40 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-border-soft bg-bg-main p-3.5 text-left shadow-[0_12px_30px_rgba(0,0,0,0.5)] md:block"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="mb-2.5 text-[0.7rem] leading-normal text-text-muted">
-            Lighter ring = seen at least once. <br /> Solid ring = already learned.
-          </div>
-          <div className="space-y-2">{legendRows}</div>
-        </div>
-      )}
+      <div className="grid grid-cols-[auto_1fr_1fr] items-center gap-x-6 gap-y-2.5">
+
+        <div></div>
+        <div className="justify-self-center text-xs text-text-muted">Seen at least once</div>
+        <div className="justify-self-center text-xs text-text-muted">Already learned</div>
+
+        {RINGS.map((ring) => {
+          const cat = progress[ring.key];
+          return (
+            <Fragment key={ring.key}>
+              <div className="text-sm font-semibold text-white">{ring.label}</div>
+              <div className={`justify-self-center text-sm font-bold ${ring.textDim}`}>
+                {pct(cat.seen, cat.total)}%
+              </div>
+              <div className={`justify-self-center text-sm font-bold ${ring.text}`}>
+                {pct(cat.learned, cat.total)}%
+              </div>
+            </Fragment>
+          );
+        })}
+
+      </div>
     </GlassCard>
   );
 }
