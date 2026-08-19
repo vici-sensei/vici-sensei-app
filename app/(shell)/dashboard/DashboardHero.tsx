@@ -57,12 +57,14 @@ export function DashboardHero() {
           : "before:bg-[radial-gradient(circle_at_15%_20%,rgb(255_74_90/0.12)_0%,transparent_55%)]"
       }`}
     >
+      {allDone && (
+        <GiPartyPopper className="pointer-events-none absolute -bottom-4 -right-4 h-32 w-32 text-accent-gold/10 md:h-40 md:w-40" />
+      )}
       <div className="relative text-center sm:text-left">
         {allDone ? (
           <>
-            <h1 className="mb-2 flex items-center justify-center gap-3 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] sm:justify-start">
+            <h1 className="mb-2 text-2xl md:text-3xl font-extrabold leading-[1.2] tracking-[-0.8px]">
               You&apos;re all done for {dueLaterToday ? "now" : "today"}
-              <GiPartyPopper className="h-14 w-14 text-accent-gold" />
             </h1>
             <p className="text-base leading-[1.6] text-text-muted">
               {dueLaterToday && stats.next_due_at ? (
@@ -77,7 +79,7 @@ export function DashboardHero() {
           </>
         ) : (
           <>
-            <h1 className="mb-2 text-3xl font-extrabold leading-[1.2] tracking-[-0.8px]">
+            <h1 className="mb-2 flex-wrap items-center justify-center gap-3 text-2xl md:text-3xl font-extrabold leading-[1.2] tracking-[-0.8px] md:justify-start">
               You have{" "}
               <span className="font-extrabold text-accent-red">{cardsToday}</span>{" "}
               card{cardsToday === 1 ? "" : "s"} to do today
@@ -85,11 +87,11 @@ export function DashboardHero() {
             <p className="text-base leading-[1.6] text-text-muted">{summaryText}</p>
           </>
         )}
-        <StartStudyButton disabled={allDone} />
         {stale && (
           <p className="mt-2.5 text-sm text-text-muted">Couldn&apos;t refresh your stats — try reloading the page.</p>
         )}
       </div>
+      <StartStudyButton disabled={allDone} />
     </GlassCard>
   );
 }

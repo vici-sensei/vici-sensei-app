@@ -22,6 +22,7 @@
   --color-accent-green-glow: rgba(52, 211, 153, 0.35);
   --color-border-soft: rgba(255, 255, 255, 0.05);
 
+  --breakpoint-xs: 280px;
   --breakpoint-sm: 480px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 992px;
@@ -204,6 +205,44 @@ input:disabled ~ span {
   }
   50% {
     filter: drop-shadow(0 0 9px currentColor) brightness(1.4);
+  }
+}
+
+/* Grid item placement (dashboard/page.tsx) -- reads its position from CSS custom
+   properties (--row/--col/--col-span/--row-span, optionally suffixed -xs/-sm/-md/-lg)
+   set inline per element via the LAYOUT config in page.tsx. Each breakpoint falls back
+   to the previous tier when it doesn't override a value, so page.tsx only has to set
+   the properties that actually change at that breakpoint. */
+.grid-item {
+  grid-row: var(--row, auto) / span var(--row-span, 1);
+  grid-column: var(--col, auto) / span var(--col-span, 1);
+}
+
+@media (min-width: 280px) {
+  .grid-item {
+    grid-row: var(--row-xs, var(--row, auto)) / span var(--row-span-xs, var(--row-span, 1));
+    grid-column: var(--col-xs, var(--col, auto)) / span var(--col-span-xs, var(--col-span, 1));
+  }
+}
+
+@media (min-width: 480px) {
+  .grid-item {
+    grid-row: var(--row-sm, var(--row-xs, var(--row, auto))) / span var(--row-span-sm, var(--row-span-xs, var(--row-span, 1)));
+    grid-column: var(--col-sm, var(--col-xs, var(--col, auto))) / span var(--col-span-sm, var(--col-span-xs, var(--col-span, 1)));
+  }
+}
+
+@media (min-width: 768px) {
+  .grid-item {
+    grid-row: var(--row-md, var(--row-sm, var(--row-xs, var(--row, auto)))) / span var(--row-span-md, var(--row-span-sm, var(--row-span-xs, var(--row-span, 1))));
+    grid-column: var(--col-md, var(--col-sm, var(--col-xs, var(--col, auto)))) / span var(--col-span-md, var(--col-span-sm, var(--col-span-xs, var(--col-span, 1))));
+  }
+}
+
+@media (min-width: 992px) {
+  .grid-item {
+    grid-row: var(--row-lg, var(--row-md, var(--row-sm, var(--row-xs, var(--row, auto))))) / span var(--row-span-lg, var(--row-span-md, var(--row-span-sm, var(--row-span-xs, var(--row-span, 1)))));
+    grid-column: var(--col-lg, var(--col-md, var(--col-sm, var(--col-xs, var(--col, auto))))) / span var(--col-span-lg, var(--col-span-md, var(--col-span-sm, var(--col-span-xs, var(--col-span, 1)))));
   }
 }
 

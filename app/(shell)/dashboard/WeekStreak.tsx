@@ -39,7 +39,7 @@ export function WeekStreak({ activity, streak, todayDone }: WeekStreakProps) {
   const milestone = streak >= 7;
 
   return (
-    <div className="flex items-center justify-between gap-1 border-t border-border-soft sm:border-none pt-2 sm:pt-0 sm:mt-0">
+    <div className="flex flex-wrap sm:flex-row items-center justify-center gap-1 border-t border-border-soft sm:border-none pt-2 sm:pt-0 sm:mt-0">
       {activity.map((day, i) => {
         const isToday = i === todayIndex;
         const sunday = isSunday(day.date);
