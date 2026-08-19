@@ -1,22 +1,13 @@
-import { createClient } from "jsr:@supabase/supabase-js@2";
 import { handlePreflight, jsonResponse } from "../_shared/cors.ts";
+import { createAdminClient, requireUser } from "../_shared/supabaseClients.ts";
 
 Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
 
-  // User-scoped client (RLS applies) to identify the caller.
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: req.headers.get("Authorization")! } },
-  });
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return jsonResponse(req, { error: "You are not logged in. Please log in." }, 401);
-  }
+  const auth = await requireUser(req);
+  if (auth instanceof Response) return auth;
+  const { user } = auth;
 
   const body = await req.json().catch(() => ({}));
   const newIdentityId = typeof body.newIdentityId === "string" ? body.newIdentityId : null;
@@ -27,9 +18,7 @@ Deno.serve(async (req) => {
   // Admin (service-role) client — required to read the full identity list with
   // confidence and to set auth.users.email without triggering the double-opt-in
   // confirmation flow (Google's own OAuth handshake already proved ownership).
-  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const admin = createAdminClient();
 
   const { data: adminUser, error: getUserError } = await admin.auth.admin.getUserById(user.id);
   if (getUserError || !adminUser.user) {

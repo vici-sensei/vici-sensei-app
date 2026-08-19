@@ -1,6 +1,7 @@
 import Stripe from "npm:stripe@22";
-import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, handlePreflight, jsonResponse } from "../_shared/cors.ts";
+import { createAdminClient } from "../_shared/supabaseClients.ts";
+import { cancelActiveSubscriptions } from "../_shared/stripe.ts";
 
 // Invoked on a daily cron schedule (see the
 // 20260819_process_scheduled_deletions_cron.sql manual setup migration) with
@@ -15,9 +16,7 @@ Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
 
-  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const admin = createAdminClient();
 
   const { data: dueUsers, error: fetchError } = await admin
     .from("users")
@@ -38,15 +37,8 @@ Deno.serve(async (req) => {
       let stripeCustomerDeleted = false;
 
       if (row.stripe_customer_id && stripe) {
-        const subscriptions = await stripe.subscriptions.list({
-          customer: row.stripe_customer_id,
-          status: "all",
-        });
-        const cancelableSubscriptions = subscriptions.data.filter(
-          (sub) => sub.status !== "canceled" && sub.status !== "incomplete_expired"
-        );
-        hadActiveSubscription = cancelableSubscriptions.length > 0;
-        await Promise.all(cancelableSubscriptions.map((sub) => stripe.subscriptions.cancel(sub.id)));
+        const canceledCount = await cancelActiveSubscriptions(stripe, row.stripe_customer_id);
+        hadActiveSubscription = canceledCount > 0;
         await stripe.customers.del(row.stripe_customer_id);
         stripeCustomerDeleted = true;
       }

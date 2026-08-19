@@ -1,22 +1,14 @@
 import Stripe from "npm:stripe@22";
-import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, handlePreflight, jsonResponse } from "../_shared/cors.ts";
+import { requireUser } from "../_shared/supabaseClients.ts";
 
 Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
 
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: req.headers.get("Authorization")! } },
-  });
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return jsonResponse(req, { error: "You are not logged in. Please log in." }, 401);
-  }
+  const auth = await requireUser(req);
+  if (auth instanceof Response) return auth;
+  const { supabase, user } = auth;
 
   const body = await req.json().catch(() => ({}));
   const returnUrl = typeof body.return_url === "string" && body.return_url.length > 0 ? body.return_url : null;

@@ -321,44 +321,38 @@ export function useStudyQueue() {
     [enqueueMutation, showToast]
   );
 
-  const introduceKanji = useCallback(
-    (item: QueueItem & { kind: "new_kanji" }) => {
+  const introduceCard = useCallback(
+    (
+      item: QueueItem & { kind: "new_kanji" | "new_vocab" },
+      apiCall: (candidateId: number, sessionId?: number) => Promise<void>,
+      noun: string
+    ) => {
       hasProcessedAnyRef.current = true;
       setCompletedCount((c) => c + 1);
       setQueue((prev) => prev.filter((i) => i.key !== item.key));
 
       enqueueMutation(async () => {
         try {
-          await introduceKanjiApi(item.candidate.id, sessionIdRef.current ?? undefined);
+          await apiCall(item.candidate.id, sessionIdRef.current ?? undefined);
         } catch (err) {
           if (err instanceof ApiError && err.status === 409) return; // already introduced elsewhere — not a failure
           setCompletedCount((c) => Math.max(0, c - 1));
           setQueue((prev) => [item, ...prev]);
-          showToast(err instanceof ApiError ? err.message : "Could not introduce this kanji. Please try again.", "error");
+          showToast(err instanceof ApiError ? err.message : `Could not introduce this ${noun}. Please try again.`, "error");
         }
       });
     },
     [enqueueMutation, showToast]
   );
 
-  const introduceVocab = useCallback(
-    (item: QueueItem & { kind: "new_vocab" }) => {
-      hasProcessedAnyRef.current = true;
-      setCompletedCount((c) => c + 1);
-      setQueue((prev) => prev.filter((i) => i.key !== item.key));
+  const introduceKanji = useCallback(
+    (item: QueueItem & { kind: "new_kanji" }) => introduceCard(item, introduceKanjiApi, "kanji"),
+    [introduceCard]
+  );
 
-      enqueueMutation(async () => {
-        try {
-          await introduceVocabularyApi(item.candidate.id, sessionIdRef.current ?? undefined);
-        } catch (err) {
-          if (err instanceof ApiError && err.status === 409) return; // already introduced elsewhere — not a failure
-          setCompletedCount((c) => Math.max(0, c - 1));
-          setQueue((prev) => [item, ...prev]);
-          showToast(err instanceof ApiError ? err.message : "Could not introduce this word. Please try again.", "error");
-        }
-      });
-    },
-    [enqueueMutation, showToast]
+  const introduceVocab = useCallback(
+    (item: QueueItem & { kind: "new_vocab" }) => introduceCard(item, introduceVocabularyApi, "word"),
+    [introduceCard]
   );
 
   const undoLast = useCallback(() => {

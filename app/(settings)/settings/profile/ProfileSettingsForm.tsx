@@ -1,43 +1,24 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
 import type { UserIdentity } from "@supabase/supabase-js";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
-import {
-  updateDisplayName,
-  updateCountry,
-  updateShowCountryOnLeaderboard,
-  uploadAvatar,
-  removeAvatar,
-} from "@/lib/client-data/userProfile";
+import { updateDisplayName, updateCountry, updateShowCountryOnLeaderboard } from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { CountrySelect } from "@/app/components/ui/CountrySelect";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Toggle } from "@/app/components/ui/Toggle";
+import { AvatarEditor } from "@/app/components/ui/AvatarEditor";
 import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
-
-// Both are only ever rendered after a user action (cropping a new photo, confirming a
-// removal) -- loaded on demand instead of bundled into every visit to this page.
-const AvatarCropModal = dynamic(() => import("./AvatarCropModal").then((m) => m.AvatarCropModal), { ssr: false });
-const ConfirmDialog = dynamic(() => import("@/app/components/ui/ConfirmDialog").then((m) => m.ConfirmDialog), {
-  ssr: false,
-});
-import { avatarSrc } from "@/lib/avatar";
 import { ProBadge } from "@/app/components/ui/ProBadge";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
-import { FaCheck, FaPenToSquare, FaTrash, FaUser } from "react-icons/fa6";
+import { FaCheck } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
-
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
-// Target side length for uploaded avatars: comfortably sharp at the size we display
-// them (including retina), without shipping multi-megabyte originals to storage.
-const AVATAR_TARGET_SIZE = 640;
 
 // Keys are short codes we or GoTrue produce; anything else (e.g. a message
 // already relayed verbatim from the switch-google-account Edge Function) is
@@ -93,20 +74,13 @@ export function ProfileSettingsForm({
   const [countryStatus, setCountryStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [showCountryOnLeaderboard, setShowCountryOnLeaderboard] = useState(initial.show_country_on_leaderboard);
   const [avatarUrl, setAvatarUrl] = useState(initial.avatar_url ?? "");
-  const [avatarFailed, setAvatarFailed] = useState(false);
 
   // `initial` can still be loading (or get refetched) after this component has
   // already mounted with a stale/empty value — resync instead of trusting the
   // one-time useState initializer, and give a fresh URL a chance to load again.
   useEffect(() => {
     setAvatarUrl(initial.avatar_url ?? "");
-    setAvatarFailed(false);
   }, [initial.avatar_url]);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [removingAvatar, setRemovingAvatar] = useState(false);
-  const [confirmingRemoveAvatar, setConfirmingRemoveAvatar] = useState(false);
-  const [cropFile, setCropFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [identities, setIdentities] = useState<UserIdentity[]>([]);
   const [identitiesStatus, setIdentitiesStatus] = useState<"loading" | "loaded">("loading");
@@ -193,64 +167,6 @@ export function ProfileSettingsForm({
     }
   }
 
-  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      showToast("Please choose an image file.", "error");
-      return;
-    }
-
-    setCropFile(file);
-  }
-
-  async function handleAvatarCropped(cropped: Blob) {
-    setCropFile(null);
-    if (cropped.size > MAX_AVATAR_BYTES) {
-      showToast("Image is too large. Please choose a smaller photo.", "error");
-      return;
-    }
-
-    const previousAvatarUrl = avatarUrl;
-    const objectUrl = URL.createObjectURL(cropped);
-    setAvatarUrl(objectUrl);
-    setAvatarFailed(false);
-
-    setUploadingAvatar(true);
-    try {
-      const updated = await uploadAvatar(userId, cropped);
-      setAvatarUrl(updated.avatar_url ?? "");
-      showToast("Photo updated");
-      onSaved();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not upload your photo.", "error");
-      setAvatarUrl(previousAvatarUrl);
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-      setUploadingAvatar(false);
-    }
-  }
-
-  async function handleRemoveAvatar() {
-    const previousAvatarUrl = avatarUrl;
-    setConfirmingRemoveAvatar(false);
-    setRemovingAvatar(true);
-    try {
-      const updated = await removeAvatar(userId);
-      setAvatarUrl(updated.avatar_url ?? "");
-      setAvatarFailed(false);
-      showToast("Photo removed");
-      onSaved();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not remove your photo.", "error");
-      setAvatarUrl(previousAvatarUrl);
-    } finally {
-      setRemovingAvatar(false);
-    }
-  }
-
   async function handleSwitchGoogleAccount() {
     setSwitching(true);
     try {
@@ -298,57 +214,14 @@ export function ProfileSettingsForm({
     <div>
       <GlassCard padding="lg" className="mb-5.5">
         <div className="mb-6.5 flex flex-col items-center gap-4 md:flex-row md:gap-5">
-          <div className="relative h-40 w-40 shrink-0">
-            <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[2.75rem] font-extrabold text-white">
-              {avatarUrl && !avatarFailed ? (
-                // eslint-disable-next-line @next/next/no-img-element -- arbitrary user-supplied URL, any domain
-                <img
-                  src={avatarSrc(avatarUrl, 512)}
-                  alt=""
-                  className="h-full w-full object-cover"
-                  onError={() => setAvatarFailed(true)}
-                />
-              ) : (
-                <FaUser className="h-[45%] w-[45%]" />
-              )}
-            </div>
-            {initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
-            {avatarUrl && !avatarFailed ? (
-              <button
-                type="button"
-                onClick={() => setConfirmingRemoveAvatar(true)}
-                disabled={removingAvatar || uploadingAvatar}
-                aria-label="Remove profile photo"
-                className="absolute -bottom-2.5 -left-2.5 flex h-10 w-10 items-center justify-center rounded-full border border-border-soft bg-bg-cards text-text-muted shadow-[0_4px_10px_rgba(0,0,0,0.4)] transition-colors hover:text-accent-red disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {removingAvatar ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <FaTrash className="h-4 w-4" />
-                )}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingAvatar}
-              aria-label="Change profile photo"
-              className="absolute -bottom-2.5 -right-2.5 flex h-10 w-10 items-center justify-center rounded-full border border-border-soft bg-bg-cards text-text-muted shadow-[0_4px_10px_rgba(0,0,0,0.4)] transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {uploadingAvatar ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <FaPenToSquare className="h-4 w-4" />
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
-          </div>
+          <AvatarEditor
+            userId={userId}
+            avatarUrl={avatarUrl}
+            onAvatarChange={(url) => setAvatarUrl(url ?? "")}
+            onSaved={onSaved}
+            size="lg"
+            badge={initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
+          />
           <div className="w-full md:flex-1">
             <label className={fieldLabel}>Full name</label>
             <div className="relative">
@@ -444,26 +317,6 @@ export function ProfileSettingsForm({
       <Suspense fallback={null}>
         <SwitchResultNotice />
       </Suspense>
-
-      {cropFile && (
-        <AvatarCropModal
-          file={cropFile}
-          outputSize={AVATAR_TARGET_SIZE}
-          onCancel={() => setCropFile(null)}
-          onCropped={handleAvatarCropped}
-        />
-      )}
-
-      {confirmingRemoveAvatar && (
-        <ConfirmDialog
-          title="Remove profile photo?"
-          confirmLabel="Remove"
-          danger
-          loading={removingAvatar}
-          onConfirm={handleRemoveAvatar}
-          onCancel={() => setConfirmingRemoveAvatar(false)}
-        />
-      )}
     </div>
   );
 }
