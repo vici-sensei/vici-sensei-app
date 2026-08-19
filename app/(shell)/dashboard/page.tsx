@@ -8,15 +8,16 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { useInView } from "@/lib/useInView";
+import { useCountUp } from "@/lib/useCountUp";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { AnimatedRingStroke, RingTrack } from "@/app/components/ui/AnimatedRing";
-import { Skeleton } from "@/app/components/ui/Skeleton";
 import { DashboardHero } from "./DashboardHero";
 import { NextCardCountdown } from "./NextCardCountdown";
 import { CheckoutBanner } from "./CheckoutBanner";
 import { WeekStreak } from "./WeekStreak";
 import { LevelProgressCard } from "./LevelProgressCard";
 import { FaBook, FaFire, FaArrowRight, FaArrowsRotate } from "react-icons/fa6";
+import type { WeeklyActivityDay } from "@/lib/types";
 
 // mingcute:target-fill (https://icon-sets.iconify.design/mingcute/target-fill) -- react-icons
 // doesn't bundle the MingCute set, so inlined as a one-off rather than pulling in a whole new
@@ -36,37 +37,37 @@ function CheckoutBannerFromQuery() {
   return <CheckoutBanner status={checkout} />;
 }
 
+// Placeholder week -- all flames unlit, so today reads as the same faded red WeekStreak
+// already uses for "today, not done yet" -- shown in place of a skeleton while stats load.
+function placeholderWeekActivity(): WeeklyActivityDay[] {
+  const days: WeeklyActivityDay[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    days.push({ date: d.toISOString().slice(0, 10), active: false });
+  }
+  return days;
+}
+
 function StreakCard() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
   // no separate fetch here.
   const { stats } = useStudyStats();
-
-  if (!stats) {
-    return (
-      <GlassCard padding="sm">
-        <div className="flex flex-col items-center gap-4 sm:flex-row">
-          <Skeleton className="h-9 w-9 rounded-lg" />
-          <Skeleton className="h-8 w-16" />
-          <Skeleton className="h-4 w-24" />
-        </div>
-      </GlassCard>
-    );
-  }
+  const streak = stats?.streak ?? 0;
+  const displayedStreak = useCountUp(streak);
+  const activity = stats?.weekly_activity ?? placeholderWeekActivity();
+  const todayDone = stats ? cardsRemainingToday(stats) === 0 : false;
 
   return (
     <GlassCard padding="sm">
       <div className="flex flex-col gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left justify-center items-center h-full">
         <div className="flex items-center gap-3.5">
           <div className="flex flex-col items-center sm:gap-2">
-            <div className="text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{stats.streak}</div>
+            <div className="text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{displayedStreak}</div>
             <div className="text-sm font-semibold text-text-muted">Day streak</div>
           </div>
         </div>
-        <WeekStreak
-          activity={stats.weekly_activity}
-          streak={stats.streak}
-          todayDone={cardsRemainingToday(stats) === 0}
-        />
+        <WeekStreak activity={activity} streak={streak} todayDone={todayDone} />
       </div>
     </GlassCard>
   );
@@ -113,52 +114,55 @@ function StatRing({
   );
 }
 
-function StatCardSkeleton() {
-  return (
-    <GlassCard padding="sm" className="flex flex-col items-center justify-center">
-      <Skeleton className="mb-3.5 h-14 w-14 rounded-full" />
-      <Skeleton className="mb-1.5 h-8 w-16" />
-      <Skeleton className="h-4 w-24" />
-    </GlassCard>
-  );
-}
+// Matches DEFAULT_NEW_KANJI_PER_DAY in lib/data/studyStats.ts (and the
+// user_study_settings.new_kanji_per_day column default) -- shown before the
+// user's real per-day limit has loaded.
+const FALLBACK_NEW_KANJI_LIMIT = 1;
 
 function NewKanjiCard() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
-  // no separate fetch here.
+  // no separate fetch here. The daily limit is per-user, so the real value can't be known
+  // before stats load; shown as 0/1 until then instead of a skeleton.
   const { stats } = useStudyStats();
-  if (!stats) return <StatCardSkeleton />;
+  const kanjiToday = stats?.new_kanji_today ?? 0;
+  const kanjiLimit = stats?.new_kanji_limit ?? FALLBACK_NEW_KANJI_LIMIT;
 
   return (
     <GlassCard padding="sm" className="flex flex-col items-center text-center">
       <StatRing
         icon={<span className="text-[27px] font-medium leading-none">竜</span>}
-        percent={statPct(stats.new_kanji_today, stats.new_kanji_limit)}
+        percent={statPct(kanjiToday, kanjiLimit)}
         colorClass="stroke-accent-blue"
       />
       <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-        {stats.new_kanji_today}
-        <span className="text-[1.1rem] text-text-muted">/{stats.new_kanji_limit}</span>
+        {kanjiToday}
+        <span className="text-[1.1rem] text-text-muted">/{kanjiLimit}</span>
       </div>
       <div className="text-sm font-semibold text-text-muted">New kanji today</div>
     </GlassCard>
   );
 }
 
+// Matches DEFAULT_NEW_VOCAB_PER_DAY in lib/data/studyStats.ts (and the
+// user_study_settings.new_vocab_per_day column default) -- shown before the
+// user's real per-day limit has loaded.
+const FALLBACK_NEW_VOCAB_LIMIT = 6;
+
 function NewVocabCard() {
   const { stats } = useStudyStats();
-  if (!stats) return <StatCardSkeleton />;
+  const vocabToday = stats?.new_vocab_today ?? 0;
+  const vocabLimit = stats?.new_vocab_limit ?? FALLBACK_NEW_VOCAB_LIMIT;
 
   return (
     <GlassCard padding="sm" className="flex flex-col items-center text-center">
       <StatRing
         icon={<FaBook className="h-6 w-6" />}
-        percent={statPct(stats.new_vocab_today, stats.new_vocab_limit)}
+        percent={statPct(vocabToday, vocabLimit)}
         colorClass="stroke-accent-violet"
       />
       <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-        {stats.new_vocab_today}
-        <span className="text-[1.1rem] text-text-muted">/{stats.new_vocab_limit}</span>
+        {vocabToday}
+        <span className="text-[1.1rem] text-text-muted">/{vocabLimit}</span>
       </div>
       <div className="text-sm font-semibold text-text-muted">New vocab today</div>
     </GlassCard>
@@ -166,22 +170,25 @@ function NewVocabCard() {
 }
 
 function ReviewsTodayCard() {
+  // Reviews have no per-user daily target -- the denominator is just what's
+  // actually due, so 0/0 is the honest pre-load state (not a guessed fallback).
   const { stats } = useStudyStats();
-  if (!stats) return <StatCardSkeleton />;
+  const reviewedToday = stats?.reviewed_today ?? 0;
+  const dueToday = stats?.due_today ?? 0;
 
   return (
     <GlassCard padding="sm" className="flex flex-col items-center text-center">
       <StatRing
         icon={<FaArrowsRotate className="h-7 w-7" />}
-        percent={statPct(stats.reviewed_today, stats.reviewed_today + stats.due_today)}
+        percent={statPct(reviewedToday, reviewedToday + dueToday)}
         colorClass="stroke-accent-orange"
       />
       <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-        {stats.reviewed_today}
-        <span className="text-[1.1rem] text-text-muted">/{stats.reviewed_today + stats.due_today}</span>
+        {reviewedToday}
+        <span className="text-[1.1rem] text-text-muted">/{reviewedToday + dueToday}</span>
       </div>
       <div className="text-sm font-semibold text-text-muted">Reviews done today</div>
-      {stats.due_today === 0 && stats.next_due_is_today && stats.next_due_at && (
+      {stats && stats.due_today === 0 && stats.next_due_is_today && stats.next_due_at && (
         <div className="mt-1 text-[0.7rem] font-semibold text-accent-gold">
           Next card in <NextCardCountdown dueAt={stats.next_due_at} />
         </div>
@@ -191,24 +198,23 @@ function ReviewsTodayCard() {
 }
 
 function AccuracyCard() {
+  // No accuracy data yet before stats load -- shown as a real-looking 0%
+  // rather than the muted "N/A" reserved for "loaded, but no reviews ever".
   const { stats } = useStudyStats();
-  if (!stats) return <StatCardSkeleton />;
+  const hasRetention = stats?.retention_rate != null;
+  const retentionPct = hasRetention ? Math.round(stats!.retention_rate! * 100) : 0;
 
   return (
     <GlassCard padding="sm" className="flex flex-col items-center text-center">
-      <StatRing
-        icon={<TargetFillIcon className="h-8 w-8" />}
-        percent={stats.retention_rate != null ? Math.round(stats.retention_rate * 100) : 0}
-        colorClass="stroke-accent-red"
-      />
+      <StatRing icon={<TargetFillIcon className="h-8 w-8" />} percent={retentionPct} colorClass="stroke-accent-red" />
       <div
         className={
-          stats.retention_rate != null
+          !stats || hasRetention
             ? "mb-1.5 text-3xl font-extrabold leading-none tracking-tight"
             : "mb-1.5 text-3xl font-semibold leading-none tracking-tight text-text-muted"
         }
       >
-        {stats.retention_rate != null ? `${Math.round(stats.retention_rate * 100)}%` : "N/A"}
+        {!stats ? "0%" : hasRetention ? `${retentionPct}%` : "N/A"}
       </div>
       <div className="text-sm font-semibold text-text-muted">Accuracy (30d)</div>
     </GlassCard>
