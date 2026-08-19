@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api/client";
 import { createBillingPortalSession } from "@/lib/client-data/billing";
 import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
+import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
 import { FaCheck } from "react-icons/fa6";
 
@@ -56,7 +57,7 @@ export function BillingPanel({
 
   return (
     <div>
-      <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+      <GlassCard padding="lg" className="mb-5.5">
         {isPremium && hasStripeCustomer ? (
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div>
@@ -120,7 +121,7 @@ export function BillingPanel({
             </div>
           </div>
         )}
-      </div>
+      </GlassCard>
     </div>
   );
 }

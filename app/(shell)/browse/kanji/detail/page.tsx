@@ -1,29 +1,18 @@
 "use client";
 
 import { Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useKanjiDetail } from "@/lib/client-data/kanji";
 import { useKanjiProgress } from "@/lib/client-data/progress";
-import { StatusPill } from "@/app/components/ui/StatusPill";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { CardActions } from "@/app/components/browse/CardActions";
-import { formatDueAt } from "@/lib/format";
-import { buttonClasses } from "@/app/components/ui/Button";
+import { ProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
+import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 function NotFound() {
-  return (
-    <div className="px-5 py-15 text-center text-text-muted">
-      <h3 className="mb-2 text-[1.15rem] text-white">Kanji not found</h3>
-      <p>This kanji doesn&apos;t exist or may have been removed.</p>
-      <Link href="/browse/kanji" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mt-4" })}>
-        ← Back to results
-      </Link>
-    </div>
-  );
+  return <BrowseNotFound title="Kanji not found" message="This kanji doesn't exist or may have been removed." backHref="/browse/kanji" />;
 }
 
 function DetailSkeleton() {
@@ -84,9 +73,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
 
   return (
     <div>
-      <Link href="/browse/kanji" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mb-6" })}>
-        ← Back to results
-      </Link>
+      <BrowseBackLink href="/browse/kanji" />
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="text-8xl leading-none mx-auto">{kanji.kanji}</div>
@@ -131,72 +118,58 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       {hasProgress && progress ? (
         <div>
           {progress.meaning && (
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-soft bg-white/[0.02] px-4.5 py-3.5">
-              <div className="text-[0.92rem] font-bold">Meaning — &quot;{kanji.meanings?.[0] ?? kanji.kanji}&quot;</div>
-              <div className="flex flex-wrap items-center gap-3.5">
-                <div className="flex flex-wrap items-center gap-3.5">
-                  <StatusPill status={progress.meaning.status} />
-                  <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(progress.meaning.due_at)}</span>
-                </div>
-                <CardActions
-                  type="meaning"
-                  id={kanji.id}
-                  status={progress.meaning.status}
-                  onOptimisticUpdate={(action) =>
-                    mutateProgress((prev) => {
-                      if (!prev) return prev;
-                      // Reset forgets the whole kanji server-side (see lib/data/cards.ts), readings included.
-                      if (action === "reset") return { ...prev, meaning: null, readings: [] };
-                      return prev.meaning ? { ...prev, meaning: { ...prev.meaning, status: "suspended" } } : prev;
-                    })
-                  }
-                  onSuccess={refetchProgress}
-                  onError={refetchProgress}
-                />
-              </div>
-            </div>
+            <ProgressCardRow
+              title={<>Meaning — &quot;{kanji.meanings?.[0] ?? kanji.kanji}&quot;</>}
+              status={progress.meaning.status}
+              dueAt={progress.meaning.due_at}
+              cardType="meaning"
+              cardId={kanji.id}
+              onOptimisticUpdate={(action) =>
+                mutateProgress((prev) => {
+                  if (!prev) return prev;
+                  // Reset forgets the whole kanji server-side (see lib/data/cards.ts), readings included.
+                  if (action === "reset") return { ...prev, meaning: null, readings: [] };
+                  return prev.meaning ? { ...prev, meaning: { ...prev.meaning, status: "suspended" } } : prev;
+                })
+              }
+              onSuccess={refetchProgress}
+              onError={refetchProgress}
+            />
           )}
           {progress.readings.map((r) => (
-            <div
-              className="mb-2 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-soft bg-white/[0.02] px-4.5 py-3.5"
+            <ProgressCardRow
               key={r.id}
-            >
-              <div className="text-[0.92rem] font-bold">
-                Reading — {r.kanji_word?.vocabulary?.word ?? "—"}
-                {r.kanji_word?.vocabulary?.kana_reading && (
-                  <span className="font-semibold text-text-muted"> ({r.kanji_word.vocabulary.kana_reading})</span>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-3.5">
-                <div className="flex flex-wrap items-center gap-3.5">
-                  <StatusPill status={r.status} />
-                  <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(r.due_at)}</span>
-                </div>
-                <CardActions
-                  type="reading"
-                  id={r.kanji_word_id}
-                  status={r.status}
-                  onOptimisticUpdate={(action) =>
-                    mutateProgress((prev) => {
-                      if (!prev) return prev;
-                      if (action === "reset") return { ...prev, readings: prev.readings.filter((reading) => reading.id !== r.id) };
-                      return {
-                        ...prev,
-                        readings: prev.readings.map((reading) => (reading.id === r.id ? { ...reading, status: "suspended" } : reading)),
-                      };
-                    })
-                  }
-                  onSuccess={refetchProgress}
-                  onError={refetchProgress}
-                />
-              </div>
-            </div>
+              title={
+                <>
+                  Reading — {r.kanji_word?.vocabulary?.word ?? "—"}
+                  {r.kanji_word?.vocabulary?.kana_reading && (
+                    <span className="font-semibold text-text-muted"> ({r.kanji_word.vocabulary.kana_reading})</span>
+                  )}
+                </>
+              }
+              status={r.status}
+              dueAt={r.due_at}
+              cardType="reading"
+              cardId={r.kanji_word_id}
+              onOptimisticUpdate={(action) =>
+                mutateProgress((prev) => {
+                  if (!prev) return prev;
+                  if (action === "reset") return { ...prev, readings: prev.readings.filter((reading) => reading.id !== r.id) };
+                  return {
+                    ...prev,
+                    readings: prev.readings.map((reading) => (reading.id === r.id ? { ...reading, status: "suspended" } : reading)),
+                  };
+                })
+              }
+              onSuccess={refetchProgress}
+              onError={refetchProgress}
+            />
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-border-soft bg-white/[0.02] px-5 py-4.5 text-[0.92rem] text-text-muted">
+        <EmptyProgressNotice>
           You haven&apos;t started this kanji yet. It&apos;ll appear here once it comes up in your normal study queue.
-        </div>
+        </EmptyProgressNotice>
       )}
     </div>
   );

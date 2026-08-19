@@ -8,9 +8,8 @@ import { getPeriodStart } from "@/lib/leaderboard/period";
 import { readStoredMetric, readStoredPeriod } from "@/lib/leaderboard/storage";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
-import type { LeaderboardEntry, LeaderboardMetric, LeaderboardPeriod } from "@/lib/types";
-
-type Status = "loading" | "loaded" | "error";
+import { getErrorMessage } from "@/lib/api/client";
+import type { AsyncStatus, LeaderboardEntry, LeaderboardMetric, LeaderboardPeriod } from "@/lib/types";
 
 function leaderboardCacheKey(metric: LeaderboardMetric, period: LeaderboardPeriod): string {
   return `cache:leaderboard:${metric}:${period}`;
@@ -23,7 +22,7 @@ export function useLeaderboard(
   period: LeaderboardPeriod,
   clockOffsetMs = 0
 ) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<AsyncStatus>("loading");
   const [data, setData] = useState<LeaderboardEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +36,7 @@ export function useLeaderboard(
       setStatus("loaded");
       writeCache(leaderboardCacheKey(metric, period), result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load leaderboard.");
+      setError(getErrorMessage(err, "Failed to load leaderboard."));
       setStatus("error");
     }
   }, [user, metric, period, clockOffsetMs]);

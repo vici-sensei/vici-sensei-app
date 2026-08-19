@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRequireOnboarded } from "@/lib/auth/useRequireOnboarded";
 import { useUserProfile } from "@/lib/client-data/userProfile";
+import { runGlobalWarmup } from "@/lib/client-data/warmup";
 import { StudyStatsProvider } from "@/lib/study/StudyStatsContext";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Header } from "@/app/components/shell/Header";
@@ -15,6 +17,14 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   // parallel with the study-settings fetch inside useRequireOnboarded, instead of waiting for
   // settings + onboarding to resolve first.
   const { data: profile, status: profileStatus } = useUserProfile(authReady ? authUser : null);
+
+  // This layout stays mounted across every client-side navigation (see StudyStatsProvider
+  // comment below), so this only fires once per app open -- warms every route's cache before
+  // the user has picked one, instead of waiting for hover/focus/touch on a nav entry.
+  useEffect(() => {
+    if (!authUser) return;
+    return runGlobalWarmup(authUser.id);
+  }, [authUser]);
 
   if (!ready || profileStatus !== "loaded" || !profile) {
     return <FullScreenLoader />;

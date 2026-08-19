@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Country } from "@/lib/types";
-
-type Status = "loading" | "loaded" | "error";
+import type { AsyncStatus, Country } from "@/lib/types";
 
 // countries is static reference data (see 20260814_add_user_country.sql) --
 // fetch it once per page load and share the result across every CountrySelect
@@ -30,7 +28,7 @@ function loadCountries(): Promise<Country[]> {
 }
 
 export function useCountries() {
-  const [status, setStatus] = useState<Status>(cache ? "loaded" : "loading");
+  const [status, setStatus] = useState<AsyncStatus>(cache ? "loaded" : "loading");
   const [data, setData] = useState<Country[] | null>(cache);
 
   useEffect(() => {

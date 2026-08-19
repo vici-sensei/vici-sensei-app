@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ApiError } from "@/lib/api/client";
@@ -32,6 +32,27 @@ function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return m === 0 ? `${s}s` : `${m}m ${s}s`;
+}
+
+function StatBox({ children }: { children: ReactNode }) {
+  return <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">{children}</div>;
+}
+
+function Stat({
+  value,
+  valueClassName = "mb-1 text-[1.7rem] font-extrabold",
+  label,
+}: {
+  value: ReactNode;
+  valueClassName?: string;
+  label: string;
+}) {
+  return (
+    <StatBox>
+      <div className={valueClassName}>{value}</div>
+      <div className="text-[0.78rem] font-semibold text-text-muted">{label}</div>
+    </StatBox>
+  );
 }
 
 export default function StudySummaryPage() {
@@ -76,10 +97,10 @@ export default function StudySummaryPage() {
           <Skeleton className="mx-auto h-5 w-3/5 max-w-75" />
           <div className="my-8.5 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
+              <StatBox key={i}>
                 <Skeleton className="mx-auto mb-2 h-7 w-10" />
                 <Skeleton className="mx-auto h-3.5 w-14" />
-              </div>
+              </StatBox>
             ))}
           </div>
           <Skeleton className="mx-auto h-13 w-40 rounded-xl" />
@@ -109,30 +130,18 @@ export default function StudySummaryPage() {
           )}
         </p>
         <div className="my-8.5 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-          <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-            <div className="mb-1 text-[1.7rem] font-extrabold">{summary.cards_reviewed}</div>
-            <div className="text-[0.78rem] font-semibold text-text-muted">Reviewed</div>
-          </div>
-          <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-            <div className="mb-1 text-[1.7rem] font-extrabold">{summary.new_cards_learned}</div>
-            <div className="text-[0.78rem] font-semibold text-text-muted">New</div>
-          </div>
-          <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-            <div
-              className={
-                summary.accuracy != null
-                  ? "mb-1 text-[1.7rem] font-extrabold text-accent-blue"
-                  : "mb-1 text-[1.7rem] font-semibold text-text-muted"
-              }
-            >
-              {accuracyLabel}
-            </div>
-            <div className="text-[0.78rem] font-semibold text-text-muted">Accuracy</div>
-          </div>
-          <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-            <div className="mb-1 text-[1.7rem] font-extrabold">{formatDuration(summary.duration_seconds)}</div>
-            <div className="text-[0.78rem] font-semibold text-text-muted">Duration</div>
-          </div>
+          <Stat value={summary.cards_reviewed} label="Reviewed" />
+          <Stat value={summary.new_cards_learned} label="New" />
+          <Stat
+            value={accuracyLabel}
+            valueClassName={
+              summary.accuracy != null
+                ? "mb-1 text-[1.7rem] font-extrabold text-accent-blue"
+                : "mb-1 text-[1.7rem] font-semibold text-text-muted"
+            }
+            label="Accuracy"
+          />
+          <Stat value={formatDuration(summary.duration_seconds)} label="Duration" />
         </div>
         <Link href="/dashboard" className={buttonClasses({ hover: "hover" })}>
           Back to Home

@@ -5,12 +5,10 @@ import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { JLPT_LEVELS } from "@/lib/srs/constants";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { clearCache, readCache, writeCache } from "@/lib/client-data/localCache";
 import type { JlptLevel } from "@/lib/srs/constants";
-import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
-
-type Status = "loading" | "loaded" | "error";
+import type { AsyncStatus, LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 
 function studySettingsCacheKey(userId: string): string {
   return `cache:study-settings:${userId}`;
@@ -18,7 +16,7 @@ function studySettingsCacheKey(userId: string): string {
 
 /** `user` is passed in (not read from useAuth internally) so this hook stays usable before the auth gate has fully resolved — callers pass `null` until they have a confirmed user. */
 export function useStudySettings(user: User | null) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<AsyncStatus>("loading");
   const [data, setData] = useState<StudySettings | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +32,7 @@ export function useStudySettings(user: User | null) {
       setStatus("loaded");
       writeCache(studySettingsCacheKey(user.id), settings);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load study settings.");
+      setError(getErrorMessage(err, "Failed to load study settings."));
       setStatus("error");
     }
   }, [user]);

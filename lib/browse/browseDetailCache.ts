@@ -1,26 +1,18 @@
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import type { KanjiDetail, VocabularyDetailRow } from "@/lib/types";
 
-function kanjiDetailCacheKey(id: number): string {
-  return `cache:kanji-detail:${id}`;
+function createDetailCache<T>(name: string) {
+  const key = (id: number) => `cache:${name}-detail:${id}`;
+  return {
+    read: (id: number) => readCache<T>(key(id)),
+    write: (id: number, data: T) => writeCache(key(id), data),
+  };
 }
 
-function vocabularyDetailCacheKey(id: number): string {
-  return `cache:vocabulary-detail:${id}`;
-}
+const kanjiDetailCache = createDetailCache<KanjiDetail>("kanji");
+const vocabularyDetailCache = createDetailCache<VocabularyDetailRow>("vocabulary");
 
-export function readKanjiDetailCache(id: number): KanjiDetail | null {
-  return readCache<KanjiDetail>(kanjiDetailCacheKey(id));
-}
-
-export function writeKanjiDetailCache(id: number, data: KanjiDetail): void {
-  writeCache(kanjiDetailCacheKey(id), data);
-}
-
-export function readVocabularyDetailCache(id: number): VocabularyDetailRow | null {
-  return readCache<VocabularyDetailRow>(vocabularyDetailCacheKey(id));
-}
-
-export function writeVocabularyDetailCache(id: number, data: VocabularyDetailRow): void {
-  writeCache(vocabularyDetailCacheKey(id), data);
-}
+export const readKanjiDetailCache = kanjiDetailCache.read;
+export const writeKanjiDetailCache = kanjiDetailCache.write;
+export const readVocabularyDetailCache = vocabularyDetailCache.read;
+export const writeVocabularyDetailCache = vocabularyDetailCache.write;

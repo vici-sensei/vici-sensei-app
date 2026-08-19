@@ -1,5 +1,5 @@
 import Stripe from "npm:stripe@22";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createAdminClient } from "../_shared/supabaseClients.ts";
 
 // Stripe's Node SDK's `constructEvent` is sync and relies on Node's `crypto` module
 // internals that aren't present in Deno's runtime — `constructEventAsync` uses
@@ -31,9 +31,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const admin = createAdminClient();
 
   switch (event.type) {
     case "checkout.session.completed": {

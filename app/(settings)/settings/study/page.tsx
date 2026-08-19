@@ -3,6 +3,8 @@
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useStudySettings } from "@/lib/client-data/studySettings";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { GlassCard } from "@/app/components/ui/GlassCard";
+import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import { StudySettingsForm } from "./StudySettingsForm";
 
 export default function SettingsStudyPage() {
@@ -11,10 +13,10 @@ export default function SettingsStudyPage() {
 
   return (
     <div>
-      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Study settings</h2>
-      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">
-        Control how many new cards you see per day and which JLPT levels are active.
-      </p>
+      <SettingsHeader
+        title="Study settings"
+        description="Control how many new cards you see per day and which JLPT levels are active."
+      />
 
       {status === "loading" || !settings ? (
         <StudySettingsSkeleton />
@@ -50,7 +52,7 @@ function ToggleRowSkeleton() {
 function StudySettingsSkeleton() {
   return (
     <>
-      <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+      <GlassCard padding="lg" className="mb-5.5">
         <div className="mb-[22px]">
           <Skeleton className="mb-2 h-3.5 w-36" />
           <StepperSkeleton />
@@ -60,15 +62,15 @@ function StudySettingsSkeleton() {
           <Skeleton className="mb-2 h-3.5 w-44" />
           <StepperSkeleton />
         </div>
-      </div>
+      </GlassCard>
 
-      <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+      <GlassCard padding="lg" className="mb-5.5">
         <Skeleton className="mb-2 h-3.5 w-36" />
         <StepperSkeleton />
         <Skeleton className="mt-1.5 h-3.5 w-64" />
-      </div>
+      </GlassCard>
 
-      <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+      <GlassCard padding="lg" className="mb-5.5">
         <Skeleton className="mb-3.5 h-3.5 w-40" />
         <div className="flex flex-wrap justify-center gap-2.5">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -76,12 +78,12 @@ function StudySettingsSkeleton() {
           ))}
         </div>
         <Skeleton className="mt-3.5 h-3.5 w-full max-w-sm" />
-      </div>
+      </GlassCard>
 
-      <div className="rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+      <GlassCard padding="lg">
         <ToggleRowSkeleton />
         <ToggleRowSkeleton />
-      </div>
+      </GlassCard>
     </>
   );
 }

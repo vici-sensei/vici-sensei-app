@@ -1,23 +1,15 @@
 import Stripe from "npm:stripe@22";
-import { createClient } from "jsr:@supabase/supabase-js@2";
-import { corsHeaders, handlePreflight, jsonResponse } from "../_shared/cors.ts";
+import { handlePreflight, jsonResponse } from "../_shared/cors.ts";
+import { createAdminClient, requireUser } from "../_shared/supabaseClients.ts";
+import { cancelActiveSubscriptions } from "../_shared/stripe.ts";
 
 Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
 
-  // User-scoped client (RLS applies) to identify the caller and read their own profile.
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: req.headers.get("Authorization")! } },
-  });
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return jsonResponse(req, { error: "You are not logged in. Please log in." }, 401);
-  }
+  const auth = await requireUser(req);
+  if (auth instanceof Response) return auth;
+  const { supabase, user } = auth;
 
   const { data: profile, error: profileError } = await supabase
     .from("users")
@@ -36,14 +28,7 @@ Deno.serve(async (req) => {
   if (profile?.stripe_customer_id) {
     try {
       const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!);
-      const subscriptions = await stripe.subscriptions.list({
-        customer: profile.stripe_customer_id,
-        status: "all",
-      });
-      const cancelableSubscriptions = subscriptions.data.filter(
-        (sub) => sub.status !== "canceled" && sub.status !== "incomplete_expired"
-      );
-      await Promise.all(cancelableSubscriptions.map((sub) => stripe.subscriptions.cancel(sub.id)));
+      await cancelActiveSubscriptions(stripe, profile.stripe_customer_id);
     } catch (err) {
       return jsonResponse(
         req,
@@ -60,9 +45,7 @@ Deno.serve(async (req) => {
   // Admin (service-role) client — authenticated only has column-level UPDATE
   // grants on (display_name, avatar_url, updated_at), so pending_deletion_at
   // needs the service role to write.
-  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const admin = createAdminClient();
 
   const pendingDeletionAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   const { error: scheduleError } = await admin

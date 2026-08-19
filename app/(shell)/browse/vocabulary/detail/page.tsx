@@ -1,28 +1,23 @@
 "use client";
 
 import { Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useVocabularyDetail } from "@/lib/client-data/vocabulary";
 import { useVocabularyProgress } from "@/lib/client-data/progress";
-import { StatusPill } from "@/app/components/ui/StatusPill";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { CardActions } from "@/app/components/browse/CardActions";
-import { formatDueAt } from "@/lib/format";
-import { buttonClasses } from "@/app/components/ui/Button";
+import { ProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
+import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 function NotFound() {
   return (
-    <div className="px-5 py-15 text-center text-text-muted">
-      <h3 className="mb-2 text-[1.15rem] text-white">Word not found</h3>
-      <p>This vocabulary entry doesn&apos;t exist or may have been removed.</p>
-      <Link href="/browse/vocabulary" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mt-4" })}>
-        ← Back to results
-      </Link>
-    </div>
+    <BrowseNotFound
+      title="Word not found"
+      message="This vocabulary entry doesn't exist or may have been removed."
+      backHref="/browse/vocabulary"
+    />
   );
 }
 
@@ -70,9 +65,7 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
 
   return (
     <div>
-      <Link href="/browse/vocabulary" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mb-6" })}>
-        ← Back to results
-      </Link>
+      <BrowseBackLink href="/browse/vocabulary" />
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="min-w-55 flex-1">
@@ -101,29 +94,22 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
 
       <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
       {progress ? (
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-soft bg-white/[0.02] px-4.5 py-3.5">
-          <div className="text-[0.92rem] font-bold">Meaning — &quot;{word.meanings?.[0] ?? word.word}&quot;</div>
-          <div className="flex flex-wrap items-center gap-3.5">
-            <div className="flex flex-wrap items-center gap-3.5">
-              <StatusPill status={progress.status} />
-              <span className="text-[0.8rem] tabular-nums text-text-muted">due {formatDueAt(progress.due_at)}</span>
-            </div>
-            <CardActions
-              type="vocab"
-              id={word.id}
-              status={progress.status}
-              onOptimisticUpdate={(action) =>
-                mutateProgress((prev) => (action === "reset" ? null : prev ? { ...prev, status: "suspended" } : prev))
-              }
-              onSuccess={refetchProgress}
-              onError={refetchProgress}
-            />
-          </div>
-        </div>
+        <ProgressCardRow
+          title={<>Meaning — &quot;{word.meanings?.[0] ?? word.word}&quot;</>}
+          status={progress.status}
+          dueAt={progress.due_at}
+          cardType="vocab"
+          cardId={word.id}
+          onOptimisticUpdate={(action) =>
+            mutateProgress((prev) => (action === "reset" ? null : prev ? { ...prev, status: "suspended" } : prev))
+          }
+          onSuccess={refetchProgress}
+          onError={refetchProgress}
+        />
       ) : (
-        <div className="rounded-xl border border-dashed border-border-soft bg-white/[0.02] px-5 py-4.5 text-[0.92rem] text-text-muted">
+        <EmptyProgressNotice>
           You haven&apos;t started this word yet. It&apos;ll appear here once it comes up in your normal study queue.
-        </div>
+        </EmptyProgressNotice>
       )}
     </div>
   );
