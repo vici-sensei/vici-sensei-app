@@ -36,7 +36,7 @@ export function AnimatedRingStroke({ cx, cy, radius, strokeWidth, percent, inVie
       strokeLinecap="round"
       strokeDasharray={circumference}
       strokeDashoffset={offset}
-      className={`${className} transition-[stroke-dashoffset] duration-1000 ease-out`}
+      className={`${className} transition-[stroke-dashoffset] duration-[2500ms] ease-out`}
     />
   );
 }

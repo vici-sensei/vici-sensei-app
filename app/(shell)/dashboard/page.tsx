@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
@@ -113,90 +113,182 @@ function StatRing({
   );
 }
 
-function StatCards() {
+function StatCardSkeleton() {
+  return (
+    <GlassCard padding="sm" className="flex flex-col items-center justify-center">
+      <Skeleton className="mb-3.5 h-14 w-14 rounded-full" />
+      <Skeleton className="mb-1.5 h-8 w-16" />
+      <Skeleton className="h-4 w-24" />
+    </GlassCard>
+  );
+}
+
+function NewKanjiCard() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
   // no separate fetch here.
   const { stats } = useStudyStats();
-
-  if (!stats) {
-    return (
-      <>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <GlassCard key={i} padding="sm" className="flex flex-col items-center justify-center sm:items-start sm:justify-start">
-            <Skeleton className="mb-3.5 h-14 w-14 rounded-full" />
-            <Skeleton className="mb-1.5 h-8 w-16" />
-            <Skeleton className="h-4 w-24" />
-          </GlassCard>
-        ))}
-      </>
-    );
-  }
+  if (!stats) return <StatCardSkeleton />;
 
   return (
-    <>
-      <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
-        <StatRing
-          icon={<span className="text-[27px] font-medium leading-none">竜</span>}
-          percent={statPct(stats.new_kanji_today, stats.new_kanji_limit)}
-          colorClass="stroke-accent-blue"
-        />
-        <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-          {stats.new_kanji_today}
-          <span className="text-[1.1rem] text-text-muted">/{stats.new_kanji_limit}</span>
-        </div>
-        <div className="text-sm font-semibold text-text-muted">New kanji today</div>
-      </GlassCard>
-
-      <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
-        <StatRing
-          icon={<FaBook className="h-6 w-6" />}
-          percent={statPct(stats.new_vocab_today, stats.new_vocab_limit)}
-          colorClass="stroke-accent-violet"
-        />
-        <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-          {stats.new_vocab_today}
-          <span className="text-[1.1rem] text-text-muted">/{stats.new_vocab_limit}</span>
-        </div>
-        <div className="text-sm font-semibold text-text-muted">New vocab today</div>
-      </GlassCard>
-
-      <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
-        <StatRing
-          icon={<FaArrowsRotate className="h-7 w-7" />}
-          percent={statPct(stats.reviewed_today, stats.reviewed_today + stats.due_today)}
-          colorClass="stroke-accent-orange"
-        />
-        <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-          {stats.reviewed_today}
-          <span className="text-[1.1rem] text-text-muted">/{stats.reviewed_today + stats.due_today}</span>
-        </div>
-        <div className="text-sm font-semibold text-text-muted">Reviews done today</div>
-        {stats.due_today === 0 && stats.next_due_is_today && stats.next_due_at && (
-          <div className="mt-1 text-[0.7rem] font-semibold text-accent-gold">
-            Next card in <NextCardCountdown dueAt={stats.next_due_at} />
-          </div>
-        )}
-      </GlassCard>
-
-      <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
-        <StatRing
-          icon={<TargetFillIcon className="h-8 w-8" />}
-          percent={stats.retention_rate != null ? Math.round(stats.retention_rate * 100) : 0}
-          colorClass="stroke-accent-red"
-        />
-        <div
-          className={
-            stats.retention_rate != null
-              ? "mb-1.5 text-3xl font-extrabold leading-none tracking-tight"
-              : "mb-1.5 text-3xl font-semibold leading-none tracking-tight text-text-muted"
-          }
-        >
-          {stats.retention_rate != null ? `${Math.round(stats.retention_rate * 100)}%` : "N/A"}
-        </div>
-        <div className="text-sm font-semibold text-text-muted">Accuracy (30d)</div>
-      </GlassCard>
-    </>
+    <GlassCard padding="sm" className="flex flex-col items-center text-center">
+      <StatRing
+        icon={<span className="text-[27px] font-medium leading-none">竜</span>}
+        percent={statPct(stats.new_kanji_today, stats.new_kanji_limit)}
+        colorClass="stroke-accent-blue"
+      />
+      <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
+        {stats.new_kanji_today}
+        <span className="text-[1.1rem] text-text-muted">/{stats.new_kanji_limit}</span>
+      </div>
+      <div className="text-sm font-semibold text-text-muted">New kanji today</div>
+    </GlassCard>
   );
+}
+
+function NewVocabCard() {
+  const { stats } = useStudyStats();
+  if (!stats) return <StatCardSkeleton />;
+
+  return (
+    <GlassCard padding="sm" className="flex flex-col items-center text-center">
+      <StatRing
+        icon={<FaBook className="h-6 w-6" />}
+        percent={statPct(stats.new_vocab_today, stats.new_vocab_limit)}
+        colorClass="stroke-accent-violet"
+      />
+      <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
+        {stats.new_vocab_today}
+        <span className="text-[1.1rem] text-text-muted">/{stats.new_vocab_limit}</span>
+      </div>
+      <div className="text-sm font-semibold text-text-muted">New vocab today</div>
+    </GlassCard>
+  );
+}
+
+function ReviewsTodayCard() {
+  const { stats } = useStudyStats();
+  if (!stats) return <StatCardSkeleton />;
+
+  return (
+    <GlassCard padding="sm" className="flex flex-col items-center text-center">
+      <StatRing
+        icon={<FaArrowsRotate className="h-7 w-7" />}
+        percent={statPct(stats.reviewed_today, stats.reviewed_today + stats.due_today)}
+        colorClass="stroke-accent-orange"
+      />
+      <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
+        {stats.reviewed_today}
+        <span className="text-[1.1rem] text-text-muted">/{stats.reviewed_today + stats.due_today}</span>
+      </div>
+      <div className="text-sm font-semibold text-text-muted">Reviews done today</div>
+      {stats.due_today === 0 && stats.next_due_is_today && stats.next_due_at && (
+        <div className="mt-1 text-[0.7rem] font-semibold text-accent-gold">
+          Next card in <NextCardCountdown dueAt={stats.next_due_at} />
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+function AccuracyCard() {
+  const { stats } = useStudyStats();
+  if (!stats) return <StatCardSkeleton />;
+
+  return (
+    <GlassCard padding="sm" className="flex flex-col items-center text-center">
+      <StatRing
+        icon={<TargetFillIcon className="h-8 w-8" />}
+        percent={stats.retention_rate != null ? Math.round(stats.retention_rate * 100) : 0}
+        colorClass="stroke-accent-red"
+      />
+      <div
+        className={
+          stats.retention_rate != null
+            ? "mb-1.5 text-3xl font-extrabold leading-none tracking-tight"
+            : "mb-1.5 text-3xl font-semibold leading-none tracking-tight text-text-muted"
+        }
+      >
+        {stats.retention_rate != null ? `${Math.round(stats.retention_rate * 100)}%` : "N/A"}
+      </div>
+      <div className="text-sm font-semibold text-text-muted">Accuracy (30d)</div>
+    </GlassCard>
+  );
+}
+
+// Grid coordinates for each dashboard card: row/col it starts at + how many
+// columns/rows it spans, on a 12-column grid (12 splits evenly into the 4 stat cards,
+// unlike 6). Add an xs/sm/md/lg tier to move a card at that breakpoint
+// (280/480/768/992px) -- properties you don't set there just keep the previous tier's
+// value (see .grid-item in globals.css). This object is the only thing you need to
+// edit to rearrange the dashboard.
+type Placement = { row?: number; col?: number; colSpan?: number; rowSpan?: number };
+type ResponsivePlacement = { base: Placement; xs?: Placement; sm?: Placement; md?: Placement; lg?: Placement };
+
+const LAYOUT: Record<
+  "hero" | "streak" | "level" | "statKanji" | "statVocab" | "statReviews" | "statAccuracy",
+  ResponsivePlacement
+> = {
+  // Hero + Streak: stacked (each full width) below "md" (768px); paired on one row,
+  // 8/4 split, from "md" up.
+  hero: { base: { row: 1, col: 1, colSpan: 12 }, md: { row: 1, col: 1, colSpan: 8 } },
+
+  streak: { base: { row: 2, col: 1, colSpan: 12 }, md: { row: 1, col: 9, colSpan: 4 } },
+
+  // Stat cards: full width, each on its own row, below "xs" (280px); 2x2 from "xs" up;
+  // one row of 4 from "sm" up. "md" only moves them up a row, since Hero+Streak now
+  // share row 1 instead of taking rows 1-2.
+  statKanji: {
+    base: { row: 3, col: 1, colSpan: 12 },
+    xs: { row: 3, col: 1, colSpan: 6 },
+    sm: { row: 3, col: 1, colSpan: 3 },
+    md: { row: 2 },
+  },
+
+  statVocab: {
+    base: { row: 4, col: 1, colSpan: 12 },
+    xs: { row: 3, col: 7, colSpan: 6 },
+    sm: { row: 3, col: 4, colSpan: 3 },
+    md: { row: 2 },
+  },
+
+  statReviews: {
+    base: { row: 5, col: 1, colSpan: 12 },
+    xs: { row: 4, col: 1, colSpan: 6 },
+    sm: { row: 3, col: 7, colSpan: 3 },
+    md: { row: 2 },
+  },
+
+  statAccuracy: {
+    base: { row: 6, col: 1, colSpan: 12 },
+    xs: { row: 4, col: 7, colSpan: 6 },
+    sm: { row: 3, col: 10, colSpan: 3 },
+    md: { row: 2 },
+  },
+
+  // Always the last row, full width, at every breakpoint.
+  level: {
+    base: { row: 7, col: 1, colSpan: 12 },
+    xs: { row: 5, col: 1, colSpan: 12 },
+    sm: { row: 4, col: 1, colSpan: 12 },
+    md: { row: 3 },
+  },
+};
+
+function gridArea({ base, xs, sm, md, lg }: ResponsivePlacement): CSSProperties {
+  const vars: Record<string, number> = {};
+  const set = (suffix: string, p?: Placement) => {
+    if (!p) return;
+    if (p.row !== undefined) vars[`--row${suffix}`] = p.row;
+    if (p.col !== undefined) vars[`--col${suffix}`] = p.col;
+    if (p.colSpan !== undefined) vars[`--col-span${suffix}`] = p.colSpan;
+    if (p.rowSpan !== undefined) vars[`--row-span${suffix}`] = p.rowSpan;
+  };
+  set("", base);
+  set("-xs", xs);
+  set("-sm", sm);
+  set("-md", md);
+  set("-lg", lg);
+  return vars as CSSProperties;
 }
 
 export default function DashboardPage() {
@@ -212,11 +304,28 @@ export default function DashboardPage() {
         <CheckoutBannerFromQuery />
       </Suspense>
 
-      <div className="flex flex-col gap-[18px] md:flex-row md:flex-wrap">
-        <DashboardHero />
-        <StreakCard />
-        <LevelProgressCard />
-        <StatCards />
+      <div className="grid grid-cols-12 gap-5">
+        <div className="grid-item" style={gridArea(LAYOUT.hero)}>
+          <DashboardHero />
+        </div>
+        <div className="grid-item" style={gridArea(LAYOUT.streak)}>
+          <StreakCard />
+        </div>
+        <div className="grid-item" style={gridArea(LAYOUT.statKanji)}>
+          <NewKanjiCard />
+        </div>
+        <div className="grid-item" style={gridArea(LAYOUT.statVocab)}>
+          <NewVocabCard />
+        </div>
+        <div className="grid-item" style={gridArea(LAYOUT.statReviews)}>
+          <ReviewsTodayCard />
+        </div>
+        <div className="grid-item" style={gridArea(LAYOUT.statAccuracy)}>
+          <AccuracyCard />
+        </div>
+        <div className="grid-item" style={gridArea(LAYOUT.level)}>
+          <LevelProgressCard />
+        </div>
       </div>
 
       <Link
