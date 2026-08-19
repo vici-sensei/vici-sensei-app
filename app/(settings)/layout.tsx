@@ -27,7 +27,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             <Header user={profile} />
             <div className="flex flex-col md:flex-row">
               <NavBar />
-              <div className="md:max-w-[1000px] flex-1 px-5 pb-8 pt-5 md:px-10 md:pb-8 md:pt-8">{children}</div>
+              <div className="flex-1 p-5">{children}</div>
             </div>
           </div>
         </MobileMenuProvider>

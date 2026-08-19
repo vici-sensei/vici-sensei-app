@@ -34,7 +34,7 @@ export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
   }
 
   return (
-    <div className="mt-6">
+    <div className="w-full text-center sm:w-auto sm:text-left">
       <Button
         onClick={handleStart}
         onMouseEnter={handleIntent}
