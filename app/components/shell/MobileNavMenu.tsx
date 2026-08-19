@@ -20,6 +20,9 @@ export interface MobileNavMenuItem {
   disabled?: boolean;
   danger?: boolean;
   subItems?: MobileNavSubItem[];
+  /** Touch-intent signal -- e.g. the Study link uses this to prefetch the first due card
+   * on touchstart, mirroring the desktop sidebar's hover/focus (see NavItem). */
+  onIntent?: () => void;
 }
 
 // Same treatment as the desktop sidebar (see NavItem.tsx): sub-items are always shown alongside
@@ -91,8 +94,8 @@ export function MobileNavMenu({ items }: { items: MobileNavMenuItem[] }) {
             <Fragment key={item.href}>
               <Link
                 href={item.href}
-                prefetch={false}
                 onClick={close}
+                onTouchStart={item.onIntent}
                 style={rowStyle}
                 className={`${rowClasses} ${open ? "opacity-100" : "opacity-0"} ${
                   item.active
@@ -114,7 +117,6 @@ export function MobileNavMenu({ items }: { items: MobileNavMenuItem[] }) {
                     <Link
                       key={sub.href}
                       href={sub.href}
-                      prefetch={false}
                       onClick={close}
                       className={`${subRowClasses} ${sub.active ? subActiveClasses : subInactiveClasses}`}
                     >

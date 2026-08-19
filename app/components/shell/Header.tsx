@@ -28,7 +28,6 @@ export function Header({ user }: { user: UserProfile }) {
       </button>
       <Link
         href="/dashboard"
-        prefetch={false}
         className="col-start-2 flex items-center justify-self-center gap-2 text-[1.15rem] font-extrabold tracking-[-0.4px]"
       >
         <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center border-[1.3px] border-accent-red">

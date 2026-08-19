@@ -19,12 +19,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const supabase = createClient();
 
-    // getSession()/the INITIAL_SESSION event just read whatever token is cached in
-    // localStorage without checking it's still valid server-side. If the referenced user
-    // no longer exists (e.g. the DB was reset), that stale token would otherwise leave us
-    // stuck in an "authed" state with no matching DB rows, surfacing raw Postgres errors
-    // instead of bouncing to /login. getUser() revalidates against the auth server, so we
-    // use it for the initial check and sign out locally if it comes back invalid.
+    // getSession() just reads whatever token is cached in localStorage, with no network
+    // round trip -- paint optimistically with it so authed users see real content
+    // immediately instead of a loading state on every cold load. It doesn't check the
+    // token is still valid server-side, so getUser() (fired in parallel below) revalidates
+    // against the auth server and is the one that's allowed to overwrite an already-settled
+    // state: if it comes back invalid (e.g. the DB was reset and the user no longer exists),
+    // we sign out locally and bounce to /login. Until then, RLS rejects any query for an
+    // invalid user regardless of what this optimistic state believes, so the only thing at
+    // stake is how long stale UI is visible, not what data can actually be read.
+    supabase.auth.getSession().then(({ data }) => {
+      setState((prev) =>
+        prev.status === "loading"
+          ? { status: data.session ? "authed" : "anon", user: data.session?.user ?? null }
+          : prev
+      );
+    });
+
     supabase.auth.getUser().then(({ data, error }) => {
       if (error || !data.user) {
         void supabase.auth.signOut();

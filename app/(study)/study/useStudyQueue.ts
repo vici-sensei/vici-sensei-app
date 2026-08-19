@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import {
   endSession as endStudySessionApi,
+  getFirstDueCard,
   getStudyQueue,
   introduceKanji as introduceKanjiApi,
   introduceVocabulary as introduceVocabularyApi,
@@ -12,6 +13,8 @@ import {
   submitReview as submitReviewApi,
   undoReview as undoReviewApi,
 } from "@/lib/client-data/study";
+import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
+import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
 import type { DueCard, Rating, ReviewRequestBody, StudyQueueResponse } from "@/lib/types";
@@ -80,6 +83,7 @@ function reviewBody(card: DueCard, rating: Rating): ReviewRequestBody {
 
 export function useStudyQueue() {
   const router = useRouter();
+  const { user, settings } = useStudyOnboarding();
   const { showToast } = useToast();
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +139,7 @@ export function useStudyQueue() {
 
   const refreshQueue = useCallback(async () => {
     try {
-      const data = await getStudyQueue();
+      const data = await getStudyQueue(user.id, settings);
       const incoming = buildQueue(data);
       setNextDueAt(data.next_due_at);
       setQueue((prev) => {
@@ -146,38 +150,93 @@ export function useStudyQueue() {
     } catch {
       // periodic refresh failures shouldn't interrupt an active session
     }
-  }, []);
+  }, [user.id, settings]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
-      try {
-        const storedSessionId = getStoredSessionId();
-        // Neither of these depends on the other's result, so they fire together instead
-        // of the queue fetch waiting on session/start to finish first.
-        const [started, data] = await Promise.all([
-          storedSessionId == null ? startStudySessionApi() : Promise.resolve(null),
-          getStudyQueue(),
-        ]);
-        const sessionId = storedSessionId ?? started!.session_id;
-        if (started) setStoredSessionId(sessionId);
-        sessionIdRef.current = sessionId;
+      const storedSessionId = getStoredSessionId();
+      if (storedSessionId != null) {
+        sessionIdRef.current = storedSessionId;
+      } else {
+        // Doesn't gate the first card -- rate()/introduceKanji()/introduceVocab() already
+        // tolerate sessionIdRef being null until this lands, so it finishes in the
+        // background instead of making the user wait on an extra insert before card 1 shows.
+        startStudySessionApi(user.id)
+          .then((started) => {
+            if (cancelled) return;
+            setStoredSessionId(started.session_id);
+            sessionIdRef.current = started.session_id;
+          })
+          .catch(() => {
+            // Reviews still submit without a session id attached; nothing to recover here.
+          });
+      }
 
+      // Instant paint from localStorage -- written by prefetchFirstDueCard() (hover/focus on
+      // a "Start studying" entry point) or by a previous /study mount below. Purely
+      // provisional: it never sets `settled`, so the moment either real fetch below
+      // resolves, its answer replaces this one -- the DB is always the final word on what
+      // the first card actually is, this is only here so there's never a blank/skeleton
+      // screen while that answer is in flight.
+      const cachedCard = readFirstCardCache(user.id);
+      if (cachedCard) {
+        setQueue([{ key: reviewKey(cachedCard), kind: "review", card: cachedCard }]);
+        setStatus("ready");
+      }
+
+      // Race a cheap single-card fetch against the full queue fetch -- whichever resolves
+      // first gets to paint the first card, and `settled` stops the other from clobbering
+      // it once one has. The full fetch is still what eventually backfills the rest of the
+      // queue (and undo_disabled/next_due_at), merging in behind whatever's already shown.
+      let settled = false;
+
+      void getFirstDueCard(user.id, settings)
+        .then((card) => {
+          if (cancelled || settled) return;
+          if (!card) {
+            // The fast path can positively confirm a card, but not "there are none" -- that's
+            // only true once the full fetch (which also checks new-material candidates)
+            // agrees. Still worth dropping a stale cache entry so it isn't shown again.
+            clearFirstCardCache(user.id);
+            return;
+          }
+          settled = true;
+          writeFirstCardCache(user.id, card);
+          setQueue([{ key: reviewKey(card), kind: "review", card }]);
+          setStatus("ready");
+        })
+        .catch(() => {
+          // The full fetch below is authoritative and will surface any real error.
+        });
+
+      try {
+        const data = await getStudyQueue(user.id, settings);
         if (cancelled) return;
         const items = reviewsFirst(buildQueue(data));
-        setQueue(items);
         setNextDueAt(data.next_due_at);
         setUndoDisabled(data.undo_disabled);
 
-        if (items.length === 0) {
-          void endSession(false);
+        if (settled) {
+          setQueue((prev) => {
+            const existingKeys = new Set(prev.map((i) => i.key));
+            const additions = items.filter((i) => !existingKeys.has(i.key));
+            return mergeKeepingCurrent(prev, additions);
+          });
           return;
         }
 
+        settled = true;
+        setQueue(items);
+        if (items.length === 0) {
+          clearFirstCardCache(user.id);
+          void endSession(false);
+          return;
+        }
         setStatus("ready");
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled || settled) return; // the fast path already painted real content
         setError(err instanceof ApiError ? err.message : "Could not load your study queue.");
         setStatus("error");
       }

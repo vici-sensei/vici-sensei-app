@@ -3,7 +3,7 @@ import { utcDayBounds } from "@/lib/srs/day";
 import { getNextDue } from "@/lib/srs/nextDue";
 import { fetchKanjiDetailWordsBatch } from "@/lib/kanji/detailWords";
 import { previewRatingLabels, type ProgressRow } from "@/lib/srs/scheduler";
-import type { DueCard, KanjiRow, StudyQueueResponse } from "@/lib/types";
+import type { DueCard, KanjiRow, StudySettings, StudyQueueResponse } from "@/lib/types";
 
 // Raw shape of a get_due_cards() row: DueCard's fields plus the SRS state columns
 // (status/ease_factor/interval_days/repetitions/lapses/learning_step) that only
@@ -18,20 +18,36 @@ function toDueCard(row: DueCardRow): DueCard {
   };
 }
 
+/** Just enough to render the very first card the user sees: one due card, nothing else --
+ * no next-due time, no new-material candidates, no daily counts. `fetchStudyQueue` fetches
+ * the real queue in parallel/background and merges it in without disturbing this card once
+ * it's on screen. `settings` is the caller's already-loaded copy (StudyLayout only renders
+ * once onboarding settings are fetched), so this is a single round trip, not two. */
+export async function fetchFirstDueCard(
+  supabase: AppSupabaseClient,
+  userId: string,
+  settings: StudySettings
+): Promise<DueCard | null> {
+  const { data, error } = await supabase.rpc("get_due_cards", {
+    p_user_id: userId,
+    p_enabled_levels: settings.enabled_levels as string[],
+    p_include_kanji: settings.study_kanji,
+    p_include_vocab: settings.study_vocabulary,
+    p_limit: 1,
+    p_as_of: new Date().toISOString(),
+  });
+
+  if (error) throw new Error(error.message);
+  const row = ((data ?? []) as DueCardRow[])[0];
+  return row ? toDueCard(row) : null;
+}
+
 export async function fetchStudyQueue(
   supabase: AppSupabaseClient,
   userId: string,
-  timezone: string | undefined
+  timezone: string | undefined,
+  settings: StudySettings
 ): Promise<StudyQueueResponse> {
-  const { data: settings, error: settingsError } = await supabase
-    .from("user_study_settings")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (settingsError) throw new Error(settingsError.message);
-  if (!settings) throw new Error("No study settings found. Complete onboarding first.");
-
   const enabledLevels = settings.enabled_levels as string[];
   const nowIso = new Date().toISOString();
   const { start: todayStart, end: todayEnd } = utcDayBounds(new Date(), timezone);

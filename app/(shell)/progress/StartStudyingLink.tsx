@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { prefetchFirstDueCard } from "@/lib/client-data/study";
 import { buttonClasses } from "@/app/components/ui/Button";
 
 /** Same live studyDisabled as the nav's Study link — see StudyStatsProvider in the shell layout. */
 export function StartStudyingLink() {
   const { studyDisabled } = useStudyStats();
+  const { user } = useAuth();
 
   if (studyDisabled) {
     return (
@@ -19,8 +22,18 @@ export function StartStudyingLink() {
     );
   }
 
+  function handleIntent() {
+    if (user) prefetchFirstDueCard(user.id);
+  }
+
   return (
-    <Link href="/study" prefetch={false} className={buttonClasses({ hover: "hover", className: "mt-2.5" })}>
+    <Link
+      href="/study"
+      onMouseEnter={handleIntent}
+      onFocus={handleIntent}
+      onTouchStart={handleIntent}
+      className={buttonClasses({ hover: "hover", className: "mt-2.5" })}
+    >
       Start studying
     </Link>
   );

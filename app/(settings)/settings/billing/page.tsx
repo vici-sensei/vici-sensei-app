@@ -1,20 +1,22 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useUserProfile } from "@/lib/client-data/userProfile";
+import { useUserProfileContext } from "@/lib/client-data/UserProfileContext";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { BillingPanel } from "./BillingPanel";
 
 export default function SettingsBillingPage() {
   const { user } = useAuth();
-  const { data: profile, status } = useUserProfile(user);
+  // Reuses the profile (settings)/layout.tsx already fetched -- see UserProfileContext --
+  // instead of firing a third independent fetch on top of the layout's and profile page's own.
+  const { profile } = useUserProfileContext();
 
   return (
     <div>
       <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Billing</h2>
       <p className="mb-6.5 text-base leading-[1.6] text-text-muted">Manage your Vici Sensei Premium subscription.</p>
 
-      {status === "loading" || !profile || !user ? (
+      {!profile || !user ? (
         <BillingSkeleton />
       ) : (
         <BillingPanel
