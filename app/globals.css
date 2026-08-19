@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "flag-icons/css/flag-icons.min.css";
+/* flag-icons is loaded on demand -- see app/components/ui/useFlagIconsCss.ts */
 
 /* ============================================================
    Design tokens — ported 1:1 from vici-sensei-plan-design.md §1
