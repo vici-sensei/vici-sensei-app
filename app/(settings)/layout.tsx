@@ -10,8 +10,10 @@ import { MobileMenuProvider } from "@/app/components/shell/MobileMenuContext";
 import { NavBar } from "@/app/components/shell/NavBar";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
-  const { ready, user: authUser } = useRequireOnboarded();
-  const { data: profile, status: profileStatus, refetch } = useUserProfile(ready ? authUser : null);
+  const { ready, authReady, user: authUser } = useRequireOnboarded();
+  // Gated on `authReady`, not `ready` -- runs in parallel with the study-settings fetch inside
+  // useRequireOnboarded instead of waiting for it to finish first.
+  const { data: profile, status: profileStatus, refetch } = useUserProfile(authReady ? authUser : null);
 
   if (!ready || profileStatus !== "loaded" || !profile) {
     return <FullScreenLoader />;

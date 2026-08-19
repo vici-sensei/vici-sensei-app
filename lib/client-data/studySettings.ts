@@ -6,16 +6,30 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { JLPT_LEVELS } from "@/lib/srs/constants";
 import { ApiError } from "@/lib/api/client";
+import { clearCache, readCache, writeCache } from "@/lib/client-data/localCache";
 import type { JlptLevel } from "@/lib/srs/constants";
 import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 
 type Status = "loading" | "loaded" | "error";
+
+function studySettingsCacheKey(userId: string): string {
+  return `cache:study-settings:${userId}`;
+}
 
 /** `user` is passed in (not read from useAuth internally) so this hook stays usable before the auth gate has fully resolved — callers pass `null` until they have a confirmed user. */
 export function useStudySettings(user: User | null) {
   const [status, setStatus] = useState<Status>("loading");
   const [data, setData] = useState<StudySettings | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Tracks which user the current state was hydrated/fetched for -- see useUserProfile for why.
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
+
+  if (user?.id !== hydratedFor) {
+    setHydratedFor(user?.id ?? null);
+    const cached = user ? readCache<StudySettings>(studySettingsCacheKey(user.id)) : null;
+    setData(cached);
+    setStatus(cached ? "loaded" : "loading");
+  }
 
   const refetch = useCallback(async () => {
     if (!user) return;
@@ -27,6 +41,7 @@ export function useStudySettings(user: User | null) {
       const settings = await fetchStudySettings(supabase, user.id);
       setData(settings);
       setStatus("loaded");
+      writeCache(studySettingsCacheKey(user.id), settings);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load study settings.");
       setStatus("error");
@@ -109,4 +124,10 @@ export async function completeOnboarding(
     .single();
 
   if (error) throw new ApiError(500, error.message);
+
+  // This only selects `user_id` above, so there's no fresh row to cache -- and leaving the
+  // stale pre-onboarding cache (onboarding_completed: false) in place would make the shell's
+  // next mount trust it instantly and bounce straight back to /onboarding before the real
+  // refetch lands. Clearing it forces that mount to actually wait for the network.
+  clearCache(studySettingsCacheKey(userId));
 }

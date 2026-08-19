@@ -10,8 +10,11 @@ import { NavBar } from "@/app/components/shell/NavBar";
 import { OfflineBanner } from "@/app/components/shell/OfflineBanner";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
-  const { ready, user: authUser } = useRequireOnboarded();
-  const { data: profile, status: profileStatus } = useUserProfile(ready ? authUser : null);
+  const { ready, authReady, user: authUser } = useRequireOnboarded();
+  // Gated on `authReady`, not `ready` -- this fires as soon as we have a confirmed user, in
+  // parallel with the study-settings fetch inside useRequireOnboarded, instead of waiting for
+  // settings + onboarding to resolve first.
+  const { data: profile, status: profileStatus } = useUserProfile(authReady ? authUser : null);
 
   if (!ready || profileStatus !== "loaded" || !profile) {
     return <FullScreenLoader />;
