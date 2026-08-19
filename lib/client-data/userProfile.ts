@@ -5,7 +5,12 @@ import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchUserProfile } from "@/lib/data/userProfile";
 import { ApiError } from "@/lib/api/client";
+import { readCache, writeCache } from "@/lib/client-data/localCache";
 import type { UserProfile } from "@/lib/types";
+
+function profileCacheKey(userId: string): string {
+  return `cache:profile:${userId}`;
+}
 
 const MAX_AVATAR_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_EXT_BY_MIME: Record<string, string> = {
@@ -32,6 +37,7 @@ export function useUserProfile(user: User | null) {
       const profile = await fetchUserProfile(supabase, user.id);
       setData(profile);
       setStatus("loaded");
+      writeCache(profileCacheKey(user.id), profile);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load user profile.");
       setStatus("error");
@@ -40,6 +46,14 @@ export function useUserProfile(user: User | null) {
 
   useEffect(() => {
     if (!user) return;
+    // Hydrate synchronously from cache the moment we have a user, so a repeat visit paints the
+    // last-known profile immediately instead of sitting on FullScreenLoader -- refetch() below
+    // then revalidates in the background without flipping status back to "loading".
+    const cached = readCache<UserProfile>(profileCacheKey(user.id));
+    if (cached) {
+      setData(cached);
+      setStatus("loaded");
+    }
     void refetch();
   }, [user, refetch]);
 

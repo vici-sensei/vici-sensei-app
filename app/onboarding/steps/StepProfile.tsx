@@ -1,14 +1,23 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
+import dynamic from "next/dynamic";
 import { FaCheck, FaPenToSquare, FaTrash, FaUser } from "react-icons/fa6";
-import { AvatarCropModal } from "@/app/(settings)/settings/profile/AvatarCropModal";
-import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
 import { useToast } from "@/app/components/ui/Toast";
 import { ApiError } from "@/lib/api/client";
 import { uploadAvatar, removeAvatar } from "@/lib/client-data/userProfile";
 import { avatarSrc } from "@/lib/avatar";
 import { MAX_DISPLAY_NAME_LENGTH } from "@/lib/types";
+
+// Both are only ever rendered after a user action (cropping a new photo, confirming a
+// removal) -- loaded on demand instead of bundled into every visit to onboarding.
+const AvatarCropModal = dynamic(
+  () => import("@/app/(settings)/settings/profile/AvatarCropModal").then((m) => m.AvatarCropModal),
+  { ssr: false }
+);
+const ConfirmDialog = dynamic(() => import("@/app/components/ui/ConfirmDialog").then((m) => m.ConfirmDialog), {
+  ssr: false,
+});
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 // Target side length for uploaded avatars: comfortably sharp at the size we display

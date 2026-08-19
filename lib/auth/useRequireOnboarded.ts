@@ -21,6 +21,10 @@ export function useRequireOnboarded() {
   return {
     ready: authReady && status === "loaded" && onboarded,
     checking: !authReady || status === "loading",
+    // Exposed separately from `ready` so callers can kick off other user-scoped fetches (e.g.
+    // the profile) as soon as we have a confirmed user, in parallel with the settings fetch
+    // above, instead of waiting for settings + onboarding to resolve first.
+    authReady,
     user,
     settings,
   };

@@ -6,6 +6,7 @@ import { FaMedal, FaUser } from "react-icons/fa6";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { ProBadge } from "@/app/components/ui/ProBadge";
+import { useFlagIconsCss } from "@/app/components/ui/useFlagIconsCss";
 import { avatarSrc } from "@/lib/avatar";
 import type { LeaderboardEntry, LeaderboardMetric } from "@/lib/types";
 
@@ -97,6 +98,8 @@ export function LeaderboardList({
   /** Whether the viewer's own row is showing their random alias instead of their real name (settings' "Appear anonymously" toggle). */
   viewerAnonymous?: boolean;
 }) {
+  useFlagIconsCss();
+
   if (status === "loading") {
     return (
       <div className="flex flex-col gap-2">

@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCountries } from "@/lib/client-data/countries";
+import { useFlagIconsCss } from "./useFlagIconsCss";
 
 // Native <option> elements can only render plain text -- no way to put a flag
 // icon inside one -- so this is a custom listbox instead of a real <select>.
@@ -45,6 +46,7 @@ export function CountrySelect({
   /** "up" always opens above the trigger (default). "auto" opens whichever side has more room. */
   placement?: "up" | "auto";
 }) {
+  useFlagIconsCss();
   const { data: countries, status } = useCountries();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");

@@ -1,0 +1,7 @@
+# Every file under /_next/static/ is content-hashed by Next.js (a new build produces new
+# filenames), so it's safe to cache forever -- the browser only ever refetches when the
+# filename itself changes. Read by Cloudflare Workers assets at deploy time (wrangler.jsonc's
+# assets.directory is "out", and `next build` with output:"export" copies this file there
+# unchanged since it's under public/).
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
