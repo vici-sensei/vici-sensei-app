@@ -37,9 +37,12 @@ interface NavItemProps {
   disabled?: boolean;
   danger?: boolean;
   subItems?: SubNavItemProps[];
+  /** Hover/focus intent signal -- e.g. the Study link uses this to prefetch the first due
+   * card well before the user actually clicks through to /study. */
+  onIntent?: () => void;
 }
 
-export function NavItem({ href, icon, label, active, disabled, danger, subItems }: NavItemProps) {
+export function NavItem({ href, icon, label, active, disabled, danger, subItems, onIntent }: NavItemProps) {
   if (disabled) {
     return (
       <span aria-disabled="true" className={`${sharedClasses} ${disabledClasses}`}>
@@ -53,6 +56,8 @@ export function NavItem({ href, icon, label, active, disabled, danger, subItems 
     <div>
       <Link
         href={href}
+        onMouseEnter={onIntent}
+        onFocus={onIntent}
         className={`${sharedClasses} cursor-pointer ${active ? (danger ? activeDangerClasses : activeClasses) : inactiveClasses}`}
       >
         {icon}

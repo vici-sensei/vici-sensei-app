@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
-import { startSession } from "@/lib/client-data/study";
+import { prefetchFirstDueCard, startSession } from "@/lib/client-data/study";
 import { setStoredSessionId } from "@/lib/study/session";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
@@ -14,6 +14,10 @@ export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
   const { showToast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
+
+  function handleIntent() {
+    if (user) prefetchFirstDueCard(user.id);
+  }
 
   async function handleStart() {
     // The shell layout only renders this button once the user is confirmed authed.
@@ -31,7 +35,7 @@ export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
 
   return (
     <div className="mt-6">
-      <Button onClick={handleStart} loading={loading} disabled={disabled}>
+      <Button onClick={handleStart} onMouseEnter={handleIntent} onFocus={handleIntent} loading={loading} disabled={disabled}>
         Start studying
       </Button>
     </div>

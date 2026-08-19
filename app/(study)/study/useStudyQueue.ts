@@ -14,6 +14,7 @@ import {
   undoReview as undoReviewApi,
 } from "@/lib/client-data/study";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
+import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
 import type { DueCard, Rating, ReviewRequestBody, StudyQueueResponse } from "@/lib/types";
@@ -173,6 +174,18 @@ export function useStudyQueue() {
           });
       }
 
+      // Instant paint from localStorage -- written by prefetchFirstDueCard() (hover/focus on
+      // a "Start studying" entry point) or by a previous /study mount below. Purely
+      // provisional: it never sets `settled`, so the moment either real fetch below
+      // resolves, its answer replaces this one -- the DB is always the final word on what
+      // the first card actually is, this is only here so there's never a blank/skeleton
+      // screen while that answer is in flight.
+      const cachedCard = readFirstCardCache(user.id);
+      if (cachedCard) {
+        setQueue([{ key: reviewKey(cachedCard), kind: "review", card: cachedCard }]);
+        setStatus("ready");
+      }
+
       // Race a cheap single-card fetch against the full queue fetch -- whichever resolves
       // first gets to paint the first card, and `settled` stops the other from clobbering
       // it once one has. The full fetch is still what eventually backfills the rest of the
@@ -181,8 +194,16 @@ export function useStudyQueue() {
 
       void getFirstDueCard(user.id, settings)
         .then((card) => {
-          if (cancelled || settled || !card) return;
+          if (cancelled || settled) return;
+          if (!card) {
+            // The fast path can positively confirm a card, but not "there are none" -- that's
+            // only true once the full fetch (which also checks new-material candidates)
+            // agrees. Still worth dropping a stale cache entry so it isn't shown again.
+            clearFirstCardCache(user.id);
+            return;
+          }
           settled = true;
+          writeFirstCardCache(user.id, card);
           setQueue([{ key: reviewKey(card), kind: "review", card }]);
           setStatus("ready");
         })
@@ -209,6 +230,7 @@ export function useStudyQueue() {
         settled = true;
         setQueue(items);
         if (items.length === 0) {
+          clearFirstCardCache(user.id);
           void endSession(false);
           return;
         }
