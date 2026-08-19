@@ -75,8 +75,17 @@ export function LevelProgressCard() {
 
   if (!stats) {
     return (
-      <GlassCard padding="sm" className="flex items-center justify-center xl:shrink-0">
-        <Skeleton className="h-[110px] w-[110px] rounded-full md:h-[150px] md:w-[150px]" />
+      <GlassCard padding="sm" className="flex flex-wrap items-center justify-center gap-5 xl:gap-10">
+        <Skeleton className="h-[110px] w-[110px] shrink-0 rounded-full xl:h-[150px] xl:w-[150px]" />
+        <div className="flex flex-col gap-2.5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-6">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-10" />
+              <Skeleton className="h-4 w-10" />
+            </div>
+          ))}
+        </div>
       </GlassCard>
     );
   }

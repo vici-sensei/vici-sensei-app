@@ -4,8 +4,8 @@ import { utcDayBounds } from "@/lib/srs/day";
 import { getNextDue } from "@/lib/srs/nextDue";
 import { mostAdvancedLevel } from "@/lib/srs/constants";
 
-const DEFAULT_NEW_KANJI_PER_DAY = 2;
-const DEFAULT_NEW_VOCAB_PER_DAY = 12;
+const DEFAULT_NEW_KANJI_PER_DAY = 1;
+const DEFAULT_NEW_VOCAB_PER_DAY = 6;
 const RETENTION_WINDOW_DAYS = 30;
 
 const DUE_PROGRESS_TABLES = ["user_kanji_meaning_progress", "user_kanji_reading_progress", "user_vocabulary_progress"] as const;

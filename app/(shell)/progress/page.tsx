@@ -7,7 +7,7 @@ import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types"
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { GlassCard } from "@/app/components/ui/GlassCard";
-import { FaBook, FaFont, FaPenToSquare } from "react-icons/fa6";
+import { PiTranslate, PiSpeakerHigh, PiBookBookmark } from "react-icons/pi";
 import { StartStudyingLink } from "./StartStudyingLink";
 
 const STATUS_COLORS: Record<ProgressStatus, string> = {
@@ -38,19 +38,19 @@ const BLOCKS: Block[] = [
     key: "kanji_meaning",
     title: "Kanji meaning",
     accent: "var(--color-accent-blue)",
-    icon: <FaBook />,
+    icon: <PiTranslate />,
   },
   {
     key: "kanji_reading",
     title: "Kanji reading",
     accent: "var(--color-accent-gold)",
-    icon: <FaFont />,
+    icon: <PiSpeakerHigh />,
   },
   {
     key: "vocab_meaning",
     title: "Vocabulary meaning",
     accent: "var(--color-accent-red)",
-    icon: <FaPenToSquare />,
+    icon: <PiBookBookmark />,
   },
 ];
 
