@@ -31,6 +31,7 @@ export function StartStudyingLink() {
       href="/study"
       onMouseEnter={handleIntent}
       onFocus={handleIntent}
+      onTouchStart={handleIntent}
       className={buttonClasses({ hover: "hover", className: "mt-2.5" })}
     >
       Start studying

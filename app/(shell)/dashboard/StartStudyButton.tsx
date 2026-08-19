@@ -35,7 +35,14 @@ export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
 
   return (
     <div className="mt-6">
-      <Button onClick={handleStart} onMouseEnter={handleIntent} onFocus={handleIntent} loading={loading} disabled={disabled}>
+      <Button
+        onClick={handleStart}
+        onMouseEnter={handleIntent}
+        onFocus={handleIntent}
+        onTouchStart={handleIntent}
+        loading={loading}
+        disabled={disabled}
+      >
         Start studying
       </Button>
     </div>

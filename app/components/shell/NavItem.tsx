@@ -37,8 +37,8 @@ interface NavItemProps {
   disabled?: boolean;
   danger?: boolean;
   subItems?: SubNavItemProps[];
-  /** Hover/focus intent signal -- e.g. the Study link uses this to prefetch the first due
-   * card well before the user actually clicks through to /study. */
+  /** Hover/focus/touch intent signal -- e.g. the Study link uses this to prefetch the first
+   * due card well before the user actually clicks/taps through to /study. */
   onIntent?: () => void;
 }
 
@@ -58,6 +58,7 @@ export function NavItem({ href, icon, label, active, disabled, danger, subItems,
         href={href}
         onMouseEnter={onIntent}
         onFocus={onIntent}
+        onTouchStart={onIntent}
         className={`${sharedClasses} cursor-pointer ${active ? (danger ? activeDangerClasses : activeClasses) : inactiveClasses}`}
       >
         {icon}
