@@ -5,3 +5,19 @@
 # unchanged since it's under public/).
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
+
+# App icons and PWA manifest change only on redeploy but aren't content-hashed --
+# short browser cache plus stale-while-revalidate lets Cloudflare's edge serve
+# the cached copy instantly while it quietly refetches in the background.
+/images/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+/icon.svg
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+/apple-icon.png
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+/opengraph-image.png
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+/twitter-image.png
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
