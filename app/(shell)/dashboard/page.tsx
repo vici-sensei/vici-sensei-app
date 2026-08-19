@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { useAnimatedPercent } from "@/lib/useAnimatedPercent";
 import { useInView } from "@/lib/useInView";
@@ -210,6 +212,12 @@ function StatCards() {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+
+  function handleProgressIntent() {
+    if (user) prefetchProgressSummary(user.id);
+  }
+
   return (
     <div>
       <Suspense fallback={null}>
@@ -232,6 +240,9 @@ export default function DashboardPage() {
       <Link
         className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-text-muted transition-[color,gap] duration-200 hover:gap-2.5 hover:text-white"
         href="/progress"
+        onMouseEnter={handleProgressIntent}
+        onFocus={handleProgressIntent}
+        onTouchStart={handleProgressIntent}
       >
         View detailed progress
         <FaArrowRight className="h-4 w-4" />

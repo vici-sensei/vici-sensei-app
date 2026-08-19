@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchKanjiProgress, fetchProgressSummary, fetchVocabularyProgress } from "@/lib/data/progress";
+import { readCache, writeCache } from "@/lib/client-data/localCache";
+import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type { KanjiProgressResponse, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";
+
+function progressSummaryCacheKey(userId: string): string {
+  return `cache:progress-summary:${userId}`;
+}
 
 type Status = "loading" | "loaded" | "error";
 
@@ -70,6 +76,7 @@ export function useProgressSummary(user: User | null) {
       const result = await fetchProgressSummary(createClient(), user.id);
       setData(result);
       setStatus("loaded");
+      writeCache(progressSummaryCacheKey(user.id), result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load progress.");
       setStatus("error");
@@ -77,8 +84,25 @@ export function useProgressSummary(user: User | null) {
   }, [user]);
 
   useEffect(() => {
+    if (!user) return;
+    // Instant paint from a hover/focus prefetch of the Progress nav entry (or the shell's
+    // own previous visit) -- purely provisional, refetch() below always runs right after and
+    // overwrites it once the real fetch resolves.
+    const cached = readCache<ProgressSummaryResponse>(progressSummaryCacheKey(user.id));
+    if (cached) {
+      setData(cached);
+      setStatus("loaded");
+    }
     void refetch();
-  }, [refetch]);
+  }, [user, refetch]);
 
   return { data, status, error, refetch };
 }
+
+/** Fire-and-forget: called on hover/focus/touchstart of a Progress nav entry point, well
+ * before the user actually navigates to /progress. Writes straight to the localStorage cache
+ * useProgressSummary reads on mount. */
+export const prefetchProgressSummary = createPrefetcher(async (userId: string) => {
+  const result = await fetchProgressSummary(createClient(), userId);
+  writeCache(progressSummaryCacheKey(userId), result);
+});
