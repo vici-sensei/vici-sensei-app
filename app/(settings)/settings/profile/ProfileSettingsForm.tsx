@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { UserIdentity } from "@supabase/supabase-js";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
 import {
   updateDisplayName,
@@ -17,6 +17,9 @@ import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { CountrySelect } from "@/app/components/ui/CountrySelect";
+import { GlassCard } from "@/app/components/ui/GlassCard";
+import { Toggle } from "@/app/components/ui/Toggle";
+import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
 
 // Both are only ever rendered after a user action (cropping a new photo, confirming a
@@ -266,7 +269,7 @@ export function ProfileSettingsForm({
       if (linkError) throw linkError;
       // On success the browser navigates away to Google — no further state change needed.
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Could not start switching your Google account.", "error");
+      showToast(getErrorMessage(err, "Could not start switching your Google account."), "error");
       setSwitching(false);
     }
   }
@@ -282,20 +285,18 @@ export function ProfileSettingsForm({
       showToast("Google account unlinked");
     } catch (err) {
       setIdentities(previousIdentities);
-      showToast(err instanceof Error ? err.message : "Could not unlink that Google account.", "error");
+      showToast(getErrorMessage(err, "Could not unlink that Google account."), "error");
     } finally {
       setUnlinkingId(null);
     }
   }
 
-  const fieldLabel = "mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted";
   const fieldInput =
     "w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40 read-only:cursor-not-allowed read-only:text-text-muted";
-  const fieldHint = "mt-1.5 text-[0.8rem] leading-normal text-text-muted";
 
   return (
     <div>
-      <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+      <GlassCard padding="lg" className="mb-5.5">
         <div className="mb-6.5 flex flex-col items-center gap-4 md:flex-row md:gap-5">
           <div className="relative h-40 w-40 shrink-0">
             <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[2.75rem] font-extrabold text-white">
@@ -394,15 +395,7 @@ export function ProfileSettingsForm({
                 Display your flag next to your name on leaderboards.
               </div>
             </div>
-            <label className="relative h-[26px] w-[46px] shrink-0">
-              <input
-                type="checkbox"
-                className="peer h-0 w-0 opacity-0"
-                checked={showCountryOnLeaderboard}
-                onChange={handleShowCountryOnLeaderboardChange}
-              />
-              <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 before:absolute before:left-[3px] before:top-[3px] before:h-5 before:w-5 before:rounded-full before:bg-white before:transition-transform before:duration-200 peer-checked:bg-accent-red peer-checked:before:translate-x-5" />
-            </label>
+            <Toggle checked={showCountryOnLeaderboard} onChange={handleShowCountryOnLeaderboardChange} />
           </div>
         </div>
         <div>
@@ -446,7 +439,7 @@ export function ProfileSettingsForm({
             </div>
           ) : null}
         </div>
-      </div>
+      </GlassCard>
 
       <Suspense fallback={null}>
         <SwitchResultNotice />

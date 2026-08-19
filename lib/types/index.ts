@@ -1,3 +1,4 @@
+export * from "./async";
 export * from "./kanji";
 export * from "./vocabulary";
 export * from "./study";

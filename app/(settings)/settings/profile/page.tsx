@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useUserProfileContext } from "@/lib/client-data/UserProfileContext";
+import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import { ProfileSettingsForm } from "./ProfileSettingsForm";
 
 export default function SettingsProfilePage() {
@@ -12,7 +13,7 @@ export default function SettingsProfilePage() {
 
   return (
     <div>
-      <h2 className="mb-6.5 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Profile</h2>
+      <SettingsHeader title="Profile" />
       <ProfileSettingsForm initial={profile} userId={user.id} onSaved={refetch} />
     </div>
   );

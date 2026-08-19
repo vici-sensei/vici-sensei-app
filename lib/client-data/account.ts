@@ -1,18 +1,5 @@
-import { FunctionsHttpError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { ApiError } from "@/lib/api/client";
-
-async function extractFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
-  if (error instanceof FunctionsHttpError) {
-    try {
-      const body = await error.context.json();
-      if (body && typeof body.error === "string") return body.error;
-    } catch {
-      // response body wasn't JSON — fall through to the generic message
-    }
-  }
-  return error instanceof Error ? error.message : fallback;
-}
+import { ApiError, extractFunctionErrorMessage } from "@/lib/api/client";
 
 export async function deleteAccount(): Promise<{ pendingDeletionAt: string }> {
   const supabase = createClient();

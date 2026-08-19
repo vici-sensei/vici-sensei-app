@@ -7,6 +7,7 @@ import { useStudySettings, updateStudySettings } from "@/lib/client-data/studySe
 import { ApiError } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import { guessServerRegion, type ServerRegion } from "@/lib/serverRegion";
 
 const REGION_META: Record<ServerRegion, { icon: typeof FaEarthAmericas; description: string }> = {
@@ -59,10 +60,10 @@ export function ServerRegionSettings() {
 
   return (
     <div>
-      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Server region</h2>
-      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">
-        Choose the continent closest to your physical location for the best speed.
-      </p>
+      <SettingsHeader
+        title="Server region"
+        description="Choose the continent closest to your physical location for the best speed."
+      />
       <div className="flex max-w-sm flex-col gap-3 text-left">
         {(Object.keys(REGION_META) as ServerRegion[]).map((option) => {
           const { icon: Icon, description } = REGION_META[option];

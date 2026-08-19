@@ -5,26 +5,18 @@ import type { JlptLevel } from "@/lib/srs/constants";
 // Only the default (no-filter) view gets prefetched/cached -- keying by the level set alone
 // is enough since search is always empty and offset always 0 for that view. A different level
 // set is simply a different key, so a stale entry never masquerades as the current default.
-function kanjiListCacheKey(levels: JlptLevel[]): string {
-  return `cache:kanji-list:${levels.join(",")}`;
+function createListCache<T>(name: string) {
+  const key = (levels: JlptLevel[]) => `cache:${name}-list:${levels.join(",")}`;
+  return {
+    read: (levels: JlptLevel[]) => readCache<T>(key(levels)),
+    write: (levels: JlptLevel[], data: T) => writeCache(key(levels), data),
+  };
 }
 
-function vocabularyListCacheKey(levels: JlptLevel[]): string {
-  return `cache:vocabulary-list:${levels.join(",")}`;
-}
+const kanjiListCache = createListCache<KanjiListResponse>("kanji");
+const vocabularyListCache = createListCache<VocabularyListResponse>("vocabulary");
 
-export function readKanjiListCache(levels: JlptLevel[]): KanjiListResponse | null {
-  return readCache<KanjiListResponse>(kanjiListCacheKey(levels));
-}
-
-export function writeKanjiListCache(levels: JlptLevel[], data: KanjiListResponse): void {
-  writeCache(kanjiListCacheKey(levels), data);
-}
-
-export function readVocabularyListCache(levels: JlptLevel[]): VocabularyListResponse | null {
-  return readCache<VocabularyListResponse>(vocabularyListCacheKey(levels));
-}
-
-export function writeVocabularyListCache(levels: JlptLevel[], data: VocabularyListResponse): void {
-  writeCache(vocabularyListCacheKey(levels), data);
-}
+export const readKanjiListCache = kanjiListCache.read;
+export const writeKanjiListCache = kanjiListCache.write;
+export const readVocabularyListCache = vocabularyListCache.read;
+export const writeVocabularyListCache = vocabularyListCache.write;

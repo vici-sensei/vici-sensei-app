@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { deleteAccount } from "@/lib/client-data/account";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
+import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
 import { FaTriangleExclamation } from "react-icons/fa6";
 
@@ -38,8 +39,7 @@ export function AccountDangerZone() {
 
   return (
     <div>
-      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Account</h2>
-      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">Delete your Vici Sensei account.</p>
+      <SettingsHeader title="Account" description="Delete your Vici Sensei account." />
 
       <div className="space-y-10">
         <div className="space-y-2.5">

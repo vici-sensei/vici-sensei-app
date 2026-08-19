@@ -6,16 +6,15 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchKanjiProgress, fetchProgressSummary, fetchVocabularyProgress } from "@/lib/data/progress";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
-import type { KanjiProgressResponse, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";
+import { getErrorMessage } from "@/lib/api/client";
+import type { AsyncStatus, KanjiProgressResponse, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";
 
 function progressSummaryCacheKey(userId: string): string {
   return `cache:progress-summary:${userId}`;
 }
 
-type Status = "loading" | "loaded" | "error";
-
 export function useKanjiProgress(user: User | null, kanjiId: number | null) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<AsyncStatus>("loading");
   const [data, setData] = useState<KanjiProgressResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +26,7 @@ export function useKanjiProgress(user: User | null, kanjiId: number | null) {
       setData(result);
       setStatus("loaded");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load progress.");
+      setError(getErrorMessage(err, "Failed to load progress."));
       setStatus("error");
     }
   }, [user, kanjiId]);
@@ -40,7 +39,7 @@ export function useKanjiProgress(user: User | null, kanjiId: number | null) {
 }
 
 export function useVocabularyProgress(user: User | null, wordId: number | null) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<AsyncStatus>("loading");
   const [data, setData] = useState<VocabularyProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +51,7 @@ export function useVocabularyProgress(user: User | null, wordId: number | null) 
       setData(result);
       setStatus("loaded");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load progress.");
+      setError(getErrorMessage(err, "Failed to load progress."));
       setStatus("error");
     }
   }, [user, wordId]);
@@ -65,7 +64,7 @@ export function useVocabularyProgress(user: User | null, wordId: number | null) 
 }
 
 export function useProgressSummary(user: User | null) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<AsyncStatus>("loading");
   const [data, setData] = useState<ProgressSummaryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,7 +77,7 @@ export function useProgressSummary(user: User | null) {
       setStatus("loaded");
       writeCache(progressSummaryCacheKey(user.id), result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load progress.");
+      setError(getErrorMessage(err, "Failed to load progress."));
       setStatus("error");
     }
   }, [user]);
