@@ -19,6 +19,7 @@ interface Props {
 const NUDGE_DISTANCE = 14;
 const NUDGE_DURATION = 380;
 const NUDGE_DELAY = 450;
+const ARROW_SCROLL_DISTANCE = 60;
 
 function easeInOutQuad(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -54,6 +55,32 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
   const [showFade, setShowFade] = useState(false);
   const [isScrollable, setIsScrollable] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const nextDisabled = disabled || (isScrollable && !hasScrolledToBottom);
+
+  useEffect(() => {
+    if (nextDisabled) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onConfirm();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [nextDisabled, onConfirm]);
+
+  useEffect(() => {
+    if (!isScrollable) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      const el = listRef.current;
+      if (!el) return;
+      event.preventDefault();
+      el.scrollBy({ top: event.key === "ArrowDown" ? ARROW_SCROLL_DISTANCE : -ARROW_SCROLL_DISTANCE, behavior: "smooth" });
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isScrollable]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -154,7 +181,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
         </div>
       )}
       <div className="mt-4 shrink-0">
-        <Button className="w-full" disabled={disabled || (isScrollable && !hasScrolledToBottom)} onClick={onConfirm}>
+        <Button className="w-full" disabled={nextDisabled} onClick={onConfirm}>
           Next
         </Button>
       </div>

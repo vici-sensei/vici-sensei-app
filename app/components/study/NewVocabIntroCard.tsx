@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect } from "react";
 import type { NewVocabCandidate } from "@/lib/types";
 import { Button } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
@@ -14,6 +17,18 @@ interface Props {
 
 export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
   const isUsuallyKana = candidate.usually_kana === true;
+
+  useEffect(() => {
+    if (disabled) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onConfirm();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [disabled, onConfirm]);
 
   return (
     <StudyCardShell label="New word" accent="gold">
