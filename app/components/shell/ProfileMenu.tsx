@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
 import { avatarSrc } from "@/lib/avatar";
 import { ProBadge } from "@/app/components/ui/ProBadge";
-import { FaUser, FaCreditCard, FaTriangleExclamation, FaRightFromBracket } from "react-icons/fa6";
+import { FaUser, FaCrown, FaShieldHalved, FaRightFromBracket } from "react-icons/fa6";
 
 function Avatar({
   user,
@@ -120,11 +120,11 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
           Profile
         </Link>
         <Link href="/settings/billing" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
-          <FaCreditCard />
+          <FaCrown className="text-accent-gold" />
           Subscription
         </Link>
         <Link href="/settings/account" prefetch={false} className={menuItemClasses} onClick={() => setOpen(false)}>
-          <FaTriangleExclamation />
+          <FaShieldHalved />
           Account
         </Link>
         <hr className="mx-1 my-1.5 border-border-soft" />

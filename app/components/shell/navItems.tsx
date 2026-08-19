@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
-import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear } from "react-icons/fa6";
+import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaCrown, FaShieldHalved, FaSliders } from "react-icons/fa6";
+
+export interface SubNavItem {
+  href: string;
+  label: string;
+  isActive: (pathname: string) => boolean;
+  icon: ReactNode;
+}
 
 export interface NavItem {
   href: string;
@@ -7,6 +14,8 @@ export interface NavItem {
   isActive: (pathname: string) => boolean;
   icon: ReactNode;
   danger?: boolean;
+  // Desktop sidebar only (see NavItem/NavBar) -- the mobile full-screen menu ignores these.
+  subItems?: SubNavItem[];
 }
 
 // Single source of truth for both the desktop sidebar and the mobile full-screen menu --
@@ -47,5 +56,31 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Settings",
     isActive: (p) => p.startsWith("/settings"),
     icon: <FaGear />,
+    subItems: [
+      {
+        href: "/settings/study",
+        label: "Preferences",
+        isActive: (p) => p.startsWith("/settings/study"),
+        icon: <FaSliders />,
+      },
+      {
+        href: "/settings/profile",
+        label: "Profile",
+        isActive: (p) => p.startsWith("/settings/profile"),
+        icon: <FaUser />,
+      },
+      {
+        href: "/settings/billing",
+        label: "Subscription",
+        isActive: (p) => p.startsWith("/settings/billing"),
+        icon: <FaCrown className="text-accent-gold" />,
+      },
+      {
+        href: "/settings/account",
+        label: "Account",
+        isActive: (p) => p.startsWith("/settings/account"),
+        icon: <FaShieldHalved />,
+      },
+    ],
   },
 ];

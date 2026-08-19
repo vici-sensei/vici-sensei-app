@@ -13,7 +13,7 @@ export default function SessionExpiredPage() {
   }, [router]);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] text-center">
       <div className="relative w-full max-w-[440px]">
         <div className="mx-auto mb-5.5 flex h-16 w-16 items-center justify-center rounded-full border border-accent-blue/30 bg-accent-blue/10">
           <FaLock className="h-6.5 w-6.5 text-accent-blue" />

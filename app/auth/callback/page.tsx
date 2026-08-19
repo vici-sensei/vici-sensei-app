@@ -3,13 +3,15 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { switchGoogleAccount } from "@/lib/client-data/account";
+import { switchGoogleAccount, cancelPendingAccountDeletion } from "@/lib/client-data/account";
 import { ApiError } from "@/lib/api/client";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+import { useToast } from "@/app/components/ui/Toast";
 
 function AuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -120,6 +122,12 @@ function AuthCallbackInner() {
           return;
         }
         await dropStrayEmailIdentity();
+        // Best-effort: if this account had requested deletion, logging back in
+        // cancels it. cancelPendingAccountDeletion() never throws.
+        const reactivated = await cancelPendingAccountDeletion();
+        if (reactivated) {
+          showToast("Welcome back — your account was reactivated!", "success");
+        }
         router.replace(next);
       }
 
@@ -137,7 +145,7 @@ function AuthCallbackInner() {
       subscription.subscription.unsubscribe();
       clearTimeout(timeout);
     };
-  }, [router, searchParams]);
+  }, [router, searchParams, showToast]);
 
   useEffect(() => {
     if (failed) router.replace("/login?error=auth_callback_failed");

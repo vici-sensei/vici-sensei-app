@@ -430,3 +430,8 @@ verify_jwt = true
 [functions.switch-google-account]
 enabled = true
 verify_jwt = true
+
+# Invoked by the pg_cron sweep (service-role key as bearer token), not the browser.
+[functions.process-scheduled-deletions]
+enabled = true
+verify_jwt = true

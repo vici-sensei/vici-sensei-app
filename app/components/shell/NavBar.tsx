@@ -18,6 +18,12 @@ export function NavBar() {
     active: item.isActive(pathname),
     disabled: studyDisabled && item.href === "/study",
     danger: item.danger,
+    subItems: item.subItems?.map((sub) => ({
+      href: sub.href,
+      label: sub.label,
+      icon: sub.icon,
+      active: sub.isActive(pathname),
+    })),
   }));
 
   return (

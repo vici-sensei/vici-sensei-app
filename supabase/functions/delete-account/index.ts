@@ -29,9 +29,10 @@ Deno.serve(async (req) => {
     return jsonResponse(req, { error: profileError.message }, 500);
   }
 
-  let hadActiveSubscription = false;
-  let stripeCustomerDeleted = false;
-
+  // Deletion isn't instant: the account gets a 30-day grace period (see
+  // process-scheduled-deletions) so a user who changes their mind can just log
+  // back in. We do stop billing right away though -- there's no reason to keep
+  // charging someone through a grace period they may never come back from.
   if (profile?.stripe_customer_id) {
     try {
       const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!);
@@ -39,21 +40,15 @@ Deno.serve(async (req) => {
         customer: profile.stripe_customer_id,
         status: "all",
       });
-      // Only 'canceled' and 'incomplete_expired' are already-terminal states;
-      // everything else still needs to be canceled, or Stripe will refuse to
-      // delete a customer that has subscriptions attached.
       const cancelableSubscriptions = subscriptions.data.filter(
         (sub) => sub.status !== "canceled" && sub.status !== "incomplete_expired"
       );
-      hadActiveSubscription = cancelableSubscriptions.length > 0;
       await Promise.all(cancelableSubscriptions.map((sub) => stripe.subscriptions.cancel(sub.id)));
-      await stripe.customers.del(profile.stripe_customer_id);
-      stripeCustomerDeleted = true;
     } catch (err) {
       return jsonResponse(
         req,
         {
-          error: `Could not cancel the Stripe subscription or remove the Stripe customer before deleting the account: ${
+          error: `Could not cancel the Stripe subscription before scheduling account deletion: ${
             err instanceof Error ? err.message : "unknown error"
           }. Configure Stripe or resolve this manually before retrying.`,
         },
@@ -62,24 +57,21 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Admin (service-role) client for the actual account deletion — deleteUser requires it.
+  // Admin (service-role) client — authenticated only has column-level UPDATE
+  // grants on (display_name, avatar_url, updated_at), so pending_deletion_at
+  // needs the service role to write.
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
-  if (deleteError) {
-    return jsonResponse(req, { error: deleteError.message }, 500);
+  const pendingDeletionAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { error: scheduleError } = await admin
+    .from("users")
+    .update({ pending_deletion_at: pendingDeletionAt })
+    .eq("id", user.id);
+  if (scheduleError) {
+    return jsonResponse(req, { error: scheduleError.message }, 500);
   }
 
-  const { error: auditError } = await admin.from("account_deletion_log").insert({
-    user_id: user.id,
-    had_active_subscription: hadActiveSubscription,
-    stripe_customer_deleted: stripeCustomerDeleted,
-  });
-  if (auditError) {
-    console.error("Failed to write account_deletion_log entry:", auditError.message);
-  }
-
-  return new Response(null, { status: 204, headers: corsHeaders(req) });
+  return jsonResponse(req, { pendingDeletionAt }, 200);
 });

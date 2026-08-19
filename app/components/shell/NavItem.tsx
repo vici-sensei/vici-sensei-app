@@ -12,6 +12,23 @@ const activeDangerClasses = "border-accent-red bg-accent-red/10 text-[#ff8a93]";
 const inactiveClasses = "text-text-muted hover:text-white";
 const disabledClasses = "text-text-muted opacity-45 cursor-not-allowed";
 
+// Sub-items are always rendered alongside their parent (no expand/collapse state) --
+// the current route only decides which one, if any, shows as active.
+// Active state reads as a small dot in the indent gutter rather than the parent's left border --
+// keeps the sub-list visually lighter than the top-level items.
+const subSharedClasses =
+  "relative flex items-center gap-2.5 rounded-lg px-2.5 py-[0.44rem] text-[0.76rem] font-semibold transition-all [&>svg]:h-3 [&>svg]:w-3 [&>svg]:shrink-0";
+const subActiveClasses =
+  "text-white before:absolute before:-left-[1.2rem] before:top-1/2 before:h-[5px] before:w-[5px] before:-translate-y-1/2 before:rounded-full before:bg-accent-red before:content-['']";
+const subInactiveClasses = "text-[#6b7280] hover:text-text-muted";
+
+export interface SubNavItemProps {
+  href: string;
+  icon: ReactNode;
+  label: ReactNode;
+  active: boolean;
+}
+
 interface NavItemProps {
   href: string;
   icon: ReactNode;
@@ -19,9 +36,10 @@ interface NavItemProps {
   active: boolean;
   disabled?: boolean;
   danger?: boolean;
+  subItems?: SubNavItemProps[];
 }
 
-export function NavItem({ href, icon, label, active, disabled, danger }: NavItemProps) {
+export function NavItem({ href, icon, label, active, disabled, danger, subItems }: NavItemProps) {
   if (disabled) {
     return (
       <span aria-disabled="true" className={`${sharedClasses} ${disabledClasses}`}>
@@ -32,13 +50,30 @@ export function NavItem({ href, icon, label, active, disabled, danger }: NavItem
   }
 
   return (
-    <Link
-      href={href}
-      prefetch={false}
-      className={`${sharedClasses} cursor-pointer ${active ? (danger ? activeDangerClasses : activeClasses) : inactiveClasses}`}
-    >
-      {icon}
-      {label}
-    </Link>
+    <div>
+      <Link
+        href={href}
+        prefetch={false}
+        className={`${sharedClasses} cursor-pointer ${active ? (danger ? activeDangerClasses : activeClasses) : inactiveClasses}`}
+      >
+        {icon}
+        {label}
+      </Link>
+      {subItems && subItems.length > 0 && (
+        <div className="mt-1 flex flex-col gap-0.5 pl-7">
+          {subItems.map((sub) => (
+            <Link
+              key={sub.href}
+              href={sub.href}
+              prefetch={false}
+              className={`${subSharedClasses} cursor-pointer ${sub.active ? subActiveClasses : subInactiveClasses}`}
+            >
+              {sub.icon}
+              {sub.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
