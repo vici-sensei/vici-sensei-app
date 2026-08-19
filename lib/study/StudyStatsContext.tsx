@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { getStudyStats } from "@/lib/client-data/studyStats";
+import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import type { StudyStats } from "@/lib/types";
@@ -10,6 +11,10 @@ const POLL_INTERVAL_MS = 30_000;
 // Polled faster while there's nothing to study — that's exactly the state where a due
 // review or a new day is what unblocks the Study button, so staleness matters most here.
 const CAUGHT_UP_POLL_INTERVAL_MS = 10_000;
+
+function studyStatsCacheKey(userId: string): string {
+  return `cache:study-stats:${userId}`;
+}
 
 interface StudyStatsContextValue {
   stats: StudyStats | null;
@@ -35,6 +40,7 @@ export function StudyStatsProvider({ children }: { children: ReactNode }) {
       if (!cancelledRef.current) {
         setStats(fresh);
         setStale(false);
+        writeCache(studyStatsCacheKey(user.id), fresh);
       }
     } catch {
       if (!cancelledRef.current) setStale(true);
@@ -46,6 +52,13 @@ export function StudyStatsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     cancelledRef.current = false;
+
+    // Instant paint from the last known stats (this session's previous mount, or a prior app
+    // open) -- purely provisional, refresh() right below always runs and overwrites it once
+    // the real fetch resolves.
+    const cached = readCache<StudyStats>(studyStatsCacheKey(user.id));
+    if (cached) setStats(cached);
+
     void refresh();
 
     const intervalMs = allDone ? CAUGHT_UP_POLL_INTERVAL_MS : POLL_INTERVAL_MS;

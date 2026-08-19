@@ -3,6 +3,8 @@
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useUserProfileContext } from "@/lib/client-data/UserProfileContext";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { GlassCard } from "@/app/components/ui/GlassCard";
+import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import { BillingPanel } from "./BillingPanel";
 
 export default function SettingsBillingPage() {
@@ -13,8 +15,7 @@ export default function SettingsBillingPage() {
 
   return (
     <div>
-      <h2 className="mb-2 text-[1.7rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Billing</h2>
-      <p className="mb-6.5 text-base leading-[1.6] text-text-muted">Manage your Vici Sensei Premium subscription.</p>
+      <SettingsHeader title="Billing" description="Manage your Vici Sensei Premium subscription." />
 
       {!profile || !user ? (
         <BillingSkeleton />
@@ -36,7 +37,7 @@ export default function SettingsBillingPage() {
 // rather than committing to any one branch's exact layout.
 function BillingSkeleton() {
   return (
-    <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+    <GlassCard padding="lg" className="mb-5.5">
       <div className="flex flex-wrap items-center justify-between gap-6">
         <div className="min-w-0 flex-1">
           <Skeleton className="mb-3 h-6 w-28 rounded-full" />
@@ -47,6 +48,6 @@ function BillingSkeleton() {
           <Skeleton className="h-11 w-32 rounded-xl" />
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }

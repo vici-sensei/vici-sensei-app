@@ -7,9 +7,9 @@ import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { cardsRemainingToday } from "@/lib/study/stats";
-import { useAnimatedPercent } from "@/lib/useAnimatedPercent";
 import { useInView } from "@/lib/useInView";
 import { GlassCard } from "@/app/components/ui/GlassCard";
+import { AnimatedRingStroke, RingTrack } from "@/app/components/ui/AnimatedRing";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { DashboardHero } from "./DashboardHero";
 import { NextCardCountdown } from "./NextCardCountdown";
@@ -76,7 +76,6 @@ const RING_SIZE = 56;
 const RING_STROKE = 4;
 const RING_CENTER = RING_SIZE / 2;
 const RING_RADIUS = RING_CENTER - RING_STROKE / 2 - 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 function statPct(value: number, total: number): number {
   if (total <= 0) return 0;
@@ -93,29 +92,18 @@ function StatRing({
   colorClass: string;
 }) {
   const [ref, inView] = useInView<HTMLDivElement>();
-  const animatedPercent = useAnimatedPercent(percent, inView);
-  const offset = RING_CIRCUMFERENCE * (1 - animatedPercent / 100);
   return (
     <div ref={ref} className="relative mb-3.5 h-14 w-14 shrink-0">
       <svg viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} className="h-full w-full -rotate-90">
-        <circle
+        <RingTrack cx={RING_CENTER} cy={RING_CENTER} radius={RING_RADIUS} strokeWidth={RING_STROKE} />
+        <AnimatedRingStroke
           cx={RING_CENTER}
           cy={RING_CENTER}
-          r={RING_RADIUS}
-          fill="none"
+          radius={RING_RADIUS}
           strokeWidth={RING_STROKE}
-          className="stroke-white/10"
-        />
-        <circle
-          cx={RING_CENTER}
-          cy={RING_CENTER}
-          r={RING_RADIUS}
-          fill="none"
-          strokeWidth={RING_STROKE}
-          strokeLinecap="round"
-          strokeDasharray={RING_CIRCUMFERENCE}
-          strokeDashoffset={offset}
-          className={`${colorClass} transition-[stroke-dashoffset] duration-1000 ease-out`}
+          percent={percent}
+          inView={inView}
+          className={colorClass}
         />
       </svg>
       <div className={`absolute inset-0 flex items-center justify-center ${colorClass.replace("stroke-", "text-")}`}>
@@ -132,7 +120,7 @@ function StatCards() {
 
   if (!stats) {
     return (
-      <div className="grid grid-cols-2 gap-[18px] md:grid-cols-3">
+      <>
         {Array.from({ length: 4 }).map((_, i) => (
           <GlassCard key={i} padding="sm" className="flex flex-col items-center justify-center sm:items-start sm:justify-start">
             <Skeleton className="mb-3.5 h-14 w-14 rounded-full" />
@@ -140,12 +128,12 @@ function StatCards() {
             <Skeleton className="h-4 w-24" />
           </GlassCard>
         ))}
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-[18px] md:grid-cols-3">
+    <>
       <GlassCard padding="sm" className="flex flex-col items-center justify-center text-center sm:items-start sm:justify-start sm:text-left">
         <StatRing
           icon={<span className="text-[27px] font-medium leading-none">竜</span>}
@@ -207,7 +195,7 @@ function StatCards() {
         </div>
         <div className="text-sm font-semibold text-text-muted">Accuracy (30d)</div>
       </GlassCard>
-    </div>
+    </>
   );
 }
 
@@ -225,16 +213,10 @@ export default function DashboardPage() {
       </Suspense>
 
       <div className="flex flex-col gap-[18px] md:flex-row md:flex-wrap">
-        <div className="order-1 md:basis-full">
-          <DashboardHero />
-        </div>
-        <div className="order-2 md:flex-1">
-          <StreakCard />
-        </div>
+        <DashboardHero />
+        <StreakCard />
         <LevelProgressCard />
-        <div className="order-3 md:order-4 md:basis-full">
-          <StatCards />
-        </div>
+        <StatCards />
       </div>
 
       <Link

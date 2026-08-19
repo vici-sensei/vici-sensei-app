@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchUserProfile } from "@/lib/data/userProfile";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
-import type { UserProfile } from "@/lib/types";
+import type { AsyncStatus, UserProfile } from "@/lib/types";
 
 function profileCacheKey(userId: string): string {
   return `cache:profile:${userId}`;
@@ -20,10 +20,8 @@ const AVATAR_EXT_BY_MIME: Record<string, string> = {
   "image/gif": "gif",
 };
 
-type Status = "loading" | "loaded" | "error";
-
 export function useUserProfile(user: User | null) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<AsyncStatus>("loading");
   const [data, setData] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +37,7 @@ export function useUserProfile(user: User | null) {
       setStatus("loaded");
       writeCache(profileCacheKey(user.id), profile);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load user profile.");
+      setError(getErrorMessage(err, "Failed to load user profile."));
       setStatus("error");
     }
   }, [user]);

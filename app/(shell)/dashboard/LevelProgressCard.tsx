@@ -4,8 +4,8 @@ import { Fragment, useRef } from "react";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { useAnimatedPercent } from "@/lib/useAnimatedPercent";
 import { useInView } from "@/lib/useInView";
+import { AnimatedRingStroke, RingTrack } from "@/app/components/ui/AnimatedRing";
 import type { LevelProgress } from "@/lib/types";
 
 const SIZE = 150;
@@ -41,36 +41,26 @@ function LevelRing({
   strokeClass: string;
   inView: boolean;
 }) {
-  const animatedSeenPct = useAnimatedPercent(seenPct, inView);
-  const animatedLearnedPct = useAnimatedPercent(learnedPct, inView);
-  const circumference = 2 * Math.PI * radius;
-  const seenOffset = circumference * (1 - animatedSeenPct / 100);
-  const learnedOffset = circumference * (1 - animatedLearnedPct / 100);
-
   return (
     <g>
-      <circle cx={CENTER} cy={CENTER} r={radius} fill="none" strokeWidth={STROKE} className="stroke-white/10" />
-      <circle
+      <RingTrack cx={CENTER} cy={CENTER} radius={radius} strokeWidth={STROKE} />
+      <AnimatedRingStroke
         cx={CENTER}
         cy={CENTER}
-        r={radius}
-        fill="none"
+        radius={radius}
         strokeWidth={STROKE}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={seenOffset}
-        className={`${strokeClass}/35 transition-[stroke-dashoffset] duration-1000 ease-out`}
+        percent={seenPct}
+        inView={inView}
+        className={`${strokeClass}/35`}
       />
-      <circle
+      <AnimatedRingStroke
         cx={CENTER}
         cy={CENTER}
-        r={radius}
-        fill="none"
+        radius={radius}
         strokeWidth={STROKE}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={learnedOffset}
-        className={`${strokeClass} transition-[stroke-dashoffset] duration-1000 ease-out`}
+        percent={learnedPct}
+        inView={inView}
+        className={strokeClass}
       />
     </g>
   );
@@ -85,7 +75,7 @@ export function LevelProgressCard() {
 
   if (!stats) {
     return (
-      <GlassCard padding="sm" className="order-7 flex w-full items-center justify-center order-7 xl:order-3 xl:w-fit xl:shrink-0">
+      <GlassCard padding="sm" className="flex items-center justify-center xl:shrink-0">
         <Skeleton className="h-[110px] w-[110px] rounded-full md:h-[150px] md:w-[150px]" />
       </GlassCard>
     );
@@ -94,13 +84,12 @@ export function LevelProgressCard() {
   const progress = stats.level_progress;
   if (!progress) return null;
 
-  // TO DO - order-?
   return (
     <GlassCard
       ref={cardRef}
       padding="sm"
       aria-label={`${progress.level} progress details`}
-      className={`order-7 md:order-5 md:w-fit xl:order-3 flex flex-wrap items-center justify-center gap-5 xl:gap-10 w-full !cursor-default`}
+      className={`flex flex-wrap items-center justify-center gap-5 xl:gap-10 !cursor-default`}
     >
       <div ref={ringsRef} className="relative h-[110px] w-[110px] shrink-0 xl:h-[150px] xl:w-[150px]">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full -rotate-90">

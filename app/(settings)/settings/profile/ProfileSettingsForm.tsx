@@ -1,40 +1,24 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
-import type { UserIdentity } from "@supabase/auth-js";
-import { ApiError } from "@/lib/api/client";
+import type { UserIdentity } from "@supabase/supabase-js";
+import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
-import {
-  updateDisplayName,
-  updateCountry,
-  updateShowCountryOnLeaderboard,
-  uploadAvatar,
-  removeAvatar,
-} from "@/lib/client-data/userProfile";
+import { updateDisplayName, updateCountry, updateShowCountryOnLeaderboard } from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { CountrySelect } from "@/app/components/ui/CountrySelect";
+import { GlassCard } from "@/app/components/ui/GlassCard";
+import { Toggle } from "@/app/components/ui/Toggle";
+import { AvatarEditor } from "@/app/components/ui/AvatarEditor";
+import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
-
-// Both are only ever rendered after a user action (cropping a new photo, confirming a
-// removal) -- loaded on demand instead of bundled into every visit to this page.
-const AvatarCropModal = dynamic(() => import("./AvatarCropModal").then((m) => m.AvatarCropModal), { ssr: false });
-const ConfirmDialog = dynamic(() => import("@/app/components/ui/ConfirmDialog").then((m) => m.ConfirmDialog), {
-  ssr: false,
-});
-import { avatarSrc } from "@/lib/avatar";
 import { ProBadge } from "@/app/components/ui/ProBadge";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
-import { FaCheck, FaPenToSquare, FaTrash, FaUser } from "react-icons/fa6";
+import { FaCheck } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
-
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
-// Target side length for uploaded avatars: comfortably sharp at the size we display
-// them (including retina), without shipping multi-megabyte originals to storage.
-const AVATAR_TARGET_SIZE = 640;
 
 // Keys are short codes we or GoTrue produce; anything else (e.g. a message
 // already relayed verbatim from the switch-google-account Edge Function) is
@@ -90,20 +74,13 @@ export function ProfileSettingsForm({
   const [countryStatus, setCountryStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [showCountryOnLeaderboard, setShowCountryOnLeaderboard] = useState(initial.show_country_on_leaderboard);
   const [avatarUrl, setAvatarUrl] = useState(initial.avatar_url ?? "");
-  const [avatarFailed, setAvatarFailed] = useState(false);
 
   // `initial` can still be loading (or get refetched) after this component has
   // already mounted with a stale/empty value — resync instead of trusting the
   // one-time useState initializer, and give a fresh URL a chance to load again.
   useEffect(() => {
     setAvatarUrl(initial.avatar_url ?? "");
-    setAvatarFailed(false);
   }, [initial.avatar_url]);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [removingAvatar, setRemovingAvatar] = useState(false);
-  const [confirmingRemoveAvatar, setConfirmingRemoveAvatar] = useState(false);
-  const [cropFile, setCropFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [identities, setIdentities] = useState<UserIdentity[]>([]);
   const [identitiesStatus, setIdentitiesStatus] = useState<"loading" | "loaded">("loading");
@@ -190,64 +167,6 @@ export function ProfileSettingsForm({
     }
   }
 
-  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      showToast("Please choose an image file.", "error");
-      return;
-    }
-
-    setCropFile(file);
-  }
-
-  async function handleAvatarCropped(cropped: Blob) {
-    setCropFile(null);
-    if (cropped.size > MAX_AVATAR_BYTES) {
-      showToast("Image is too large. Please choose a smaller photo.", "error");
-      return;
-    }
-
-    const previousAvatarUrl = avatarUrl;
-    const objectUrl = URL.createObjectURL(cropped);
-    setAvatarUrl(objectUrl);
-    setAvatarFailed(false);
-
-    setUploadingAvatar(true);
-    try {
-      const updated = await uploadAvatar(userId, cropped);
-      setAvatarUrl(updated.avatar_url ?? "");
-      showToast("Photo updated");
-      onSaved();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not upload your photo.", "error");
-      setAvatarUrl(previousAvatarUrl);
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-      setUploadingAvatar(false);
-    }
-  }
-
-  async function handleRemoveAvatar() {
-    const previousAvatarUrl = avatarUrl;
-    setConfirmingRemoveAvatar(false);
-    setRemovingAvatar(true);
-    try {
-      const updated = await removeAvatar(userId);
-      setAvatarUrl(updated.avatar_url ?? "");
-      setAvatarFailed(false);
-      showToast("Photo removed");
-      onSaved();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not remove your photo.", "error");
-      setAvatarUrl(previousAvatarUrl);
-    } finally {
-      setRemovingAvatar(false);
-    }
-  }
-
   async function handleSwitchGoogleAccount() {
     setSwitching(true);
     try {
@@ -266,7 +185,7 @@ export function ProfileSettingsForm({
       if (linkError) throw linkError;
       // On success the browser navigates away to Google — no further state change needed.
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Could not start switching your Google account.", "error");
+      showToast(getErrorMessage(err, "Could not start switching your Google account."), "error");
       setSwitching(false);
     }
   }
@@ -282,72 +201,27 @@ export function ProfileSettingsForm({
       showToast("Google account unlinked");
     } catch (err) {
       setIdentities(previousIdentities);
-      showToast(err instanceof Error ? err.message : "Could not unlink that Google account.", "error");
+      showToast(getErrorMessage(err, "Could not unlink that Google account."), "error");
     } finally {
       setUnlinkingId(null);
     }
   }
 
-  const fieldLabel = "mb-2 block text-sm font-bold uppercase tracking-[0.6px] text-text-muted";
   const fieldInput =
     "w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40 read-only:cursor-not-allowed read-only:text-text-muted";
-  const fieldHint = "mt-1.5 text-[0.8rem] leading-normal text-text-muted";
 
   return (
     <div>
-      <div className="mb-5.5 rounded-2xl border border-border-soft bg-bg-cards px-8 py-[30px] backdrop-blur-[10px]">
+      <GlassCard padding="lg" className="mb-5.5">
         <div className="mb-6.5 flex flex-col items-center gap-4 md:flex-row md:gap-5">
-          <div className="relative h-40 w-40 shrink-0">
-            <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[2.75rem] font-extrabold text-white">
-              {avatarUrl && !avatarFailed ? (
-                // eslint-disable-next-line @next/next/no-img-element -- arbitrary user-supplied URL, any domain
-                <img
-                  src={avatarSrc(avatarUrl, 512)}
-                  alt=""
-                  className="h-full w-full object-cover"
-                  onError={() => setAvatarFailed(true)}
-                />
-              ) : (
-                <FaUser className="h-[45%] w-[45%]" />
-              )}
-            </div>
-            {initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
-            {avatarUrl && !avatarFailed ? (
-              <button
-                type="button"
-                onClick={() => setConfirmingRemoveAvatar(true)}
-                disabled={removingAvatar || uploadingAvatar}
-                aria-label="Remove profile photo"
-                className="absolute -bottom-2.5 -left-2.5 flex h-10 w-10 items-center justify-center rounded-full border border-border-soft bg-bg-cards text-text-muted shadow-[0_4px_10px_rgba(0,0,0,0.4)] transition-colors hover:text-accent-red disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {removingAvatar ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <FaTrash className="h-4 w-4" />
-                )}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingAvatar}
-              aria-label="Change profile photo"
-              className="absolute -bottom-2.5 -right-2.5 flex h-10 w-10 items-center justify-center rounded-full border border-border-soft bg-bg-cards text-text-muted shadow-[0_4px_10px_rgba(0,0,0,0.4)] transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {uploadingAvatar ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <FaPenToSquare className="h-4 w-4" />
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
-          </div>
+          <AvatarEditor
+            userId={userId}
+            avatarUrl={avatarUrl}
+            onAvatarChange={(url) => setAvatarUrl(url ?? "")}
+            onSaved={onSaved}
+            size="lg"
+            badge={initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
+          />
           <div className="w-full md:flex-1">
             <label className={fieldLabel}>Full name</label>
             <div className="relative">
@@ -394,15 +268,7 @@ export function ProfileSettingsForm({
                 Display your flag next to your name on leaderboards.
               </div>
             </div>
-            <label className="relative h-[26px] w-[46px] shrink-0">
-              <input
-                type="checkbox"
-                className="peer h-0 w-0 opacity-0"
-                checked={showCountryOnLeaderboard}
-                onChange={handleShowCountryOnLeaderboardChange}
-              />
-              <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 before:absolute before:left-[3px] before:top-[3px] before:h-5 before:w-5 before:rounded-full before:bg-white before:transition-transform before:duration-200 peer-checked:bg-accent-red peer-checked:before:translate-x-5" />
-            </label>
+            <Toggle checked={showCountryOnLeaderboard} onChange={handleShowCountryOnLeaderboardChange} />
           </div>
         </div>
         <div>
@@ -446,31 +312,11 @@ export function ProfileSettingsForm({
             </div>
           ) : null}
         </div>
-      </div>
+      </GlassCard>
 
       <Suspense fallback={null}>
         <SwitchResultNotice />
       </Suspense>
-
-      {cropFile && (
-        <AvatarCropModal
-          file={cropFile}
-          outputSize={AVATAR_TARGET_SIZE}
-          onCancel={() => setCropFile(null)}
-          onCropped={handleAvatarCropped}
-        />
-      )}
-
-      {confirmingRemoveAvatar && (
-        <ConfirmDialog
-          title="Remove profile photo?"
-          confirmLabel="Remove"
-          danger
-          loading={removingAvatar}
-          onConfirm={handleRemoveAvatar}
-          onCancel={() => setConfirmingRemoveAvatar(false)}
-        />
-      )}
     </div>
   );
 }

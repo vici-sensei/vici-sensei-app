@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useClientClock } from "@/lib/useClientClock";
 import { getPeriodEnd } from "@/lib/leaderboard/period";
 import { formatTimeLeft } from "@/lib/leaderboard/timeLeft";
 import type { LeaderboardPeriod } from "@/lib/types";
@@ -9,16 +9,7 @@ const NOTABLE_SKEW_MS = 60_000;
 
 /** `clockOffsetMs` corrects for a wrong local clock -- see useServerClockOffset. */
 export function LeaderboardCountdown({ period, clockOffsetMs }: { period: LeaderboardPeriod; clockOffsetMs: number }) {
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    function tick() {
-      setNow(Date.now() + clockOffsetMs);
-    }
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [period, clockOffsetMs]);
+  const now = useClientClock(1000, { offsetMs: clockOffsetMs });
 
   if (now === null) return null;
 

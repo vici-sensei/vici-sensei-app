@@ -6,6 +6,7 @@ import { useProgressSummary } from "@/lib/client-data/progress";
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { GlassCard } from "@/app/components/ui/GlassCard";
 import { FaBook, FaFont, FaPenToSquare } from "react-icons/fa6";
 import { StartStudyingLink } from "./StartStudyingLink";
 
@@ -110,7 +111,7 @@ export default function ProgressPage() {
               >
                 {block.icon}
               </div>
-              <div className="relative ml-4 rounded-2xl border border-border-soft bg-bg-cards p-7 backdrop-blur-[10px]">
+              <GlassCard className="ml-4">
                 <div className="mb-1 flex flex-wrap items-center gap-3">
                   <h3 className="m-0 text-[1.15rem] font-extrabold">{block.title}</h3>
                   <span className="text-sm font-semibold text-text-muted">{blockTotal} total</span>
@@ -136,7 +137,7 @@ export default function ProgressPage() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </GlassCard>
             </div>
           );
         })

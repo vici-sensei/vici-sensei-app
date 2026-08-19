@@ -3,6 +3,7 @@
 import { GiPartyPopper } from "react-icons/gi";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { cardsRemainingToday } from "@/lib/study/stats";
+import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { StartStudyButton } from "./StartStudyButton";
 import { NextCardCountdown } from "./NextCardCountdown";
@@ -14,13 +15,13 @@ export function DashboardHero() {
 
   if (!stats) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-6 rounded-[20px] border border-border-soft bg-bg-cards p-10 backdrop-blur-[10px]">
+      <GlassCard padding="sm" className={`flex flex-wrap items-center justify-between gap-6 p-5`}>
         <div className="w-full max-w-md space-y-3">
           <Skeleton className="h-9 w-3/4" />
           <Skeleton className="h-5 w-full" />
           <Skeleton className="mt-2.5 h-[52px] w-40 rounded-xl" />
         </div>
-      </div>
+      </GlassCard>
     );
   }
 
@@ -48,8 +49,9 @@ export function DashboardHero() {
   const summaryText = `${sentenceParts.join(", plus ")}.`;
 
   return (
-    <div
-      className={`relative flex flex-wrap items-center justify-between gap-6 overflow-hidden rounded-[20px] border border-border-soft bg-bg-cards p-10 backdrop-blur-[10px] before:pointer-events-none before:absolute before:inset-0 ${
+    <GlassCard
+      padding="sm"
+      className={`flex flex-wrap items-center justify-between gap-6 overflow-hidden before:pointer-events-none before:absolute before:inset-0 p-5 ${
         allDone
           ? "before:bg-[radial-gradient(circle_at_15%_20%,rgb(255_210_0/0.1)_0%,transparent_55%)]"
           : "before:bg-[radial-gradient(circle_at_15%_20%,rgb(255_74_90/0.12)_0%,transparent_55%)]"
@@ -75,7 +77,7 @@ export function DashboardHero() {
           </>
         ) : (
           <>
-            <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
+            <h1 className="mb-2 text-3xl font-extrabold leading-[1.2] tracking-[-0.8px]">
               You have{" "}
               <span className="font-extrabold text-accent-red">{cardsToday}</span>{" "}
               card{cardsToday === 1 ? "" : "s"} to do today
@@ -88,6 +90,6 @@ export function DashboardHero() {
           <p className="mt-2.5 text-sm text-text-muted">Couldn&apos;t refresh your stats — try reloading the page.</p>
         )}
       </div>
-    </div>
+    </GlassCard>
   );
 }
