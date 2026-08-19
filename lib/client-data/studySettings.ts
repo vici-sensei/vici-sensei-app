@@ -21,15 +21,6 @@ export function useStudySettings(user: User | null) {
   const [status, setStatus] = useState<Status>("loading");
   const [data, setData] = useState<StudySettings | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Tracks which user the current state was hydrated/fetched for -- see useUserProfile for why.
-  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
-
-  if (user?.id !== hydratedFor) {
-    setHydratedFor(user?.id ?? null);
-    const cached = user ? readCache<StudySettings>(studySettingsCacheKey(user.id)) : null;
-    setData(cached);
-    setStatus(cached ? "loaded" : "loading");
-  }
 
   const refetch = useCallback(async () => {
     if (!user) return;
@@ -50,6 +41,12 @@ export function useStudySettings(user: User | null) {
 
   useEffect(() => {
     if (!user) return;
+    // Hydrate synchronously from cache the moment we have a user -- see useUserProfile for why.
+    const cached = readCache<StudySettings>(studySettingsCacheKey(user.id));
+    if (cached) {
+      setData(cached);
+      setStatus("loaded");
+    }
     void refetch();
   }, [user, refetch]);
 

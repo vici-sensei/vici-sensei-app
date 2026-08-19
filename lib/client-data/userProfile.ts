@@ -26,17 +26,6 @@ export function useUserProfile(user: User | null) {
   const [status, setStatus] = useState<Status>("loading");
   const [data, setData] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Tracks which user the current state was hydrated/fetched for, so a change of user (e.g.
-  // sign-out then sign-in as someone else in the same tab) resets state instead of flashing
-  // the previous user's cached profile.
-  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
-
-  if (user?.id !== hydratedFor) {
-    setHydratedFor(user?.id ?? null);
-    const cached = user ? readCache<UserProfile>(profileCacheKey(user.id)) : null;
-    setData(cached);
-    setStatus(cached ? "loaded" : "loading");
-  }
 
   const refetch = useCallback(async () => {
     if (!user) return;
@@ -57,6 +46,14 @@ export function useUserProfile(user: User | null) {
 
   useEffect(() => {
     if (!user) return;
+    // Hydrate synchronously from cache the moment we have a user, so a repeat visit paints the
+    // last-known profile immediately instead of sitting on FullScreenLoader -- refetch() below
+    // then revalidates in the background without flipping status back to "loading".
+    const cached = readCache<UserProfile>(profileCacheKey(user.id));
+    if (cached) {
+      setData(cached);
+      setStatus("loaded");
+    }
     void refetch();
   }, [user, refetch]);
 
