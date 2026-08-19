@@ -45,6 +45,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${plusJakartaSans.variable} antialiased`}>
+      <head>
+        {/* AuthProvider fires its first Supabase request as soon as it mounts — warm the
+            connection (DNS + TLS) while the JS bundle is still parsing so that request
+            doesn't pay for handshake setup on top of the round trip. */}
+        <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+      </head>
       <body>
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
