@@ -91,7 +91,6 @@ export function MobileNavMenu({ items }: { items: MobileNavMenuItem[] }) {
             <Fragment key={item.href}>
               <Link
                 href={item.href}
-                prefetch={false}
                 onClick={close}
                 style={rowStyle}
                 className={`${rowClasses} ${open ? "opacity-100" : "opacity-0"} ${
@@ -114,7 +113,6 @@ export function MobileNavMenu({ items }: { items: MobileNavMenuItem[] }) {
                     <Link
                       key={sub.href}
                       href={sub.href}
-                      prefetch={false}
                       onClick={close}
                       className={`${subRowClasses} ${sub.active ? subActiveClasses : subInactiveClasses}`}
                     >

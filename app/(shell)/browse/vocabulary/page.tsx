@@ -94,7 +94,6 @@ function BrowseVocabularyResults({
               <Link
                 key={row.id}
                 href={`/browse/vocabulary/detail?id=${row.id}`}
-                prefetch={false}
                 className="flex flex-wrap cursor-pointer items-center gap-x-8 gap-y-2 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
               >
                 <div className="w-auto shrink-0 pt-[0.6em] text-3xl">{renderWordWithFurigana(row.word, row.furiganas)}</div>
@@ -111,7 +110,6 @@ function BrowseVocabularyResults({
               <Link
                 className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
                 href={pageHref(Math.max(0, offset - PAGE_SIZE))}
-                prefetch={false}
                 aria-label="Previous"
               >
                 <FaArrowLeft className="md:hidden" />
@@ -131,7 +129,6 @@ function BrowseVocabularyResults({
               <Link
                 className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
                 href={pageHref(offset + PAGE_SIZE)}
-                prefetch={false}
                 aria-label="Next"
               >
                 <FaArrowRight className="md:hidden" />

@@ -53,7 +53,6 @@ export function NavItem({ href, icon, label, active, disabled, danger, subItems 
     <div>
       <Link
         href={href}
-        prefetch={false}
         className={`${sharedClasses} cursor-pointer ${active ? (danger ? activeDangerClasses : activeClasses) : inactiveClasses}`}
       >
         {icon}
@@ -65,7 +64,6 @@ export function NavItem({ href, icon, label, active, disabled, danger, subItems 
             <Link
               key={sub.href}
               href={sub.href}
-              prefetch={false}
               className={`${subSharedClasses} cursor-pointer ${sub.active ? subActiveClasses : subInactiveClasses}`}
             >
               {sub.icon}
