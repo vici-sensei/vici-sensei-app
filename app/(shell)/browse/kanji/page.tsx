@@ -3,10 +3,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useKanjiList } from "@/lib/client-data/kanji";
+import { prefetchKanjiDetail, useKanjiList } from "@/lib/client-data/kanji";
 import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { readStoredLevels } from "@/lib/browse/levelsStorage";
 import { readStoredSearch } from "@/lib/browse/searchStorage";
+import { createHoverIntent } from "@/lib/browse/hoverIntent";
 import { BrowseTabs } from "../BrowseTabs";
 import { BrowseControls } from "../BrowseControls";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
@@ -94,6 +95,7 @@ function BrowseKanjiResults({
                 key={row.id}
                 href={`/browse/kanji/detail?id=${row.id}`}
                 className="flex flex-wrap cursor-pointer items-center gap-x-8 gap-y-2 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
+                {...createHoverIntent(() => prefetchKanjiDetail(row.id))}
               >
                 <div className="shrink-0 text-3xl">{row.kanji}</div>
                 <div className="min-w-55 flex-1">
