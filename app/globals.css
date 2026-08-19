@@ -264,3 +264,60 @@ input:disabled ~ span {
       130% 130%;
   }
 }
+
+/* ============================================================
+   Ripple background (RippleBackground.tsx) -- ambient, discreet
+   concentric rings behind the shell/settings/study pages, plus a
+   short trail that follows the cursor while it's moving. This
+   only defines what a single ring looks like and how it animates;
+   the spawn timing/positioning lives in the component.
+   ============================================================ */
+.ripple-field {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ripple {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--size);
+  height: var(--size);
+  margin-left: calc(var(--size) / -2);
+  margin-top: calc(var(--size) / -2);
+  border-radius: 50%;
+  border: 1.5px solid rgba(56, 189, 248, 0.28);
+  background:
+    radial-gradient(circle, transparent 0%, transparent 50%, rgba(56, 189, 248, 0.22) 74%, rgba(56, 189, 248, 0.42) 88%, transparent 100%);
+  opacity: 0;
+  filter: blur(0.3px);
+  /* One continuous outward move: gentle ease-out for the radius, and
+     opacity decaying the whole way through -- no separate "hang and fade"
+     act partway through, which read as unnatural during tuning. */
+  animation: vici-ripple-pulse var(--duration) cubic-bezier(0.22, 0.61, 0.36, 1) var(--delay, 0ms) forwards;
+  pointer-events: none;
+}
+
+@keyframes vici-ripple-pulse {
+  0% {
+    transform: scale(0.05);
+    opacity: 0;
+  }
+  8% {
+    opacity: var(--peak);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple {
+    animation: none;
+    opacity: var(--peak);
+    transform: scale(0.7);
+  }
+}

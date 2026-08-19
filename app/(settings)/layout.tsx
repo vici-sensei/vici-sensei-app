@@ -8,6 +8,7 @@ import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Header } from "@/app/components/shell/Header";
 import { MobileMenuProvider } from "@/app/components/shell/MobileMenuContext";
 import { NavBar } from "@/app/components/shell/NavBar";
+import { RippleBackground } from "@/app/components/shell/RippleBackground";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const { ready, authReady, user: authUser } = useRequireOnboarded();
@@ -23,6 +24,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     <UserProfileProvider profile={profile} refetch={refetch}>
       <StudyStatsProvider>
         <MobileMenuProvider>
+          <RippleBackground />
           <div>
             <Header user={profile} />
             <div className="flex flex-col md:flex-row">

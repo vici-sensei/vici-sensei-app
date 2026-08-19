@@ -10,6 +10,7 @@ import { Header } from "@/app/components/shell/Header";
 import { MobileMenuProvider } from "@/app/components/shell/MobileMenuContext";
 import { NavBar } from "@/app/components/shell/NavBar";
 import { OfflineBanner } from "@/app/components/shell/OfflineBanner";
+import { RippleBackground } from "@/app/components/shell/RippleBackground";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   const { ready, authReady, user: authUser } = useRequireOnboarded();
@@ -35,6 +36,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
     // across pages that share it instead of restarting on every navigation.
     <StudyStatsProvider>
       <MobileMenuProvider>
+        <RippleBackground />
         <div className="flex min-h-screen flex-col">
           <Header user={profile} />
           <div className="flex w-full flex-1">
