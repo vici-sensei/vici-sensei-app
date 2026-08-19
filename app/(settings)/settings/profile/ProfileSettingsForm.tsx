@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import type { UserIdentity } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
@@ -14,11 +15,16 @@ import {
 } from "@/lib/client-data/userProfile";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
-import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { CountrySelect } from "@/app/components/ui/CountrySelect";
-import { AvatarCropModal } from "./AvatarCropModal";
 import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
+
+// Both are only ever rendered after a user action (cropping a new photo, confirming a
+// removal) -- loaded on demand instead of bundled into every visit to this page.
+const AvatarCropModal = dynamic(() => import("./AvatarCropModal").then((m) => m.AvatarCropModal), { ssr: false });
+const ConfirmDialog = dynamic(() => import("@/app/components/ui/ConfirmDialog").then((m) => m.ConfirmDialog), {
+  ssr: false,
+});
 import { avatarSrc } from "@/lib/avatar";
 import { ProBadge } from "@/app/components/ui/ProBadge";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";

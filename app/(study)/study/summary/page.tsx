@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import confetti from "canvas-confetti";
 import { ApiError } from "@/lib/api/client";
 import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
@@ -15,8 +14,11 @@ import { NextReviewTime } from "@/app/(shell)/dashboard/NextReviewTime";
 
 const CONFETTI_COLORS = ["#ffd200", "#ff4a5a", "#00d2ff"];
 
-function celebrate() {
+// canvas-confetti is only ever needed on this one screen, and only for the (majority of)
+// visitors who don't have reduced-motion set -- loaded on demand instead of bundled statically.
+async function celebrate() {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const { default: confetti } = await import("canvas-confetti");
   confetti({
     particleCount: 120,
     spread: 80,
@@ -57,7 +59,7 @@ export default function StudySummaryPage() {
         clearStoredSessionId();
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setSummary(result);
-        celebrate();
+        void celebrate();
       } catch (err) {
         if (!(err instanceof ApiError)) throw err;
         router.replace("/dashboard");
