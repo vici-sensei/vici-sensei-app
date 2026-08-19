@@ -5,7 +5,6 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { useProgressSummary } from "@/lib/client-data/progress";
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
-import { Skeleton } from "@/app/components/ui/Skeleton";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { PiTranslate, PiSpeakerHigh, PiBookBookmark } from "react-icons/pi";
 import { StartStudyingLink } from "./StartStudyingLink";
@@ -58,27 +57,17 @@ function total(counts: ProgressStatusCounts): number {
   return PROGRESS_STATUSES.reduce((sum, s) => sum + counts[s], 0);
 }
 
+// Shown for each block before the real summary has loaded -- total(EMPTY_COUNTS) is 0, so a
+// block reads as "0 total" with an empty bar rather than a skeleton.
+const EMPTY_COUNTS: ProgressStatusCounts = { new: 0, learning: 0, review: 0, relearning: 0, suspended: 0 };
+
 export default function ProgressPage() {
   const { user } = useAuth();
-  const { data: summary, status } = useProgressSummary(user);
+  const { data: summary } = useProgressSummary(user);
 
-  if (status === "loading" || !summary) {
-    return (
-      <div>
-        <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Your progress</h1>
-        <p className="mb-7.5 text-base leading-[1.6] text-text-muted">
-          How your cards are distributed across the three exercise types.
-        </p>
-        <div className="space-y-[22px]">
-          {BLOCKS.map((b) => (
-            <Skeleton key={b.key} className="h-40 rounded-2xl" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const grandTotal = BLOCKS.reduce((sum, b) => sum + total(summary[b.key]), 0);
+  // grandTotal is only meaningful once summary has loaded -- kept at 0 (rather than computed
+  // from EMPTY_COUNTS below) so the "no progress yet" empty state can't flash in before load.
+  const grandTotal = summary ? BLOCKS.reduce((sum, b) => sum + total(summary[b.key]), 0) : 0;
 
   return (
     <div>
@@ -87,7 +76,7 @@ export default function ProgressPage() {
         How your cards are distributed across the three exercise types.
       </p>
 
-      {grandTotal === 0 ? (
+      {summary && grandTotal === 0 ? (
         <div className="relative rounded-2xl border border-border-soft bg-bg-cards px-5 py-15 text-center text-text-muted backdrop-blur-[10px]">
           <h3 className="mb-2.5 text-[1.3rem] text-white">No progress yet</h3>
           <p>Once you start studying, your kanji and vocabulary will show up here, broken down by status.</p>
@@ -95,7 +84,7 @@ export default function ProgressPage() {
         </div>
       ) : (
         BLOCKS.map((block, idx) => {
-          const counts = summary[block.key];
+          const counts = summary ? summary[block.key] : EMPTY_COUNTS;
           const blockTotal = total(counts);
           return (
             <div className="relative mb-[22px] pl-14" key={block.key}>
@@ -117,14 +106,17 @@ export default function ProgressPage() {
                   <span className="text-sm font-semibold text-text-muted">{blockTotal} total</span>
                 </div>
                 <div className="mt-3.5 mb-2.5 flex h-3.5 overflow-hidden rounded-lg bg-white/[0.04]">
-                  {PROGRESS_STATUSES.map((status) => {
+                  {PROGRESS_STATUSES.map((status, i) => {
                     const count = counts[status];
-                    if (count === 0 || blockTotal === 0) return null;
+                    const pct = blockTotal > 0 ? (count / blockTotal) * 100 : 0;
+                    // Segments always render, even at 0% -- that keeps them mounted across the
+                    // fallback-to-real-data swap so the width change (0% -> real) is a transition,
+                    // not a pop-in. Staggered per segment so the bar reads as filling left to right.
                     return (
                       <div
-                        className="h-full"
+                        className="h-full transition-[width] duration-[1400ms] ease-out motion-reduce:duration-0"
                         key={status}
-                        style={{ width: `${(count / blockTotal) * 100}%`, background: STATUS_COLORS[status] }}
+                        style={{ width: `${pct}%`, background: STATUS_COLORS[status], transitionDelay: `${i * 90}ms` }}
                       />
                     );
                   })}
