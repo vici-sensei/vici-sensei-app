@@ -6,6 +6,7 @@ import { submitReview as submitReviewData, undoReview as undoReviewData } from "
 import { startStudySession, endStudySession } from "@/lib/data/studySessions";
 import { introduceKanji as introduceKanjiData, introduceVocabulary as introduceVocabularyData } from "@/lib/data/introduce";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
+import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
   DueCard,
   ReviewRequestBody,
@@ -41,35 +42,18 @@ export async function getStudyQueue(userId: string, settings: StudySettings): Pr
   return fetchStudyQueue(supabase, userId, timezone, settings);
 }
 
-let prefetchInFlight = false;
-let lastPrefetchAt = 0;
-const PREFETCH_COOLDOWN_MS = 5_000;
-
 /** Fire-and-forget: called on hover/focus of a "Start studying" entry point, well before
  * the user actually navigates to /study. Self-sufficient (fetches its own settings, unlike
  * getFirstDueCard above) since callers here are outside the study route's context and this
  * isn't latency-sensitive -- nothing is waiting on it. Writes straight to the localStorage
- * cache useStudyQueue reads on mount; a module-level cooldown keeps repeated hovers (or
- * several entry points visible at once) from firing redundant requests. */
-export function prefetchFirstDueCard(userId: string): void {
-  if (prefetchInFlight || Date.now() - lastPrefetchAt < PREFETCH_COOLDOWN_MS) return;
-  prefetchInFlight = true;
-
-  void (async () => {
-    try {
-      const supabase = createClient();
-      const settings = await fetchStudySettings(supabase, userId);
-      if (!settings) return;
-      const card = await fetchFirstDueCard(supabase, userId, settings);
-      if (card) writeFirstCardCache(userId, card);
-    } catch {
-      // Best-effort -- /study's own fetch is authoritative regardless of whether this lands.
-    } finally {
-      prefetchInFlight = false;
-      lastPrefetchAt = Date.now();
-    }
-  })();
-}
+ * cache useStudyQueue reads on mount. */
+export const prefetchFirstDueCard = createPrefetcher(async (userId: string) => {
+  const supabase = createClient();
+  const settings = await fetchStudySettings(supabase, userId);
+  if (!settings) return;
+  const card = await fetchFirstDueCard(supabase, userId, settings);
+  if (card) writeFirstCardCache(userId, card);
+});
 
 export async function submitReview(input: ReviewRequestBody): Promise<SubmitReviewResult> {
   const supabase = createClient();
