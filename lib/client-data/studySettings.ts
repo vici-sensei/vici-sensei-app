@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { JLPT_LEVELS } from "@/lib/srs/constants";

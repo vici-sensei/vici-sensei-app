@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchKanjiProgress, fetchProgressSummary, fetchVocabularyProgress } from "@/lib/data/progress";
 import type { KanjiProgressResponse, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";

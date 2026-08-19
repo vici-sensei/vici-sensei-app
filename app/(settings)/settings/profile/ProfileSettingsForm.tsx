@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { UserIdentity } from "@supabase/supabase-js";
+import type { UserIdentity } from "@supabase/auth-js";
 import { ApiError } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
 import {

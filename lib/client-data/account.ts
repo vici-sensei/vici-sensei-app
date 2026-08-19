@@ -1,4 +1,4 @@
-import { FunctionsHttpError } from "@supabase/supabase-js";
+import { FunctionsHttpError } from "@supabase/functions-js";
 import { createClient } from "@/lib/supabase/client";
 import { ApiError } from "@/lib/api/client";
 

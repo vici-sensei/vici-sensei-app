@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchLeaderboard } from "@/lib/data/leaderboard";
 import { getPeriodStart } from "@/lib/leaderboard/period";

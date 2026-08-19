@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AppSupabaseClient } from '../supabase/types'
 import { PROGRESS_TABLES } from './progressTables'
 import { utcDayBounds } from './day'
 
@@ -11,7 +11,7 @@ export interface NextDue {
 
 /** Earliest due_at across all progress tables that's still in the future, and whether it falls before today's (local, if `timezone` given) day-end. */
 export async function getNextDue(
-  supabase: SupabaseClient,
+  supabase: AppSupabaseClient,
   userId: string,
   nowIso: string,
   timezone?: string
