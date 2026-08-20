@@ -8,6 +8,7 @@ export function StepProfile({
   userId,
   avatarUrl,
   onAvatarChange,
+  onAvatarSavingChange,
   displayName,
   onDisplayNameChange,
   nameStatus,
@@ -15,6 +16,7 @@ export function StepProfile({
   userId: string;
   avatarUrl: string | null;
   onAvatarChange: (url: string | null) => void;
+  onAvatarSavingChange: (saving: boolean) => void;
   displayName: string;
   onDisplayNameChange: (name: string) => void;
   nameStatus: "idle" | "saving" | "saved";
@@ -27,7 +29,13 @@ export function StepProfile({
       </p>
 
       <div className="flex flex-col items-center gap-5">
-        <AvatarEditor userId={userId} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} size="sm" />
+        <AvatarEditor
+          userId={userId}
+          avatarUrl={avatarUrl}
+          onAvatarChange={onAvatarChange}
+          onSavingChange={onAvatarSavingChange}
+          size="sm"
+        />
 
         <div className="w-full max-w-xs text-left">
           <label

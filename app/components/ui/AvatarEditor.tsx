@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { FaPenToSquare, FaTrash, FaUser } from "react-icons/fa6";
 import { useToast } from "@/app/components/ui/Toast";
@@ -45,13 +45,22 @@ interface AvatarEditorProps {
   avatarUrl: string | null;
   onAvatarChange: (url: string | null) => void;
   onSaved?: () => void;
+  onSavingChange?: (saving: boolean) => void;
   size: "sm" | "lg";
   badge?: ReactNode;
 }
 
 /** Self-contained avatar bubble + change/remove buttons + crop/confirm flow, shared between
  * onboarding's StepProfile and the profile settings form. */
-export function AvatarEditor({ userId, avatarUrl, onAvatarChange, onSaved, size, badge }: AvatarEditorProps) {
+export function AvatarEditor({
+  userId,
+  avatarUrl,
+  onAvatarChange,
+  onSaved,
+  onSavingChange,
+  size,
+  badge,
+}: AvatarEditorProps) {
   const { showToast } = useToast();
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -60,6 +69,13 @@ export function AvatarEditor({ userId, avatarUrl, onAvatarChange, onSaved, size,
   const [cropFile, setCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const s = SIZE[size];
+
+  // Lets a parent (onboarding's Step 4) block navigation while a photo upload/removal is in
+  // flight, the same way it already does for the debounced name save.
+  useEffect(() => {
+    onSavingChange?.(uploadingAvatar || removingAvatar);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSavingChange closes over stable state each render
+  }, [uploadingAvatar, removingAvatar]);
 
   function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

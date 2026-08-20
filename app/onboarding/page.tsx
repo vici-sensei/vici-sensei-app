@@ -161,6 +161,7 @@ export default function OnboardingPage() {
   const [nameStatus, setNameStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [profileSeeded, setProfileSeeded] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
   const [anonymous, setAnonymous] = useState<boolean | null>(null);
   const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(null);
 
@@ -296,6 +297,7 @@ export default function OnboardingPage() {
   const canAdvance =
     (step !== "level" || Boolean(level)) &&
     (step !== "country" || Boolean(country)) &&
+    (step !== "profile" || (nameStatus !== "saving" && !avatarSaving)) &&
     (step !== "leaderboard" || anonymous !== null);
 
   // Persists whatever the user picked on `fromStep`, regardless of which direction they're
@@ -464,6 +466,7 @@ export default function OnboardingPage() {
               userId={user.id}
               avatarUrl={avatarUrl}
               onAvatarChange={setAvatarUrl}
+              onAvatarSavingChange={setAvatarSaving}
               displayName={displayName}
               onDisplayNameChange={setDisplayName}
               nameStatus={nameStatus}
