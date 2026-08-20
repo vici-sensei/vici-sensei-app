@@ -5,10 +5,10 @@ import type { LeaderboardAlias, LeaderboardEntry } from "@/lib/types";
 // Fictional rows so the preview always looks like a populated leaderboard,
 // regardless of how new this account actually is.
 const MOCK_OTHERS: Omit<LeaderboardEntry, "rank">[] = [
-  { user_id: "mock-1", display_name: "Hikari Tanaka", avatar_url: null, country: "JP", is_premium: true, score: 842 },
+  { user_id: "mock-1", display_name: "Emma Johnson", avatar_url: null, country: "US", is_premium: true, score: 842 },
   { user_id: "mock-2", display_name: "Lucas Fernandez", avatar_url: null, country: "ES", is_premium: false, score: 710 },
   { user_id: "mock-3", display_name: "Amara Okafor", avatar_url: null, country: "NG", is_premium: false, score: 655 },
-  { user_id: "mock-4", display_name: "Wei Chen", avatar_url: null, country: "CN", is_premium: false, score: 598 },
+  { user_id: "mock-4", display_name: "Marie Dubois", avatar_url: null, country: "FR", is_premium: false, score: 598 },
 ];
 
 export function StepLeaderboard({
