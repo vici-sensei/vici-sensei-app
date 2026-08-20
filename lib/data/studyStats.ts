@@ -78,14 +78,12 @@ export async function fetchStudyStats(
         .from("user_kanji_meaning_progress")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
-        .eq("repetitions", 0)
         .gte("created_at", todayStart)
         .lt("created_at", todayEnd),
       supabase
         .from("user_vocabulary_progress")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
-        .eq("repetitions", 0)
         .gte("created_at", todayStart)
         .lt("created_at", todayEnd),
       // Aggregated in SQL (get_retention_rate, 20260802_retention_rate_rpc.sql) instead of

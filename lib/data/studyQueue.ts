@@ -67,7 +67,6 @@ export async function fetchStudyQueue(
           .from("user_kanji_meaning_progress")
           .select("id", { count: "exact", head: true })
           .eq("user_id", userId)
-          .eq("repetitions", 0)
           .gte("created_at", todayStart)
           .lt("created_at", todayEnd)
       : Promise.resolve({ count: 0, error: null }),
@@ -76,7 +75,6 @@ export async function fetchStudyQueue(
           .from("user_vocabulary_progress")
           .select("id", { count: "exact", head: true })
           .eq("user_id", userId)
-          .eq("repetitions", 0)
           .gte("created_at", todayStart)
           .lt("created_at", todayEnd)
       : Promise.resolve({ count: 0, error: null }),
