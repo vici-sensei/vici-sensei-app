@@ -55,7 +55,7 @@ export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueP
         <div className="flex flex-1 flex-col mt-5">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
             <div
-              className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-accent-red),var(--color-accent-blue))] transition-[width] duration-400 ease-linear"
+              className="h-full rounded-full bg-accent-blue transition-[width] duration-400 ease-linear"
               style={{ width: `${pct}%` }}
             />
           </div>

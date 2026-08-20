@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/client";
 import {
   endSession as endStudySessionApi,
   getFirstDueCard,
+  getSessionProgress as getSessionProgressApi,
   getStudyQueue,
   introduceKanji as introduceKanjiApi,
   introduceVocabulary as introduceVocabularyApi,
@@ -159,6 +160,18 @@ export function useStudyQueue() {
       const storedSessionId = getStoredSessionId();
       if (storedSessionId != null) {
         sessionIdRef.current = storedSessionId;
+        // Restores how many cards were already completed in this still-open session (e.g.
+        // after a page refresh), so the progress bar's numerator doesn't visually reset to 0
+        // while the denominator (completedCount + the freshly fetched queue below) correctly
+        // reflects only what's left.
+        getSessionProgressApi(storedSessionId)
+          .then((count) => {
+            if (cancelled) return;
+            setCompletedCount((c) => c + count);
+          })
+          .catch(() => {
+            // Non-critical -- the bar just won't restore its prior progress this load.
+          });
       } else {
         // Doesn't gate the first card -- rate()/introduceKanji()/introduceVocab() already
         // tolerate sessionIdRef being null until this lands, so it finishes in the

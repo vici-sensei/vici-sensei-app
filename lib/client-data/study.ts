@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api/client";
 import { fetchFirstDueCard, fetchStudyQueue } from "@/lib/data/studyQueue";
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { submitReview as submitReviewData, undoReview as undoReviewData } from "@/lib/data/reviews";
-import { startStudySession, endStudySession } from "@/lib/data/studySessions";
+import { startStudySession, endStudySession, getSessionProgress as getSessionProgressData } from "@/lib/data/studySessions";
 import { introduceKanji as introduceKanjiData, introduceVocabulary as introduceVocabularyData } from "@/lib/data/introduce";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
@@ -76,6 +76,12 @@ export async function endSession(sessionId: number): Promise<StudySessionEnd> {
   const supabase = createClient();
   const userId = await requireUserId();
   return endStudySession(supabase, userId, sessionId);
+}
+
+export async function getSessionProgress(sessionId: number): Promise<number> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return getSessionProgressData(supabase, userId, sessionId);
 }
 
 export async function introduceKanji(kanjiId: number, sessionId?: number): Promise<void> {
