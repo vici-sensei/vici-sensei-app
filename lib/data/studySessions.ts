@@ -14,6 +14,40 @@ export async function startStudySession(supabase: AppSupabaseClient, userId: str
   return { session_id: data.id, started_at: data.started_at };
 }
 
+// Mirrors the counting logic in end_study_session (reviews + newly introduced kanji/vocab
+// tagged with this session_id), but read-only -- used to restore the study page's progress
+// bar after a refresh, when the session is still open and its stored id was already known.
+export async function getSessionProgress(
+  supabase: AppSupabaseClient,
+  userId: string,
+  sessionId: number
+): Promise<number> {
+  const [reviewed, newKanji, newVocab] = await Promise.all([
+    supabase
+      .from("review_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("session_id", sessionId)
+      .eq("undone", false),
+    supabase
+      .from("user_kanji_meaning_progress")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("session_id", sessionId),
+    supabase
+      .from("user_vocabulary_progress")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("session_id", sessionId),
+  ]);
+
+  if (reviewed.error) throw new ApiError(500, reviewed.error.message);
+  if (newKanji.error) throw new ApiError(500, newKanji.error.message);
+  if (newVocab.error) throw new ApiError(500, newVocab.error.message);
+
+  return (reviewed.count ?? 0) + (newKanji.count ?? 0) + (newVocab.count ?? 0);
+}
+
 type EndStudySessionRow = {
   id: number;
   started_at: string;
