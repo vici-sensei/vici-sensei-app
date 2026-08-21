@@ -6,11 +6,12 @@ import Link from "next/link";
 import { ApiError } from "@/lib/api/client";
 import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
+import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import type { StudySessionEnd } from "@/lib/types";
 import { Badge } from "@/app/components/ui/Badge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { buttonClasses } from "@/app/components/ui/Button";
-import { NextReviewTime } from "@/app/(shell)/dashboard/NextReviewTime";
+import { NextCardEta } from "@/app/(shell)/dashboard/NextCardEta";
 
 const CONFETTI_COLORS = ["#ffd200", "#ff4a5a", "#00d2ff"];
 
@@ -59,6 +60,9 @@ export default function StudySummaryPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<StudySessionEnd | null>(null);
   const hasStarted = useRef(false);
+  // No StudyStatsProvider on this route (only (shell) layouts have one) -- fetched directly,
+  // same as the leaderboard page does.
+  const clockOffsetMs = useServerClockOffset();
 
   useEffect(() => {
     // Strict Mode double-invokes effects on mount in dev. The session id is
@@ -123,7 +127,7 @@ export default function StudySummaryPage() {
         <p className="text-base leading-[1.6] text-text-muted">
           {dueLaterToday && summary.next_due_at ? (
             <>
-              Your next review is at <NextReviewTime dueAt={summary.next_due_at} />.
+              Your next review is <NextCardEta dueAt={summary.next_due_at} clockOffsetMs={clockOffsetMs} />.
             </>
           ) : (
             "Here's how today's session went."
@@ -136,7 +140,7 @@ export default function StudySummaryPage() {
             value={accuracyLabel}
             valueClassName={
               summary.accuracy != null
-                ? "mb-1 text-[1.7rem] font-extrabold text-accent-blue"
+                ? "mb-1 text-[1.7rem] font-extrabold text-accent-gold"
                 : "mb-1 text-[1.7rem] font-semibold text-text-muted"
             }
             label="Accuracy"

@@ -21,6 +21,7 @@ export async function submitReview(supabase: AppSupabaseClient, userId: string, 
     p_word_id: input.word_id ?? null,
     p_kanji_word_id: input.kanji_word_id ?? null,
     p_user_answer: input.user_answer ?? null,
+    p_session_id: input.session_id ?? null,
   });
 
   if (error) {

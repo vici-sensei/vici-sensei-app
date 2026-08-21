@@ -106,7 +106,7 @@ export function ProfileMenu({ user }: { user: UserProfile }) {
             />
           </Link>
           <div className="min-w-0">
-            <p className="truncate text-[0.88rem] font-bold text-white">
+            <p className="break-words text-center text-[0.88rem] font-bold text-white">
               {user.display_name?.trim() || user.email}
             </p>
             {user.display_name?.trim() ? (

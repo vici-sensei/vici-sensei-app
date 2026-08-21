@@ -172,7 +172,7 @@ function NewVocabCard() {
 function ReviewsTodayCard() {
   // Reviews have no per-user daily target -- the denominator is just what's
   // actually due, so 0/0 is the honest pre-load state (not a guessed fallback).
-  const { stats } = useStudyStats();
+  const { stats, clockOffsetMs, refresh } = useStudyStats();
   const reviewedToday = stats?.reviewed_today ?? 0;
   const dueToday = stats?.due_today ?? 0;
 
@@ -188,9 +188,9 @@ function ReviewsTodayCard() {
         <span className="text-[1.1rem] text-text-muted">/{reviewedToday + dueToday}</span>
       </div>
       <div className="text-sm font-semibold text-text-muted">Reviews done today</div>
-      {stats && stats.due_today === 0 && stats.next_due_is_today && stats.next_due_at && (
+      {stats && stats.next_due_is_today && stats.next_due_at && (
         <div className="mt-1 text-[0.7rem] font-semibold text-accent-gold">
-          Next card in <NextCardCountdown dueAt={stats.next_due_at} />
+          Next card <NextCardCountdown dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />
         </div>
       )}
     </GlassCard>

@@ -288,9 +288,16 @@ input:disabled ~ span {
   margin-left: calc(var(--size) / -2);
   margin-top: calc(var(--size) / -2);
   border-radius: 50%;
-  border: 1.5px solid rgba(56, 189, 248, 0.28);
+  border: 1.5px solid rgba(var(--ripple-rgb, 56, 189, 248), 0.28);
   background:
-    radial-gradient(circle, transparent 0%, transparent 50%, rgba(56, 189, 248, 0.22) 74%, rgba(56, 189, 248, 0.42) 88%, transparent 100%);
+    radial-gradient(
+      circle,
+      transparent 0%,
+      transparent 50%,
+      rgba(var(--ripple-rgb, 56, 189, 248), 0.22) 74%,
+      rgba(var(--ripple-rgb, 56, 189, 248), 0.42) 88%,
+      transparent 100%
+    );
   opacity: 0;
   filter: blur(0.3px);
   /* One continuous outward move: gentle ease-out for the radius, and

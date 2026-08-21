@@ -15,6 +15,7 @@ import {
   undoReview as undoReviewApi,
 } from "@/lib/client-data/study";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
+import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
@@ -74,8 +75,8 @@ function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueIt
   return [current, ...restReviews, ...addReviews, ...restNew, ...addNew];
 }
 
-function reviewBody(card: DueCard, rating: Rating): ReviewRequestBody {
-  const body: ReviewRequestBody = { exercise_type: card.exercise_type, rating };
+function reviewBody(card: DueCard, rating: Rating, sessionId: number | undefined): ReviewRequestBody {
+  const body: ReviewRequestBody = { exercise_type: card.exercise_type, rating, session_id: sessionId };
   if (card.exercise_type === "kanji_meaning") body.kanji_id = card.kanji_id ?? undefined;
   else if (card.exercise_type === "kanji_reading") body.kanji_word_id = card.kanji_word_id ?? undefined;
   else body.word_id = card.word_id ?? undefined;
@@ -94,6 +95,9 @@ export function useStudyQueue() {
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const [undoPending, setUndoPending] = useState(false);
   const [undoDisabled, setUndoDisabled] = useState(false);
+  // Only this route group lacks a StudyStatsProvider ((shell) is the only layout with one) --
+  // fetched directly here, same as the leaderboard page and /study/summary.
+  const clockOffsetMs = useServerClockOffset();
 
   const sessionIdRef = useRef<number | null>(null);
   const endingRef = useRef(false);
@@ -114,6 +118,12 @@ export function useStudyQueue() {
       if (endingRef.current) return;
       endingRef.current = true;
       setStatus("ending");
+
+      // Wait for every queued review/introduce mutation to actually land before either
+      // branch below reads or ends the session server-side — otherwise end_study_session's
+      // cards_reviewed count (or the /study/summary page's own call to it) can run against
+      // a session that still has an in-flight submit_review, undercounting it.
+      await mutationChainRef.current;
 
       // With progress, hand off to /study/summary immediately — it owns the
       // session/end call itself, so the skeleton there covers the wait instead
@@ -271,17 +281,21 @@ export function useStudyQueue() {
   }, [status, refreshQueue]);
 
   // Refreshes right when the next scheduled card becomes due, rather than
-  // waiting out the rest of the REFRESH_INTERVAL_MS poll.
+  // waiting out the rest of the REFRESH_INTERVAL_MS poll. `clockOffsetMs` corrects the delay
+  // for a wrong device clock -- nextDueAt is a server instant, so an uncorrected local clock
+  // would schedule this too early or too late (bounded either way by the 45s poll above,
+  // but there's no reason not to get it right). setTimeout itself already runs off the
+  // browser's monotonic timer, so a clock change mid-wait can't shift an already-scheduled fire.
   useEffect(() => {
     if (status !== "ready" || !nextDueAt) return;
-    const delay = new Date(nextDueAt).getTime() - Date.now();
+    const delay = new Date(nextDueAt).getTime() - (Date.now() + clockOffsetMs);
     if (delay <= 0) {
       void refreshQueue();
       return;
     }
     const timeout = setTimeout(() => void refreshQueue(), delay);
     return () => clearTimeout(timeout);
-  }, [status, nextDueAt, refreshQueue]);
+  }, [status, nextDueAt, clockOffsetMs, refreshQueue]);
 
   // Ends the session once the queue actually empties. Runs post-commit (not inside a
   // setQueue updater) so router.push doesn't fire a setState while StudyPage is rendering.
@@ -307,8 +321,12 @@ export function useStudyQueue() {
 
       enqueueMutation(async () => {
         try {
-          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating));
+          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating, sessionIdRef.current ?? undefined));
           lastReviewLogIdRef.current = reviewLogId;
+          // A wrong answer can schedule this card to resurface later in the same session
+          // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown)
+          // picks that up immediately instead of waiting out the 45s poll.
+          void refreshQueue();
         } catch (err) {
           setCompletedCount((c) => Math.max(0, c - 1));
           setLastReview((prev) => (prev?.card === card ? null : prev));
@@ -331,7 +349,7 @@ export function useStudyQueue() {
         }
       });
     },
-    [enqueueMutation, showToast]
+    [enqueueMutation, showToast, refreshQueue]
   );
 
   const introduceCard = useCallback(
@@ -414,6 +432,7 @@ export function useStudyQueue() {
     completedCount,
     totalKnown: completedCount + queue.length,
     nextDueAt,
+    clockOffsetMs,
     lastReview,
     actionPending: undoPending,
     undoDisabled,

@@ -1,24 +1,26 @@
 "use client";
 
-import { GiPartyPopper } from "react-icons/gi";
+import { GiPalmTree, GiPartyPopper } from "react-icons/gi";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { StartStudyButton } from "./StartStudyButton";
-import { NextCardCountdown } from "./NextCardCountdown";
+import { NextCardEta } from "./NextCardEta";
 
 export function DashboardHero() {
   // Shared with the nav's Study link (see StudyStatsProvider in the shell layout) so both
   // reflect the same live count instead of drifting apart. studyDisabled is already
   // `!stats || realAllDone`, so reusing it as the button's disabled state covers the
   // loading case for free.
-  const { stats, studyDisabled: allDone, stale } = useStudyStats();
+  const { stats, studyDisabled: allDone, stale, clockOffsetMs, refresh } = useStudyStats();
 
   const remainingKanji = stats ? Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0) : 0;
   const remainingVocab = stats ? Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0) : 0;
   const cardsToday = stats ? cardsRemainingToday(stats) : 0;
-  const dueLaterToday = stats ? allDone && stats.next_due_is_today : false;
+  // Shown regardless of allDone -- a review or new card can still land later today even while
+  // there are cards to do right now (e.g. a learning-phase card resurfacing this afternoon).
+  const moreComingToday = stats ? stats.next_due_is_today && stats.next_due_at !== null : false;
 
   // Phase, not card category, is what changes how a review behaves: learning/relearning cards
   // resurface later in the same session (LEARNING_STEPS_MINUTES), review cards won't come back
@@ -45,13 +47,17 @@ export function DashboardHero() {
         !stats
           ? "before:bg-[radial-gradient(circle_at_15%_20%,rgb(255_255_255/0.08)_0%,transparent_55%)]"
           : allDone
-            ? "before:bg-[radial-gradient(circle_at_15%_20%,rgb(255_210_0/0.1)_0%,transparent_55%)]"
+            ? moreComingToday
+              ? "before:bg-[radial-gradient(circle_at_15%_20%,rgb(0_210_255/0.1)_0%,transparent_55%)]"
+              : "before:bg-[radial-gradient(circle_at_15%_20%,rgb(255_210_0/0.1)_0%,transparent_55%)]"
             : "before:bg-[radial-gradient(circle_at_15%_20%,rgb(255_74_90/0.12)_0%,transparent_55%)]"
       }`}
     >
-      {stats && allDone && (
+      {stats && allDone && (moreComingToday ? (
+        <GiPalmTree className="pointer-events-none absolute -bottom-4 -right-4 h-32 w-32 text-accent-blue/10 md:h-40 md:w-40" />
+      ) : (
         <GiPartyPopper className="pointer-events-none absolute -bottom-4 -right-4 h-32 w-32 text-accent-gold/10 md:h-40 md:w-40" />
-      )}
+      ))}
       <div className="relative w-full max-w-md text-center sm:text-left">
         {!stats ? (
           <div className="space-y-3">
@@ -61,13 +67,15 @@ export function DashboardHero() {
         ) : allDone ? (
           <>
             <h1 className="mb-2 text-2xl md:text-3xl font-extrabold leading-[1.2] tracking-[-0.8px]">
-              You&apos;re all done for {dueLaterToday ? "now" : "today"}
+              You&apos;re all done for {moreComingToday ? "now" : "today"}
             </h1>
             <p className="text-base leading-[1.6] text-text-muted">
-              {dueLaterToday && stats.next_due_at ? (
+              {moreComingToday && stats.next_due_at ? (
                 <>
-                  Your next card is ready in <NextCardCountdown dueAt={stats.next_due_at} />. Explore the dictionary
-                  in the meantime.
+                  Explore the dictionary in the meantime.
+                  <br />
+                  Your next card is ready{" "}
+                  <NextCardEta dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />.
                 </>
               ) : (
                 "Come back tomorrow for your next reviews, or explore the dictionary in the meantime."
@@ -82,6 +90,11 @@ export function DashboardHero() {
               card{cardsToday === 1 ? "" : "s"} to do today
             </h1>
             <p className="text-base leading-[1.6] text-text-muted">{summaryText}</p>
+            {moreComingToday && stats.next_due_at && (
+              <p className="mt-1 text-sm text-text-muted">
+                Plus another card <NextCardEta dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />.
+              </p>
+            )}
           </>
         )}
         {stale && (

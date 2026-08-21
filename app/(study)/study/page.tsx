@@ -49,8 +49,19 @@ function StudyQueueSkeleton() {
 export default function StudyPage() {
   const router = useRouter();
   useViewportHeight();
-  const { status, error, current, completedCount, totalKnown, nextDueAt, lastReview, actionPending, undoDisabled, actions } =
-    useStudyQueue();
+  const {
+    status,
+    error,
+    current,
+    completedCount,
+    totalKnown,
+    nextDueAt,
+    clockOffsetMs,
+    lastReview,
+    actionPending,
+    undoDisabled,
+    actions,
+  } = useStudyQueue();
   // Set while the current card has an un-rated Check showing, so Undo can cancel that
   // Check (letting the user fix a typo) instead of undoing the previously submitted review.
   const [cancelCheck, setCancelCheck] = useState<(() => void) | null>(null);
@@ -94,6 +105,7 @@ export default function StudyPage() {
           completed={completedCount}
           total={totalKnown}
           nextDueAt={nextDueAt}
+          clockOffsetMs={clockOffsetMs}
           onExit={() => router.push("/dashboard")}
         />
       </div>
