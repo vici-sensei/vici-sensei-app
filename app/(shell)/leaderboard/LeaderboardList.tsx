@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { FaMedal, FaUser } from "react-icons/fa6";
+import { FlagPlaceholder } from "@/app/components/ui/FlagPlaceholder";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { ProBadge } from "@/app/components/ui/ProBadge";
 import { useFlagIconsCss } from "@/app/components/ui/useFlagIconsCss";
@@ -102,19 +103,6 @@ function ScoreBadge({ metric, value, unit }: { metric: LeaderboardMetric; value:
       <b className="text-[0.95rem] font-extrabold leading-none tabular-nums">{value}</b>
       <span className="text-[0.58rem] font-bold uppercase tracking-wider opacity-80 text-center">{unit}</span>
     </span>
-  );
-}
-
-// Sized to match the real `.fi` flag icons exactly (1.333333em x 1em, see
-// flag-icons/css/flag-icons.min.css) rather than a guessed pixel size, so the placeholder
-// occupies the identical box a real flag would.
-function FlagPlaceholder() {
-  return (
-    <div className="flex h-[1em] w-[1.333333em] shrink-0 animate-pulse flex-col overflow-hidden rounded-[2px]">
-      <div className="flex-1 bg-white/20" />
-      <div className="flex-1 bg-white/12" />
-      <div className="flex-1 bg-white/[0.06]" />
-    </div>
   );
 }
 

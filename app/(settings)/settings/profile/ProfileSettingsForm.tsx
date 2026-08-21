@@ -59,10 +59,15 @@ function SwitchResultNotice() {
 export function ProfileSettingsForm({
   initial,
   userId,
+  loading = false,
   onSaved,
 }: {
   initial: UserProfile;
   userId: string;
+  /** True while `initial` is still the layout's placeholder, not the real row -- name, country
+   *  and the linked Google email show skeleton placeholders instead of the placeholder's (wrong)
+   *  values, and controls that would act on it are locked. */
+  loading?: boolean;
   onSaved: () => void;
 }) {
   const { showToast } = useToast();
@@ -207,8 +212,13 @@ export function ProfileSettingsForm({
     }
   }
 
-  const fieldInput =
-    "w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40 read-only:cursor-not-allowed read-only:text-text-muted";
+  // `read-only:` targets an actually-readOnly <input> -- CSS :read-only otherwise matches any
+  // non-editable element by default, so applying the full class (with that variant) straight to
+  // the skeleton placeholder <div> below would spuriously trigger it, showing the browser's
+  // native "not-allowed" cursor on hover even though nothing is actually disabled there.
+  const fieldInputBase =
+    "w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40";
+  const fieldInput = `${fieldInputBase} read-only:cursor-not-allowed read-only:text-text-muted`;
 
   return (
     <div>
@@ -221,31 +231,40 @@ export function ProfileSettingsForm({
             onSaved={onSaved}
             size="lg"
             badge={initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
+            loading={loading}
           />
           <div className="w-full md:flex-1">
             <label className={fieldLabel}>Full name</label>
             <div className="relative">
-              <span className="pointer-events-none absolute right-3.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center">
-                {nameStatus === "saving" && (
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/25 border-t-white" />
-                )}
-                {nameStatus === "saved" && <FaCheck className="h-3.5 w-3.5 text-accent-green" />}
-              </span>
-              <input
-                className={`${fieldInput} pr-10`}
-                type="text"
-                maxLength={MAX_DISPLAY_NAME_LENGTH}
-                value={displayName}
-                onChange={(e) => {
-                  setDisplayName(e.target.value);
-                  if (nameStatus === "saved") setNameStatus("idle");
-                }}
-                onFocus={scrollIntoViewOnFocus}
-                onBlur={handleNameBlur}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur();
-                }}
-              />
+              {loading ? (
+                <div className={`${fieldInputBase} pr-10`}>
+                  <span className="block h-3.5 w-full animate-pulse rounded-md bg-white/10" />
+                </div>
+              ) : (
+                <>
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center">
+                    {nameStatus === "saving" && (
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/25 border-t-white" />
+                    )}
+                    {nameStatus === "saved" && <FaCheck className="h-3.5 w-3.5 text-accent-green" />}
+                  </span>
+                  <input
+                    className={`${fieldInput} pr-10`}
+                    type="text"
+                    maxLength={MAX_DISPLAY_NAME_LENGTH}
+                    value={displayName}
+                    onChange={(e) => {
+                      setDisplayName(e.target.value);
+                      if (nameStatus === "saved") setNameStatus("idle");
+                    }}
+                    onFocus={scrollIntoViewOnFocus}
+                    onBlur={handleNameBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                    }}
+                  />
+                </>
+              )}
             </div>
             <div className={fieldHint}>1–{MAX_DISPLAY_NAME_LENGTH} characters</div>
           </div>
@@ -260,7 +279,13 @@ export function ProfileSettingsForm({
             )}
             {countryStatus === "saved" && <FaCheck className="h-3 w-3 text-accent-green" />}
           </div>
-          <CountrySelect id="profile-country" value={country} onChange={handleCountryChange} placement="auto" />
+          <CountrySelect
+            id="profile-country"
+            value={country}
+            onChange={handleCountryChange}
+            placement="auto"
+            loading={loading}
+          />
           <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-border-soft bg-white/[0.02] px-3.5 py-3">
             <div>
               <div className="text-sm font-bold">Show country on leaderboard</div>
@@ -268,7 +293,7 @@ export function ProfileSettingsForm({
                 Display your flag next to your name on leaderboards.
               </div>
             </div>
-            <Toggle checked={showCountryOnLeaderboard} onChange={handleShowCountryOnLeaderboardChange} />
+            <Toggle checked={showCountryOnLeaderboard} onChange={handleShowCountryOnLeaderboardChange} disabled={loading} />
           </div>
         </div>
         <div>
@@ -276,9 +301,20 @@ export function ProfileSettingsForm({
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <span className="flex items-center gap-2 py-3 text-[0.95rem] text-white">
               <FcGoogle className="h-4 w-4 shrink-0 rounded-full bg-white p-0.5" />
-              {initial.email}
+              {loading ? (
+                <span className="inline-block h-3.5 w-40 max-w-full animate-pulse rounded-md bg-white/10" />
+              ) : (
+                initial.email
+              )}
             </span>
-            <Button type="button" variant="secondary" size="sm" loading={switching} onClick={handleSwitchGoogleAccount}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              loading={switching}
+              disabled={loading}
+              onClick={handleSwitchGoogleAccount}
+            >
               Switch Google account
             </Button>
           </div>

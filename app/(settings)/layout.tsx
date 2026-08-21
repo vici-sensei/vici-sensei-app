@@ -9,6 +9,22 @@ import { Header } from "@/app/components/shell/Header";
 import { MobileMenuProvider } from "@/app/components/shell/MobileMenuContext";
 import { NavBar } from "@/app/components/shell/NavBar";
 import { RippleBackground } from "@/app/components/shell/RippleBackground";
+import type { UserProfile } from "@/lib/types";
+
+// Shown (via UserProfileContext's `loaded: false`) until the real row loads -- lets the shell
+// and its pages render their final layout immediately instead of blocking on a full-screen
+// loader. Pages lock whatever controls this would otherwise misrepresent and show skeleton
+// placeholders for fields (name, country, email) that have no sensible neutral value.
+const PLACEHOLDER_PROFILE: UserProfile = {
+  email: "",
+  display_name: "",
+  avatar_url: null,
+  country: null,
+  show_country_on_leaderboard: true,
+  is_premium: false,
+  stripe_customer_id: null,
+  created_at: "",
+};
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const { ready, authReady, user: authUser } = useRequireOnboarded();
@@ -16,17 +32,20 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   // useRequireOnboarded instead of waiting for it to finish first.
   const { data: profile, status: profileStatus, refetch } = useUserProfile(authReady ? authUser : null);
 
-  if (!ready || profileStatus !== "loaded" || !profile) {
+  if (!ready) {
     return <FullScreenLoader />;
   }
 
+  const loaded = profileStatus === "loaded" && Boolean(profile);
+  const displayProfile = profile ?? PLACEHOLDER_PROFILE;
+
   return (
-    <UserProfileProvider profile={profile} refetch={refetch}>
+    <UserProfileProvider profile={displayProfile} loaded={loaded} refetch={refetch}>
       <StudyStatsProvider>
         <MobileMenuProvider>
           <RippleBackground />
           <div>
-            <Header user={profile} />
+            <Header user={displayProfile} />
             <div className="flex flex-col md:flex-row">
               <NavBar />
               <div className="flex-1 p-5">{children}</div>

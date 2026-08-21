@@ -11,13 +11,13 @@ export default function SettingsBillingPage() {
   const { user } = useAuth();
   // Reuses the profile (settings)/layout.tsx already fetched -- see UserProfileContext --
   // instead of firing a third independent fetch on top of the layout's and profile page's own.
-  const { profile } = useUserProfileContext();
+  const { profile, loaded } = useUserProfileContext();
 
   return (
     <div>
       <SettingsHeader title="Billing" description="Manage your Vici Sensei Premium subscription." />
 
-      {!profile || !user ? (
+      {!loaded || !user ? (
         <BillingSkeleton />
       ) : (
         <BillingPanel

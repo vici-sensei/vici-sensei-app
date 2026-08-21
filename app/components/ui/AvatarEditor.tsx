@@ -48,6 +48,9 @@ interface AvatarEditorProps {
   onSavingChange?: (saving: boolean) => void;
   size: "sm" | "lg";
   badge?: ReactNode;
+  /** True while the real profile (and thus `avatarUrl`) is still a placeholder -- hides the
+   *  edit button so there's nothing to act on until the real photo (or lack of one) is known. */
+  loading?: boolean;
 }
 
 /** Self-contained avatar bubble + change/remove buttons + crop/confirm flow, shared between
@@ -60,6 +63,7 @@ export function AvatarEditor({
   onSavingChange,
   size,
   badge,
+  loading = false,
 }: AvatarEditorProps) {
   const { showToast } = useToast();
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -152,8 +156,8 @@ export function AvatarEditor({
           <FaUser className="h-[45%] w-[45%]" />
         )}
       </div>
-      {badge}
-      {avatarUrl && !avatarFailed ? (
+      {!loading && badge}
+      {!loading && avatarUrl && !avatarFailed ? (
         <button
           type="button"
           onClick={() => setConfirmingRemoveAvatar(true)}
@@ -168,19 +172,21 @@ export function AvatarEditor({
           )}
         </button>
       ) : null}
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploadingAvatar}
-        aria-label="Change profile photo"
-        className={`absolute ${s.right} ${s.button} flex items-center justify-center rounded-full border border-border-soft bg-bg-cards text-text-muted shadow-[0_4px_10px_rgba(0,0,0,0.4)] transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60`}
-      >
-        {uploadingAvatar ? (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-        ) : (
-          <FaPenToSquare className={s.icon} />
-        )}
-      </button>
+      {!loading && (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingAvatar}
+          aria-label="Change profile photo"
+          className={`absolute ${s.right} ${s.button} flex items-center justify-center rounded-full border border-border-soft bg-bg-cards text-text-muted shadow-[0_4px_10px_rgba(0,0,0,0.4)] transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60`}
+        >
+          {uploadingAvatar ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          ) : (
+            <FaPenToSquare className={s.icon} />
+          )}
+        </button>
+      )}
       <input
         ref={fileInputRef}
         type="file"
