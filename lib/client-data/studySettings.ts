@@ -78,7 +78,7 @@ export async function updateStudySettings(userId: string, patch: StudySettingsPa
 
   const { data, error } = await supabase
     .from("user_study_settings")
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update({ ...patch })
     .eq("user_id", userId)
     .select("*, leaderboard_alias:leaderboard_aliases(adjective, noun)")
     .single();
@@ -112,7 +112,6 @@ export async function completeOnboarding(
       enabled_levels: enabledLevels,
       leaderboard_anonymous: leaderboardAnonymous,
       onboarding_completed: true,
-      updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId)
     .select("user_id")

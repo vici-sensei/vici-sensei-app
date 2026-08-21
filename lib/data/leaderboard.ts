@@ -1,5 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
-import type { LeaderboardEntry, LeaderboardMetric } from "@/lib/types";
+import type { LeaderboardEntry, LeaderboardMetric, LeaderboardPeriod } from "@/lib/types";
 
 const RPC_BY_METRIC: Record<LeaderboardMetric, string> = {
   reviews: "get_leaderboard_reviews",
@@ -11,14 +11,11 @@ const RPC_BY_METRIC: Record<LeaderboardMetric, string> = {
 export async function fetchLeaderboard(
   supabase: AppSupabaseClient,
   metric: LeaderboardMetric,
-  periodStart: string | null,
+  period: LeaderboardPeriod,
   viewerId: string,
   limit = 50
 ): Promise<LeaderboardEntry[]> {
-  const params =
-    metric === "streak"
-      ? { p_limit: limit, p_viewer_id: viewerId }
-      : { p_period_start: periodStart, p_limit: limit, p_viewer_id: viewerId };
+  const params = metric === "streak" ? { p_limit: limit, p_viewer_id: viewerId } : { p_period: period, p_limit: limit, p_viewer_id: viewerId };
 
   const { data, error } = await supabase.rpc(RPC_BY_METRIC[metric], params);
   if (error) throw new Error(error.message);

@@ -1,9 +1,8 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
-import { utcDayBounds } from "@/lib/srs/day";
 import { getNextDue } from "@/lib/srs/nextDue";
 import { fetchKanjiDetailWordsBatch } from "@/lib/kanji/detailWords";
 import { previewRatingLabels, type ProgressRow } from "@/lib/srs/scheduler";
-import type { DueCard, KanjiRow, StudySettings, StudyQueueResponse } from "@/lib/types";
+import type { DueCard, KanjiRow, StudySettings, StudyQueueResponse, TodayActivityCounts } from "@/lib/types";
 
 // Raw shape of a get_due_cards() row: DueCard's fields plus the SRS state columns
 // (status/ease_factor/interval_days/repetitions/lapses/learning_step) that only
@@ -34,7 +33,6 @@ export async function fetchFirstDueCard(
     p_include_kanji: settings.study_kanji,
     p_include_vocab: settings.study_vocabulary,
     p_limit: 1,
-    p_as_of: new Date().toISOString(),
   });
 
   if (error) throw new Error(error.message);
@@ -49,50 +47,28 @@ export async function fetchStudyQueue(
   settings: StudySettings
 ): Promise<StudyQueueResponse> {
   const enabledLevels = settings.enabled_levels as string[];
-  const nowIso = new Date().toISOString();
-  const { start: todayStart, end: todayEnd } = utcDayBounds(new Date(), timezone);
 
-  const [dueCardsResult, nextDue, kanjiCountResult, vocabCountResult, userFlagsResult] = await Promise.all([
+  const [dueCardsResult, nextDue, activityCounts, userFlagsResult] = await Promise.all([
     supabase.rpc("get_due_cards", {
       p_user_id: userId,
       p_enabled_levels: enabledLevels,
       p_include_kanji: settings.study_kanji,
       p_include_vocab: settings.study_vocabulary,
       p_limit: settings.max_reviews_per_day,
-      p_as_of: nowIso,
     }),
-    getNextDue(supabase, userId, nowIso, timezone),
-    settings.study_kanji
-      ? supabase
-          .from("user_kanji_meaning_progress")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .gte("created_at", todayStart)
-          .lt("created_at", todayEnd)
-      : Promise.resolve({ count: 0, error: null }),
-    settings.study_vocabulary
-      ? supabase
-          .from("user_vocabulary_progress")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .gte("created_at", todayStart)
-          .lt("created_at", todayEnd)
-      : Promise.resolve({ count: 0, error: null }),
+    getNextDue(supabase, userId, timezone),
+    supabase.rpc("get_today_activity_counts", { p_user_id: userId, p_timezone: timezone ?? "UTC" }).single(),
     supabase.from("users").select("undo_disabled").eq("id", userId).single(),
   ]);
 
   if (dueCardsResult.error) throw new Error(dueCardsResult.error.message);
   if (nextDue.error !== null) throw new Error(nextDue.error);
-  if (kanjiCountResult.error) throw new Error(kanjiCountResult.error.message);
-  if (vocabCountResult.error) throw new Error(vocabCountResult.error.message);
+  if (activityCounts.error) throw new Error(activityCounts.error.message);
   if (userFlagsResult.error) throw new Error(userFlagsResult.error.message);
 
-  const kanjiRemaining = settings.study_kanji
-    ? Math.max(settings.new_kanji_per_day - (kanjiCountResult.count ?? 0), 0)
-    : 0;
-  const vocabRemaining = settings.study_vocabulary
-    ? Math.max(settings.new_vocab_per_day - (vocabCountResult.count ?? 0), 0)
-    : 0;
+  const counts = activityCounts.data as TodayActivityCounts;
+  const kanjiRemaining = settings.study_kanji ? Math.max(settings.new_kanji_per_day - counts.new_kanji_today, 0) : 0;
+  const vocabRemaining = settings.study_vocabulary ? Math.max(settings.new_vocab_per_day - counts.new_vocab_today, 0) : 0;
 
   const [kanjiCandidatesResult, vocabCandidatesResult] = await Promise.all([
     kanjiRemaining > 0

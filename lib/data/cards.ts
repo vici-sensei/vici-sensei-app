@@ -35,7 +35,7 @@ export async function suspendCard(supabase: AppSupabaseClient, userId: string, t
 
   const { data, error } = await supabase
     .from(table)
-    .update({ status: "suspended", updated_at: new Date().toISOString() })
+    .update({ status: "suspended" })
     .eq("user_id", userId)
     .eq(key, id)
     .select("id")

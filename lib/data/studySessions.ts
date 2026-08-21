@@ -72,7 +72,7 @@ export async function endStudySession(
   const row = ((data ?? []) as EndStudySessionRow[])[0];
   if (!row) throw new ApiError(404, "Study session not found.");
 
-  const nextDue = await getNextDue(supabase, userId, row.ended_at);
+  const nextDue = await getNextDue(supabase, userId);
   if (nextDue.error !== null) throw new ApiError(500, nextDue.error);
 
   return {
