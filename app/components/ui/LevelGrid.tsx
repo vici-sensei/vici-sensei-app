@@ -22,10 +22,11 @@ interface LevelGridProps {
    */
   cascade: boolean | JlptLevel;
   size?: "md" | "sm";
+  disabled?: boolean;
 }
 
 /** Shared JLPT level selector — used identically by /onboarding and /settings/study. */
-export function LevelGrid({ value, onChange, cascade, size = "md" }: LevelGridProps) {
+export function LevelGrid({ value, onChange, cascade, size = "md", disabled }: LevelGridProps) {
   const maxIdx = value ? JLPT_LEVELS.indexOf(value) : -1;
   const floorIdx = cascade === false ? maxIdx : cascade === true ? 0 : JLPT_LEVELS.indexOf(cascade);
 
@@ -40,7 +41,8 @@ export function LevelGrid({ value, onChange, cascade, size = "md" }: LevelGridPr
             key={level}
             type="button"
             onClick={() => onChange(level)}
-            className={`relative flex cursor-pointer flex-col items-center justify-center border font-sans transition-all duration-200 ${pillSize} ${
+            disabled={disabled}
+            className={`relative flex flex-col items-center justify-center border font-sans transition-all duration-200 enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${pillSize} ${
               state === "selected"
                 ? "border-accent-red bg-accent-red shadow-[0_0_20px_var(--color-accent-red-glow)]"
                 : state === "included"
