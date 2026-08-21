@@ -276,19 +276,20 @@ export function StudySettingsForm({
         <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" disabled={disabled} />
         <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
 
-        <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
-          <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
-            <div className="text-sm text-text-muted">
-              Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
-              either way.
+        {/* N5 is the lowest JLPT level -- with nothing below it to include, this toggle
+            (and the stepper below it) would have nothing to do. */}
+        {level !== "N5" ? (
+          <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
+              <div className="text-sm text-text-muted">
+                Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
+                either way.
+              </div>
             </div>
+            <Toggle checked={floor !== level} onChange={toggleLowerLevels} disabled={disabled} />
           </div>
-          {/* N5 is the lowest JLPT level -- with nothing below it to include, the toggle has
-              nothing to do (handleLevelChange already forces floor back to level whenever N5
-              is picked, so this only needs to block the otherwise-inert click). */}
-          <Toggle checked={floor !== level} onChange={toggleLowerLevels} disabled={disabled || level === "N5"} />
-        </div>
+        ) : null}
 
         {/* With N4 selected, N5 is the only level below it -- "on" already pins floor there, so
             there's no actual range left to pick from and the stepper would just be a redundant
