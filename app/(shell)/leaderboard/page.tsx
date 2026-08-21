@@ -17,7 +17,7 @@ export default function LeaderboardPage() {
   const [metric, setMetric] = useState<LeaderboardMetric>(() => readStoredMetric("new_cards"));
   const [period, setPeriod] = useState<LeaderboardPeriod>(() => readStoredPeriod("weekly"));
   const clockOffsetMs = useServerClockOffset();
-  const { data, status } = useLeaderboard(user, metric, period, clockOffsetMs);
+  const { data, status } = useLeaderboard(user, metric, period);
   const { data: studySettings } = useStudySettings(user);
 
   function handleMetricChange(next: LeaderboardMetric) {

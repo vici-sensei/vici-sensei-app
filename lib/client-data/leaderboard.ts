@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchLeaderboard } from "@/lib/data/leaderboard";
-import { getPeriodStart } from "@/lib/leaderboard/period";
 import { readStoredMetric, readStoredPeriod } from "@/lib/leaderboard/storage";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
@@ -15,13 +14,7 @@ function leaderboardCacheKey(metric: LeaderboardMetric, period: LeaderboardPerio
   return `cache:leaderboard:${metric}:${period}`;
 }
 
-/** `clockOffsetMs` corrects for a wrong local clock -- see useServerClockOffset. */
-export function useLeaderboard(
-  user: User | null,
-  metric: LeaderboardMetric,
-  period: LeaderboardPeriod,
-  clockOffsetMs = 0
-) {
+export function useLeaderboard(user: User | null, metric: LeaderboardMetric, period: LeaderboardPeriod) {
   const [status, setStatus] = useState<AsyncStatus>("loading");
   const [data, setData] = useState<LeaderboardEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +23,7 @@ export function useLeaderboard(
     if (!user) return;
     setStatus((prev) => (prev === "loaded" ? prev : "loading"));
     try {
-      const periodStart = metric === "streak" ? null : getPeriodStart(period, new Date(Date.now() + clockOffsetMs));
-      const result = await fetchLeaderboard(createClient(), metric, periodStart, user.id);
+      const result = await fetchLeaderboard(createClient(), metric, period, user.id);
       setData(result);
       setStatus("loaded");
       writeCache(leaderboardCacheKey(metric, period), result);
@@ -39,7 +31,7 @@ export function useLeaderboard(
       setError(getErrorMessage(err, "Failed to load leaderboard."));
       setStatus("error");
     }
-  }, [user, metric, period, clockOffsetMs]);
+  }, [user, metric, period]);
 
   useEffect(() => {
     if (user) {
@@ -65,7 +57,6 @@ export function useLeaderboard(
 export const prefetchLeaderboard = createPrefetcher(async (userId: string) => {
   const metric = readStoredMetric("new_cards");
   const period = readStoredPeriod("weekly");
-  const periodStart = metric === "streak" ? null : getPeriodStart(period, new Date());
-  const result = await fetchLeaderboard(createClient(), metric, periodStart, userId);
+  const result = await fetchLeaderboard(createClient(), metric, period, userId);
   writeCache(leaderboardCacheKey(metric, period), result);
 });

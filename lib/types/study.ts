@@ -18,6 +18,15 @@ export interface RatingPreviews {
   easy: string;
 }
 
+/** Row shape of get_today_activity_counts() -- server-computed "today" counts (see 20260820_today_activity_counts_rpc.sql). */
+export interface TodayActivityCounts {
+  due_today: number;
+  due_learning: number;
+  reviewed_today: number;
+  new_kanji_today: number;
+  new_vocab_today: number;
+}
+
 export interface DueCard {
   exercise_type: ExerciseType;
   progress_id: number;

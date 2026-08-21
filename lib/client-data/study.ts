@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
 import { ApiError } from "@/lib/api/client";
-import { utcDayBounds } from "@/lib/srs/day";
 import { fetchFirstDueCard, fetchStudyQueue } from "@/lib/data/studyQueue";
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { submitReview as submitReviewData, undoReview as undoReviewData } from "@/lib/data/reviews";
@@ -89,14 +88,12 @@ export async function introduceKanji(kanjiId: number, sessionId?: number): Promi
   const supabase = createClient();
   const userId = await requireUserId();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const { start, end } = utcDayBounds(new Date(), timezone);
-  await introduceKanjiData(supabase, userId, kanjiId, start, end, sessionId);
+  await introduceKanjiData(supabase, userId, kanjiId, timezone, sessionId);
 }
 
 export async function introduceVocabulary(wordId: number, sessionId?: number): Promise<void> {
   const supabase = createClient();
   const userId = await requireUserId();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const { start, end } = utcDayBounds(new Date(), timezone);
-  await introduceVocabularyData(supabase, userId, wordId, start, end, sessionId);
+  await introduceVocabularyData(supabase, userId, wordId, timezone, sessionId);
 }

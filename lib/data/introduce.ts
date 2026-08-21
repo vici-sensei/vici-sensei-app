@@ -11,15 +11,13 @@ export async function introduceKanji(
   supabase: AppSupabaseClient,
   userId: string,
   kanjiId: number,
-  dayStart: string,
-  dayEnd: string,
+  timezone: string,
   sessionId?: number
 ): Promise<void> {
   const { error } = await supabase.rpc("introduce_kanji", {
     p_user_id: userId,
     p_kanji_id: kanjiId,
-    p_day_start: dayStart,
-    p_day_end: dayEnd,
+    p_timezone: timezone,
     p_session_id: sessionId ?? null,
   });
 
@@ -30,15 +28,13 @@ export async function introduceVocabulary(
   supabase: AppSupabaseClient,
   userId: string,
   wordId: number,
-  dayStart: string,
-  dayEnd: string,
+  timezone: string,
   sessionId?: number
 ): Promise<void> {
   const { error } = await supabase.rpc("introduce_vocabulary", {
     p_user_id: userId,
     p_word_id: wordId,
-    p_day_start: dayStart,
-    p_day_end: dayEnd,
+    p_timezone: timezone,
     p_session_id: sessionId ?? null,
   });
 
