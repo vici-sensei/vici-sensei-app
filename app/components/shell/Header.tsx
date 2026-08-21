@@ -8,7 +8,7 @@ import { MenuIcon } from "./MenuIcon";
 import { useMobileMenu } from "./MobileMenuContext";
 import { ProfileMenu } from "./ProfileMenu";
 
-export function Header({ user }: { user: UserProfile }) {
+export function Header({ user, loaded = true }: { user: UserProfile; loaded?: boolean }) {
   const keyboardOpen = useKeyboardOpen();
   const { open, toggle } = useMobileMenu();
 
@@ -37,7 +37,7 @@ export function Header({ user }: { user: UserProfile }) {
         Vici Sensei
       </Link>
       <div className="col-start-3 justify-self-end">
-        <ProfileMenu user={user} />
+        <ProfileMenu user={user} loaded={loaded} />
       </div>
     </header>
   );
