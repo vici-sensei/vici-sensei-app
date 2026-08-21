@@ -127,7 +127,7 @@ export default function StudySummaryPage() {
         <p className="text-base leading-[1.6] text-text-muted">
           {dueLaterToday && summary.next_due_at ? (
             <>
-              Your next review is <NextCardEta dueAt={summary.next_due_at} clockOffsetMs={clockOffsetMs} />.
+              Your next review is <NextCardEta dueAt={summary.next_due_at} clockOffsetMs={clockOffsetMs} />
             </>
           ) : (
             "Here's how today's session went."
