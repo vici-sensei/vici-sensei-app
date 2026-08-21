@@ -20,7 +20,7 @@ const ACCENT = {
 };
 
 interface RegionSelectorProps {
-  region: ServerRegion;
+  region: ServerRegion | null;
   onChange: (region: ServerRegion) => void;
   options?: readonly ServerRegion[];
   recommended?: ServerRegion;

@@ -5,24 +5,25 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { useStudySettings, updateStudySettings } from "@/lib/client-data/studySettings";
 import { ApiError } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
-import { Skeleton } from "@/app/components/ui/Skeleton";
 import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import { RegionSelector } from "@/app/components/ui/RegionSelector";
 import { guessServerRegion, type ServerRegion } from "@/lib/serverRegion";
 
 export function ServerRegionSettings() {
   const { user } = useAuth();
-  const { data: settings, status, refetch } = useStudySettings(user);
+  const { data: settings, refetch } = useStudySettings(user);
   const { showToast } = useToast();
 
-  // Falls back to the timezone guess for accounts created before this setting existed
-  // (preferred_server_region is null until they explicitly change it here).
-  const [region, setRegion] = useState<ServerRegion>(() => settings?.preferred_server_region ?? guessServerRegion());
+  // Null until the real setting has loaded -- rendered as neither region selected,
+  // rather than blocking the whole page behind a skeleton.
+  const [region, setRegion] = useState<ServerRegion | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (settings?.preferred_server_region) setRegion(settings.preferred_server_region);
-  }, [settings?.preferred_server_region]);
+    // Falls back to the timezone guess for accounts created before this setting existed
+    // (preferred_server_region is null until they explicitly change it here).
+    if (settings) setRegion(settings.preferred_server_region ?? guessServerRegion());
+  }, [settings]);
 
   async function handleChange(next: ServerRegion) {
     if (!user || next === region || saving) return;
@@ -40,19 +41,6 @@ export function ServerRegionSettings() {
     }
   }
 
-  if (status === "loading" || !settings) {
-    return (
-      <div>
-        <Skeleton className="mb-2 h-[1.7rem] w-44" />
-        <Skeleton className="mb-6.5 h-4 w-80" />
-        <div className="flex max-w-sm flex-col gap-3">
-          <Skeleton className="h-[76px] w-full rounded-2xl" />
-          <Skeleton className="h-[76px] w-full rounded-2xl" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <SettingsHeader
@@ -62,7 +50,7 @@ export function ServerRegionSettings() {
       <RegionSelector
         region={region}
         onChange={handleChange}
-        disabled={saving}
+        disabled={!settings || saving}
         accent="blue"
         className="flex max-w-sm flex-col gap-3 text-left"
       />
