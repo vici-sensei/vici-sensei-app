@@ -2,15 +2,13 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ApiError } from "@/lib/api/client";
 import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import type { StudySessionEnd } from "@/lib/types";
 import { Badge } from "@/app/components/ui/Badge";
-import { Skeleton } from "@/app/components/ui/Skeleton";
-import { buttonClasses } from "@/app/components/ui/Button";
+import { Button } from "@/app/components/ui/Button";
 import { NextCardEta } from "@/app/(shell)/dashboard/NextCardEta";
 
 const CONFETTI_COLORS = ["#ffd200", "#ff4a5a", "#00d2ff"];
@@ -92,30 +90,12 @@ export default function StudySummaryPage() {
     })();
   }, [router]);
 
-  if (!summary) {
-    return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.08)_0%,transparent_55%)]">
-        <div className="relative w-full max-w-[560px] text-center">
-          <Skeleton className="mx-auto h-7 w-36 rounded-full" />
-          <Skeleton className="mx-auto mb-2 mt-4.5 h-9 w-4/5 max-w-100" />
-          <Skeleton className="mx-auto h-5 w-3/5 max-w-75" />
-          <div className="my-8.5 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <StatBox key={i}>
-                <Skeleton className="mx-auto mb-2 h-7 w-10" />
-                <Skeleton className="mx-auto h-3.5 w-14" />
-              </StatBox>
-            ))}
-          </div>
-          <Skeleton className="mx-auto h-13 w-40 rounded-xl" />
-        </div>
-      </div>
-    );
-  }
+  // Rendered immediately with placeholder values instead of a skeleton -- see summary-null
+  // fallbacks below -- and only the "next review" line waits on real data, since until
+  // next_due_is_today comes back we don't know whether it or the "session went" line applies.
+  const accuracyLabel = summary && summary.accuracy != null ? `${Math.round(summary.accuracy * 100)}%` : "N/A";
 
-  const accuracyLabel = summary.accuracy != null ? `${Math.round(summary.accuracy * 100)}%` : "N/A";
-
-  const dueLaterToday = summary.next_due_is_today;
+  const dueLaterToday = summary ? summary.next_due_is_today : true;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.08)_0%,transparent_55%)]">
@@ -125,31 +105,32 @@ export default function StudySummaryPage() {
           Nice work! You&apos;re done for {dueLaterToday ? "now" : "today"}.
         </h1>
         <p className="text-base leading-[1.6] text-text-muted">
-          {dueLaterToday && summary.next_due_at ? (
-            <>
-              Your next review is <NextCardEta dueAt={summary.next_due_at} clockOffsetMs={clockOffsetMs} />
-            </>
-          ) : (
-            "Here's how today's session went."
-          )}
+          {summary &&
+            (dueLaterToday && summary.next_due_at ? (
+              <>
+                Your next review is <NextCardEta dueAt={summary.next_due_at} clockOffsetMs={clockOffsetMs} />
+              </>
+            ) : (
+              "Here's how today's session went."
+            ))}
         </p>
         <div className="my-8.5 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-          <Stat value={summary.cards_reviewed} label="Reviewed" />
-          <Stat value={summary.new_cards_learned} label="New" />
+          <Stat value={summary ? summary.cards_reviewed : "-"} label="Reviewed" />
+          <Stat value={summary ? summary.new_cards_learned : "-"} label="New" />
           <Stat
             value={accuracyLabel}
             valueClassName={
-              summary.accuracy != null
+              summary && summary.accuracy != null
                 ? "mb-1 text-[1.7rem] font-extrabold text-accent-gold"
                 : "mb-1 text-[1.7rem] font-semibold text-text-muted"
             }
             label="Accuracy"
           />
-          <Stat value={formatDuration(summary.duration_seconds)} label="Duration" />
+          <Stat value={summary ? formatDuration(summary.duration_seconds) : "-"} label="Duration" />
         </div>
-        <Link href="/dashboard" className={buttonClasses({ hover: "hover" })}>
+        <Button disabled={!summary} onClick={() => router.push("/dashboard")}>
           Back to Home
-        </Link>
+        </Button>
       </div>
     </div>
   );
