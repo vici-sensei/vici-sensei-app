@@ -1,3 +1,5 @@
+import { Skeleton } from "@/app/components/ui/Skeleton";
+
 const LEVEL_COLOR_CLASSES: Record<string, string> = {
   N5: "border-green-400/30 bg-green-400/10 text-green-400",
   N4: "border-blue-400/30 bg-blue-400/10 text-blue-400",
@@ -21,13 +23,24 @@ const SIZE_CLASSES: Record<LevelBadgeSize, string> = {
   lg: "rounded-xl px-2 md:px-4 md:py-1.5 text-[1.05rem]",
 };
 
+const SKELETON_SIZE_CLASSES: Record<LevelBadgeSize, string> = {
+  sm: "h-[19px] w-8 rounded-md",
+  md: "h-[28px] w-10 rounded-lg",
+  lg: "h-[36px] w-13 rounded-xl",
+};
+
 interface LevelBadgeProps {
   level: string | null | undefined;
   size?: LevelBadgeSize;
   className?: string;
+  loading?: boolean;
 }
 
-export function LevelBadge({ level, size = "md", className }: LevelBadgeProps) {
+export function LevelBadge({ level, size = "md", className, loading = false }: LevelBadgeProps) {
+  if (loading) {
+    return <Skeleton className={[SKELETON_SIZE_CLASSES[size], className ?? ""].filter(Boolean).join(" ")} />;
+  }
+
   const classes = [
     "inline-flex items-center justify-center border font-extrabold md:tracking-[0.5px]",
     SIZE_CLASSES[size],

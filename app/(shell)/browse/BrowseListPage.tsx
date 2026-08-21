@@ -15,6 +15,7 @@ import { FaArrowLeft, FaArrowRight, FaMagnifyingGlass } from "react-icons/fa6";
 import type { AsyncStatus } from "@/lib/types";
 
 const PAGE_SIZE = 50;
+const PLACEHOLDER_ROW_COUNT = 6;
 
 function parseLevels(raw: string | null, fallback: JlptLevel[]): JlptLevel[] {
   if (raw === null) return fallback;
@@ -46,6 +47,10 @@ interface BrowseListPageProps<T> {
   itemKey: (item: T) => number;
   detailHref: (item: T) => string;
   renderRow: (item: T) => ReactNode;
+  /** When set, shown as a handful of fake rows (each field its own skeleton) in place of the
+   * default full-row ListSkeleton while the first page of real data hasn't landed yet. Receives
+   * the row index so placeholders can vary (e.g. word width) instead of repeating identically. */
+  renderPlaceholderRow?: (index: number) => ReactNode;
 }
 
 function BrowseListResults<T>({
@@ -57,12 +62,14 @@ function BrowseListResults<T>({
   itemKey,
   detailHref,
   renderRow,
+  renderPlaceholderRow,
   search,
   levels,
   rawLevel,
   offset,
 }: BrowseListPageProps<T> & { search: string; levels: JlptLevel[]; rawLevel: string | null; offset: number }) {
   const { data: result, status } = useList({ search: search || null, levels, limit: PAGE_SIZE, offset });
+  const isInitialLoading = (status === "loading" || !result) && !!renderPlaceholderRow;
 
   const preservedParams = new URLSearchParams();
   if (search) preservedParams.set("search", search);
@@ -85,7 +92,20 @@ function BrowseListResults<T>({
       </div>
 
       {status === "loading" || !result ? (
-        <ListSkeleton />
+        renderPlaceholderRow ? (
+          <div className="mb-6 flex flex-col gap-2.5">
+            {Array.from({ length: PLACEHOLDER_ROW_COUNT }).map((_, i) => (
+              <div
+                key={i}
+                className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px]"
+              >
+                {renderPlaceholderRow(i)}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ListSkeleton />
+        )
       ) : result.data.length === 0 ? (
         <div className="px-5 py-15 text-center text-text-muted">
           <div className="mx-auto mb-4.5 flex h-15 w-15 items-center justify-center rounded-full border border-border-soft bg-white/[0.04] [&>svg]:h-6.5 [&>svg]:w-6.5">

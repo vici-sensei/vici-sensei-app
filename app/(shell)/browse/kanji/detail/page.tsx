@@ -7,7 +7,7 @@ import { useKanjiDetail } from "@/lib/client-data/kanji";
 import { useKanjiProgress } from "@/lib/client-data/progress";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { ProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
+import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
@@ -55,6 +55,102 @@ function DetailSkeleton() {
   );
 }
 
+// Word block for a fictional example word: 2 kanji, each with its own 2-kana furigana above --
+// same shape as PlaceholderWord on the vocabulary list, sized for this row's tighter padding
+// (leading-none here vs. the list's default line-height, so the real box is shorter: 54 vs 57.3px).
+function PlaceholderExampleWord() {
+  return (
+    <div className="flex h-[54px] shrink-0 items-end gap-1.5">
+      {[0, 1].map((k) => (
+        <div key={k} className="flex flex-col items-center gap-1">
+          <Skeleton className="h-3 w-5 rounded" />
+          <Skeleton className="h-9 w-8 rounded-md" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KanjiDetailPlaceholder() {
+  const colLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
+
+  return (
+    <div>
+      <BrowseBackLink href="/browse/kanji" />
+
+      <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
+        <Skeleton className="h-24 w-24 shrink-0 rounded-2xl" />
+        <div className="min-w-55 flex-1">
+          <div className="mb-3 flex h-[32.4px] items-center">
+            <Skeleton className="h-5 w-full" />
+          </div>
+          <div className="flex flex-wrap gap-6">
+            <div>
+              <div className={colLabel}>Kun reading</div>
+              <div className="flex h-[26.4px] items-center">
+                <Skeleton className="h-4.5 w-24" />
+              </div>
+            </div>
+            <div>
+              <div className={colLabel}>On reading</div>
+              <div className="flex h-[26.4px] items-center">
+                <Skeleton className="h-4.5 w-20" />
+              </div>
+            </div>
+            <div>
+              <div className={colLabel}>JLPT level</div>
+              <LevelBadge level={null} loading />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Example words</div>
+      <div className="grid grid-cols-1 gap-3 text-left">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            className="flex flex-wrap items-center gap-x-8 gap-y-1.5 rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-3"
+            key={i}
+          >
+            <PlaceholderExampleWord />
+            <div className="min-w-32 flex-1">
+              <Skeleton className="h-3.5 w-full" />
+            </div>
+            <LevelBadge level={null} loading size="md" className="ml-auto shrink-0" />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
+      <div>
+        <PlaceholderProgressCardRow
+          title={
+            <>
+              Meaning — <Skeleton className="h-4 flex-1 rounded" />
+            </>
+          }
+        />
+        <PlaceholderProgressCardRow
+          title={
+            <>
+              Reading — <Skeleton className="h-4 w-14 shrink-0 rounded" />
+              <Skeleton className="h-3.5 w-20 shrink-0 rounded" />
+            </>
+          }
+        />
+        <PlaceholderProgressCardRow
+          title={
+            <>
+              Reading — <Skeleton className="h-4 w-12 shrink-0 rounded" />
+              <Skeleton className="h-3.5 w-16 shrink-0 rounded" />
+            </>
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
 function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
   const { user } = useAuth();
   const { data: kanji, status: kanjiStatus } = useKanjiDetail(kanjiId);
@@ -65,7 +161,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
     mutate: mutateProgress,
   } = useKanjiProgress(user, kanjiId);
 
-  if (kanjiStatus === "loading" || progressStatus === "loading") return <DetailSkeleton />;
+  if (kanjiStatus === "loading" || progressStatus === "loading") return <KanjiDetailPlaceholder />;
   if (!kanji) return <NotFound />;
 
   const hasProgress = progress ? progress.meaning !== null || progress.readings.length > 0 : false;

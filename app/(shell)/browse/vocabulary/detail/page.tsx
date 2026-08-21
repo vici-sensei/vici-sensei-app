@@ -7,7 +7,7 @@ import { useVocabularyDetail } from "@/lib/client-data/vocabulary";
 import { useVocabularyProgress } from "@/lib/client-data/progress";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { ProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
+import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
@@ -48,6 +48,68 @@ function DetailSkeleton() {
   );
 }
 
+// Hero word block for the fictional word: 2 kanji, each with its own 2-kana furigana above --
+// same shape as the vocabulary list's PlaceholderWord, scaled up for this page's larger text-5xl
+// display (48px font vs. 30px in the list, hence the bigger ruby/kanji block sizes below).
+function PlaceholderHeroWord() {
+  return (
+    <div className="mb-3 flex h-[81.6px] items-end gap-2.5">
+      {[0, 1].map((k) => (
+        <div key={k} className="flex flex-col items-center gap-1.5">
+          <Skeleton className="h-4 w-8 rounded" />
+          <Skeleton className="h-13 w-12 rounded-lg" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VocabularyDetailPlaceholder() {
+  const factLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
+
+  return (
+    <div>
+      <BrowseBackLink href="/browse/vocabulary" />
+
+      <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
+        <div className="min-w-55 flex-1">
+          <PlaceholderHeroWord />
+          <div className="mb-3 flex h-[32.4px] items-center">
+            <Skeleton className="h-5 w-full" />
+          </div>
+          <div className="flex flex-wrap gap-6">
+            <div>
+              <div className={factLabel}>Part of speech</div>
+              <div className="flex h-6 items-center">
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+            <div>
+              <div className={factLabel}>JLPT level</div>
+              <LevelBadge level={null} loading />
+            </div>
+            <div>
+              <div className={factLabel}>Other readings</div>
+              <div className="flex h-6 items-center">
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
+      <PlaceholderProgressCardRow
+        title={
+          <>
+            Meaning — <Skeleton className="h-4 flex-1 rounded" />
+          </>
+        }
+      />
+    </div>
+  );
+}
+
 function VocabularyDetailContent({ wordId }: { wordId: number }) {
   const { user } = useAuth();
   const { data: word, status: wordStatus } = useVocabularyDetail(wordId);
@@ -58,7 +120,7 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
     mutate: mutateProgress,
   } = useVocabularyProgress(user, wordId);
 
-  if (wordStatus === "loading" || progressStatus === "loading") return <DetailSkeleton />;
+  if (wordStatus === "loading" || progressStatus === "loading") return <VocabularyDetailPlaceholder />;
   if (!word) return <NotFound />;
 
   const factLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
