@@ -163,7 +163,13 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
           cardType="vocab"
           cardId={word.id}
           onOptimisticUpdate={(action) =>
-            mutateProgress((prev) => (action === "reset" ? null : prev ? { ...prev, status: "suspended" } : prev))
+            mutateProgress((prev) => {
+              if (action === "reset") return null;
+              // Reactivate's real target status isn't known client-side (only status_before,
+              // server-side, has it) -- leave it be and let onSuccess's refetch settle it.
+              if (action === "reactivate") return prev;
+              return prev ? { ...prev, status: "suspended" } : prev;
+            })
           }
           onSuccess={refetchProgress}
           onError={refetchProgress}

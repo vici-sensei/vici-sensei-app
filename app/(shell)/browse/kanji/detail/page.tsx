@@ -131,6 +131,7 @@ function KanjiDetailPlaceholder() {
           }
         />
         <PlaceholderProgressCardRow
+          showReset={false}
           title={
             <>
               Reading — <Skeleton className="h-4 w-14 shrink-0 rounded" />
@@ -139,6 +140,7 @@ function KanjiDetailPlaceholder() {
           }
         />
         <PlaceholderProgressCardRow
+          showReset={false}
           title={
             <>
               Reading — <Skeleton className="h-4 w-12 shrink-0 rounded" />
@@ -225,7 +227,18 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                   if (!prev) return prev;
                   // Reset forgets the whole kanji server-side (see lib/data/cards.ts), readings included.
                   if (action === "reset") return { ...prev, meaning: null, readings: [] };
-                  return prev.meaning ? { ...prev, meaning: { ...prev.meaning, status: "suspended" } } : prev;
+                  // Reactivate's real target status isn't known client-side (only status_before,
+                  // server-side, has it) -- leave it be and let onSuccess's refetch settle it.
+                  if (action === "reactivate") return prev;
+                  // Suspending the meaning card pauses the whole kanji server-side (see
+                  // lib/data/cards.ts), so its reading cards suspend along with it here too.
+                  return prev.meaning
+                    ? {
+                        ...prev,
+                        meaning: { ...prev.meaning, status: "suspended" },
+                        readings: prev.readings.map((reading) => ({ ...reading, status: "suspended" })),
+                      }
+                    : prev;
                 })
               }
               onSuccess={refetchProgress}
@@ -251,6 +264,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                 mutateProgress((prev) => {
                   if (!prev) return prev;
                   if (action === "reset") return { ...prev, readings: prev.readings.filter((reading) => reading.id !== r.id) };
+                  if (action === "reactivate") return prev;
                   return {
                     ...prev,
                     readings: prev.readings.map((reading) => (reading.id === r.id ? { ...reading, status: "suspended" } : reading)),

@@ -13,7 +13,7 @@ interface ProgressCardRowProps {
   dueAt: string;
   cardType: CardType;
   cardId: number;
-  onOptimisticUpdate: (action: "suspend" | "reset") => void;
+  onOptimisticUpdate: (action: "suspend" | "reactivate" | "reset") => void;
   onSuccess: () => void;
   onError: () => void;
 }
@@ -50,24 +50,24 @@ export function ProgressCardRow({
 }
 
 // Fictional progress row shown while progress/detail data is still loading. Pill/due/Suspend
-// dimensions are measured off the real ProgressCardRow so the row wraps to the same 2-line
-// height once real data lands; "right" is forced onto its own line (basis-full) since every real
-// row with a Suspend button already wraps at this width -- only suspended cards (no Suspend
-// button) fit on one line, and this placeholder always represents the non-suspended case.
-export function PlaceholderProgressCardRow({ title }: { title: ReactNode }) {
+// dimensions are measured off the real ProgressCardRow so the row wraps the same way once real
+// data lands -- no forced line break here, same flex-wrap-without-basis structure as the real row.
+export function PlaceholderProgressCardRow({ title, showReset = true }: { title: ReactNode; showReset?: boolean }) {
   return (
     <div className="mb-2 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-soft bg-white/[0.02] px-4.5 py-3.5">
       <div className="flex flex-1 items-center gap-2 text-[0.92rem] font-bold">{title}</div>
-      <div className="flex basis-full flex-wrap items-center gap-3.5">
+      <div className="flex flex-wrap items-center gap-3.5">
         <div className="flex flex-wrap items-center gap-3.5">
           <Skeleton className="h-[26px] w-[88px] rounded-lg" />
           <Skeleton className="h-[19px] w-13" />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <Skeleton className="h-[39px] w-[98px] rounded-xl" />
-          <Button variant="secondary" size="sm" danger disabled>
-            Reset progress
-          </Button>
+          {showReset && (
+            <Button variant="secondary" size="sm" danger disabled>
+              Reset progress
+            </Button>
+          )}
         </div>
       </div>
     </div>
