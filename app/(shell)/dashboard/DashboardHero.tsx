@@ -75,7 +75,7 @@ export function DashboardHero() {
                   Explore the dictionary in the meantime.
                   <br />
                   Your next card is ready{" "}
-                  <NextCardEta dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />.
+                  <NextCardEta dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />
                 </>
               ) : (
                 "Come back tomorrow for your next reviews, or explore the dictionary in the meantime."
@@ -92,7 +92,7 @@ export function DashboardHero() {
             <p className="text-base leading-[1.6] text-text-muted">{summaryText}</p>
             {moreComingToday && stats.next_due_at && (
               <p className="mt-1 text-sm text-text-muted">
-                Plus another card <NextCardEta dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />.
+                Plus another card <NextCardEta dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />
               </p>
             )}
           </>

@@ -11,7 +11,7 @@ import { updateStudySettings, rerollLeaderboardAlias } from "@/lib/client-data/s
 import { useToast } from "@/app/components/ui/Toast";
 import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 import { JLPT_LEVELS, mostAdvancedLevel, leastAdvancedLevel, levelsInRange, type JlptLevel } from "@/lib/srs/constants";
-import { FaLink } from "react-icons/fa6";
+import { FaLink, FaMinus, FaPlus } from "react-icons/fa6";
 import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
 
 const REVIEWS_STEP = 10;
@@ -54,7 +54,16 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
   );
 }
 
-export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings; onSaved: () => void }) {
+export function StudySettingsForm({
+  initial,
+  onSaved,
+  disabled = false,
+}: {
+  initial: StudySettings;
+  onSaved: () => void;
+  /** True while real settings are still loading -- `initial` is a placeholder default in that case, so every control is locked to prevent editing (and thus autosaving) values that aren't the user's own yet. */
+  disabled?: boolean;
+}) {
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -109,9 +118,10 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
   }
 
   function adjustFloor(delta: number) {
-    // Capped one below the current level — narrowing all the way to "just the current level"
-    // is what the toggle above is for, so the stepper never makes this row collapse on its own.
-    const maxFloorIdx = JLPT_LEVELS.indexOf(level) - 1;
+    // Capped at the current level itself (not one below it) -- stepping the floor all the way
+    // up to `level` is a valid way to turn "also study lower levels" back off, same as the
+    // toggle above, and floor === level already hides this row on its own via the check below.
+    const maxFloorIdx = JLPT_LEVELS.indexOf(level);
     const next = JLPT_LEVELS.indexOf(floor) + delta;
     setFloor(JLPT_LEVELS[Math.max(0, Math.min(maxFloorIdx, next))]);
   }
@@ -204,7 +214,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
   const includedLevels = levelsInRange(floor, level);
 
   const stepperBtn =
-    "flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-soft bg-white/[0.04] text-xl font-bold text-white enabled:hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40";
+    "flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-soft bg-white/[0.04] text-white enabled:hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
   const stepperVal = "w-15 text-center text-[1.05rem] font-extrabold tabular-nums";
 
   return (
@@ -213,12 +223,12 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
         <div className="mb-[22px]">
           <label className={fieldLabel}>New kanji per day</label>
           <div className="flex items-center gap-2.5">
-            <button type="button" className={stepperBtn} onClick={() => adjustKanji(-1)} disabled={newKanjiPerDay <= 1}>
-              −
+            <button type="button" className={stepperBtn} onClick={() => adjustKanji(-1)} disabled={disabled || newKanjiPerDay <= 1}>
+              <FaMinus />
             </button>
             <span className={stepperVal}>{newKanjiPerDay}</span>
-            <button type="button" className={stepperBtn} onClick={() => adjustKanji(1)}>
-              +
+            <button type="button" className={stepperBtn} onClick={() => adjustKanji(1)} disabled={disabled}>
+              <FaPlus />
             </button>
           </div>
           <div className="mt-2.5 flex items-center gap-2 text-sm text-accent-blue [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0">
@@ -229,12 +239,12 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
         <div>
           <label className={fieldLabel}>New vocabulary per day</label>
           <div className="flex items-center gap-2.5">
-            <button type="button" className={stepperBtn} onClick={() => adjustVocab(-1)} disabled={newVocabPerDay <= 6}>
-              −
+            <button type="button" className={stepperBtn} onClick={() => adjustVocab(-1)} disabled={disabled || newVocabPerDay <= 6}>
+              <FaMinus />
             </button>
             <span className={stepperVal}>{newVocabPerDay}</span>
-            <button type="button" className={stepperBtn} onClick={() => adjustVocab(1)}>
-              +
+            <button type="button" className={stepperBtn} onClick={() => adjustVocab(1)} disabled={disabled}>
+              <FaPlus />
             </button>
           </div>
         </div>
@@ -244,12 +254,17 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
         <div>
           <label className={fieldLabel}>Max reviews per day</label>
           <div className="flex items-center gap-2.5">
-            <button type="button" className={stepperBtn} onClick={() => adjustReviews(-1)} disabled={maxReviewsPerDay <= REVIEWS_STEP}>
-              −
+            <button
+              type="button"
+              className={stepperBtn}
+              onClick={() => adjustReviews(-1)}
+              disabled={disabled || maxReviewsPerDay <= REVIEWS_STEP}
+            >
+              <FaMinus />
             </button>
             <span className={stepperVal}>{maxReviewsPerDay}</span>
-            <button type="button" className={stepperBtn} onClick={() => adjustReviews(1)}>
-              +
+            <button type="button" className={stepperBtn} onClick={() => adjustReviews(1)} disabled={disabled}>
+              <FaPlus />
             </button>
           </div>
           <div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>
@@ -258,21 +273,29 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
 
       <GlassCard padding="lg" className="mb-5.5">
         <label className={`${fieldLabel} mb-3.5`}>Enabled JLPT levels</label>
-        <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" />
+        <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" disabled={disabled} />
         <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
 
-        <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
-          <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
-            <div className="text-sm text-text-muted">
-              Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
-              either way.
+        {/* N5 is the lowest JLPT level -- with nothing below it to include, this toggle
+            (and the stepper below it) would have nothing to do. */}
+        {level !== "N5" ? (
+          <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
+              <div className="text-sm text-text-muted">
+                Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
+                either way.
+              </div>
             </div>
+            <Toggle checked={floor !== level} onChange={toggleLowerLevels} disabled={disabled} />
           </div>
-          <Toggle checked={floor !== level} onChange={toggleLowerLevels} />
-        </div>
+        ) : null}
 
-        {floor !== level ? (
+        {/* With N4 selected, N5 is the only level below it -- "on" already pins floor there, so
+            there's no actual range left to pick from and the stepper would just be a redundant
+            way to flip the toggle back off. Only worth showing once there are 2+ levels below
+            (level's index > 1) to actually choose among. */}
+        {floor !== level && JLPT_LEVELS.indexOf(level) > 1 ? (
           <div className="mt-4 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
             <div>
               <div className="mb-0.5 text-[0.95rem] font-bold">Lowest level to include</div>
@@ -283,18 +306,18 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
                 type="button"
                 className={stepperBtn}
                 onClick={() => adjustFloor(-1)}
-                disabled={JLPT_LEVELS.indexOf(floor) <= 0}
+                disabled={disabled || JLPT_LEVELS.indexOf(floor) <= 0}
               >
-                −
+                <FaMinus />
               </button>
               <span className={stepperVal}>{floor}</span>
               <button
                 type="button"
                 className={stepperBtn}
                 onClick={() => adjustFloor(1)}
-                disabled={JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level) - 1}
+                disabled={disabled || JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level)}
               >
-                +
+                <FaPlus />
               </button>
             </div>
           </div>
@@ -307,14 +330,18 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
             <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
             <div className="text-sm text-text-muted">Include kanji meaning &amp; reading cards in your queue.</div>
           </div>
-          <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={studyKanji && !studyVocabulary} />
+          <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
         </div>
         <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
           <div>
             <div className="mb-0.5 text-[0.95rem] font-bold">Study vocabulary</div>
             <div className="text-sm text-text-muted">Include vocabulary meaning cards in your queue.</div>
           </div>
-          <Toggle checked={studyVocabulary} onChange={toggleStudyVocabulary} disabled={studyVocabulary && !studyKanji} />
+          <Toggle
+            checked={studyVocabulary}
+            onChange={toggleStudyVocabulary}
+            disabled={disabled || (studyVocabulary && !studyKanji)}
+          />
         </div>
         <div className={`${fieldHint} mt-2.5`}>At least one must stay on — you can&apos;t disable both.</div>
       </GlassCard>
@@ -327,7 +354,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
               Your rank stays visible, but with a random name, no photo, and no country flag.
             </div>
           </div>
-          <Toggle checked={leaderboardAnonymous} onChange={() => setLeaderboardAnonymous(!leaderboardAnonymous)} />
+          <Toggle checked={leaderboardAnonymous} onChange={() => setLeaderboardAnonymous(!leaderboardAnonymous)} disabled={disabled} />
         </div>
 
         {leaderboardAnonymous ? (
@@ -340,7 +367,7 @@ export function StudySettingsForm({ initial, onSaved }: { initial: StudySettings
                 {leaderboardAlias ? `${leaderboardAlias.adjective} ${leaderboardAlias.noun}` : "…"}
               </div>
             </div>
-            <LeaderboardAliasDice onReroll={handleReroll} disabled={!leaderboardAlias} />
+            <LeaderboardAliasDice onReroll={handleReroll} disabled={disabled || !leaderboardAlias} />
           </div>
         ) : null}
       </GlassCard>

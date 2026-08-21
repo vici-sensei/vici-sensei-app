@@ -24,7 +24,7 @@ export function LeaderboardPeriodSelector({
       active={active}
       onChange={onChange}
       variant="compact"
-      className="mb-5.5 justify-center md:justify-start"
+      className="mb-5.5 justify-center md:justify-start w-fit mx-auto md:mx-0"
     />
   );
 }

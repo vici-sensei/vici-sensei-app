@@ -37,7 +37,9 @@ export default function LeaderboardPage() {
         See how you stack up against other students.
       </p>
 
-      <LeaderboardTabs active={metric} onChange={handleMetricChange} />
+      <div className="w-fit mx-auto md:mx-0">
+        <LeaderboardTabs active={metric} onChange={handleMetricChange} />
+      </div>
       {metric === "streak" ? null : (
         <>
           <LeaderboardPeriodSelector active={period} onChange={handlePeriodChange} />

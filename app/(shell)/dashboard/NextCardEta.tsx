@@ -15,7 +15,7 @@ export function NextCardEta({
 }) {
   return (
     <>
-      <NextCardCountdown dueAt={dueAt} clockOffsetMs={clockOffsetMs} onElapsed={onElapsed} />
+      <NextCardCountdown dueAt={dueAt} clockOffsetMs={clockOffsetMs} onElapsed={onElapsed} />.
       <ClockSkewNotice clockOffsetMs={clockOffsetMs} />
     </>
   );

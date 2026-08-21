@@ -99,10 +99,13 @@ export function StepLeaderboard({
       </div>
 
       <div className="text-left">
-        <div className="mb-2.5 flex items-center justify-between gap-3">
-          <p className="text-sm font-bold uppercase tracking-[0.6px] text-text-muted">Preview</p>
-          {isAnonymous && <LeaderboardAliasDice onReroll={onReroll} disabled={!leaderboardAlias} />}
-        </div>
+        <p className="mb-2.5 text-center text-sm font-bold uppercase tracking-[0.6px] text-text-muted">Preview</p>
+        {isAnonymous && (
+          <div className="mb-3 flex items-center gap-3">
+            <LeaderboardAliasDice onReroll={onReroll} disabled={!leaderboardAlias} />
+            <p className="text-sm text-text-muted">Not feeling this name? Give the die a roll for a new one!</p>
+          </div>
+        )}
         <LeaderboardList entries={entries} status="loaded" metric="xp" viewerId={userId} viewerAnonymous={isAnonymous} />
       </div>
     </>

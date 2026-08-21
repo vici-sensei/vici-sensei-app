@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCountries } from "@/lib/client-data/countries";
+import { FlagPlaceholder } from "./FlagPlaceholder";
 import { useFlagIconsCss } from "./useFlagIconsCss";
 
 // Native <option> elements can only render plain text -- no way to put a flag
@@ -37,12 +38,17 @@ export function CountrySelect({
   value,
   onChange,
   disabled,
+  loading,
   placement = "up",
 }: {
   id?: string;
   value: string | null;
   onChange: (code: string) => void;
   disabled?: boolean;
+  /** True while the value this select shows is still a placeholder (e.g. the profile row
+   * hasn't loaded yet) -- renders a gray flag + skeleton bar in place of the trigger's usual
+   * content instead of "Select a country", and locks the trigger the same as `disabled`. */
+  loading?: boolean;
   /** "up" always opens above the trigger (default). "auto" opens whichever side has more room. */
   placement?: "up" | "auto";
 }) {
@@ -196,12 +202,17 @@ export function CountrySelect({
         id={id}
         type="button"
         onClick={() => (open ? closeDropdown() : setOpen(true))}
-        disabled={disabled || status === "loading"}
+        disabled={disabled || loading || status === "loading"}
         aria-haspopup="listbox"
         aria-expanded={open}
         className={TRIGGER_CLASS}
       >
-        {selected ? (
+        {loading ? (
+          <>
+            <FlagPlaceholder />
+            <span className="h-3.5 flex-1 animate-pulse rounded-md bg-white/10" />
+          </>
+        ) : selected ? (
           <>
             <FlagIcon code={selected.code} />
             <span className="flex-1 truncate">{selected.name}</span>
