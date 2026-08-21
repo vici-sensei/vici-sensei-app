@@ -18,8 +18,12 @@ export function LeaderboardTabs({
   onChange: (metric: LeaderboardMetric) => void;
 }) {
   return (
-    <div className="mb-5.5 flex justify-center md:justify-start">
-      <PillSelector options={METRICS} active={active} onChange={onChange} variant="tabs" />
-    </div>
+    <PillSelector
+      options={METRICS}
+      active={active}
+      onChange={onChange}
+      variant="tabs"
+      className="mb-5.5 justify-center md:justify-start"
+    />
   );
 }

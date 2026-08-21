@@ -136,6 +136,10 @@ export interface ReviewRequestBody {
   kanji_word_id?: number;
   rating: Rating;
   user_answer?: string;
+  /** The study_sessions row this review belongs to, if any -- passed straight through from the
+   * client's own session id instead of having submit_review guess it from timing (see
+   * supabase/migrations/20260821_submit_review_explicit_session_id.sql). */
+  session_id?: number;
 }
 
 export interface SubmitReviewResult {

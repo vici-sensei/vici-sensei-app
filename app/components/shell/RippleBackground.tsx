@@ -63,15 +63,18 @@ function spawnBurst(field: HTMLDivElement, speed: number) {
 }
 
 /**
- * Fixed, full-viewport layer of discreet blue ripples: ambient concentric
+ * Fixed, full-viewport layer of discreet ripples: ambient concentric
  * drops plus a trail that follows the cursor while it's moving. Renders
  * behind whatever comes after it in the DOM (no explicit z-index -- relies
  * on being mounted first, before the page chrome).
  *
  * `speed` scales every timing (burst interval, ring stagger, ring duration)
  * -- 1 is the default pace, higher values slow the animation down.
+ *
+ * `color` is an "R, G, B" triplet overriding the default blue (see --ripple-rgb
+ * in globals.css) -- e.g. the gold used on /study/summary.
  */
-export function RippleBackground({ speed = 1 }: { speed?: number }) {
+export function RippleBackground({ speed = 1, color }: { speed?: number; color?: string }) {
   const fieldRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -163,5 +166,12 @@ export function RippleBackground({ speed = 1 }: { speed?: number }) {
     };
   }, [speed]);
 
-  return <div ref={fieldRef} className="ripple-field" aria-hidden="true" />;
+  return (
+    <div
+      ref={fieldRef}
+      className="ripple-field"
+      aria-hidden="true"
+      style={color ? ({ "--ripple-rgb": color } as React.CSSProperties) : undefined}
+    />
+  );
 }

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { getStudyStats } from "@/lib/client-data/studyStats";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
+import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import type { StudyStats } from "@/lib/types";
@@ -22,6 +23,9 @@ interface StudyStatsContextValue {
   studyDisabled: boolean;
   /** True once a poll has failed and no later poll has succeeded yet — stats may be out of date. */
   stale: boolean;
+  /** (server time - local time), for countdowns built on `stats.next_due_at` to correct against a
+   * wrong device clock -- see useServerClockOffset. */
+  clockOffsetMs: number;
   refresh: () => void;
 }
 
@@ -31,6 +35,7 @@ export function StudyStatsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [stats, setStats] = useState<StudyStats | null>(null);
   const [stale, setStale] = useState(false);
+  const clockOffsetMs = useServerClockOffset();
   const cancelledRef = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -78,7 +83,7 @@ export function StudyStatsProvider({ children }: { children: ReactNode }) {
   }, [user, allDone, refresh]);
 
   return (
-    <StudyStatsContext.Provider value={{ stats, studyDisabled: !stats || allDone, stale, refresh }}>
+    <StudyStatsContext.Provider value={{ stats, studyDisabled: !stats || allDone, stale, clockOffsetMs, refresh }}>
       {children}
     </StudyStatsContext.Provider>
   );

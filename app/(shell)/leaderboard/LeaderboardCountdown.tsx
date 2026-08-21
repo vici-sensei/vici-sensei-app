@@ -3,9 +3,8 @@
 import { useClientClock } from "@/lib/useClientClock";
 import { getPeriodEnd } from "@/lib/leaderboard/period";
 import { formatTimeLeft } from "@/lib/leaderboard/timeLeft";
+import { ClockSkewNotice } from "@/app/components/ui/ClockSkewNotice";
 import type { LeaderboardPeriod } from "@/lib/types";
-
-const NOTABLE_SKEW_MS = 60_000;
 
 /** `clockOffsetMs` corrects for a wrong local clock -- see useServerClockOffset. */
 export function LeaderboardCountdown({ period, clockOffsetMs }: { period: LeaderboardPeriod; clockOffsetMs: number }) {
@@ -20,11 +19,7 @@ export function LeaderboardCountdown({ period, clockOffsetMs }: { period: Leader
   return (
     <p className="mb-5.5 text-sm text-text-muted">
       Resets in <span className="font-semibold text-accent-blue/80">{formatTimeLeft(remaining)}</span>
-      {Math.abs(clockOffsetMs) > NOTABLE_SKEW_MS ? (
-        <span className="block text-xs text-text-muted/70">
-          Your device clock looks off, so this is synced to server time instead.
-        </span>
-      ) : null}
+      <ClockSkewNotice clockOffsetMs={clockOffsetMs} />
     </p>
   );
 }

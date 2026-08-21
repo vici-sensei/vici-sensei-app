@@ -2,16 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FaXmark } from "react-icons/fa6";
+import { useCountdown } from "@/lib/useCountdown";
 import { formatCountdown } from "@/lib/study/countdown";
 
 interface QueueProgressBarProps {
   completed: number;
   total: number;
   nextDueAt: string | null;
+  /** Corrects the countdown below for a wrong device clock -- see useServerClockOffset. */
+  clockOffsetMs: number;
   onExit: () => void;
 }
 
-export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueProgressBarProps) {
+export function QueueProgressBar({ completed, total, nextDueAt, clockOffsetMs, onExit }: QueueProgressBarProps) {
   const pct = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
 
   // Surfaces a "+N" badge whenever a background refresh grows the queue
@@ -30,15 +33,7 @@ export function QueueProgressBar({ completed, total, nextDueAt, onExit }: QueueP
     prevTotalRef.current = total;
   }, [total]);
 
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!nextDueAt) return;
-    setNow(Date.now());
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [nextDueAt]);
-
-  const remainingMs = nextDueAt ? new Date(nextDueAt).getTime() - now : null;
+  const remainingMs = useCountdown(nextDueAt, clockOffsetMs);
   const showCountdown = remainingMs !== null && remainingMs > 0;
 
   return (
