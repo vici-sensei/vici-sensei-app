@@ -3,10 +3,11 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useProgressSummary } from "@/lib/client-data/progress";
+import { useStudySettings } from "@/lib/client-data/studySettings";
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import { GlassCard } from "@/app/components/ui/GlassCard";
-import { PiTranslate, PiSpeakerHigh, PiBookBookmark } from "react-icons/pi";
+import { PiTranslate, PiSpeakerHigh, PiBookBookmark, PiTextAa, PiTextAUnderline } from "react-icons/pi";
 import { StartStudyingLink } from "./StartStudyingLink";
 
 const STATUS_COLORS: Record<ProgressStatus, string> = {
@@ -32,7 +33,7 @@ interface Block {
   icon: ReactNode;
 }
 
-const BLOCKS: Block[] = [
+const STANDARD_BLOCKS: Block[] = [
   {
     key: "kanji_meaning",
     title: "Kanji meaning",
@@ -53,6 +54,21 @@ const BLOCKS: Block[] = [
   },
 ];
 
+const KANA_BLOCKS: Block[] = [
+  {
+    key: "hiragana_reading",
+    title: "Hiragana reading",
+    accent: "var(--color-accent-violet)",
+    icon: <PiTextAa />,
+  },
+  {
+    key: "katakana_reading",
+    title: "Katakana reading",
+    accent: "var(--color-accent-orange)",
+    icon: <PiTextAUnderline />,
+  },
+];
+
 function total(counts: ProgressStatusCounts): number {
   return PROGRESS_STATUSES.reduce((sum, s) => sum + counts[s], 0);
 }
@@ -64,6 +80,11 @@ const EMPTY_COUNTS: ProgressStatusCounts = { new: 0, learning: 0, review: 0, rel
 export default function ProgressPage() {
   const { user } = useAuth();
   const { data: summary } = useProgressSummary(user);
+  const { data: settings } = useStudySettings(user);
+  // On kana, only the two kana categories exist for the student to see. On standard, kanji and
+  // vocabulary stay on top as today, with hiragana/katakana appended below as history -- kana
+  // progress is never deleted when switching tracks, so it still deserves a place here.
+  const BLOCKS: Block[] = settings?.study_track === "kana" ? KANA_BLOCKS : [...STANDARD_BLOCKS, ...KANA_BLOCKS];
 
   // grandTotal is only meaningful once summary has loaded -- kept at 0 (rather than computed
   // from EMPTY_COUNTS below) so the "no progress yet" empty state can't flash in before load.
@@ -73,13 +94,13 @@ export default function ProgressPage() {
     <div>
       <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Your progress</h1>
       <p className="mb-7.5 text-base leading-[1.6] text-text-muted">
-        How your cards are distributed across the three exercise types.
+        How your cards are distributed across each exercise type.
       </p>
 
       {summary && grandTotal === 0 ? (
         <div className="relative rounded-2xl border border-border-soft bg-bg-cards px-5 py-15 text-center text-text-muted backdrop-blur-[10px]">
           <h3 className="mb-2.5 text-[1.3rem] text-white">No progress yet</h3>
-          <p>Once you start studying, your kanji and vocabulary will show up here, broken down by status.</p>
+          <p>Once you start studying, your progress will show up here, broken down by status.</p>
           <StartStudyingLink />
         </div>
       ) : (

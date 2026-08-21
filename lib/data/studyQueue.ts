@@ -2,7 +2,15 @@ import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { getNextDue } from "@/lib/srs/nextDue";
 import { fetchKanjiDetailWordsBatch } from "@/lib/kanji/detailWords";
 import { previewRatingLabels, type ProgressRow } from "@/lib/srs/scheduler";
-import type { DueCard, KanjiRow, StudySettings, StudyQueueResponse, TodayActivityCounts } from "@/lib/types";
+import type {
+  DueCard,
+  KanjiRow,
+  NewHiraganaCandidate,
+  NewKatakanaCandidate,
+  StudySettings,
+  StudyQueueResponse,
+  TodayActivityCounts,
+} from "@/lib/types";
 
 // Raw shape of a get_due_cards() row: DueCard's fields plus the SRS state columns
 // (status/ease_factor/interval_days/repetitions/lapses/learning_step) that only
@@ -32,6 +40,8 @@ export async function fetchFirstDueCard(
     p_enabled_levels: settings.enabled_levels as string[],
     p_include_kanji: settings.study_kanji,
     p_include_vocab: settings.study_vocabulary,
+    p_include_hiragana: settings.study_hiragana,
+    p_include_katakana: settings.study_katakana,
     p_limit: 1,
   });
 
@@ -54,6 +64,8 @@ export async function fetchStudyQueue(
       p_enabled_levels: enabledLevels,
       p_include_kanji: settings.study_kanji,
       p_include_vocab: settings.study_vocabulary,
+      p_include_hiragana: settings.study_hiragana,
+      p_include_katakana: settings.study_katakana,
       p_limit: settings.max_reviews_per_day,
     }),
     getNextDue(supabase, userId, timezone),
@@ -69,8 +81,14 @@ export async function fetchStudyQueue(
   const counts = activityCounts.data as TodayActivityCounts;
   const kanjiRemaining = settings.study_kanji ? Math.max(settings.new_kanji_per_day - counts.new_kanji_today, 0) : 0;
   const vocabRemaining = settings.study_vocabulary ? Math.max(settings.new_vocab_per_day - counts.new_vocab_today, 0) : 0;
+  const hiraganaRemaining = settings.study_hiragana
+    ? Math.max(settings.new_hiragana_per_day - counts.new_hiragana_today, 0)
+    : 0;
+  const katakanaRemaining = settings.study_katakana
+    ? Math.max(settings.new_katakana_per_day - counts.new_katakana_today, 0)
+    : 0;
 
-  const [kanjiCandidatesResult, vocabCandidatesResult] = await Promise.all([
+  const [kanjiCandidatesResult, vocabCandidatesResult, hiraganaCandidatesResult, katakanaCandidatesResult] = await Promise.all([
     kanjiRemaining > 0
       ? supabase.rpc("get_new_kanji_candidates", {
           p_user_id: userId,
@@ -85,10 +103,18 @@ export async function fetchStudyQueue(
           p_limit: vocabRemaining,
         })
       : Promise.resolve({ data: [] as unknown[], error: null }),
+    hiraganaRemaining > 0
+      ? supabase.rpc("get_new_hiragana_candidates", { p_user_id: userId, p_limit: hiraganaRemaining })
+      : Promise.resolve({ data: [] as NewHiraganaCandidate[], error: null }),
+    katakanaRemaining > 0
+      ? supabase.rpc("get_new_katakana_candidates", { p_user_id: userId, p_limit: katakanaRemaining })
+      : Promise.resolve({ data: [] as NewKatakanaCandidate[], error: null }),
   ]);
 
   if (kanjiCandidatesResult.error) throw new Error(kanjiCandidatesResult.error.message);
   if (vocabCandidatesResult.error) throw new Error(vocabCandidatesResult.error.message);
+  if (hiraganaCandidatesResult.error) throw new Error(hiraganaCandidatesResult.error.message);
+  if (katakanaCandidatesResult.error) throw new Error(katakanaCandidatesResult.error.message);
 
   const kanjiCandidateRows = (kanjiCandidatesResult.data ?? []) as KanjiRow[];
   const { wordsByKanjiId, error: wordsError } = await fetchKanjiDetailWordsBatch(
@@ -106,6 +132,8 @@ export async function fetchStudyQueue(
     due_cards: ((dueCardsResult.data ?? []) as DueCardRow[]).map(toDueCard),
     new_kanji_to_introduce: newKanjiToIntroduce,
     new_vocab_to_introduce: vocabCandidatesResult.data ?? [],
+    new_hiragana_to_introduce: hiraganaCandidatesResult.data ?? [],
+    new_katakana_to_introduce: katakanaCandidatesResult.data ?? [],
     next_due_at: nextDue.data.next_due_at,
     undo_disabled: userFlagsResult.data?.undo_disabled ?? false,
   };

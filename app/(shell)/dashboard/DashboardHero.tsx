@@ -15,8 +15,11 @@ export function DashboardHero() {
   // loading case for free.
   const { stats, studyDisabled: allDone, stale, clockOffsetMs, refresh } = useStudyStats();
 
+  const isKana = stats?.study_track === "kana";
   const remainingKanji = stats ? Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0) : 0;
   const remainingVocab = stats ? Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0) : 0;
+  const remainingHiragana = stats ? Math.max(stats.new_hiragana_limit - stats.new_hiragana_today, 0) : 0;
+  const remainingKatakana = stats ? Math.max(stats.new_katakana_limit - stats.new_katakana_today, 0) : 0;
   const cardsToday = stats ? cardsRemainingToday(stats) : 0;
   // Shown regardless of allDone -- a review or new card can still land later today even while
   // there are cards to do right now (e.g. a learning-phase card resurfacing this afternoon).
@@ -30,9 +33,15 @@ export function DashboardHero() {
   if (stats && stats.due_review > 0) reviewParts.push(`${stats.due_review} up for review`);
 
   const newParts: string[] = [];
-  if (remainingKanji > 0) newParts.push(`${remainingKanji} new kanji`);
-  if (remainingVocab > 0)
-    newParts.push(`${remainingVocab} new vocabulary word${remainingVocab === 1 ? "" : "s"}`);
+  if (isKana) {
+    if (remainingHiragana > 0) newParts.push(`${remainingHiragana} new hiragana`);
+    if (remainingKatakana > 0)
+      newParts.push(`${remainingKatakana} new katakana character${remainingKatakana === 1 ? "" : "s"}`);
+  } else {
+    if (remainingKanji > 0) newParts.push(`${remainingKanji} new kanji`);
+    if (remainingVocab > 0)
+      newParts.push(`${remainingVocab} new vocabulary word${remainingVocab === 1 ? "" : "s"}`);
+  }
 
   const sentenceParts: string[] = [];
   if (reviewParts.length > 0) sentenceParts.push(reviewParts.join(" and "));

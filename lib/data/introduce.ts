@@ -40,3 +40,37 @@ export async function introduceVocabulary(
 
   if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
 }
+
+export async function introduceHiragana(
+  supabase: AppSupabaseClient,
+  userId: string,
+  hiraganaId: number,
+  timezone: string,
+  sessionId?: number
+): Promise<void> {
+  const { error } = await supabase.rpc("introduce_hiragana", {
+    p_user_id: userId,
+    p_hiragana_id: hiraganaId,
+    p_timezone: timezone,
+    p_session_id: sessionId ?? null,
+  });
+
+  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
+}
+
+export async function introduceKatakana(
+  supabase: AppSupabaseClient,
+  userId: string,
+  katakanaId: number,
+  timezone: string,
+  sessionId?: number
+): Promise<void> {
+  const { error } = await supabase.rpc("introduce_katakana", {
+    p_user_id: userId,
+    p_katakana_id: katakanaId,
+    p_timezone: timezone,
+    p_session_id: sessionId ?? null,
+  });
+
+  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
+}

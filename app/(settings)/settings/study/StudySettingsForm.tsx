@@ -13,6 +13,7 @@ import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/
 import { JLPT_LEVELS, mostAdvancedLevel, leastAdvancedLevel, levelsInRange, type JlptLevel } from "@/lib/srs/constants";
 import { FaLink, FaMinus, FaPlus } from "react-icons/fa6";
 import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
+import { StudyTrackSection } from "./StudyTrackSection";
 
 const REVIEWS_STEP = 10;
 const AUTOSAVE_DELAY_MS = 500;
@@ -20,11 +21,15 @@ const AUTOSAVE_DELAY_MS = 500;
 type Snapshot = {
   newKanjiPerDay: number;
   newVocabPerDay: number;
+  newHiraganaPerDay: number;
+  newKatakanaPerDay: number;
   maxReviewsPerDay: number;
   level: JlptLevel;
   floor: JlptLevel;
   studyKanji: boolean;
   studyVocabulary: boolean;
+  studyHiragana: boolean;
+  studyKatakana: boolean;
   leaderboardAnonymous: boolean;
 };
 
@@ -32,11 +37,15 @@ function snapshotFrom(settings: StudySettings): Snapshot {
   return {
     newKanjiPerDay: settings.new_kanji_per_day,
     newVocabPerDay: settings.new_vocab_per_day,
+    newHiraganaPerDay: settings.new_hiragana_per_day,
+    newKatakanaPerDay: settings.new_katakana_per_day,
     maxReviewsPerDay: settings.max_reviews_per_day,
     level: mostAdvancedLevel(settings.enabled_levels),
     floor: leastAdvancedLevel(settings.enabled_levels),
     studyKanji: settings.study_kanji,
     studyVocabulary: settings.study_vocabulary,
+    studyHiragana: settings.study_hiragana,
+    studyKatakana: settings.study_katakana,
     leaderboardAnonymous: settings.leaderboard_anonymous ?? false,
   };
 }
@@ -45,11 +54,15 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
   return (
     a.newKanjiPerDay === b.newKanjiPerDay &&
     a.newVocabPerDay === b.newVocabPerDay &&
+    a.newHiraganaPerDay === b.newHiraganaPerDay &&
+    a.newKatakanaPerDay === b.newKatakanaPerDay &&
     a.maxReviewsPerDay === b.maxReviewsPerDay &&
     a.level === b.level &&
     a.floor === b.floor &&
     a.studyKanji === b.studyKanji &&
     a.studyVocabulary === b.studyVocabulary &&
+    a.studyHiragana === b.studyHiragana &&
+    a.studyKatakana === b.studyKatakana &&
     a.leaderboardAnonymous === b.leaderboardAnonymous
   );
 }
@@ -69,15 +82,22 @@ export function StudySettingsForm({
 
   const [newKanjiPerDay, setNewKanjiPerDay] = useState(initial.new_kanji_per_day);
   const [newVocabPerDay, setNewVocabPerDay] = useState(initial.new_vocab_per_day);
+  const [newHiraganaPerDay, setNewHiraganaPerDay] = useState(initial.new_hiragana_per_day);
+  const [newKatakanaPerDay, setNewKatakanaPerDay] = useState(initial.new_katakana_per_day);
   const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(initial.max_reviews_per_day);
   const [level, setLevel] = useState<JlptLevel>(mostAdvancedLevel(initial.enabled_levels));
   const [floor, setFloor] = useState<JlptLevel>(leastAdvancedLevel(initial.enabled_levels));
   const [studyKanji, setStudyKanji] = useState(initial.study_kanji);
   const [studyVocabulary, setStudyVocabulary] = useState(initial.study_vocabulary);
+  const [studyHiragana, setStudyHiragana] = useState(initial.study_hiragana);
+  const [studyKatakana, setStudyKatakana] = useState(initial.study_katakana);
   // Coerced to a definite boolean here -- null (onboarding not yet chosen) shouldn't reach this
   // page in practice, since /onboarding gates access before it, but the toggle itself is binary.
   const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous ?? false);
   const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(initial.leaderboard_alias);
+  // Not part of the autosaved Snapshot below -- only ever changed by handleSwitchTrack's own
+  // confirmed action, never by the periodic autosave.
+  const [studyTrack, setStudyTrack] = useState(initial.study_track);
   const [saved, setSaved] = useState<Snapshot>(() => snapshotFrom(initial));
 
   // A background refetch (any autosave calls onSaved -> refetch) hands us a fresh
@@ -87,6 +107,10 @@ export function StudySettingsForm({
   useEffect(() => {
     setLeaderboardAlias(initial.leaderboard_alias);
   }, [initial.leaderboard_alias]);
+
+  useEffect(() => {
+    setStudyTrack(initial.study_track);
+  }, [initial.study_track]);
 
   function adjustKanji(delta: number) {
     const next = Math.max(1, newKanjiPerDay + delta);
@@ -102,6 +126,14 @@ export function StudySettingsForm({
 
   function adjustReviews(delta: number) {
     setMaxReviewsPerDay((v) => Math.max(REVIEWS_STEP, v + delta * REVIEWS_STEP));
+  }
+
+  function adjustHiragana(delta: number) {
+    setNewHiraganaPerDay((v) => Math.max(1, v + delta));
+  }
+
+  function adjustKatakana(delta: number) {
+    setNewKatakanaPerDay((v) => Math.max(1, v + delta));
   }
 
   function handleLevelChange(nextLevel: JlptLevel) {
@@ -136,14 +168,28 @@ export function StudySettingsForm({
     setStudyVocabulary(!studyVocabulary);
   }
 
+  function toggleStudyHiragana() {
+    if (studyHiragana && !studyKatakana) return;
+    setStudyHiragana(!studyHiragana);
+  }
+
+  function toggleStudyKatakana() {
+    if (studyKatakana && !studyHiragana) return;
+    setStudyKatakana(!studyKatakana);
+  }
+
   function revertTo(snapshot: Snapshot) {
     setNewKanjiPerDay(snapshot.newKanjiPerDay);
     setNewVocabPerDay(snapshot.newVocabPerDay);
+    setNewHiraganaPerDay(snapshot.newHiraganaPerDay);
+    setNewKatakanaPerDay(snapshot.newKatakanaPerDay);
     setMaxReviewsPerDay(snapshot.maxReviewsPerDay);
     setLevel(snapshot.level);
     setFloor(snapshot.floor);
     setStudyKanji(snapshot.studyKanji);
     setStudyVocabulary(snapshot.studyVocabulary);
+    setStudyHiragana(snapshot.studyHiragana);
+    setStudyKatakana(snapshot.studyKatakana);
     setLeaderboardAnonymous(snapshot.leaderboardAnonymous);
   }
 
@@ -156,6 +202,40 @@ export function StudySettingsForm({
     }
   }
 
+  // Track separation's CHECK constraint requires study_kanji/study_vocabulary and
+  // study_hiragana/study_katakana to flip together with study_track, in the same statement --
+  // same reasoning as onboarding's persistStepData for the kana step. Reversible in both
+  // directions: switching to kana never deletes progress, and switching back to standard
+  // doesn't touch enabled_levels (already N5 from onboarding either way).
+  async function handleSwitchTrack() {
+    if (!user) return;
+    const nextTrack = studyTrack === "kana" ? "standard" : "kana";
+    const patch: StudySettingsPatch =
+      nextTrack === "standard"
+        ? { study_track: "standard", study_kanji: true, study_vocabulary: true, study_hiragana: false, study_katakana: false }
+        : { study_track: "kana", study_kanji: false, study_vocabulary: false, study_hiragana: true, study_katakana: false };
+
+    try {
+      const updated = await updateStudySettings(user.id, patch);
+      setStudyTrack(updated.study_track);
+      setStudyKanji(updated.study_kanji);
+      setStudyVocabulary(updated.study_vocabulary);
+      setStudyHiragana(updated.study_hiragana);
+      setStudyKatakana(updated.study_katakana);
+      setSaved((prev) => ({
+        ...prev,
+        studyKanji: updated.study_kanji,
+        studyVocabulary: updated.study_vocabulary,
+        studyHiragana: updated.study_hiragana,
+        studyKatakana: updated.study_katakana,
+      }));
+      onSaved();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Could not switch your study track.", "error");
+      throw err;
+    }
+  }
+
   // Autosave a beat after the user stops adjusting settings, batching rapid
   // changes (e.g. several stepper clicks) into a single combined PATCH — the
   // save is atomic (one row update), so a failure reverts every field at once
@@ -165,11 +245,15 @@ export function StudySettingsForm({
     const current: Snapshot = {
       newKanjiPerDay,
       newVocabPerDay,
+      newHiraganaPerDay,
+      newKatakanaPerDay,
       maxReviewsPerDay,
       level,
       floor,
       studyKanji,
       studyVocabulary,
+      studyHiragana,
+      studyKatakana,
       leaderboardAnonymous,
     };
     if (sameSnapshot(current, saved)) return;
@@ -178,11 +262,15 @@ export function StudySettingsForm({
       const body: StudySettingsPatch = {
         new_kanji_per_day: current.newKanjiPerDay,
         new_vocab_per_day: current.newVocabPerDay,
+        new_hiragana_per_day: current.newHiraganaPerDay,
+        new_katakana_per_day: current.newKatakanaPerDay,
         max_reviews_per_day: current.maxReviewsPerDay,
         enabled_levels: levelsInRange(current.floor, current.level),
         include_lower_levels: current.floor !== current.level,
         study_kanji: current.studyKanji,
         study_vocabulary: current.studyVocabulary,
+        study_hiragana: current.studyHiragana,
+        study_katakana: current.studyKatakana,
         leaderboard_anonymous: current.leaderboardAnonymous,
       };
       try {
@@ -201,11 +289,15 @@ export function StudySettingsForm({
   }, [
     newKanjiPerDay,
     newVocabPerDay,
+    newHiraganaPerDay,
+    newKatakanaPerDay,
     maxReviewsPerDay,
     level,
     floor,
     studyKanji,
     studyVocabulary,
+    studyHiragana,
+    studyKatakana,
     leaderboardAnonymous,
     saved,
     user,
@@ -219,132 +311,224 @@ export function StudySettingsForm({
 
   return (
     <div>
-      <GlassCard padding="lg" className="mb-5.5">
-        <div className="mb-[22px]">
-          <label className={fieldLabel}>New kanji per day</label>
-          <div className="flex items-center gap-2.5">
-            <button type="button" className={stepperBtn} onClick={() => adjustKanji(-1)} disabled={disabled || newKanjiPerDay <= 1}>
-              <FaMinus />
-            </button>
-            <span className={stepperVal}>{newKanjiPerDay}</span>
-            <button type="button" className={stepperBtn} onClick={() => adjustKanji(1)} disabled={disabled}>
-              <FaPlus />
-            </button>
-          </div>
-          <div className="mt-2.5 flex items-center gap-2 text-sm text-accent-blue [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0">
-            <FaLink />
-            Linked 1:6 with new vocabulary — changing one updates the other.
-          </div>
-        </div>
-        <div>
-          <label className={fieldLabel}>New vocabulary per day</label>
-          <div className="flex items-center gap-2.5">
-            <button type="button" className={stepperBtn} onClick={() => adjustVocab(-1)} disabled={disabled || newVocabPerDay <= 6}>
-              <FaMinus />
-            </button>
-            <span className={stepperVal}>{newVocabPerDay}</span>
-            <button type="button" className={stepperBtn} onClick={() => adjustVocab(1)} disabled={disabled}>
-              <FaPlus />
-            </button>
-          </div>
-        </div>
-      </GlassCard>
+      <StudyTrackSection studyTrack={studyTrack} onSwitch={handleSwitchTrack} disabled={disabled} />
 
-      <GlassCard padding="lg" className="mb-5.5">
-        <div>
-          <label className={fieldLabel}>Max reviews per day</label>
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              className={stepperBtn}
-              onClick={() => adjustReviews(-1)}
-              disabled={disabled || maxReviewsPerDay <= REVIEWS_STEP}
-            >
-              <FaMinus />
-            </button>
-            <span className={stepperVal}>{maxReviewsPerDay}</span>
-            <button type="button" className={stepperBtn} onClick={() => adjustReviews(1)} disabled={disabled}>
-              <FaPlus />
-            </button>
-          </div>
-          <div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>
-        </div>
-      </GlassCard>
-
-      <GlassCard padding="lg" className="mb-5.5">
-        <label className={`${fieldLabel} mb-3.5`}>Enabled JLPT levels</label>
-        <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" disabled={disabled} />
-        <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
-
-        {/* N5 is the lowest JLPT level -- with nothing below it to include, this toggle
-            (and the stepper below it) would have nothing to do. */}
-        {level !== "N5" ? (
-          <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
-            <div>
-              <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
-              <div className="text-sm text-text-muted">
-                Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
-                either way.
+      {studyTrack === "standard" ? (
+        <>
+          <GlassCard padding="lg" className="mb-5.5">
+            <div className="mb-[22px]">
+              <label className={fieldLabel}>New kanji per day</label>
+              <div className="flex items-center gap-2.5">
+                <button type="button" className={stepperBtn} onClick={() => adjustKanji(-1)} disabled={disabled || newKanjiPerDay <= 1}>
+                  <FaMinus />
+                </button>
+                <span className={stepperVal}>{newKanjiPerDay}</span>
+                <button type="button" className={stepperBtn} onClick={() => adjustKanji(1)} disabled={disabled}>
+                  <FaPlus />
+                </button>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2 text-sm text-accent-blue [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0">
+                <FaLink />
+                Linked 1:6 with new vocabulary — changing one updates the other.
               </div>
             </div>
-            <Toggle checked={floor !== level} onChange={toggleLowerLevels} disabled={disabled} />
-          </div>
-        ) : null}
-
-        {/* With N4 selected, N5 is the only level below it -- "on" already pins floor there, so
-            there's no actual range left to pick from and the stepper would just be a redundant
-            way to flip the toggle back off. Only worth showing once there are 2+ levels below
-            (level's index > 1) to actually choose among. */}
-        {floor !== level && JLPT_LEVELS.indexOf(level) > 1 ? (
-          <div className="mt-4 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
             <div>
-              <div className="mb-0.5 text-[0.95rem] font-bold">Lowest level to include</div>
-              <div className="text-sm text-text-muted">You&apos;ll study everything from here up to your current level.</div>
+              <label className={fieldLabel}>New vocabulary per day</label>
+              <div className="flex items-center gap-2.5">
+                <button type="button" className={stepperBtn} onClick={() => adjustVocab(-1)} disabled={disabled || newVocabPerDay <= 6}>
+                  <FaMinus />
+                </button>
+                <span className={stepperVal}>{newVocabPerDay}</span>
+                <button type="button" className={stepperBtn} onClick={() => adjustVocab(1)} disabled={disabled}>
+                  <FaPlus />
+                </button>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2.5">
-              <button
-                type="button"
-                className={stepperBtn}
-                onClick={() => adjustFloor(-1)}
-                disabled={disabled || JLPT_LEVELS.indexOf(floor) <= 0}
-              >
-                <FaMinus />
-              </button>
-              <span className={stepperVal}>{floor}</span>
-              <button
-                type="button"
-                className={stepperBtn}
-                onClick={() => adjustFloor(1)}
-                disabled={disabled || JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level)}
-              >
-                <FaPlus />
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </GlassCard>
+          </GlassCard>
 
-      <GlassCard padding="lg">
-        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-          <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
-            <div className="text-sm text-text-muted">Include kanji meaning &amp; reading cards in your queue.</div>
-          </div>
-          <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
-        </div>
-        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-          <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Study vocabulary</div>
-            <div className="text-sm text-text-muted">Include vocabulary meaning cards in your queue.</div>
-          </div>
-          <Toggle
-            checked={studyVocabulary}
-            onChange={toggleStudyVocabulary}
-            disabled={disabled || (studyVocabulary && !studyKanji)}
-          />
-        </div>
-        <div className={`${fieldHint} mt-2.5`}>At least one must stay on — you can&apos;t disable both.</div>
-      </GlassCard>
+          <GlassCard padding="lg" className="mb-5.5">
+            <div>
+              <label className={fieldLabel}>Max reviews per day</label>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  className={stepperBtn}
+                  onClick={() => adjustReviews(-1)}
+                  disabled={disabled || maxReviewsPerDay <= REVIEWS_STEP}
+                >
+                  <FaMinus />
+                </button>
+                <span className={stepperVal}>{maxReviewsPerDay}</span>
+                <button type="button" className={stepperBtn} onClick={() => adjustReviews(1)} disabled={disabled}>
+                  <FaPlus />
+                </button>
+              </div>
+              <div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>
+            </div>
+          </GlassCard>
+
+          <GlassCard padding="lg" className="mb-5.5">
+            <label className={`${fieldLabel} mb-3.5`}>Enabled JLPT levels</label>
+            <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" disabled={disabled} />
+            <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
+
+            {/* N5 is the lowest JLPT level -- with nothing below it to include, this toggle
+                (and the stepper below it) would have nothing to do. */}
+            {level !== "N5" ? (
+              <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+                <div>
+                  <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
+                  <div className="text-sm text-text-muted">
+                    Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
+                    either way.
+                  </div>
+                </div>
+                <Toggle checked={floor !== level} onChange={toggleLowerLevels} disabled={disabled} />
+              </div>
+            ) : null}
+
+            {/* With N4 selected, N5 is the only level below it -- "on" already pins floor there, so
+                there's no actual range left to pick from and the stepper would just be a redundant
+                way to flip the toggle back off. Only worth showing once there are 2+ levels below
+                (level's index > 1) to actually choose among. */}
+            {floor !== level && JLPT_LEVELS.indexOf(level) > 1 ? (
+              <div className="mt-4 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+                <div>
+                  <div className="mb-0.5 text-[0.95rem] font-bold">Lowest level to include</div>
+                  <div className="text-sm text-text-muted">You&apos;ll study everything from here up to your current level.</div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2.5">
+                  <button
+                    type="button"
+                    className={stepperBtn}
+                    onClick={() => adjustFloor(-1)}
+                    disabled={disabled || JLPT_LEVELS.indexOf(floor) <= 0}
+                  >
+                    <FaMinus />
+                  </button>
+                  <span className={stepperVal}>{floor}</span>
+                  <button
+                    type="button"
+                    className={stepperBtn}
+                    onClick={() => adjustFloor(1)}
+                    disabled={disabled || JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level)}
+                  >
+                    <FaPlus />
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </GlassCard>
+
+          <GlassCard padding="lg">
+            <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
+              <div>
+                <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
+                <div className="text-sm text-text-muted">Include kanji meaning &amp; reading cards in your queue.</div>
+              </div>
+              <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
+            </div>
+            <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
+              <div>
+                <div className="mb-0.5 text-[0.95rem] font-bold">Study vocabulary</div>
+                <div className="text-sm text-text-muted">Include vocabulary meaning cards in your queue.</div>
+              </div>
+              <Toggle
+                checked={studyVocabulary}
+                onChange={toggleStudyVocabulary}
+                disabled={disabled || (studyVocabulary && !studyKanji)}
+              />
+            </div>
+            <div className={`${fieldHint} mt-2.5`}>At least one must stay on — you can&apos;t disable both.</div>
+          </GlassCard>
+        </>
+      ) : (
+        <>
+          <GlassCard padding="lg" className="mb-5.5">
+            <div className="mb-[22px]">
+              <label className={fieldLabel}>New hiragana per day</label>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  className={stepperBtn}
+                  onClick={() => adjustHiragana(-1)}
+                  disabled={disabled || newHiraganaPerDay <= 1}
+                >
+                  <FaMinus />
+                </button>
+                <span className={stepperVal}>{newHiraganaPerDay}</span>
+                <button type="button" className={stepperBtn} onClick={() => adjustHiragana(1)} disabled={disabled}>
+                  <FaPlus />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className={fieldLabel}>New katakana per day</label>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  className={stepperBtn}
+                  onClick={() => adjustKatakana(-1)}
+                  disabled={disabled || newKatakanaPerDay <= 1}
+                >
+                  <FaMinus />
+                </button>
+                <span className={stepperVal}>{newKatakanaPerDay}</span>
+                <button type="button" className={stepperBtn} onClick={() => adjustKatakana(1)} disabled={disabled}>
+                  <FaPlus />
+                </button>
+              </div>
+            </div>
+          </GlassCard>
+
+          <GlassCard padding="lg" className="mb-5.5">
+            <div>
+              <label className={fieldLabel}>Max reviews per day</label>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  className={stepperBtn}
+                  onClick={() => adjustReviews(-1)}
+                  disabled={disabled || maxReviewsPerDay <= REVIEWS_STEP}
+                >
+                  <FaMinus />
+                </button>
+                <span className={stepperVal}>{maxReviewsPerDay}</span>
+                <button type="button" className={stepperBtn} onClick={() => adjustReviews(1)} disabled={disabled}>
+                  <FaPlus />
+                </button>
+              </div>
+              <div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>
+            </div>
+          </GlassCard>
+
+          <GlassCard padding="lg">
+            <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
+              <div>
+                <div className="mb-0.5 text-[0.95rem] font-bold">Study hiragana</div>
+                <div className="text-sm text-text-muted">Include hiragana reading cards in your queue.</div>
+              </div>
+              <Toggle
+                checked={studyHiragana}
+                onChange={toggleStudyHiragana}
+                disabled={disabled || (studyHiragana && !studyKatakana)}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
+              <div>
+                <div className="mb-0.5 text-[0.95rem] font-bold">Study katakana</div>
+                <div className="text-sm text-text-muted">Include katakana reading cards in your queue.</div>
+              </div>
+              <Toggle
+                checked={studyKatakana}
+                onChange={toggleStudyKatakana}
+                disabled={disabled || (studyKatakana && !studyHiragana)}
+              />
+            </div>
+            <div className={`${fieldHint} mt-2.5`}>At least one must stay on — you can&apos;t disable both.</div>
+          </GlassCard>
+        </>
+      )}
 
       <GlassCard padding="lg" className="mt-5.5">
         <div className="flex items-center justify-between gap-5 py-1">

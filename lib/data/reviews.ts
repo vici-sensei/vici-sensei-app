@@ -20,6 +20,8 @@ export async function submitReview(supabase: AppSupabaseClient, userId: string, 
     p_kanji_id: input.kanji_id ?? null,
     p_word_id: input.word_id ?? null,
     p_kanji_word_id: input.kanji_word_id ?? null,
+    p_hiragana_id: input.hiragana_id ?? null,
+    p_katakana_id: input.katakana_id ?? null,
     p_user_answer: input.user_answer ?? null,
     p_session_id: input.session_id ?? null,
   });
@@ -51,6 +53,10 @@ export async function undoReview(supabase: AppSupabaseClient, userId: string, re
     keyValue = log.kanji_id;
   } else if (exerciseType === "vocab_meaning") {
     keyValue = log.word_id;
+  } else if (exerciseType === "hiragana_reading") {
+    keyValue = log.hiragana_id;
+  } else if (exerciseType === "katakana_reading") {
+    keyValue = log.katakana_id;
   } else {
     const { data: kanjiWord, error: kanjiWordError } = await supabase
       .from("kanji_word")

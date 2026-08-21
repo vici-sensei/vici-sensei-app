@@ -4,7 +4,12 @@ import { fetchFirstDueCard, fetchStudyQueue } from "@/lib/data/studyQueue";
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { submitReview as submitReviewData, undoReview as undoReviewData } from "@/lib/data/reviews";
 import { startStudySession, endStudySession, getSessionProgress as getSessionProgressData } from "@/lib/data/studySessions";
-import { introduceKanji as introduceKanjiData, introduceVocabulary as introduceVocabularyData } from "@/lib/data/introduce";
+import {
+  introduceKanji as introduceKanjiData,
+  introduceVocabulary as introduceVocabularyData,
+  introduceHiragana as introduceHiraganaData,
+  introduceKatakana as introduceKatakanaData,
+} from "@/lib/data/introduce";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
@@ -96,4 +101,18 @@ export async function introduceVocabulary(wordId: number, sessionId?: number): P
   const userId = await requireUserId();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   await introduceVocabularyData(supabase, userId, wordId, timezone, sessionId);
+}
+
+export async function introduceHiragana(hiraganaId: number, sessionId?: number): Promise<void> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  await introduceHiraganaData(supabase, userId, hiraganaId, timezone, sessionId);
+}
+
+export async function introduceKatakana(katakanaId: number, sessionId?: number): Promise<void> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  await introduceKatakanaData(supabase, userId, katakanaId, timezone, sessionId);
 }

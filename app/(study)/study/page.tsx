@@ -9,8 +9,10 @@ import { UndoPill } from "@/app/components/study/UndoPill";
 import { ReviewCardKanjiMeaning } from "@/app/components/study/ReviewCardKanjiMeaning";
 import { ReviewCardKanjiReading } from "@/app/components/study/ReviewCardKanjiReading";
 import { ReviewCardVocabMeaning } from "@/app/components/study/ReviewCardVocabMeaning";
+import { ReviewCardKanaReading } from "@/app/components/study/ReviewCardKanaReading";
 import { NewKanjiIntroCard } from "@/app/components/study/NewKanjiIntroCard";
 import { NewVocabIntroCard } from "@/app/components/study/NewVocabIntroCard";
+import { NewKanaIntroCard } from "@/app/components/study/NewKanaIntroCard";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
@@ -141,6 +143,16 @@ export default function StudyPage() {
             onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
           />
         )}
+        {current.kind === "review" &&
+          (current.card.exercise_type === "hiragana_reading" || current.card.exercise_type === "katakana_reading") && (
+            <ReviewCardKanaReading
+              key={current.key}
+              card={current.card}
+              disabled={false}
+              onRate={actions.rate}
+              onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
+            />
+          )}
         {current.kind === "new_kanji" && (
           <NewKanjiIntroCard
             key={current.key}
@@ -155,6 +167,24 @@ export default function StudyPage() {
             candidate={current.candidate}
             disabled={false}
             onConfirm={() => actions.introduceVocab(current)}
+          />
+        )}
+        {current.kind === "new_hiragana" && (
+          <NewKanaIntroCard
+            key={current.key}
+            candidate={current.candidate}
+            script="hiragana"
+            disabled={false}
+            onConfirm={() => actions.introduceHiragana(current)}
+          />
+        )}
+        {current.kind === "new_katakana" && (
+          <NewKanaIntroCard
+            key={current.key}
+            candidate={current.candidate}
+            script="katakana"
+            disabled={false}
+            onConfirm={() => actions.introduceKatakana(current)}
           />
         )}
       </div>

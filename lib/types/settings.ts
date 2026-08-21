@@ -6,6 +6,8 @@ export interface LeaderboardAlias {
   noun: string;
 }
 
+export type StudyTrack = "kana" | "standard";
+
 export interface StudySettings {
   user_id: string;
   new_kanji_per_day: number;
@@ -17,6 +19,11 @@ export interface StudySettings {
   updated_at: string;
   new_vocab_per_day: number;
   onboarding_completed: boolean;
+  study_track: StudyTrack;
+  study_hiragana: boolean;
+  study_katakana: boolean;
+  new_hiragana_per_day: number;
+  new_katakana_per_day: number;
   /** The exact step the user was on -- updated on every navigation, so a refresh resumes here. */
   onboarding_step: number;
   /** The furthest step ever reached -- only grows, used for the progress bar (which steps are clickable/dimmed). */
@@ -40,4 +47,9 @@ export interface StudySettingsPatch {
   onboarding_step?: number;
   onboarding_furthest_step?: number;
   preferred_server_region?: ServerRegion;
+  study_track?: StudyTrack;
+  study_hiragana?: boolean;
+  study_katakana?: boolean;
+  new_hiragana_per_day?: number;
+  new_katakana_per_day?: number;
 }

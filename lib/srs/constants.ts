@@ -44,7 +44,7 @@ export const GRADUATING_INTERVAL_DAYS = 1
 export const EASY_GRADUATING_INTERVAL_DAYS = 4
 export const SECOND_INTERVAL_DAYS = 6
 
-export const EXERCISE_TYPES = ['kanji_meaning', 'kanji_reading', 'vocab_meaning'] as const
+export const EXERCISE_TYPES = ['kanji_meaning', 'kanji_reading', 'vocab_meaning', 'hiragana_reading', 'katakana_reading'] as const
 export type ExerciseType = (typeof EXERCISE_TYPES)[number]
 
 export const PROGRESS_STATUSES = ['new', 'learning', 'review', 'relearning', 'suspended'] as const

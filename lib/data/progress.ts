@@ -50,19 +50,25 @@ export async function fetchProgressSummary(
   supabase: AppSupabaseClient,
   userId: string
 ): Promise<ProgressSummaryResponse> {
-  const [meaning, reading, vocab] = await Promise.all([
+  const [meaning, reading, vocab, hiragana, katakana] = await Promise.all([
     supabase.from("user_kanji_meaning_progress").select("status").eq("user_id", userId),
     supabase.from("user_kanji_reading_progress").select("status").eq("user_id", userId),
     supabase.from("user_vocabulary_progress").select("status").eq("user_id", userId),
+    supabase.from("user_hiragana_progress").select("status").eq("user_id", userId),
+    supabase.from("user_katakana_progress").select("status").eq("user_id", userId),
   ]);
 
   if (meaning.error) throw new Error(meaning.error.message);
   if (reading.error) throw new Error(reading.error.message);
   if (vocab.error) throw new Error(vocab.error.message);
+  if (hiragana.error) throw new Error(hiragana.error.message);
+  if (katakana.error) throw new Error(katakana.error.message);
 
   return {
     kanji_meaning: countByStatus(meaning.data),
     kanji_reading: countByStatus(reading.data),
     vocab_meaning: countByStatus(vocab.data),
+    hiragana_reading: countByStatus(hiragana.data),
+    katakana_reading: countByStatus(katakana.data),
   };
 }

@@ -20,13 +20,14 @@ import {
 import { updateCountry, updateDisplayName, useUserProfile } from "@/lib/client-data/userProfile";
 import { MAX_DISPLAY_NAME_LENGTH, type LeaderboardAlias, type StudySettingsPatch } from "@/lib/types";
 import { OnboardingProgress } from "./OnboardingProgress";
+import { StepKana } from "./steps/StepKana";
 import { StepLevel } from "./steps/StepLevel";
 import { StepCountry } from "./steps/StepCountry";
 import { StepRegion } from "./steps/StepRegion";
 import { StepProfile } from "./steps/StepProfile";
 import { StepLeaderboard } from "./steps/StepLeaderboard";
 
-const STEPS = ["level", "country", "region", "profile", "leaderboard"] as const;
+const STEPS = ["kana", "level", "country", "region", "profile", "leaderboard"] as const;
 type Step = (typeof STEPS)[number];
 
 function displayNameCacheKey(userId: string): string {
@@ -47,6 +48,30 @@ function writeCachedDisplayName(userId: string, name: string): void {
     window.localStorage.setItem(displayNameCacheKey(userId), name);
   } catch {
     // Ignore -- private browsing / storage disabled / quota exceeded. The DB save still happens.
+  }
+}
+
+function knowsKanaCacheKey(userId: string): string {
+  return `onboarding:knows-kana:${userId}`;
+}
+
+/** The answer picked on Step 0 (StepKana), mirrored here so a refresh doesn't lose it before
+ * the user has advanced past that step (the only point it's otherwise saved to the DB) --
+ * same reasoning as the level cache below. */
+function readCachedKnowsKana(userId: string): boolean | null {
+  try {
+    const raw = window.localStorage.getItem(knowsKanaCacheKey(userId));
+    return raw === "true" ? true : raw === "false" ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedKnowsKana(userId: string, knowsKana: boolean): void {
+  try {
+    window.localStorage.setItem(knowsKanaCacheKey(userId), String(knowsKana));
+  } catch {
+    // Ignore -- private browsing / storage disabled / quota exceeded.
   }
 }
 
@@ -152,6 +177,7 @@ export default function OnboardingPage() {
   const [maxStepReached, setMaxStepReached] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
+  const [knowsKana, setKnowsKana] = useState<boolean | null>(null);
   const [level, setLevel] = useState<JlptLevel | null>(null);
   const [country, setCountry] = useState<string | null>(null);
   const [recommendedRegion, setRecommendedRegion] = useState<ServerRegion>("Europe");
@@ -249,15 +275,26 @@ export default function OnboardingPage() {
       );
       setStepIndex(resumeIndex);
       setMaxStepReached(resumeFurthest);
+      // Same cache-first idea as the level below: a locally cached answer (made but not yet
+      // advanced past) wins over the DB value. Otherwise, only trust study_track as "the
+      // user's actual pick" once they've ever reached past the kana step -- before that it's
+      // just the row's default ('standard'), never chosen.
+      const cachedKnowsKana = readCachedKnowsKana(user.id);
+      if (cachedKnowsKana !== null) {
+        setKnowsKana(cachedKnowsKana);
+      } else if (resumeFurthest > 0) {
+        setKnowsKana(studySettings.study_track === "standard");
+      }
       // A locally cached pick (made but not yet advanced past, so never sent to the DB) wins
       // over the DB value. Otherwise, only trust enabled_levels as "the user's actual pick" once
-      // they've ever reached past the level step -- before that it's just the row's default
-      // (N5), never chosen. Uses `resumeFurthest`, not `resumeIndex`, since they may have gone
-      // back below step 1 again without that undoing the earlier real pick.
+      // they've ever reached past the level step (index 1, after the kana step) -- before that
+      // it's just the row's default (N5), never chosen. Uses `resumeFurthest`, not
+      // `resumeIndex`, since they may have gone back below step 1 again without that undoing
+      // the earlier real pick.
       const cachedLevel = readCachedLevel(user.id);
       if (cachedLevel) {
         setLevel(cachedLevel);
-      } else if (resumeFurthest > 0) {
+      } else if (resumeFurthest > 1) {
         setLevel(mostAdvancedLevel(studySettings.enabled_levels));
       }
       // Same cache-first idea as the level above. This is null in the DB until the user
@@ -295,7 +332,10 @@ export default function OnboardingPage() {
   const isFirstStep = stepIndex === 0;
   const isLastStep = stepIndex === STEPS.length - 1;
   const canAdvance =
-    (step !== "level" || Boolean(level)) &&
+    (step !== "kana" || knowsKana !== null) &&
+    // The informational StepLevel variant (knowsKana === false) has nothing to pick --
+    // its level is already fixed to N5, not chosen.
+    (step !== "level" || knowsKana === false || Boolean(level)) &&
     (step !== "country" || Boolean(country)) &&
     (step !== "profile" || (nameStatus !== "saving" && !avatarSaving)) &&
     (step !== "leaderboard" || anonymous !== null);
@@ -306,6 +346,25 @@ export default function OnboardingPage() {
   function persistStepData(fromStep: Step, extra?: StudySettingsPatch) {
     if (!user) return;
     const patch: StudySettingsPatch = { ...extra };
+    // study_track's separation CHECK constraint requires study_kanji/study_vocabulary and
+    // study_hiragana/study_katakana to flip together with it, in the same statement -- so this
+    // always sends the full set, even though the "Yes" branch is already the row's default,
+    // to correctly reverse a prior "No" answer if the user comes back and changes their mind.
+    if (fromStep === "kana" && knowsKana !== null) {
+      if (knowsKana) {
+        patch.study_track = "standard";
+        patch.study_kanji = true;
+        patch.study_vocabulary = true;
+        patch.study_hiragana = false;
+        patch.study_katakana = false;
+      } else {
+        patch.study_track = "kana";
+        patch.study_kanji = false;
+        patch.study_vocabulary = false;
+        patch.study_hiragana = true;
+        patch.study_katakana = false;
+      }
+    }
     if (fromStep === "level" && level) {
       patch.enabled_levels = enabledLevelsFor(level);
     }
@@ -339,6 +398,13 @@ export default function OnboardingPage() {
     }
     persistStepData(step, extra);
     setStepIndex(nextIndex);
+  }
+
+  // Cached and persisted on leaving the step (via persistStepData), same as level below --
+  // not saved immediately, since it drives a multi-column atomic patch rather than a single field.
+  function handleKnowsKanaChange(next: boolean) {
+    setKnowsKana(next);
+    if (user) writeCachedKnowsKana(user.id, next);
   }
 
   function handleLevelChange(next: JlptLevel) {
@@ -415,9 +481,10 @@ export default function OnboardingPage() {
     }
     // canAdvance already blocks this on the level step -- this only covers the case where a
     // refresh resumed past step 1 without a level ever being picked locally in this session.
-    if (!level) {
+    // The informational variant (knowsKana === false) has no level to pick -- it's fixed to N5.
+    if (knowsKana !== false && !level) {
       showToast("Please pick your JLPT level.", "error");
-      setStepIndex(0);
+      setStepIndex(1);
       return;
     }
     // canAdvance already blocks this on the leaderboard step -- this only guards the type.
@@ -430,7 +497,8 @@ export default function OnboardingPage() {
       // The autosave effect above already persists this as the user types -- only a fallback
       // for whatever hasn't landed yet (e.g. the 800ms debounce hadn't fired).
       if (trimmedName && trimmedName !== savedName) await updateDisplayName(user.id, trimmedName);
-      await completeOnboarding(user.id, enabledLevelsFor(level), anonymous);
+      const finalEnabledLevels = knowsKana === false ? (["N5"] as JlptLevel[]) : enabledLevelsFor(level as JlptLevel);
+      await completeOnboarding(user.id, finalEnabledLevels, anonymous);
       router.push("/dashboard");
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Something went wrong. Please try again.", "error");
@@ -456,7 +524,8 @@ export default function OnboardingPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8">
         <div className="mx-auto flex min-h-full w-full max-w-[560px] flex-col justify-center text-center">
-          {step === "level" && <StepLevel level={level} onChange={handleLevelChange} />}
+          {step === "kana" && <StepKana knowsKana={knowsKana} onChange={handleKnowsKanaChange} />}
+          {step === "level" && <StepLevel level={level} onChange={handleLevelChange} knowsKana={knowsKana} />}
           {step === "country" && <StepCountry country={country} onChange={handleCountryChange} />}
           {step === "region" && (
             <StepRegion region={region} recommended={recommendedRegion} onChange={handleRegionChange} />
@@ -502,7 +571,7 @@ export default function OnboardingPage() {
             Back
           </Button>
           <Button type="button" onClick={handleNext} loading={submitting} disabled={!canAdvance}>
-            {isLastStep ? "Get started" : "Next"}
+            {isLastStep ? "Get started" : step === "level" && knowsKana === false ? "Continue" : "Next"}
           </Button>
         </div>
       </div>

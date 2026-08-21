@@ -16,11 +16,19 @@ const STROKE = 9;
 const GAP = 6;
 const CENTER = SIZE / 2;
 
+type RingKey = keyof Pick<LevelProgress, "kanji" | "kanji_reading" | "vocabulary" | "hiragana_reading" | "katakana_reading">;
+type RingSpec = { key: RingKey; label: string; dot: string; stroke: string; text: string; textDim: string };
+
 // Outermost first -- each ring nests inside the previous one, sharing a center.
-const RINGS: { key: keyof Pick<LevelProgress, "kanji" | "kanji_reading" | "vocabulary">; label: string; dot: string; stroke: string; text: string; textDim: string }[] = [
+const STANDARD_RINGS: RingSpec[] = [
   { key: "kanji", label: "Kanji meaning", dot: "bg-accent-violet", stroke: "stroke-accent-violet", text: "text-accent-violet", textDim: "text-accent-violet/70" },
   { key: "kanji_reading", label: "Kanji reading", dot: "bg-accent-blue", stroke: "stroke-accent-blue", text: "text-accent-blue", textDim: "text-accent-blue/70" },
   { key: "vocabulary", label: "Vocabulary", dot: "bg-accent-orange", stroke: "stroke-accent-orange", text: "text-accent-orange", textDim: "text-accent-orange/70" },
+];
+
+const KANA_RINGS: RingSpec[] = [
+  { key: "hiragana_reading", label: "Hiragana reading", dot: "bg-accent-violet", stroke: "stroke-accent-violet", text: "text-accent-violet", textDim: "text-accent-violet/70" },
+  { key: "katakana_reading", label: "Katakana reading", dot: "bg-accent-orange", stroke: "stroke-accent-orange", text: "text-accent-orange", textDim: "text-accent-orange/70" },
 ];
 
 function pct(seen: number, total: number): number {
@@ -82,12 +90,15 @@ export function LevelProgressCard() {
   if (stats && !stats.level_progress) return null;
 
   const progress = stats?.level_progress;
+  const isKana = stats?.study_track === "kana";
+  const RINGS = isKana ? KANA_RINGS : STANDARD_RINGS;
+  const centerLabel = isKana ? "カナ" : (progress?.level ?? "");
 
   return (
     <GlassCard
       ref={cardRef}
       padding="sm"
-      aria-label={progress ? `${progress.level} progress details` : "Level progress details"}
+      aria-label={progress ? `${isKana ? "Kana" : progress.level} progress details` : "Level progress details"}
       className={`flex flex-wrap items-center justify-center gap-5 xl:gap-10 !cursor-default`}
     >
       <div ref={ringsRef} className="relative h-[110px] w-[110px] shrink-0 xl:h-[150px] xl:w-[150px]">
@@ -107,7 +118,7 @@ export function LevelProgressCard() {
           })}
         </svg>
         <div className="absolute inset-0 flex items-center justify-center text-2xl font-extrabold tracking-tight">
-          {progress?.level ?? ""}
+          {centerLabel}
         </div>
       </div>
 

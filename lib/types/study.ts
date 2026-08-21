@@ -1,4 +1,5 @@
 import type { ExerciseType, JlptLevel } from "@/lib/srs/constants";
+import type { StudyTrack } from "./settings";
 
 export interface NewKanjiIntroWord {
   id: number;
@@ -25,6 +26,8 @@ export interface TodayActivityCounts {
   reviewed_today: number;
   new_kanji_today: number;
   new_vocab_today: number;
+  new_hiragana_today: number;
+  new_katakana_today: number;
 }
 
 export interface DueCard {
@@ -33,6 +36,8 @@ export interface DueCard {
   kanji_id: number | null;
   word_id: number | null;
   kanji_word_id: number | null;
+  hiragana_id: number | null;
+  katakana_id: number | null;
   kanji_char: string | null;
   kanji_meanings: string[] | null;
   word: string | null;
@@ -47,6 +52,10 @@ export interface DueCard {
   all_word_readings: string[] | null;
   /** Sibling kanji (not the target) in this word whose specific reading the student has already mastered -- furigana can be hidden for them. kanji_reading cards only. */
   known_kanji_chars: string[] | null;
+  /** The character shown for hiragana_reading/katakana_reading cards. */
+  kana_character: string | null;
+  /** The expected typed romaji answer for hiragana_reading/katakana_reading cards. */
+  kana_romaji: string | null;
   rating_previews: RatingPreviews;
 }
 
@@ -71,10 +80,26 @@ export interface NewVocabCandidate {
   furiganas: string[] | null;
 }
 
+export interface NewHiraganaCandidate {
+  id: number;
+  character: string;
+  romaji: string;
+  gojuon_row: string;
+}
+
+export interface NewKatakanaCandidate {
+  id: number;
+  character: string;
+  romaji: string;
+  gojuon_row: string;
+}
+
 export interface StudyQueueResponse {
   due_cards: DueCard[];
   new_kanji_to_introduce: NewKanjiCandidate[];
   new_vocab_to_introduce: NewVocabCandidate[];
+  new_hiragana_to_introduce: NewHiraganaCandidate[];
+  new_katakana_to_introduce: NewKatakanaCandidate[];
   next_due_at: string | null;
   /** Manually flagged accounts (see 20260815_undo_disabled_flag.sql) lose the Undo button on /study. */
   undo_disabled: boolean;
@@ -102,9 +127,13 @@ export interface LevelProgress {
   /** Vocabulary entries used to drill a kanji's reading (kanji_detail_words). */
   kanji_reading: LevelProgressCategory;
   vocabulary: LevelProgressCategory;
+  /** No JLPT level of their own -- identical regardless of `level`. */
+  hiragana_reading: LevelProgressCategory;
+  katakana_reading: LevelProgressCategory;
 }
 
 export interface StudyStats {
+  study_track: StudyTrack;
   due_today: number;
   /** Due cards still mid-ladder (status learning/relearning) -- resurface later today. Subset of due_today. */
   due_learning: number;
@@ -116,6 +145,10 @@ export interface StudyStats {
   new_kanji_limit: number;
   new_vocab_today: number;
   new_vocab_limit: number;
+  new_hiragana_today: number;
+  new_hiragana_limit: number;
+  new_katakana_today: number;
+  new_katakana_limit: number;
   /** Current unbroken run of days studied, ending today. */
   streak: number;
   /** Raw per-day activity for the last 7 local days, oldest first, ending today -- independent of `streak`. */
@@ -134,6 +167,8 @@ export interface ReviewRequestBody {
   kanji_id?: number;
   word_id?: number;
   kanji_word_id?: number;
+  hiragana_id?: number;
+  katakana_id?: number;
   rating: Rating;
   user_answer?: string;
   /** The study_sessions row this review belongs to, if any -- passed straight through from the

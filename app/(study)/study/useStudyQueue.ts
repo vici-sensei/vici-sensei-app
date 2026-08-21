@@ -10,6 +10,8 @@ import {
   getStudyQueue,
   introduceKanji as introduceKanjiApi,
   introduceVocabulary as introduceVocabularyApi,
+  introduceHiragana as introduceHiraganaApi,
+  introduceKatakana as introduceKatakanaApi,
   startSession as startStudySessionApi,
   submitReview as submitReviewApi,
   undoReview as undoReviewApi,
@@ -20,7 +22,7 @@ import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
 import type { DueCard, Rating, ReviewRequestBody, StudyQueueResponse } from "@/lib/types";
-import { newKanjiKey, newVocabKey, reviewKey, type QueueItem } from "./types";
+import { newKanjiKey, newVocabKey, newHiraganaKey, newKatakanaKey, reviewKey, type QueueItem } from "./types";
 
 const REFRESH_INTERVAL_MS = 45_000;
 
@@ -38,6 +40,12 @@ function buildQueue(data: StudyQueueResponse): QueueItem[] {
   }
   for (const candidate of data.new_vocab_to_introduce) {
     items.push({ key: newVocabKey(candidate.id), kind: "new_vocab", candidate });
+  }
+  for (const candidate of data.new_hiragana_to_introduce) {
+    items.push({ key: newHiraganaKey(candidate.id), kind: "new_hiragana", candidate });
+  }
+  for (const candidate of data.new_katakana_to_introduce) {
+    items.push({ key: newKatakanaKey(candidate.id), kind: "new_katakana", candidate });
   }
   return items;
 }
@@ -79,7 +87,9 @@ function reviewBody(card: DueCard, rating: Rating, sessionId: number | undefined
   const body: ReviewRequestBody = { exercise_type: card.exercise_type, rating, session_id: sessionId };
   if (card.exercise_type === "kanji_meaning") body.kanji_id = card.kanji_id ?? undefined;
   else if (card.exercise_type === "kanji_reading") body.kanji_word_id = card.kanji_word_id ?? undefined;
-  else body.word_id = card.word_id ?? undefined;
+  else if (card.exercise_type === "vocab_meaning") body.word_id = card.word_id ?? undefined;
+  else if (card.exercise_type === "hiragana_reading") body.hiragana_id = card.hiragana_id ?? undefined;
+  else body.katakana_id = card.katakana_id ?? undefined;
   return body;
 }
 
@@ -354,7 +364,7 @@ export function useStudyQueue() {
 
   const introduceCard = useCallback(
     (
-      item: QueueItem & { kind: "new_kanji" | "new_vocab" },
+      item: QueueItem & { kind: "new_kanji" | "new_vocab" | "new_hiragana" | "new_katakana" },
       apiCall: (candidateId: number, sessionId?: number) => Promise<void>,
       noun: string
     ) => {
@@ -383,6 +393,16 @@ export function useStudyQueue() {
 
   const introduceVocab = useCallback(
     (item: QueueItem & { kind: "new_vocab" }) => introduceCard(item, introduceVocabularyApi, "word"),
+    [introduceCard]
+  );
+
+  const introduceHiragana = useCallback(
+    (item: QueueItem & { kind: "new_hiragana" }) => introduceCard(item, introduceHiraganaApi, "hiragana character"),
+    [introduceCard]
+  );
+
+  const introduceKatakana = useCallback(
+    (item: QueueItem & { kind: "new_katakana" }) => introduceCard(item, introduceKatakanaApi, "katakana character"),
     [introduceCard]
   );
 
@@ -436,6 +456,6 @@ export function useStudyQueue() {
     lastReview,
     actionPending: undoPending,
     undoDisabled,
-    actions: { rate, introduceKanji, introduceVocab, undoLast },
+    actions: { rate, introduceKanji, introduceVocab, introduceHiragana, introduceKatakana, undoLast },
   };
 }

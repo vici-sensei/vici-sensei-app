@@ -39,4 +39,6 @@ export interface ProgressSummaryResponse {
   kanji_meaning: ProgressStatusCounts;
   kanji_reading: ProgressStatusCounts;
   vocab_meaning: ProgressStatusCounts;
+  hiragana_reading: ProgressStatusCounts;
+  katakana_reading: ProgressStatusCounts;
 }

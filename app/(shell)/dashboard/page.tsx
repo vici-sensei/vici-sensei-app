@@ -169,6 +169,53 @@ function NewVocabCard() {
   );
 }
 
+// Matches the new_hiragana_per_day/new_katakana_per_day column defaults (5) --
+// shown before the user's real per-day limit has loaded.
+const FALLBACK_NEW_HIRAGANA_LIMIT = 5;
+const FALLBACK_NEW_KATAKANA_LIMIT = 5;
+
+function NewHiraganaCard() {
+  const { stats } = useStudyStats();
+  const hiraganaToday = stats?.new_hiragana_today ?? 0;
+  const hiraganaLimit = stats?.new_hiragana_limit ?? FALLBACK_NEW_HIRAGANA_LIMIT;
+
+  return (
+    <GlassCard padding="sm" className="flex flex-col items-center text-center">
+      <StatRing
+        icon={<span className="text-[27px] font-medium leading-none">あ</span>}
+        percent={statPct(hiraganaToday, hiraganaLimit)}
+        colorClass="stroke-accent-blue"
+      />
+      <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
+        {hiraganaToday}
+        <span className="text-[1.1rem] text-text-muted">/{hiraganaLimit}</span>
+      </div>
+      <div className="text-sm font-semibold text-text-muted">New hiragana today</div>
+    </GlassCard>
+  );
+}
+
+function NewKatakanaCard() {
+  const { stats } = useStudyStats();
+  const katakanaToday = stats?.new_katakana_today ?? 0;
+  const katakanaLimit = stats?.new_katakana_limit ?? FALLBACK_NEW_KATAKANA_LIMIT;
+
+  return (
+    <GlassCard padding="sm" className="flex flex-col items-center text-center">
+      <StatRing
+        icon={<span className="text-[27px] font-medium leading-none">ア</span>}
+        percent={statPct(katakanaToday, katakanaLimit)}
+        colorClass="stroke-accent-violet"
+      />
+      <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
+        {katakanaToday}
+        <span className="text-[1.1rem] text-text-muted">/{katakanaLimit}</span>
+      </div>
+      <div className="text-sm font-semibold text-text-muted">New katakana today</div>
+    </GlassCard>
+  );
+}
+
 function ReviewsTodayCard() {
   // Reviews have no per-user daily target -- the denominator is just what's
   // actually due, so 0/0 is the honest pre-load state (not a guessed fallback).
@@ -299,6 +346,8 @@ function gridArea({ base, xs, sm, md, lg }: ResponsivePlacement): CSSProperties 
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { stats } = useStudyStats();
+  const isKana = stats?.study_track === "kana";
 
   function handleProgressIntent() {
     if (user) prefetchProgressSummary(user.id);
@@ -318,10 +367,10 @@ export default function DashboardPage() {
           <StreakCard />
         </div>
         <div className="grid-item" style={gridArea(LAYOUT.statKanji)}>
-          <NewKanjiCard />
+          {isKana ? <NewHiraganaCard /> : <NewKanjiCard />}
         </div>
         <div className="grid-item" style={gridArea(LAYOUT.statVocab)}>
-          <NewVocabCard />
+          {isKana ? <NewKatakanaCard /> : <NewVocabCard />}
         </div>
         <div className="grid-item" style={gridArea(LAYOUT.statReviews)}>
           <ReviewsTodayCard />

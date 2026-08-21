@@ -61,18 +61,37 @@ export async function updateStudySettings(userId: string, patch: StudySettingsPa
 
   const supabase = createClient();
 
-  if (patch.study_kanji === false || patch.study_vocabulary === false) {
+  if (
+    patch.study_kanji === false ||
+    patch.study_vocabulary === false ||
+    patch.study_hiragana === false ||
+    patch.study_katakana === false
+  ) {
     const { data: current, error: currentError } = await supabase
       .from("user_study_settings")
-      .select("study_kanji, study_vocabulary")
+      .select("study_track, study_kanji, study_vocabulary, study_hiragana, study_katakana")
       .eq("user_id", userId)
       .maybeSingle();
     if (currentError) throw new ApiError(500, currentError.message);
 
-    const nextStudyKanji = patch.study_kanji ?? current?.study_kanji ?? true;
-    const nextStudyVocabulary = patch.study_vocabulary ?? current?.study_vocabulary ?? true;
-    if (!nextStudyKanji && !nextStudyVocabulary) {
-      throw new ApiError(400, "At least one of study_kanji or study_vocabulary must remain true.");
+    // The "at least one" rule only applies within whichever track this patch leaves the row
+    // on -- switching track is exactly what legitimately sets the *other* pair to both-false
+    // (the separation CHECK requires it), so that pair must be skipped, not validated, once
+    // the patch is actually a track switch.
+    const nextStudyTrack = patch.study_track ?? current?.study_track ?? "standard";
+
+    if (nextStudyTrack === "standard") {
+      const nextStudyKanji = patch.study_kanji ?? current?.study_kanji ?? true;
+      const nextStudyVocabulary = patch.study_vocabulary ?? current?.study_vocabulary ?? true;
+      if (!nextStudyKanji && !nextStudyVocabulary) {
+        throw new ApiError(400, "At least one of study_kanji or study_vocabulary must remain true.");
+      }
+    } else {
+      const nextStudyHiragana = patch.study_hiragana ?? current?.study_hiragana ?? true;
+      const nextStudyKatakana = patch.study_katakana ?? current?.study_katakana ?? true;
+      if (!nextStudyHiragana && !nextStudyKatakana) {
+        throw new ApiError(400, "At least one of study_hiragana or study_katakana must remain true.");
+      }
     }
   }
 
