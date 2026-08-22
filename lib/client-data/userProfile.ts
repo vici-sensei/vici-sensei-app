@@ -70,6 +70,7 @@ export async function updateDisplayName(userId: string, displayName: string): Pr
     .single();
 
   if (error) throw new ApiError(500, error.message);
+  writeCache(profileCacheKey(userId), data);
   return data;
 }
 
@@ -85,6 +86,7 @@ export async function updateCountry(userId: string, country: string): Promise<Us
     .single();
 
   if (error) throw new ApiError(500, error.message);
+  writeCache(profileCacheKey(userId), data);
   return data;
 }
 
@@ -100,6 +102,7 @@ export async function updateShowCountryOnLeaderboard(userId: string, show: boole
     .single();
 
   if (error) throw new ApiError(500, error.message);
+  writeCache(profileCacheKey(userId), data);
   return data;
 }
 
@@ -136,6 +139,7 @@ export async function uploadAvatar(userId: string, file: Blob): Promise<UserProf
     .single();
 
   if (error) throw new ApiError(500, error.message);
+  writeCache(profileCacheKey(userId), data);
   return data;
 }
 
@@ -157,5 +161,6 @@ export async function removeAvatar(userId: string): Promise<UserProfile> {
     .single();
 
   if (error) throw new ApiError(500, error.message);
+  writeCache(profileCacheKey(userId), data);
   return data;
 }

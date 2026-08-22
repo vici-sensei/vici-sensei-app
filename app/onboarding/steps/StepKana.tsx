@@ -9,14 +9,21 @@ export function StepKana({
   return (
     <>
       <h1 className="mb-2 text-[1.5rem] font-extrabold tracking-[-0.5px]">
-        Do you already know hiragana and katakana?
+        Hiragana and Katakana
       </h1>
-      <p className="mx-auto mb-6 max-w-md text-sm leading-[1.6] text-text-muted">
-        These are the two phonetic alphabets every word in Japanese can be written in. If you&apos;re just starting
-        out, we&apos;ll teach them to you first, before kanji and vocabulary.
-      </p>
+      <p className="text-sm font-bold">Do you already know these?</p>
+      <div
+        className={`mx-auto grid max-w-md overflow-hidden text-sm leading-[1.6] text-text-muted transition-[grid-template-rows,opacity,margin-top] duration-500 ease-out ${
+          knowsKana === false ? "mt-4 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <p className="min-h-0">
+          No worries if not! These are the two phonetic alphabets every word in Japanese can be written in, and
+          we&apos;ll happily teach them to you first, before moving on to kanji and vocabulary.
+        </p>
+      </div>
 
-      <div className="flex justify-center">
+      <div className="flex justify-center mt-12">
         <div className="inline-flex gap-1 rounded-full border border-border-soft bg-white/[0.03] p-1">
           <button
             type="button"

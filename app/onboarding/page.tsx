@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { guessCountryFromTimezone } from "@/lib/timezoneCountry";
 import { guessServerRegion, type ServerRegion } from "@/lib/serverRegion";
@@ -14,11 +14,17 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   completeOnboarding,
   rerollLeaderboardAlias,
+  studySettingsCacheKey,
   updateStudySettings,
   useStudySettings,
 } from "@/lib/client-data/studySettings";
 import { updateCountry, updateDisplayName, useUserProfile } from "@/lib/client-data/userProfile";
-import { MAX_DISPLAY_NAME_LENGTH, type LeaderboardAlias, type StudySettingsPatch } from "@/lib/types";
+import {
+  MAX_DISPLAY_NAME_LENGTH,
+  type LeaderboardAlias,
+  type StudySettings,
+  type StudySettingsPatch,
+} from "@/lib/types";
 import { OnboardingProgress } from "./OnboardingProgress";
 import { StepKana } from "./steps/StepKana";
 import { StepLevel } from "./steps/StepLevel";
@@ -97,6 +103,17 @@ function writeCachedLevel(userId: string, level: JlptLevel): void {
   }
 }
 
+/** Clears the Step 1 "Yes" branch's stale level pick -- enabled_levels goes back to null in the
+ * DB at the same time (nothing chosen yet), so a leftover cached level here would otherwise keep
+ * resuming Step 2 as if a level had already been picked. */
+function clearCachedLevel(userId: string): void {
+  try {
+    window.localStorage.removeItem(levelCacheKey(userId));
+  } catch {
+    // Ignore -- private browsing / storage disabled.
+  }
+}
+
 function countryCacheKey(userId: string): string {
   return `onboarding:country:${userId}`;
 }
@@ -162,6 +179,19 @@ function writeCachedAnonymous(userId: string, value: boolean): void {
   }
 }
 
+/** Delays invoking `fn` until `delayMs` has passed with no further calls through the same
+ * scheduler, cancelling any previously scheduled call. Used below to collapse a rapid burst of
+ * clicks on one onboarding field (e.g. tapping through JLPT levels) into a single network write
+ * of the final value -- otherwise two overlapping in-flight requests can resolve out of order and
+ * let an earlier, slower click silently overwrite a later one in the DB. */
+function debounce(delayMs: number): (fn: () => void) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return (fn: () => void) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(fn, delayMs);
+  };
+}
+
 export default function OnboardingPage() {
   const { user } = useAuth();
   const { data: profile, status: profileStatus } = useUserProfile(user);
@@ -190,6 +220,53 @@ export default function OnboardingPage() {
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [anonymous, setAnonymous] = useState<boolean | null>(null);
   const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(null);
+
+  // Fields with a currently-unresolved failed save -- blocks "Next" (see canAdvance below) so a
+  // silently-failed save (e.g. no connection) can't be sailed past unnoticed, leaving the DB out
+  // of sync with what the user thinks they picked. Cleared the moment that field saves
+  // successfully, including on a later retry (re-picking the same or a different value).
+  const [saveErrors, setSaveErrors] = useState<Set<string>>(new Set());
+  function markSaveError(key: string) {
+    setSaveErrors((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }
+  function clearSaveError(key: string) {
+    setSaveErrors((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }
+
+  // One debounced scheduler per instantly-saved field -- see `debounce`'s doc comment above.
+  const scheduleKanaSave = useRef(debounce(350)).current;
+  const scheduleLevelSave = useRef(debounce(350)).current;
+  const scheduleCountrySave = useRef(debounce(350)).current;
+  const scheduleRegionSave = useRef(debounce(350)).current;
+  const scheduleAnonymousSave = useRef(debounce(350)).current;
+
+  // Keeps this tab's furthest-reached bookkeeping in sync with progress made in ANOTHER tab of
+  // the same account -- without this, a second tab (still holding whatever maxStepReached it read
+  // at its own mount time) could later write a lower onboarding_furthest_step than the other tab
+  // already reached, silently rolling it back. The `storage` event fires in every OTHER same-
+  // origin tab whenever localStorage changes (never the tab that made the change itself), so this
+  // picks up the other tab's cache write -- written by updateStudySettings on every successful
+  // save -- and folds its furthest step into this tab's.
+  useEffect(() => {
+    if (!user) return;
+    const key = studySettingsCacheKey(user.id);
+    function onStorage(e: StorageEvent) {
+      if (e.key !== key || !e.newValue) return;
+      try {
+        const updated = JSON.parse(e.newValue) as StudySettings;
+        setMaxStepReached((prev) => Math.min(Math.max(prev, updated.onboarding_furthest_step), STEPS.length - 1));
+      } catch {
+        // Ignore -- malformed cache entry.
+      }
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [user]);
 
   // Guessed client-side only (Intl reflects the browser's timezone, not the
   // server's) -- runs after mount so it doesn't cause a hydration mismatch.
@@ -290,11 +367,14 @@ export default function OnboardingPage() {
       // they've ever reached past the level step (index 1, after the kana step) -- before that
       // it's just the row's default (N5), never chosen. Uses `resumeFurthest`, not
       // `resumeIndex`, since they may have gone back below step 1 again without that undoing
-      // the earlier real pick.
+      // the earlier real pick. enabled_levels can still be null here despite resumeFurthest > 1
+      // -- going back to Step 1 and re-confirming "Yes" clears it back to "not chosen yet" even
+      // after the level step was already passed once -- so this leaves `level` at null (its
+      // default) rather than passing null into mostAdvancedLevel, which requires a real array.
       const cachedLevel = readCachedLevel(user.id);
       if (cachedLevel) {
         setLevel(cachedLevel);
-      } else if (resumeFurthest > 1) {
+      } else if (resumeFurthest > 1 && studySettings.enabled_levels) {
         setLevel(mostAdvancedLevel(studySettings.enabled_levels));
       }
       // Same cache-first idea as the level above. This is null in the DB until the user
@@ -332,6 +412,9 @@ export default function OnboardingPage() {
   const isFirstStep = stepIndex === 0;
   const isLastStep = stepIndex === STEPS.length - 1;
   const canAdvance =
+    // A save that's known to have failed must be resolved (retried successfully) before
+    // continuing -- otherwise the DB silently ends up out of sync with what's on screen.
+    saveErrors.size === 0 &&
     (step !== "kana" || knowsKana !== null) &&
     // The informational StepLevel variant (knowsKana === false) has nothing to pick --
     // its level is already fixed to N5, not chosen.
@@ -346,28 +429,9 @@ export default function OnboardingPage() {
   function persistStepData(fromStep: Step, extra?: StudySettingsPatch) {
     if (!user) return;
     const patch: StudySettingsPatch = { ...extra };
-    // study_track's separation CHECK constraint requires study_kanji/study_vocabulary and
-    // study_hiragana/study_katakana to flip together with it, in the same statement -- so this
-    // always sends the full set, even though the "Yes" branch is already the row's default,
-    // to correctly reverse a prior "No" answer if the user comes back and changes their mind.
-    if (fromStep === "kana" && knowsKana !== null) {
-      if (knowsKana) {
-        patch.study_track = "standard";
-        patch.study_kanji = true;
-        patch.study_vocabulary = true;
-        patch.study_hiragana = false;
-        patch.study_katakana = false;
-      } else {
-        patch.study_track = "kana";
-        patch.study_kanji = false;
-        patch.study_vocabulary = false;
-        patch.study_hiragana = true;
-        patch.study_katakana = false;
-      }
-    }
-    if (fromStep === "level" && level) {
-      patch.enabled_levels = enabledLevelsFor(level);
-    }
+    // The kana and level steps' choices are saved immediately by handleKnowsKanaChange/
+    // handleLevelChange below (not deferred to here) -- same as country/region/leaderboard --
+    // so there's nothing left to persist for them on leaving the step.
     // This step has no real effect yet (no multi-region infra) -- it's just remembered so a
     // refresh keeps whatever the user picked instead of re-guessing.
     if (fromStep === "region") {
@@ -400,16 +464,70 @@ export default function OnboardingPage() {
     setStepIndex(nextIndex);
   }
 
-  // Cached and persisted on leaving the step (via persistStepData), same as level below --
-  // not saved immediately, since it drives a multi-column atomic patch rather than a single field.
+  // Saved immediately (not just on leaving the step), same as country/region/leaderboard below --
+  // study_track's separation CHECK constraint requires study_kanji/study_vocabulary and
+  // study_hiragana/study_katakana to flip together with it, in the same statement -- so this
+  // always sends the full set, even though the "Yes" branch is already the row's default, to
+  // correctly reverse a prior "No" answer if the user comes back and changes their mind.
+  // "No" locks enabled_levels to N5 (required by the kana_level_check constraint). "Yes" sets it
+  // to null instead of a level -- N5 would otherwise look like an actual pick (the same ambiguity
+  // study_track itself used to have), so re-confirming "Yes" (or switching back to it) always
+  // clears out any level a previous answer left behind and forces Step 2 to be answered fresh --
+  // matching local state and its cache clear below, so nothing stale resurfaces on a refresh.
   function handleKnowsKanaChange(next: boolean) {
     setKnowsKana(next);
-    if (user) writeCachedKnowsKana(user.id, next);
+    if (!user) return;
+    writeCachedKnowsKana(user.id, next);
+    const patch: StudySettingsPatch = next
+      ? {
+          enabled_levels: null,
+          study_track: "standard",
+          study_kanji: true,
+          study_vocabulary: true,
+          study_hiragana: false,
+          study_katakana: false,
+        }
+      : {
+          enabled_levels: ["N5"] as JlptLevel[],
+          study_track: "kana",
+          study_kanji: false,
+          study_vocabulary: false,
+          study_hiragana: true,
+          study_katakana: true,
+        };
+    if (next) {
+      setLevel(null);
+      clearCachedLevel(user.id);
+    }
+    // Debounced (not sent on every single click) so a rapid Yes/No/Yes flurry only ever writes
+    // the final answer -- otherwise an earlier click's slower response can land after a later
+    // one's and silently overwrite it in the DB. See `debounce`'s doc comment above.
+    const userId = user.id;
+    scheduleKanaSave(() => {
+      updateStudySettings(userId, patch)
+        .then(() => clearSaveError("kana"))
+        .catch(() => {
+          markSaveError("kana");
+          showToast("Couldn't save your choice.", "error");
+        });
+    });
   }
 
+  // Saved immediately (not just on leaving the step), same as the kana toggle above -- debounced
+  // the same way, for the same reason (a rapid N5/N4/N3 flurry must only ever persist the last one).
   function handleLevelChange(next: JlptLevel) {
     setLevel(next);
-    if (user) writeCachedLevel(user.id, next);
+    if (!user) return;
+    writeCachedLevel(user.id, next);
+    const userId = user.id;
+    scheduleLevelSave(() => {
+      updateStudySettings(userId, { enabled_levels: enabledLevelsFor(next) })
+        .then(() => clearSaveError("level"))
+        .catch(() => {
+          markSaveError("level");
+          showToast("Couldn't save your level.", "error");
+        });
+    });
   }
 
   // Saved immediately (not just on leaving the step) so it survives a refresh right away, and
@@ -418,8 +536,14 @@ export default function OnboardingPage() {
     setCountry(next);
     if (!user) return;
     writeCachedCountry(user.id, next);
-    updateCountry(user.id, next).catch(() => {
-      showToast("Couldn't save your country.", "error");
+    const userId = user.id;
+    scheduleCountrySave(() => {
+      updateCountry(userId, next)
+        .then(() => clearSaveError("country"))
+        .catch(() => {
+          markSaveError("country");
+          showToast("Couldn't save your country.", "error");
+        });
     });
   }
 
@@ -430,24 +554,36 @@ export default function OnboardingPage() {
     setRegion(next);
     if (!user) return;
     writeCachedRegion(user.id, next);
-    updateStudySettings(user.id, { preferred_server_region: next }).catch(() => {
-      showToast("Couldn't save your region.", "error");
+    const userId = user.id;
+    scheduleRegionSave(() => {
+      updateStudySettings(userId, { preferred_server_region: next })
+        .then(() => clearSaveError("region"))
+        .catch(() => {
+          markSaveError("region");
+          showToast("Couldn't save your region.", "error");
+        });
     });
   }
 
   // Saved immediately (not just at the final step) because turning this on is what makes the
   // DB actually assign a real random alias (assign_leaderboard_alias trigger) -- the preview
   // needs that real alias, not a placeholder, to show what the user will actually appear as.
-  async function handleAnonymousChange(next: boolean) {
+  function handleAnonymousChange(next: boolean) {
     setAnonymous(next);
     if (!user) return;
     writeCachedAnonymous(user.id, next);
-    try {
-      const updated = await updateStudySettings(user.id, { leaderboard_anonymous: next });
-      setLeaderboardAlias(updated.leaderboard_alias);
-    } catch {
-      showToast("Couldn't save your choice.", "error");
-    }
+    const userId = user.id;
+    scheduleAnonymousSave(() => {
+      updateStudySettings(userId, { leaderboard_anonymous: next })
+        .then((updated) => {
+          setLeaderboardAlias(updated.leaderboard_alias);
+          clearSaveError("anonymous");
+        })
+        .catch(() => {
+          markSaveError("anonymous");
+          showToast("Couldn't save your choice.", "error");
+        });
+    });
   }
 
   async function handleRerollAlias() {
@@ -560,6 +696,11 @@ export default function OnboardingPage() {
         className="shrink-0 border-t border-border-soft px-6 pt-5"
         style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       >
+        {saveErrors.size > 0 && (
+          <p className="mx-auto mb-3 max-w-[560px] text-center text-xs font-semibold text-accent-red">
+            Couldn&apos;t save your last change -- check your connection, then pick it again to retry.
+          </p>
+        )}
         <div className="mx-auto flex w-full max-w-[560px] items-center justify-between gap-3">
           <Button
             type="button"

@@ -10,7 +10,9 @@ import { clearCache, readCache, writeCache } from "@/lib/client-data/localCache"
 import type { JlptLevel } from "@/lib/srs/constants";
 import type { AsyncStatus, LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 
-function studySettingsCacheKey(userId: string): string {
+/** Exported so other modules (onboarding's multi-tab sync) can recognize this same key in a
+ * `storage` event without duplicating the format string. */
+export function studySettingsCacheKey(userId: string): string {
   return `cache:study-settings:${userId}`;
 }
 
@@ -103,6 +105,21 @@ export async function updateStudySettings(userId: string, patch: StudySettingsPa
     .single();
 
   if (error) throw new ApiError(500, error.message);
+  // Without this, a refresh right after a patch (e.g. onboarding advancing a step) reads the
+  // stale pre-patch snapshot from cache before the next background refetch overwrites it -- and
+  // useStudySettings's seed-once effects (onboarding's progress resume, among others) only ever
+  // look at the first "loaded" value they see, so they'd get stuck on that stale one permanently.
+  //
+  // Guarded against one specific regression: an earlier request that was still in flight when
+  // completeOnboarding() ran can land after it and, since it never touched onboarding_completed,
+  // carry a stale "false" for that column from before completion happened -- overwriting the
+  // cache with that would bounce a just-finished user straight back to /onboarding. Once the
+  // cache has ever seen onboarding_completed: true, it's a one-way door -- nothing should be able
+  // to un-complete it, so any write on top of that state is trusted only if it agrees.
+  const cached = readCache<StudySettings>(studySettingsCacheKey(userId));
+  if (!cached?.onboarding_completed || data.onboarding_completed) {
+    writeCache(studySettingsCacheKey(userId), data);
+  }
   return data;
 }
 
