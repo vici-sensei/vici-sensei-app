@@ -585,7 +585,7 @@ export function StudySettingsForm({
           </div>
           <Toggle checked={studyVocabulary} onChange={toggleStudyVocabulary} disabled={disabled || (studyVocabulary && !studyKanji)} />
         </div>
-        <div className={`${fieldHint} mt-2.5`}>At least one hiragana/katakana or kanji/vocabulary toggle must stay on.</div>
+        <div className={`${fieldHint} mt-2.5`}>Hiragana/Katakana and Kanji/Vocabulary are separate tracks — you're always on one. Switching on the other pair moves you over to it, and at least one toggle in your current pair must stay on.</div>
       </GlassCard>
 
       <GlassCard padding="lg" className="mt-5.5">
