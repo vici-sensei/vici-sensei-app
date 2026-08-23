@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS: StudySettings = {
   user_id: "",
   new_kanji_per_day: 1,
   new_vocab_per_day: 6,
-  max_reviews_per_day: 200,
+  max_reviews_per_day: 50,
   enabled_levels: ["N5"],
   include_lower_levels: false,
   study_kanji: true,
