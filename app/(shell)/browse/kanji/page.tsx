@@ -5,6 +5,7 @@ import { prefetchKanjiDetail, useKanjiList } from "@/lib/client-data/kanji";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { BrowseListPage, ListSkeleton } from "../BrowseListPage";
+import { useRedirectIfKana } from "@/lib/browse/useRedirectIfKana";
 import type { KanjiRow } from "@/lib/types";
 
 function KanjiListing() {
@@ -52,6 +53,7 @@ function KanjiListing() {
 }
 
 export default function BrowseKanjiPage() {
+  useRedirectIfKana();
   return (
     <Suspense fallback={<ListSkeleton />}>
       <KanjiListing />

@@ -26,3 +26,12 @@ export function writeStoredLevels(levels: JlptLevel[]) {
     // ignore (private browsing / quota)
   }
 }
+
+export function clearStoredLevels() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore (private browsing / quota)
+  }
+}

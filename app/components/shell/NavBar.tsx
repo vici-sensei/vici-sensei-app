@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { useStudySettings } from "@/lib/client-data/studySettings";
 import { prefetchFirstDueCard } from "@/lib/client-data/study";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { prefetchLeaderboard } from "@/lib/client-data/leaderboard";
@@ -31,22 +32,29 @@ export function NavBar() {
   const pathname = usePathname();
   const { studyDisabled } = useStudyStats();
   const { user } = useAuth();
+  const { data: studySettings } = useStudySettings(user);
+  const isKana = studySettings?.study_track === "kana";
 
-  const items = NAV_ITEMS.map((item) => ({
-    href: item.href,
-    label: item.label,
-    icon: item.icon,
-    active: item.isActive(pathname),
-    disabled: studyDisabled && item.href === "/study",
-    danger: item.danger,
-    subItems: item.subItems?.map((sub) => ({
-      href: sub.href,
-      label: sub.label,
-      icon: sub.icon,
-      active: sub.isActive(pathname),
-    })),
-    onIntent: intentFor(item.href, user?.id),
-  }));
+  const items = NAV_ITEMS.map((item) => {
+    // Kana-track users have nothing to browse under kanji -- send Explore to Hiragana instead
+    // (mirrors BrowseTabs, which hides the Kanji/Vocabulary tabs for the same users).
+    const href = item.href === "/browse/kanji" && isKana ? "/browse/hiragana" : item.href;
+    return {
+      href,
+      label: item.label,
+      icon: item.icon,
+      active: item.isActive(pathname),
+      disabled: studyDisabled && item.href === "/study",
+      danger: item.danger,
+      subItems: item.subItems?.map((sub) => ({
+        href: sub.href,
+        label: sub.label,
+        icon: sub.icon,
+        active: sub.isActive(pathname),
+      })),
+      onIntent: intentFor(href, user?.id),
+    };
+  });
 
   return (
     <>

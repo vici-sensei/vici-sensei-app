@@ -20,7 +20,7 @@ export function BrowseTabs({ active }: { active: BrowseTab }) {
 
   return (
     <div className="mb-5.5 flex justify-center md:block">
-      <div className="inline-flex flex-wrap gap-1 rounded-xl border border-border-soft bg-white/[0.03] p-1">
+      <div className="inline-flex flex-wrap justify-center gap-1 rounded-xl border border-border-soft bg-white/[0.03] p-1">
         {!isKana && (
           <>
             <Link

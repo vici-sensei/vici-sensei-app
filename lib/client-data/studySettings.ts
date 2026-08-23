@@ -16,6 +16,25 @@ export function studySettingsCacheKey(userId: string): string {
   return `cache:study-settings:${userId}`;
 }
 
+/** Fired on every successful `updateStudySettings` so OTHER already-mounted `useStudySettings`
+ * instances in the same tab pick up the change immediately -- e.g. switching study track in
+ * Settings should update the shell NavBar's Explore link without a page reload. The native
+ * `storage` event (used by onboarding's multi-tab sync, see the key comment above) only fires in
+ * *other* tabs, never the one that made the change, so it can't cover this same-tab case. */
+const STUDY_SETTINGS_UPDATED_EVENT = "study-settings-updated";
+
+interface StudySettingsUpdatedDetail {
+  userId: string;
+  settings: StudySettings;
+}
+
+function announceStudySettingsUpdate(userId: string, settings: StudySettings) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent<StudySettingsUpdatedDetail>(STUDY_SETTINGS_UPDATED_EVENT, { detail: { userId, settings } })
+  );
+}
+
 /** `user` is passed in (not read from useAuth internally) so this hook stays usable before the auth gate has fully resolved — callers pass `null` until they have a confirmed user. */
 export function useStudySettings(user: User | null) {
   const [status, setStatus] = useState<AsyncStatus>("loading");
@@ -49,6 +68,18 @@ export function useStudySettings(user: User | null) {
     }
     void refetch();
   }, [user, refetch]);
+
+  useEffect(() => {
+    if (!user) return;
+    function onUpdate(e: Event) {
+      const { userId, settings } = (e as CustomEvent<StudySettingsUpdatedDetail>).detail;
+      if (userId !== user!.id) return;
+      setData(settings);
+      setStatus("loaded");
+    }
+    window.addEventListener(STUDY_SETTINGS_UPDATED_EVENT, onUpdate);
+    return () => window.removeEventListener(STUDY_SETTINGS_UPDATED_EVENT, onUpdate);
+  }, [user]);
 
   return { data, status, error, refetch };
 }
@@ -120,6 +151,7 @@ export async function updateStudySettings(userId: string, patch: StudySettingsPa
   if (!cached?.onboarding_completed || data.onboarding_completed) {
     writeCache(studySettingsCacheKey(userId), data);
   }
+  announceStudySettingsUpdate(userId, data);
   return data;
 }
 

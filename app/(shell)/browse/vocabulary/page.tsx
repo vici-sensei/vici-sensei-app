@@ -6,6 +6,7 @@ import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { BrowseListPage, ListSkeleton } from "../BrowseListPage";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
+import { useRedirectIfKana } from "@/lib/browse/useRedirectIfKana";
 import type { VocabularyRow } from "@/lib/types";
 
 // Most vocabulary words are 2 kanji, each with its own 2-character furigana reading above it --
@@ -58,6 +59,7 @@ function VocabularyListing() {
 }
 
 export default function BrowseVocabularyPage() {
+  useRedirectIfKana();
   return (
     <Suspense fallback={<ListSkeleton />}>
       <VocabularyListing />

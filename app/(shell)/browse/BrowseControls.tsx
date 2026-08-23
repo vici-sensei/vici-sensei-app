@@ -27,7 +27,8 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
     const params = new URLSearchParams();
     if (nextSearch) params.set("search", nextSearch);
     // Set explicitly (even empty) so "user cleared every level" is distinguishable
-    // server-side from "no level param yet" (which falls back to enabled_levels).
+    // server-side from "no level param yet" (which falls back to the stored browse:levels
+    // pick in localStorage -- see readStoredLevels -- not the SRS enabled_levels setting).
     params.set("level", nextLevels.join(","));
     const qs = params.toString();
     router.replace(qs ? `${basePath}?${qs}` : basePath);
