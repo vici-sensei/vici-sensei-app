@@ -13,9 +13,9 @@ import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/
 import { JLPT_LEVELS, mostAdvancedLevel, leastAdvancedLevel, levelsInRange, type JlptLevel } from "@/lib/srs/constants";
 import { FaLink, FaMinus, FaPlus } from "react-icons/fa6";
 import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
-import { StudyTrackSection } from "./StudyTrackSection";
 
 const REVIEWS_STEP = 10;
+const KANA_STEP = 5;
 const AUTOSAVE_DELAY_MS = 500;
 
 type Snapshot = {
@@ -95,8 +95,8 @@ export function StudySettingsForm({
   // page in practice, since /onboarding gates access before it, but the toggle itself is binary.
   const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous ?? false);
   const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(initial.leaderboard_alias);
-  // Not part of the autosaved Snapshot below -- only ever changed by handleSwitchTrack's own
-  // confirmed action, never by the periodic autosave.
+  // Not part of the autosaved Snapshot below -- only ever changed by handleCrossTrack's own
+  // atomic save, never by the periodic autosave.
   const [studyTrack, setStudyTrack] = useState(initial.study_track);
   const [saved, setSaved] = useState<Snapshot>(() => snapshotFrom(initial));
 
@@ -129,11 +129,11 @@ export function StudySettingsForm({
   }
 
   function adjustHiragana(delta: number) {
-    setNewHiraganaPerDay((v) => Math.max(1, v + delta));
+    setNewHiraganaPerDay((v) => Math.max(KANA_STEP, v + delta * KANA_STEP));
   }
 
   function adjustKatakana(delta: number) {
-    setNewKatakanaPerDay((v) => Math.max(1, v + delta));
+    setNewKatakanaPerDay((v) => Math.max(KANA_STEP, v + delta * KANA_STEP));
   }
 
   function handleLevelChange(nextLevel: JlptLevel) {
@@ -159,23 +159,68 @@ export function StudySettingsForm({
   }
 
   function toggleStudyKanji() {
-    if (studyKanji && !studyVocabulary) return;
-    setStudyKanji(!studyKanji);
+    if (studyTrack === "standard") {
+      if (studyKanji && !studyVocabulary) return;
+      setStudyKanji(!studyKanji);
+      return;
+    }
+    // Currently on the kana track, where study_kanji is always false -- this toggle only ever
+    // turns it on, which crosses tracks. See handleCrossTrack for why that must be one atomic save.
+    // Crossing activates both kanji and vocabulary together, not just the one toggled -- matches
+    // the state a student lands in via kana-track graduation, so manually starting standard from
+    // either toggle doesn't leave them in a lopsided kanji-only/vocab-only state.
+    void handleCrossTrack({
+      study_track: "standard",
+      study_kanji: true,
+      study_vocabulary: true,
+      study_hiragana: false,
+      study_katakana: false,
+    });
   }
 
   function toggleStudyVocabulary() {
-    if (studyVocabulary && !studyKanji) return;
-    setStudyVocabulary(!studyVocabulary);
+    if (studyTrack === "standard") {
+      if (studyVocabulary && !studyKanji) return;
+      setStudyVocabulary(!studyVocabulary);
+      return;
+    }
+    void handleCrossTrack({
+      study_track: "standard",
+      study_kanji: true,
+      study_vocabulary: true,
+      study_hiragana: false,
+      study_katakana: false,
+    });
   }
 
   function toggleStudyHiragana() {
-    if (studyHiragana && !studyKatakana) return;
-    setStudyHiragana(!studyHiragana);
+    if (studyTrack === "kana") {
+      if (studyHiragana && !studyKatakana) return;
+      setStudyHiragana(!studyHiragana);
+      return;
+    }
+    void handleCrossTrack({
+      study_track: "kana",
+      study_hiragana: true,
+      study_katakana: studyKatakana,
+      study_kanji: false,
+      study_vocabulary: false,
+    });
   }
 
   function toggleStudyKatakana() {
-    if (studyKatakana && !studyHiragana) return;
-    setStudyKatakana(!studyKatakana);
+    if (studyTrack === "kana") {
+      if (studyKatakana && !studyHiragana) return;
+      setStudyKatakana(!studyKatakana);
+      return;
+    }
+    void handleCrossTrack({
+      study_track: "kana",
+      study_katakana: true,
+      study_hiragana: studyHiragana,
+      study_kanji: false,
+      study_vocabulary: false,
+    });
   }
 
   function revertTo(snapshot: Snapshot) {
@@ -207,14 +252,8 @@ export function StudySettingsForm({
   // same reasoning as onboarding's persistStepData for the kana step. Reversible in both
   // directions: switching to kana never deletes progress, and switching back to standard
   // doesn't touch enabled_levels (already N5 from onboarding either way).
-  async function handleSwitchTrack() {
+  async function handleCrossTrack(patch: StudySettingsPatch) {
     if (!user) return;
-    const nextTrack = studyTrack === "kana" ? "standard" : "kana";
-    const patch: StudySettingsPatch =
-      nextTrack === "standard"
-        ? { study_track: "standard", study_kanji: true, study_vocabulary: true, study_hiragana: false, study_katakana: false }
-        : { study_track: "kana", study_kanji: false, study_vocabulary: false, study_hiragana: true, study_katakana: false };
-
     try {
       const updated = await updateStudySettings(user.id, patch);
       setStudyTrack(updated.study_track);
@@ -231,8 +270,7 @@ export function StudySettingsForm({
       }));
       onSaved();
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not switch your study track.", "error");
-      throw err;
+      showToast(err instanceof ApiError ? err.message : "Could not update your study settings.", "error");
     }
   }
 
@@ -311,8 +349,6 @@ export function StudySettingsForm({
 
   return (
     <div>
-      <StudyTrackSection studyTrack={studyTrack} onSwitch={handleSwitchTrack} disabled={disabled} />
-
       {studyTrack === "standard" ? (
         <>
           <GlassCard padding="lg" className="mb-5.5">
@@ -366,81 +402,6 @@ export function StudySettingsForm({
               <div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>
             </div>
           </GlassCard>
-
-          <GlassCard padding="lg" className="mb-5.5">
-            <label className={`${fieldLabel} mb-3.5`}>Enabled JLPT levels</label>
-            <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" disabled={disabled} />
-            <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
-
-            {/* N5 is the lowest JLPT level -- with nothing below it to include, this toggle
-                (and the stepper below it) would have nothing to do. */}
-            {level !== "N5" ? (
-              <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
-                <div>
-                  <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
-                  <div className="text-sm text-text-muted">
-                    Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
-                    either way.
-                  </div>
-                </div>
-                <Toggle checked={floor !== level} onChange={toggleLowerLevels} disabled={disabled} />
-              </div>
-            ) : null}
-
-            {/* With N4 selected, N5 is the only level below it -- "on" already pins floor there, so
-                there's no actual range left to pick from and the stepper would just be a redundant
-                way to flip the toggle back off. Only worth showing once there are 2+ levels below
-                (level's index > 1) to actually choose among. */}
-            {floor !== level && JLPT_LEVELS.indexOf(level) > 1 ? (
-              <div className="mt-4 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
-                <div>
-                  <div className="mb-0.5 text-[0.95rem] font-bold">Lowest level to include</div>
-                  <div className="text-sm text-text-muted">You&apos;ll study everything from here up to your current level.</div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2.5">
-                  <button
-                    type="button"
-                    className={stepperBtn}
-                    onClick={() => adjustFloor(-1)}
-                    disabled={disabled || JLPT_LEVELS.indexOf(floor) <= 0}
-                  >
-                    <FaMinus />
-                  </button>
-                  <span className={stepperVal}>{floor}</span>
-                  <button
-                    type="button"
-                    className={stepperBtn}
-                    onClick={() => adjustFloor(1)}
-                    disabled={disabled || JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level)}
-                  >
-                    <FaPlus />
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </GlassCard>
-
-          <GlassCard padding="lg">
-            <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-              <div>
-                <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
-                <div className="text-sm text-text-muted">Include kanji meaning &amp; reading cards in your queue.</div>
-              </div>
-              <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
-            </div>
-            <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-              <div>
-                <div className="mb-0.5 text-[0.95rem] font-bold">Study vocabulary</div>
-                <div className="text-sm text-text-muted">Include vocabulary meaning cards in your queue.</div>
-              </div>
-              <Toggle
-                checked={studyVocabulary}
-                onChange={toggleStudyVocabulary}
-                disabled={disabled || (studyVocabulary && !studyKanji)}
-              />
-            </div>
-            <div className={`${fieldHint} mt-2.5`}>At least one must stay on — you can&apos;t disable both.</div>
-          </GlassCard>
         </>
       ) : (
         <>
@@ -452,7 +413,7 @@ export function StudySettingsForm({
                   type="button"
                   className={stepperBtn}
                   onClick={() => adjustHiragana(-1)}
-                  disabled={disabled || newHiraganaPerDay <= 1}
+                  disabled={disabled || newHiraganaPerDay <= KANA_STEP}
                 >
                   <FaMinus />
                 </button>
@@ -469,7 +430,7 @@ export function StudySettingsForm({
                   type="button"
                   className={stepperBtn}
                   onClick={() => adjustKatakana(-1)}
-                  disabled={disabled || newKatakanaPerDay <= 1}
+                  disabled={disabled || newKatakanaPerDay <= KANA_STEP}
                 >
                   <FaMinus />
                 </button>
@@ -501,34 +462,113 @@ export function StudySettingsForm({
               <div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>
             </div>
           </GlassCard>
-
-          <GlassCard padding="lg">
-            <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-              <div>
-                <div className="mb-0.5 text-[0.95rem] font-bold">Study hiragana</div>
-                <div className="text-sm text-text-muted">Include hiragana reading cards in your queue.</div>
-              </div>
-              <Toggle
-                checked={studyHiragana}
-                onChange={toggleStudyHiragana}
-                disabled={disabled || (studyHiragana && !studyKatakana)}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-              <div>
-                <div className="mb-0.5 text-[0.95rem] font-bold">Study katakana</div>
-                <div className="text-sm text-text-muted">Include katakana reading cards in your queue.</div>
-              </div>
-              <Toggle
-                checked={studyKatakana}
-                onChange={toggleStudyKatakana}
-                disabled={disabled || (studyKatakana && !studyHiragana)}
-              />
-            </div>
-            <div className={`${fieldHint} mt-2.5`}>At least one must stay on — you can&apos;t disable both.</div>
-          </GlassCard>
         </>
       )}
+
+      {/* Always visible, even on the kana track (where the level range doesn't apply yet) --
+          disabling the level buttons themselves communicates that instead of the whole card
+          popping in and out whenever the track switches. */}
+      <GlassCard padding="lg" className="mb-5.5">
+        <label className={`${fieldLabel} mb-3.5`}>Enabled JLPT levels</label>
+        <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" disabled={disabled || studyTrack === "kana"} />
+        <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
+
+        {/* N5 is the lowest JLPT level -- with nothing below it to include, this toggle
+            (and the stepper below it) would have nothing to do. Always mounted (rather than
+            conditionally rendered) and animated via the grid-rows trick so it opens/closes
+            smoothly instead of popping in and out. */}
+        <div
+          className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-300 ease-out ${
+            level !== "N5" ? "mt-5 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+              <div>
+                <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
+                <div className="text-sm text-text-muted">
+                  Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
+                  either way.
+                </div>
+              </div>
+              <Toggle checked={floor !== level} onChange={toggleLowerLevels} disabled={disabled || studyTrack === "kana"} />
+            </div>
+          </div>
+        </div>
+
+        {/* With N4 selected, N5 is the only level below it -- "on" already pins floor there, so
+            there's no actual range left to pick from and the stepper would just be a redundant
+            way to flip the toggle back off. Only worth showing once there are 2+ levels below
+            (level's index > 1) to actually choose among. Same always-mounted grid-rows animation
+            as the toggle above. */}
+        <div
+          className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-300 ease-out ${
+            floor !== level && JLPT_LEVELS.indexOf(level) > 1
+              ? "mt-4 grid-rows-[1fr] opacity-100"
+              : "mt-0 grid-rows-[0fr] opacity-0"
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+              <div>
+                <div className="mb-0.5 text-[0.95rem] font-bold">Lowest level to include</div>
+                <div className="text-sm text-text-muted">You&apos;ll study everything from here up to your current level.</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2.5">
+                <button
+                  type="button"
+                  className={stepperBtn}
+                  onClick={() => adjustFloor(-1)}
+                  disabled={disabled || studyTrack === "kana" || JLPT_LEVELS.indexOf(floor) <= 0}
+                >
+                  <FaMinus />
+                </button>
+                <span className={stepperVal}>{floor}</span>
+                <button
+                  type="button"
+                  className={stepperBtn}
+                  onClick={() => adjustFloor(1)}
+                  disabled={disabled || studyTrack === "kana" || JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level)}
+                >
+                  <FaPlus />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </GlassCard>
+
+      <GlassCard padding="lg">
+        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
+          <div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">Study hiragana</div>
+            <div className="text-sm text-text-muted">Include hiragana reading cards in your queue.</div>
+          </div>
+          <Toggle checked={studyHiragana} onChange={toggleStudyHiragana} disabled={disabled || (studyHiragana && !studyKatakana)} />
+        </div>
+        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
+          <div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">Study katakana</div>
+            <div className="text-sm text-text-muted">Include katakana reading cards in your queue.</div>
+          </div>
+          <Toggle checked={studyKatakana} onChange={toggleStudyKatakana} disabled={disabled || (studyKatakana && !studyHiragana)} />
+        </div>
+        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
+          <div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
+            <div className="text-sm text-text-muted">Include kanji meaning &amp; reading cards in your queue.</div>
+          </div>
+          <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
+        </div>
+        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
+          <div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">Study vocabulary</div>
+            <div className="text-sm text-text-muted">Include vocabulary meaning cards in your queue.</div>
+          </div>
+          <Toggle checked={studyVocabulary} onChange={toggleStudyVocabulary} disabled={disabled || (studyVocabulary && !studyKanji)} />
+        </div>
+        <div className={`${fieldHint} mt-2.5`}>At least one hiragana/katakana or kanji/vocabulary toggle must stay on.</div>
+      </GlassCard>
 
       <GlassCard padding="lg" className="mt-5.5">
         <div className="flex items-center justify-between gap-5 py-1">

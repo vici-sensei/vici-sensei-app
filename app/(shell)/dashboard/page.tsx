@@ -169,10 +169,10 @@ function NewVocabCard() {
   );
 }
 
-// Matches the new_hiragana_per_day/new_katakana_per_day column defaults (5) --
+// Matches the new_hiragana_per_day/new_katakana_per_day column defaults (15) --
 // shown before the user's real per-day limit has loaded.
-const FALLBACK_NEW_HIRAGANA_LIMIT = 5;
-const FALLBACK_NEW_KATAKANA_LIMIT = 5;
+const FALLBACK_NEW_HIRAGANA_LIMIT = 15;
+const FALLBACK_NEW_KATAKANA_LIMIT = 15;
 
 function NewHiraganaCard() {
   const { stats } = useStudyStats();

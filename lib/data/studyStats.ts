@@ -5,8 +5,8 @@ import { mostAdvancedLevel } from "@/lib/srs/constants";
 
 const DEFAULT_NEW_KANJI_PER_DAY = 1;
 const DEFAULT_NEW_VOCAB_PER_DAY = 6;
-const DEFAULT_NEW_HIRAGANA_PER_DAY = 5;
-const DEFAULT_NEW_KATAKANA_PER_DAY = 5;
+const DEFAULT_NEW_HIRAGANA_PER_DAY = 15;
+const DEFAULT_NEW_KATAKANA_PER_DAY = 15;
 const RETENTION_WINDOW_DAYS = 30;
 
 export async function fetchStudyStats(
