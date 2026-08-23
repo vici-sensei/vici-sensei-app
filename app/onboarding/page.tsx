@@ -493,7 +493,7 @@ export default function OnboardingPage() {
           study_kanji: false,
           study_vocabulary: false,
           study_hiragana: true,
-          study_katakana: true,
+          study_katakana: false,
         };
     if (next) {
       setLevel(null);
