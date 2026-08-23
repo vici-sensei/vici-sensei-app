@@ -16,6 +16,7 @@ import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
 
 const REVIEWS_STEP = 10;
 const KANA_STEP = 5;
+const KANA_MIN = 15;
 const AUTOSAVE_DELAY_MS = 500;
 
 type Snapshot = {
@@ -129,11 +130,11 @@ export function StudySettingsForm({
   }
 
   function adjustHiragana(delta: number) {
-    setNewHiraganaPerDay((v) => Math.max(KANA_STEP, v + delta * KANA_STEP));
+    setNewHiraganaPerDay((v) => Math.max(KANA_MIN, v + delta * KANA_STEP));
   }
 
   function adjustKatakana(delta: number) {
-    setNewKatakanaPerDay((v) => Math.max(KANA_STEP, v + delta * KANA_STEP));
+    setNewKatakanaPerDay((v) => Math.max(KANA_MIN, v + delta * KANA_STEP));
   }
 
   function handleLevelChange(nextLevel: JlptLevel) {
@@ -205,6 +206,11 @@ export function StudySettingsForm({
       study_katakana: studyKatakana,
       study_kanji: false,
       study_vocabulary: false,
+      // Required alongside study_track by the kana_level_check CHECK constraint -- see
+      // handleCrossTrack's comment. Without this, a user who'd picked a level above N5 on the
+      // standard track would hit a DB constraint violation crossing over here instead of
+      // resetting to N5, same as onboarding's handleKnowsKanaChange does for its "No" branch.
+      enabled_levels: ["N5"],
     });
   }
 
@@ -220,6 +226,7 @@ export function StudySettingsForm({
       study_hiragana: studyHiragana,
       study_kanji: false,
       study_vocabulary: false,
+      enabled_levels: ["N5"],
     });
   }
 
@@ -250,8 +257,9 @@ export function StudySettingsForm({
   // Track separation's CHECK constraint requires study_kanji/study_vocabulary and
   // study_hiragana/study_katakana to flip together with study_track, in the same statement --
   // same reasoning as onboarding's persistStepData for the kana step. Reversible in both
-  // directions: switching to kana never deletes progress, and switching back to standard
-  // doesn't touch enabled_levels (already N5 from onboarding either way).
+  // directions: switching to kana never deletes progress, resets enabled_levels to N5 (required
+  // by kana_level_check, same as onboarding's "No" branch), and switching back to standard
+  // doesn't touch enabled_levels (stays N5 until the user picks a level again).
   async function handleCrossTrack(patch: StudySettingsPatch) {
     if (!user) return;
     try {
@@ -261,12 +269,22 @@ export function StudySettingsForm({
       setStudyVocabulary(updated.study_vocabulary);
       setStudyHiragana(updated.study_hiragana);
       setStudyKatakana(updated.study_katakana);
+      // Crossing to kana resets enabled_levels server-side to N5 (see the patches above) --
+      // resync local level/floor from the response so the (disabled, but still visible) JLPT
+      // grid shows N5 right away instead of whatever level was picked on the standard track,
+      // and so the autosave effect's `current` matches `saved` and doesn't fire a redundant PATCH.
+      const nextLevel = mostAdvancedLevel(updated.enabled_levels);
+      const nextFloor = leastAdvancedLevel(updated.enabled_levels);
+      setLevel(nextLevel);
+      setFloor(nextFloor);
       setSaved((prev) => ({
         ...prev,
         studyKanji: updated.study_kanji,
         studyVocabulary: updated.study_vocabulary,
         studyHiragana: updated.study_hiragana,
         studyKatakana: updated.study_katakana,
+        level: nextLevel,
+        floor: nextFloor,
       }));
       onSaved();
     } catch (err) {
@@ -413,7 +431,7 @@ export function StudySettingsForm({
                   type="button"
                   className={stepperBtn}
                   onClick={() => adjustHiragana(-1)}
-                  disabled={disabled || newHiraganaPerDay <= KANA_STEP}
+                  disabled={disabled || newHiraganaPerDay <= KANA_MIN}
                 >
                   <FaMinus />
                 </button>
@@ -430,7 +448,7 @@ export function StudySettingsForm({
                   type="button"
                   className={stepperBtn}
                   onClick={() => adjustKatakana(-1)}
-                  disabled={disabled || newKatakanaPerDay <= KANA_STEP}
+                  disabled={disabled || newKatakanaPerDay <= KANA_MIN}
                 >
                   <FaMinus />
                 </button>
