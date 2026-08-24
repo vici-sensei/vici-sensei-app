@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useLeaderboard } from "@/lib/client-data/leaderboard";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
-import { useStudySettings } from "@/lib/client-data/studySettings";
+import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import type { LeaderboardMetric, LeaderboardPeriod } from "@/lib/types";
 import { readStoredMetric, readStoredPeriod, writeStoredMetric, writeStoredPeriod } from "@/lib/leaderboard/storage";
 import { LeaderboardTabs } from "./LeaderboardTabs";
@@ -18,7 +18,7 @@ export default function LeaderboardPage() {
   const [period, setPeriod] = useState<LeaderboardPeriod>(() => readStoredPeriod("weekly"));
   const clockOffsetMs = useServerClockOffset();
   const { data, status } = useLeaderboard(user, metric, period);
-  const { data: studySettings } = useStudySettings(user);
+  const { data: studySettings } = useStudySettingsContext();
 
   function handleMetricChange(next: LeaderboardMetric) {
     setMetric(next);

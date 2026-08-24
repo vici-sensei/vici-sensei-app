@@ -8,7 +8,7 @@ import { useStudySettings } from "@/lib/client-data/studySettings";
 /** Layer 2 on top of useRequireAuth: also requires onboarding to be complete, redirecting to /onboarding otherwise. */
 export function useRequireOnboarded() {
   const { ready: authReady, user } = useRequireAuth();
-  const { data: settings, status } = useStudySettings(authReady ? user : null);
+  const { data: settings, status, error, refetch } = useStudySettings(authReady ? user : null);
   const router = useRouter();
 
   useEffect(() => {
@@ -27,5 +27,11 @@ export function useRequireOnboarded() {
     authReady,
     user,
     settings,
+    // Exposed so the (shell)/(settings) layouts can feed this same fetch into
+    // StudySettingsProvider instead of every descendant (NavBar, browse tabs, the study
+    // settings page, etc.) calling useStudySettings again for the identical row.
+    status,
+    error,
+    refetch,
   };
 }

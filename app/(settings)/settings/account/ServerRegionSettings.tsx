@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useStudySettings, updateStudySettings } from "@/lib/client-data/studySettings";
+import { updateStudySettings } from "@/lib/client-data/studySettings";
+import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import { ApiError } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
@@ -11,7 +12,7 @@ import { guessServerRegion, type ServerRegion } from "@/lib/serverRegion";
 
 export function ServerRegionSettings() {
   const { user } = useAuth();
-  const { data: settings, refetch } = useStudySettings(user);
+  const { data: settings, refetch } = useStudySettingsContext();
   const { showToast } = useToast();
 
   // Null until the real setting has loaded -- rendered as neither region selected,

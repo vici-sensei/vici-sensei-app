@@ -3,11 +3,12 @@
 import { usePathname } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useStudySettings } from "@/lib/client-data/studySettings";
+import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import { prefetchFirstDueCard } from "@/lib/client-data/study";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { prefetchLeaderboard } from "@/lib/client-data/leaderboard";
 import { prefetchKanjiList } from "@/lib/client-data/kanji";
+import { prefetchHiraganaList } from "@/lib/client-data/kana";
 import { NAV_ITEMS } from "./navItems";
 import { NavItem } from "./NavItem";
 import { MobileNavMenu } from "./MobileNavMenu";
@@ -23,6 +24,8 @@ function intentFor(href: string, userId: string | undefined): (() => void) | und
       return userId ? () => prefetchLeaderboard(userId) : undefined;
     case "/browse/kanji":
       return () => prefetchKanjiList();
+    case "/browse/hiragana":
+      return () => prefetchHiraganaList();
     default:
       return undefined;
   }
@@ -32,7 +35,7 @@ export function NavBar() {
   const pathname = usePathname();
   const { studyDisabled } = useStudyStats();
   const { user } = useAuth();
-  const { data: studySettings } = useStudySettings(user);
+  const { data: studySettings } = useStudySettingsContext();
   const isKana = studySettings?.study_track === "kana";
 
   const items = NAV_ITEMS.map((item) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { GOJUON_ROW_LABELS } from "@/lib/srs/gojuon";
+import { GOJUON_ROW_LABELS, GOJUON_ROW_LAYOUT } from "@/lib/srs/gojuon";
 import { BrowseTabs } from "./BrowseTabs";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { scrollWindowToTopOnFocus } from "@/lib/scrollFocus";
@@ -107,11 +107,29 @@ export function BrowseKanaListPage({ active, placeholder, accentClass, data, sta
   );
 }
 
+/** Mirrors the real grid exactly -- same gojuon-row groups, same card count per row, same card
+ * shell -- so only the character/romaji text is a placeholder instead of the whole card. Safe to
+ * hardcode: the kana syllabaries are a fixed, closed set (see GOJUON_ROW_LAYOUT). */
 export function BrowseKanaListSkeleton() {
   return (
-    <div className="mb-6 flex flex-wrap gap-2.5">
-      {Array.from({ length: 12 }).map((_, i) => (
-        <Skeleton key={i} className="h-[76px] w-21 rounded-2xl" />
+    <div className="flex flex-col gap-6">
+      {GOJUON_ROW_LAYOUT.map(({ row, count }) => (
+        <div key={row}>
+          <div className="mb-2.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">
+            {GOJUON_ROW_LABELS[row] ?? row}
+          </div>
+          <div className="flex flex-wrap gap-2.5">
+            {Array.from({ length: count }).map((_, i) => (
+              <div
+                key={i}
+                className="flex min-w-[84px] flex-col items-center gap-1 rounded-2xl border border-border-soft bg-bg-cards px-4 py-3.5 backdrop-blur-[10px]"
+              >
+                <Skeleton className="h-9 w-8 rounded-md" />
+                <Skeleton className="h-3.5 w-7 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );

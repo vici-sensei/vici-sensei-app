@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAllHiragana, fetchAllKatakana } from "@/lib/data/kana";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
+import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import { getErrorMessage } from "@/lib/api/client";
 import type { AsyncStatus, NewHiraganaCandidate, NewKatakanaCandidate } from "@/lib/types";
 
@@ -50,3 +51,16 @@ export function useHiraganaList() {
 export function useKatakanaList() {
   return useKanaList<NewKatakanaCandidate>(() => fetchAllKatakana(createClient()), KATAKANA_CACHE_KEY);
 }
+
+/** Fire-and-forget: called on hover/focus/touchstart of an Explore nav entry point, well before
+ * the user actually navigates to the list page -- mirrors prefetchKanjiList/prefetchVocabularyList
+ * so Hiragana/Katakana paint from a warm cache too instead of always starting cold on mount. */
+export const prefetchHiraganaList = createPrefetcher(async () => {
+  const rows = await fetchAllHiragana(createClient());
+  writeCache(HIRAGANA_CACHE_KEY, rows);
+});
+
+export const prefetchKatakanaList = createPrefetcher(async () => {
+  const rows = await fetchAllKatakana(createClient());
+  writeCache(KATAKANA_CACHE_KEY, rows);
+});

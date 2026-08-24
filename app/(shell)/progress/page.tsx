@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useProgressSummary } from "@/lib/client-data/progress";
-import { useStudySettings } from "@/lib/client-data/studySettings";
+import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -80,7 +80,7 @@ const EMPTY_COUNTS: ProgressStatusCounts = { new: 0, learning: 0, review: 0, rel
 export default function ProgressPage() {
   const { user } = useAuth();
   const { data: summary } = useProgressSummary(user);
-  const { data: settings } = useStudySettings(user);
+  const { data: settings } = useStudySettingsContext();
   // On kana, only the two kana categories exist for the student to see. On standard, kanji and
   // vocabulary stay on top as today, with hiragana/katakana appended below as history -- kana
   // progress is never deleted when switching tracks, so it still deserves a place here.

@@ -1,7 +1,6 @@
 "use client";
 
-import { useAuth } from "@/lib/auth/AuthProvider";
-import { useStudySettings } from "@/lib/client-data/studySettings";
+import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import type { StudySettings } from "@/lib/types";
 import { StudySettingsForm } from "./StudySettingsForm";
@@ -35,8 +34,7 @@ const DEFAULT_SETTINGS: StudySettings = {
 };
 
 export default function SettingsStudyPage() {
-  const { user } = useAuth();
-  const { data: settings, status, error, refetch } = useStudySettings(user);
+  const { data: settings, status, error, refetch } = useStudySettingsContext();
 
   return (
     <div>

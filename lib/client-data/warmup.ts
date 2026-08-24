@@ -5,6 +5,7 @@ import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { prefetchLeaderboard } from "@/lib/client-data/leaderboard";
 import { prefetchKanjiList } from "@/lib/client-data/kanji";
 import { prefetchVocabularyList } from "@/lib/client-data/vocabulary";
+import { prefetchHiraganaList, prefetchKatakanaList } from "@/lib/client-data/kana";
 
 // Skip re-running the whole warm-up if the last one finished recently -- none of what it
 // fetches changes fast enough to be worth a fresh network round trip on every app open, and
@@ -32,6 +33,8 @@ export function runGlobalWarmup(userId: string): () => void {
     () => prefetchLeaderboard(userId),
     () => prefetchKanjiList(),
     () => prefetchVocabularyList(),
+    () => prefetchHiraganaList(),
+    () => prefetchKatakanaList(),
     () => writeCache(warmupCacheKey(userId), Date.now()),
   ]);
 }

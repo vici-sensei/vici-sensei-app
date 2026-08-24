@@ -3,6 +3,7 @@
 import { useRequireOnboarded } from "@/lib/auth/useRequireOnboarded";
 import { useUserProfile } from "@/lib/client-data/userProfile";
 import { UserProfileProvider } from "@/lib/client-data/UserProfileContext";
+import { StudySettingsProvider } from "@/lib/client-data/StudySettingsContext";
 import { StudyStatsProvider } from "@/lib/study/StudyStatsContext";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Header } from "@/app/components/shell/Header";
@@ -27,7 +28,15 @@ const PLACEHOLDER_PROFILE: UserProfile = {
 };
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
-  const { ready, authReady, user: authUser } = useRequireOnboarded();
+  const {
+    ready,
+    authReady,
+    user: authUser,
+    settings: studySettings,
+    status: studySettingsStatus,
+    error: studySettingsError,
+    refetch: refetchStudySettings,
+  } = useRequireOnboarded();
   // Gated on `authReady`, not `ready` -- runs in parallel with the study-settings fetch inside
   // useRequireOnboarded instead of waiting for it to finish first.
   const { data: profile, status: profileStatus, refetch } = useUserProfile(authReady ? authUser : null);
@@ -40,19 +49,26 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const displayProfile = profile ?? PLACEHOLDER_PROFILE;
 
   return (
-    <UserProfileProvider profile={displayProfile} loaded={loaded} refetch={refetch}>
-      <StudyStatsProvider>
-        <MobileMenuProvider>
-          <RippleBackground />
-          <div>
-            <Header user={displayProfile} loaded={loaded} />
-            <div className="flex flex-col md:flex-row">
-              <NavBar />
-              <div className="flex-1 p-5">{children}</div>
+    <StudySettingsProvider
+      data={studySettings}
+      status={studySettingsStatus}
+      error={studySettingsError}
+      refetch={refetchStudySettings}
+    >
+      <UserProfileProvider profile={displayProfile} loaded={loaded} refetch={refetch}>
+        <StudyStatsProvider>
+          <MobileMenuProvider>
+            <RippleBackground />
+            <div>
+              <Header user={displayProfile} loaded={loaded} />
+              <div className="flex flex-col md:flex-row">
+                <NavBar />
+                <div className="flex-1 p-5">{children}</div>
+              </div>
             </div>
-          </div>
-        </MobileMenuProvider>
-      </StudyStatsProvider>
-    </UserProfileProvider>
+          </MobileMenuProvider>
+        </StudyStatsProvider>
+      </UserProfileProvider>
+    </StudySettingsProvider>
   );
 }

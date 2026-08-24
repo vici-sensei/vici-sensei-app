@@ -574,7 +574,7 @@ export function StudySettingsForm({
         <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
           <div>
             <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
-            <div className="text-sm text-text-muted">Include kanji meaning &amp; reading cards in your queue.</div>
+            <div className="text-sm text-text-muted">Include kanji meaning &amp; word reading cards in your queue.</div>
           </div>
           <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
         </div>

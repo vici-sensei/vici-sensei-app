@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchStudySettings } from "@/lib/data/studySettings";
@@ -22,6 +22,11 @@ export function studySettingsCacheKey(userId: string): string {
  * `storage` event (used by onboarding's multi-tab sync, see the key comment above) only fires in
  * *other* tabs, never the one that made the change, so it can't cover this same-tab case. */
 const STUDY_SETTINGS_UPDATED_EVENT = "study-settings-updated";
+
+/** `useLayoutEffect` warns during SSR, so fall back to `useEffect` there -- the cache-hydration
+ * effect below only ever does anything in the browser (see `isBrowser` in localCache.ts) anyway,
+ * this only changes *when* the client-side hydration runs relative to paint. */
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 interface StudySettingsUpdatedDetail {
   userId: string;
@@ -58,9 +63,12 @@ export function useStudySettings(user: User | null) {
     }
   }, [user]);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!user) return;
     // Hydrate synchronously from cache the moment we have a user -- see useUserProfile for why.
+    // useLayoutEffect (not useEffect) so this lands before the browser paints, avoiding a
+    // flash of the wrong content (e.g. BrowseTabs briefly showing all 4 tabs before settling
+    // on the cached study_track's set) on every mount.
     const cached = readCache<StudySettings>(studySettingsCacheKey(user.id));
     if (cached) {
       setData(cached);
