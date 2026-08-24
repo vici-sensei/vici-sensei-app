@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/generate-sw.mjs",
     "lint": "eslint",
-    "preview": "next build && wrangler dev",
-    "deploy": "next build && wrangler deploy"
+    "preview": "next build && node scripts/generate-sw.mjs && wrangler dev",
+    "deploy": "next build && node scripts/generate-sw.mjs && wrangler deploy"
   },
   "dependencies": {
     "@supabase/auth-js": "^2.112.3",

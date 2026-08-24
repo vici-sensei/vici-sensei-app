@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
 import { ToastProvider } from "@/app/components/ui/Toast";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import "./globals.css";
@@ -53,6 +54,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
       </head>
       <body>
+        <ServiceWorkerRegistration />
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
         </AuthProvider>
