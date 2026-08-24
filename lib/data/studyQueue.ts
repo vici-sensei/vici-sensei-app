@@ -6,6 +6,7 @@ import type {
   DueCard,
   KanjiRow,
   NewHiraganaCandidate,
+  NewKanjiIntroWord,
   NewKatakanaCandidate,
   StudySettings,
   StudyQueueResponse,
@@ -54,7 +55,11 @@ export async function fetchStudyQueue(
   supabase: AppSupabaseClient,
   userId: string,
   timezone: string | undefined,
-  settings: StudySettings
+  settings: StudySettings,
+  // New-kanji intro cards aren't shown until several cards into the session, so their example
+  // words don't need to hold up the queue's first paint -- called (fire-and-forget, no error
+  // surfaced) once the batch resolves, letting the caller patch its already-rendered queue.
+  onKanjiWordsReady?: (wordsByKanjiId: Map<number, NewKanjiIntroWord[]>) => void
 ): Promise<StudyQueueResponse> {
   const enabledLevels = settings.enabled_levels as string[];
 
@@ -117,15 +122,19 @@ export async function fetchStudyQueue(
   if (katakanaCandidatesResult.error) throw new Error(katakanaCandidatesResult.error.message);
 
   const kanjiCandidateRows = (kanjiCandidatesResult.data ?? []) as KanjiRow[];
-  const { wordsByKanjiId, error: wordsError } = await fetchKanjiDetailWordsBatch(
-    supabase,
-    kanjiCandidateRows.map((c) => c.id)
-  );
-  if (wordsError) throw new Error(wordsError);
+  if (kanjiCandidateRows.length > 0 && onKanjiWordsReady) {
+    void fetchKanjiDetailWordsBatch(supabase, kanjiCandidateRows.map((c) => c.id)).then(
+      ({ wordsByKanjiId, error: wordsError }) => {
+        if (!wordsError) onKanjiWordsReady(wordsByKanjiId);
+        // Errors here just mean the intro cards show with no example words -- not worth
+        // throwing over, since by the time this resolves the queue is already on screen.
+      }
+    );
+  }
 
   const newKanjiToIntroduce = kanjiCandidateRows.map((candidate) => ({
     ...candidate,
-    words: wordsByKanjiId.get(candidate.id) ?? [],
+    words: [] as NewKanjiIntroWord[],
   }));
 
   return {

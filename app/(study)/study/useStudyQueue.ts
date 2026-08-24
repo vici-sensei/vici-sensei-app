@@ -21,7 +21,7 @@ import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
-import type { DueCard, Rating, ReviewRequestBody, StudyQueueResponse } from "@/lib/types";
+import type { DueCard, NewKanjiIntroWord, Rating, ReviewRequestBody, StudyQueueResponse } from "@/lib/types";
 import { newKanjiKey, newVocabKey, newHiraganaKey, newKatakanaKey, reviewKey, type QueueItem } from "./types";
 
 const REFRESH_INTERVAL_MS = 45_000;
@@ -48,6 +48,18 @@ function buildQueue(data: StudyQueueResponse): QueueItem[] {
     items.push({ key: newKatakanaKey(candidate.id), kind: "new_katakana", candidate });
   }
   return items;
+}
+
+function patchKanjiWords(items: QueueItem[], wordsByKanjiId: Map<number, NewKanjiIntroWord[]>): QueueItem[] {
+  let changed = false;
+  const patched = items.map((item) => {
+    if (item.kind !== "new_kanji") return item;
+    const words = wordsByKanjiId.get(item.candidate.id);
+    if (!words) return item;
+    changed = true;
+    return { ...item, candidate: { ...item.candidate, words } };
+  });
+  return changed ? patched : items;
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -160,7 +172,9 @@ export function useStudyQueue() {
 
   const refreshQueue = useCallback(async () => {
     try {
-      const data = await getStudyQueue(user.id, settings);
+      const data = await getStudyQueue(user.id, settings, (wordsByKanjiId) => {
+        setQueue((prev) => patchKanjiWords(prev, wordsByKanjiId));
+      });
       const incoming = buildQueue(data);
       setNextDueAt(data.next_due_at);
       setQueue((prev) => {
@@ -245,7 +259,10 @@ export function useStudyQueue() {
         });
 
       try {
-        const data = await getStudyQueue(user.id, settings);
+        const data = await getStudyQueue(user.id, settings, (wordsByKanjiId) => {
+          if (cancelled) return;
+          setQueue((prev) => patchKanjiWords(prev, wordsByKanjiId));
+        });
         if (cancelled) return;
         const items = reviewsFirst(buildQueue(data));
         setNextDueAt(data.next_due_at);

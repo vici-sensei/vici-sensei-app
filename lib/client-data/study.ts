@@ -14,6 +14,7 @@ import { writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
   DueCard,
+  NewKanjiIntroWord,
   ReviewRequestBody,
   StudySettings,
   StudyQueueResponse,
@@ -41,10 +42,14 @@ export async function getFirstDueCard(userId: string, settings: StudySettings): 
   return fetchFirstDueCard(supabase, userId, settings);
 }
 
-export async function getStudyQueue(userId: string, settings: StudySettings): Promise<StudyQueueResponse> {
+export async function getStudyQueue(
+  userId: string,
+  settings: StudySettings,
+  onKanjiWordsReady?: (wordsByKanjiId: Map<number, NewKanjiIntroWord[]>) => void
+): Promise<StudyQueueResponse> {
   const supabase = createClient();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return fetchStudyQueue(supabase, userId, timezone, settings);
+  return fetchStudyQueue(supabase, userId, timezone, settings, onKanjiWordsReady);
 }
 
 /** Fire-and-forget: called on hover/focus of a "Start studying" entry point, well before
