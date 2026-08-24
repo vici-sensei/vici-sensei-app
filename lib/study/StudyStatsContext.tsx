@@ -66,9 +66,6 @@ export function StudyStatsProvider({ children }: { children: ReactNode }) {
 
     void refresh();
 
-    const intervalMs = allDone ? CAUGHT_UP_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
-    const interval = setInterval(refresh, intervalMs);
-
     function onVisibilityChange() {
       if (document.visibilityState === "visible") void refresh();
     }
@@ -76,10 +73,19 @@ export function StudyStatsProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelledRef.current = true;
-      clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-    // Re-armed whenever allDone flips so the poll cadence switches immediately.
+  }, [user, refresh]);
+
+  // Separate from the effect above so that a poll cadence change (allDone flipping) only
+  // re-arms the interval timer -- it used to also re-run the fetch-on-mount effect above,
+  // which refetched everything a second time immediately after the first fetch had *just*
+  // landed (the very thing that flips allDone in the first place).
+  useEffect(() => {
+    if (!user) return;
+    const intervalMs = allDone ? CAUGHT_UP_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
+    const interval = setInterval(refresh, intervalMs);
+    return () => clearInterval(interval);
   }, [user, allDone, refresh]);
 
   return (

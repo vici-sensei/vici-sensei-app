@@ -15,6 +15,33 @@ const STATIC_ASSET_PREFIX = "_next/static/";
 // which aren't meant to be precached blind.
 const ROOT_ASSET_ALLOWLIST = new Set(["favicon.ico", "icon.svg", "apple-icon.png", "manifest.webmanifest"]);
 
+// flag-icons ships one SVG per country/region code under flags/1x1 and flags/4x3, pulled in
+// lazily via flag-icons.min.css (see useFlagIconsCss.ts) -- the browser only fetches a given
+// flag once a DOM element actually uses its CSS class (CountrySelect, leaderboard). Next
+// preserves each file's basename when it content-hashes them into _next/static/media, so
+// reading the package's own file list gives an exact, self-updating way to recognize them and
+// keep them out of the eager install-time precache below -- which would otherwise blindly
+// download all ~540 of them (~3.9MB) on every visit and every deploy, regardless of whether
+// anyone ever opens a country picker. They're still fetched (and cached) normally on first
+// real use, via the fetch handler's _next/static/ branch.
+function flagBasenames() {
+  const flagsDir = path.resolve(process.cwd(), "node_modules/flag-icons/flags");
+  const names = new Set();
+  for (const size of ["1x1", "4x3"]) {
+    for (const file of readdirSync(path.join(flagsDir, size))) names.add(file.replace(/\.svg$/, ""));
+  }
+  return names;
+}
+
+const FLAG_BASENAMES = flagBasenames();
+
+function isFlagAsset(rel) {
+  const base = path.basename(rel);
+  if (!base.endsWith(".svg")) return false;
+  const stem = base.slice(0, base.indexOf(".")); // content-hashed as `{name}.{hash}.svg`
+  return FLAG_BASENAMES.has(stem);
+}
+
 function walk(dir, base = dir, files = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -30,6 +57,7 @@ const staticAssetUrls = [];
 
 for (const rel of allFiles) {
   if (rel.startsWith(STATIC_ASSET_PREFIX)) {
+    if (isFlagAsset(rel)) continue;
     const url = "/" + rel;
     precacheUrls.push(url);
     staticAssetUrls.push(url);
@@ -83,9 +111,20 @@ self.addEventListener("fetch", (event) => {
   // completely untouched by this service worker.
   if (url.origin !== self.location.origin) return;
 
-  // Hashed build assets never change for a given URL, so once cached they're correct forever.
+  // Hashed build assets never change for a given URL, so once cached they're correct forever --
+  // including ones deliberately left out of install-time precache (e.g. flag SVGs), which land
+  // here on their first real request and get cached then instead.
   if (url.pathname.startsWith("${STATIC_ASSET_PREFIX.replace(/\/$/, "")}/")) {
-    event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((response) => {
+            if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+            return response;
+          })
+      )
+    );
     return;
   }
 

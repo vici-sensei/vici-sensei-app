@@ -13,6 +13,18 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+// Every downstream hook that fetches per-user data (useStudySettings, useUserProfile,
+// StudyStatsProvider, etc.) keys its effect on this `user` object by reference, not on
+// `user.id` -- so handing out a new object for the same underlying user makes every one of
+// them refetch for nothing. That happens naturally here: getSession() (local) and getUser()
+// (server-verified) each resolve with their own freshly-parsed User object, and
+// onAuthStateChange fires again on every token refresh. Reusing the previous object whenever
+// the id hasn't changed keeps those effects from ever seeing a "new" user when it's the same
+// one, without having to touch every consumer's dependency array.
+function sameUser(prev: User | null, next: User | null): User | null {
+  return prev && next && prev.id === next.id ? prev : next;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading", user: null });
 
@@ -42,12 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState({ status: "anon", user: null });
         return;
       }
-      setState({ status: "authed", user: data.user });
+      setState((prev) => ({ status: "authed", user: sameUser(prev.user, data.user) }));
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "INITIAL_SESSION") return;
-      setState({ status: session ? "authed" : "anon", user: session?.user ?? null });
+      setState((prev) => ({ status: session ? "authed" : "anon", user: sameUser(prev.user, session?.user ?? null) }));
     });
 
     return () => subscription.subscription.unsubscribe();
