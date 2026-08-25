@@ -134,6 +134,14 @@ export interface LevelProgress {
 
 export interface StudyStats {
   study_track: StudyTrack;
+  /** Which of the four categories are actually enabled for this user right now -- e.g. on the
+   * kana track, study_katakana stays false until every hiragana has graduated to review, so a
+   * "remaining today" count must gate on these instead of assuming every category on the track
+   * is already active. */
+  study_kanji: boolean;
+  study_vocabulary: boolean;
+  study_hiragana: boolean;
+  study_katakana: boolean;
   due_today: number;
   /** Due cards still mid-ladder (status learning/relearning) -- resurface later today. Subset of due_today. */
   due_learning: number;

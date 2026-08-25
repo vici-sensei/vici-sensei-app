@@ -19,7 +19,9 @@ export async function fetchStudyStats(
   // runs as one batch instead of the sequential awaits the /api/study/stats route used to do.
   const settingsResult = await supabase
     .from("user_study_settings")
-    .select("new_kanji_per_day, new_vocab_per_day, new_hiragana_per_day, new_katakana_per_day, enabled_levels, study_track")
+    .select(
+      "new_kanji_per_day, new_vocab_per_day, new_hiragana_per_day, new_katakana_per_day, enabled_levels, study_track, study_kanji, study_vocabulary, study_hiragana, study_katakana"
+    )
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -80,6 +82,10 @@ export async function fetchStudyStats(
 
   return {
     study_track: studyTrack,
+    study_kanji: settingsResult.data?.study_kanji ?? false,
+    study_vocabulary: settingsResult.data?.study_vocabulary ?? false,
+    study_hiragana: settingsResult.data?.study_hiragana ?? false,
+    study_katakana: settingsResult.data?.study_katakana ?? false,
     due_today: dueToday,
     due_learning: dueLearning,
     due_review: dueReview,

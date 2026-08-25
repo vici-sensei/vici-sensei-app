@@ -16,10 +16,16 @@ export function DashboardHero() {
   const { stats, studyDisabled: allDone, stale, clockOffsetMs, refresh } = useStudyStats();
 
   const isKana = stats?.study_track === "kana";
-  const remainingKanji = stats ? Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0) : 0;
-  const remainingVocab = stats ? Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0) : 0;
-  const remainingHiragana = stats ? Math.max(stats.new_hiragana_limit - stats.new_hiragana_today, 0) : 0;
-  const remainingKatakana = stats ? Math.max(stats.new_katakana_limit - stats.new_katakana_today, 0) : 0;
+  // Gated on each study_* flag -- e.g. study_katakana stays false until every hiragana has
+  // graduated to review, so an unstudied category must read as 0 remaining, not a phantom
+  // full day's limit (see cardsRemainingToday in lib/study/stats.ts for the same fix).
+  const remainingKanji = stats && stats.study_kanji ? Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0) : 0;
+  const remainingVocab =
+    stats && stats.study_vocabulary ? Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0) : 0;
+  const remainingHiragana =
+    stats && stats.study_hiragana ? Math.max(stats.new_hiragana_limit - stats.new_hiragana_today, 0) : 0;
+  const remainingKatakana =
+    stats && stats.study_katakana ? Math.max(stats.new_katakana_limit - stats.new_katakana_today, 0) : 0;
   const cardsToday = stats ? cardsRemainingToday(stats) : 0;
   // Shown regardless of allDone -- a review or new card can still land later today even while
   // there are cards to do right now (e.g. a learning-phase card resurfacing this afternoon).
@@ -76,7 +82,7 @@ export function DashboardHero() {
         ) : allDone ? (
           <>
             <h1 className="mb-2 text-2xl md:text-3xl font-extrabold leading-[1.2] tracking-[-0.8px]">
-              You&apos;re all done for {moreComingToday ? "now" : "today"}
+              You&apos;re all done for {moreComingToday ? "now" + "." : "today" + "!"}
             </h1>
             <p className="text-base leading-[1.6] text-text-muted">
               {moreComingToday && stats.next_due_at ? (
@@ -96,7 +102,7 @@ export function DashboardHero() {
             <h1 className="mb-2 flex-wrap items-center justify-center gap-3 text-2xl md:text-3xl font-extrabold leading-[1.2] tracking-[-0.8px] md:justify-start">
               You have{" "}
               <span className="font-extrabold text-accent-red">{cardsToday}</span>{" "}
-              card{cardsToday === 1 ? "" : "s"} to do today
+              card{cardsToday === 1 ? "" : "s"} to do today.
             </h1>
             <p className="text-base leading-[1.6] text-text-muted">{summaryText}</p>
             {moreComingToday && stats.next_due_at && (
