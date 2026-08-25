@@ -114,105 +114,91 @@ function StatRing({
   );
 }
 
-// Matches DEFAULT_NEW_KANJI_PER_DAY in lib/data/studyStats.ts (and the
-// user_study_settings.new_kanji_per_day column default) -- shown before the
-// user's real per-day limit has loaded.
+// Fallback limits shown before the user's real per-day limit has loaded -- each matches the
+// corresponding DEFAULT_NEW_*_PER_DAY in lib/data/studyStats.ts (and its user_study_settings
+// column default).
 const FALLBACK_NEW_KANJI_LIMIT = 1;
-
-function NewKanjiCard() {
-  // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
-  // no separate fetch here. The daily limit is per-user, so the real value can't be known
-  // before stats load; shown as 0/1 until then instead of a skeleton.
-  const { stats } = useStudyStats();
-  const kanjiToday = stats?.new_kanji_today ?? 0;
-  const kanjiLimit = stats?.new_kanji_limit ?? FALLBACK_NEW_KANJI_LIMIT;
-
-  return (
-    <GlassCard padding="sm" className="flex flex-col items-center text-center">
-      <StatRing
-        icon={<span className="text-[27px] font-medium leading-none">竜</span>}
-        percent={statPct(kanjiToday, kanjiLimit)}
-        colorClass="stroke-accent-blue"
-      />
-      <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-        {kanjiToday}
-        <span className="text-[1.1rem] text-text-muted">/{kanjiLimit}</span>
-      </div>
-      <div className="text-sm font-semibold text-text-muted">New kanji today</div>
-    </GlassCard>
-  );
-}
-
-// Matches DEFAULT_NEW_VOCAB_PER_DAY in lib/data/studyStats.ts (and the
-// user_study_settings.new_vocab_per_day column default) -- shown before the
-// user's real per-day limit has loaded.
 const FALLBACK_NEW_VOCAB_LIMIT = 6;
-
-function NewVocabCard() {
-  const { stats } = useStudyStats();
-  const vocabToday = stats?.new_vocab_today ?? 0;
-  const vocabLimit = stats?.new_vocab_limit ?? FALLBACK_NEW_VOCAB_LIMIT;
-
-  return (
-    <GlassCard padding="sm" className="flex flex-col items-center text-center">
-      <StatRing
-        icon={<FaBook className="h-6 w-6" />}
-        percent={statPct(vocabToday, vocabLimit)}
-        colorClass="stroke-accent-violet"
-      />
-      <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-        {vocabToday}
-        <span className="text-[1.1rem] text-text-muted">/{vocabLimit}</span>
-      </div>
-      <div className="text-sm font-semibold text-text-muted">New vocab today</div>
-    </GlassCard>
-  );
-}
-
-// Matches the new_hiragana_per_day/new_katakana_per_day column defaults (15) --
-// shown before the user's real per-day limit has loaded.
 const FALLBACK_NEW_HIRAGANA_LIMIT = 15;
 const FALLBACK_NEW_KATAKANA_LIMIT = 15;
 
-function NewHiraganaCard() {
-  const { stats } = useStudyStats();
-  const hiraganaToday = stats?.new_hiragana_today ?? 0;
-  const hiraganaLimit = stats?.new_hiragana_limit ?? FALLBACK_NEW_HIRAGANA_LIMIT;
-
+/** Shared by the four "new X today" cards below — same ring+number+label shape, differing only
+ * in icon, color, today/limit values, and label text. Reuses the same StudyStatsProvider poll
+ * the shell layout and DashboardHero already run — no separate fetch in any of them. */
+function NewCardStat({
+  icon,
+  colorClass,
+  today,
+  limit,
+  label,
+}: {
+  icon: React.ReactNode;
+  colorClass: string;
+  today: number;
+  limit: number;
+  label: string;
+}) {
   return (
     <GlassCard padding="sm" className="flex flex-col items-center text-center">
-      <StatRing
-        icon={<span className="text-[27px] font-medium leading-none">あ</span>}
-        percent={statPct(hiraganaToday, hiraganaLimit)}
-        colorClass="stroke-accent-blue"
-      />
+      <StatRing icon={icon} percent={statPct(today, limit)} colorClass={colorClass} />
       <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-        {hiraganaToday}
-        <span className="text-[1.1rem] text-text-muted">/{hiraganaLimit}</span>
+        {today}
+        <span className="text-[1.1rem] text-text-muted">/{limit}</span>
       </div>
-      <div className="text-sm font-semibold text-text-muted">New hiragana today</div>
+      <div className="text-sm font-semibold text-text-muted">{label}</div>
     </GlassCard>
+  );
+}
+
+function NewKanjiCard() {
+  const { stats } = useStudyStats();
+  return (
+    <NewCardStat
+      icon={<span className="text-[27px] font-medium leading-none">竜</span>}
+      colorClass="stroke-accent-blue"
+      today={stats?.new_kanji_today ?? 0}
+      limit={stats?.new_kanji_limit ?? FALLBACK_NEW_KANJI_LIMIT}
+      label="New kanji today"
+    />
+  );
+}
+
+function NewVocabCard() {
+  const { stats } = useStudyStats();
+  return (
+    <NewCardStat
+      icon={<FaBook className="h-6 w-6" />}
+      colorClass="stroke-accent-violet"
+      today={stats?.new_vocab_today ?? 0}
+      limit={stats?.new_vocab_limit ?? FALLBACK_NEW_VOCAB_LIMIT}
+      label="New vocab today"
+    />
+  );
+}
+
+function NewHiraganaCard() {
+  const { stats } = useStudyStats();
+  return (
+    <NewCardStat
+      icon={<span className="text-[27px] font-medium leading-none">あ</span>}
+      colorClass="stroke-accent-blue"
+      today={stats?.new_hiragana_today ?? 0}
+      limit={stats?.new_hiragana_limit ?? FALLBACK_NEW_HIRAGANA_LIMIT}
+      label="New hiragana today"
+    />
   );
 }
 
 function NewKatakanaCard() {
   const { stats } = useStudyStats();
-  const katakanaToday = stats?.new_katakana_today ?? 0;
-  const katakanaLimit = stats?.new_katakana_limit ?? FALLBACK_NEW_KATAKANA_LIMIT;
-
   return (
-    <GlassCard padding="sm" className="flex flex-col items-center text-center">
-      <StatRing
-        icon={<span className="text-[27px] font-medium leading-none">ア</span>}
-        percent={statPct(katakanaToday, katakanaLimit)}
-        colorClass="stroke-accent-violet"
-      />
-      <div className="mb-1.5 text-3xl font-extrabold leading-none tracking-tight">
-        {katakanaToday}
-        <span className="text-[1.1rem] text-text-muted">/{katakanaLimit}</span>
-      </div>
-      <div className="text-sm font-semibold text-text-muted">New katakana today</div>
-    </GlassCard>
+    <NewCardStat
+      icon={<span className="text-[27px] font-medium leading-none">ア</span>}
+      colorClass="stroke-accent-violet"
+      today={stats?.new_katakana_today ?? 0}
+      limit={stats?.new_katakana_limit ?? FALLBACK_NEW_KATAKANA_LIMIT}
+      label="New katakana today"
+    />
   );
 }
 

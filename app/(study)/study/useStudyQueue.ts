@@ -159,7 +159,7 @@ export function useStudyQueue() {
       try {
         if (sessionId != null) {
           await endStudySessionApi(sessionId);
-          clearStoredSessionId();
+          clearStoredSessionId(user.id);
         }
       } catch {
         // nothing to recover — the session just won't be marked ended server-side
@@ -167,7 +167,7 @@ export function useStudyQueue() {
         router.push("/dashboard");
       }
     },
-    [router]
+    [router, user.id]
   );
 
   const refreshQueue = useCallback(async () => {
@@ -191,7 +191,7 @@ export function useStudyQueue() {
     let cancelled = false;
 
     async function init() {
-      const storedSessionId = getStoredSessionId();
+      const storedSessionId = getStoredSessionId(user.id);
       if (storedSessionId != null) {
         sessionIdRef.current = storedSessionId;
         // Restores how many cards were already completed in this still-open session (e.g.
@@ -213,7 +213,7 @@ export function useStudyQueue() {
         startStudySessionApi(user.id)
           .then((started) => {
             if (cancelled) return;
-            setStoredSessionId(started.session_id);
+            setStoredSessionId(user.id, started.session_id);
             sessionIdRef.current = started.session_id;
           })
           .catch(() => {

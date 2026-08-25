@@ -25,7 +25,7 @@ export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
     setLoading(true);
     try {
       const session = await startSession(user.id);
-      setStoredSessionId(session.session_id);
+      setStoredSessionId(user.id, session.session_id);
       router.push("/study");
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Could not start a study session.", "error");

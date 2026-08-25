@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
+import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import type { StudySessionEnd } from "@/lib/types";
 import { Badge } from "@/app/components/ui/Badge";
@@ -56,6 +57,7 @@ function Stat({
 
 export default function StudySummaryPage() {
   const router = useRouter();
+  const { user } = useStudyOnboarding();
   const [summary, setSummary] = useState<StudySessionEnd | null>(null);
   const hasStarted = useRef(false);
   // No StudyStatsProvider on this route (only (shell) layouts have one) -- fetched directly,
@@ -70,7 +72,7 @@ export default function StudySummaryPage() {
     if (hasStarted.current) return;
     hasStarted.current = true;
 
-    const sessionId = getStoredSessionId();
+    const sessionId = getStoredSessionId(user.id);
     if (sessionId == null) {
       router.replace("/dashboard");
       return;
@@ -79,7 +81,7 @@ export default function StudySummaryPage() {
     (async () => {
       try {
         const result = await endSession(sessionId);
-        clearStoredSessionId();
+        clearStoredSessionId(user.id);
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setSummary(result);
         void celebrate();
@@ -88,7 +90,7 @@ export default function StudySummaryPage() {
         router.replace("/dashboard");
       }
     })();
-  }, [router]);
+  }, [router, user.id]);
 
   // Rendered immediately with placeholder values instead of a skeleton -- see summary-null
   // fallbacks below -- and only the "next review" line waits on real data, since until

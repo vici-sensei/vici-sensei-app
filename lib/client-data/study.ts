@@ -4,12 +4,7 @@ import { fetchFirstDueCard, fetchStudyQueue } from "@/lib/data/studyQueue";
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { submitReview as submitReviewData, undoReview as undoReviewData } from "@/lib/data/reviews";
 import { startStudySession, endStudySession, getSessionProgress as getSessionProgressData } from "@/lib/data/studySessions";
-import {
-  introduceKanji as introduceKanjiData,
-  introduceVocabulary as introduceVocabularyData,
-  introduceHiragana as introduceHiraganaData,
-  introduceKatakana as introduceKatakanaData,
-} from "@/lib/data/introduce";
+import { introduceCard as introduceCardData, type IntroduceKind } from "@/lib/data/introduce";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
@@ -94,30 +89,25 @@ export async function getSessionProgress(sessionId: number): Promise<number> {
   return getSessionProgressData(supabase, userId, sessionId);
 }
 
-export async function introduceKanji(kanjiId: number, sessionId?: number): Promise<void> {
+async function introduce(kind: IntroduceKind, itemId: number, sessionId?: number): Promise<void> {
   const supabase = createClient();
   const userId = await requireUserId();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  await introduceKanjiData(supabase, userId, kanjiId, timezone, sessionId);
+  await introduceCardData(supabase, kind, userId, itemId, timezone, sessionId);
 }
 
-export async function introduceVocabulary(wordId: number, sessionId?: number): Promise<void> {
-  const supabase = createClient();
-  const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  await introduceVocabularyData(supabase, userId, wordId, timezone, sessionId);
+export function introduceKanji(kanjiId: number, sessionId?: number): Promise<void> {
+  return introduce("kanji", kanjiId, sessionId);
 }
 
-export async function introduceHiragana(hiraganaId: number, sessionId?: number): Promise<void> {
-  const supabase = createClient();
-  const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  await introduceHiraganaData(supabase, userId, hiraganaId, timezone, sessionId);
+export function introduceVocabulary(wordId: number, sessionId?: number): Promise<void> {
+  return introduce("vocabulary", wordId, sessionId);
 }
 
-export async function introduceKatakana(katakanaId: number, sessionId?: number): Promise<void> {
-  const supabase = createClient();
-  const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  await introduceKatakanaData(supabase, userId, katakanaId, timezone, sessionId);
+export function introduceHiragana(hiraganaId: number, sessionId?: number): Promise<void> {
+  return introduce("hiragana", hiraganaId, sessionId);
+}
+
+export function introduceKatakana(katakanaId: number, sessionId?: number): Promise<void> {
+  return introduce("katakana", katakanaId, sessionId);
 }

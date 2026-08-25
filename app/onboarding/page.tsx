@@ -36,148 +36,65 @@ import { StepLeaderboard } from "./steps/StepLeaderboard";
 const STEPS = ["kana", "level", "country", "region", "profile", "leaderboard"] as const;
 type Step = (typeof STEPS)[number];
 
-function displayNameCacheKey(userId: string): string {
-  return `onboarding:display-name:${userId}`;
+/** One field's local draft, mirrored to localStorage under `onboarding:{field}:{userId}` so a
+ * refresh doesn't lose it before the (debounced, or step-4-only) DB save has a chance to land.
+ * `deserialize` returning null (missing key, or a stored value that no longer parses/validates)
+ * means "no draft" -- same as never having written one. */
+function localDraft<T>(field: string, deserialize: (raw: string) => T | null) {
+  const key = (userId: string) => `onboarding:${field}:${userId}`;
+  return {
+    read(userId: string): T | null {
+      try {
+        const raw = window.localStorage.getItem(key(userId));
+        return raw === null ? null : deserialize(raw);
+      } catch {
+        return null;
+      }
+    },
+    write(userId: string, value: T): void {
+      try {
+        window.localStorage.setItem(key(userId), String(value));
+      } catch {
+        // Ignore -- private browsing / storage disabled / quota exceeded. The DB save still happens.
+      }
+    },
+    /** Only level.clear is actually used -- see handleKnowsKanaChange's "Yes" branch. */
+    clear(userId: string): void {
+      try {
+        window.localStorage.removeItem(key(userId));
+      } catch {
+        // Ignore -- private browsing / storage disabled.
+      }
+    },
+  };
 }
 
-/** A draft of the name typed on Step 4, mirrored here so it survives a refresh a beat before the debounced DB save (or the network) has a chance to land. */
-function readCachedDisplayName(userId: string): string | null {
-  try {
-    return window.localStorage.getItem(displayNameCacheKey(userId));
-  } catch {
-    return null;
-  }
+function toBoolean(raw: string): boolean | null {
+  return raw === "true" ? true : raw === "false" ? false : null;
 }
 
-function writeCachedDisplayName(userId: string, name: string): void {
-  try {
-    window.localStorage.setItem(displayNameCacheKey(userId), name);
-  } catch {
-    // Ignore -- private browsing / storage disabled / quota exceeded. The DB save still happens.
-  }
-}
-
-function knowsKanaCacheKey(userId: string): string {
-  return `onboarding:knows-kana:${userId}`;
-}
-
+/** The name typed on Step 4. */
+const displayNameDraft = localDraft<string>("display-name", (raw) => raw);
 /** The answer picked on Step 0 (StepKana), mirrored here so a refresh doesn't lose it before
  * the user has advanced past that step (the only point it's otherwise saved to the DB) --
- * same reasoning as the level cache below. */
-function readCachedKnowsKana(userId: string): boolean | null {
-  try {
-    const raw = window.localStorage.getItem(knowsKanaCacheKey(userId));
-    return raw === "true" ? true : raw === "false" ? false : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedKnowsKana(userId: string, knowsKana: boolean): void {
-  try {
-    window.localStorage.setItem(knowsKanaCacheKey(userId), String(knowsKana));
-  } catch {
-    // Ignore -- private browsing / storage disabled / quota exceeded.
-  }
-}
-
-function levelCacheKey(userId: string): string {
-  return `onboarding:level:${userId}`;
-}
-
-/** The level picked on Step 1, mirrored here so a refresh doesn't lose it before the user has advanced past that step (the only point it's otherwise saved to the DB). */
-function readCachedLevel(userId: string): JlptLevel | null {
-  try {
-    const raw = window.localStorage.getItem(levelCacheKey(userId));
-    return raw && (JLPT_LEVELS as readonly string[]).includes(raw) ? (raw as JlptLevel) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedLevel(userId: string, level: JlptLevel): void {
-  try {
-    window.localStorage.setItem(levelCacheKey(userId), level);
-  } catch {
-    // Ignore -- private browsing / storage disabled / quota exceeded.
-  }
-}
-
-/** Clears the Step 1 "Yes" branch's stale level pick -- enabled_levels goes back to null in the
- * DB at the same time (nothing chosen yet), so a leftover cached level here would otherwise keep
- * resuming Step 2 as if a level had already been picked. */
-function clearCachedLevel(userId: string): void {
-  try {
-    window.localStorage.removeItem(levelCacheKey(userId));
-  } catch {
-    // Ignore -- private browsing / storage disabled.
-  }
-}
-
-function countryCacheKey(userId: string): string {
-  return `onboarding:country:${userId}`;
-}
-
-/** The country picked on Step 2, mirrored here so a refresh doesn't lose it -- also saved to the DB immediately, but the cache avoids waiting on that fetch to resume it, and stops the timezone guess from ever showing again once a real pick exists. */
-function readCachedCountry(userId: string): string | null {
-  try {
-    return window.localStorage.getItem(countryCacheKey(userId));
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedCountry(userId: string, code: string): void {
-  try {
-    window.localStorage.setItem(countryCacheKey(userId), code);
-  } catch {
-    // Ignore -- private browsing / storage disabled / quota exceeded.
-  }
-}
-
-function regionCacheKey(userId: string): string {
-  return `onboarding:region:${userId}`;
-}
-
-/** The server region picked on Step 3, mirrored here so a refresh doesn't lose it -- also saved to the DB immediately, and stops the timezone guess from ever showing again once a real pick exists. */
-function readCachedRegion(userId: string): ServerRegion | null {
-  try {
-    const raw = window.localStorage.getItem(regionCacheKey(userId));
-    return raw === "America" || raw === "Europe" ? raw : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedRegion(userId: string, region: ServerRegion): void {
-  try {
-    window.localStorage.setItem(regionCacheKey(userId), region);
-  } catch {
-    // Ignore -- private browsing / storage disabled / quota exceeded.
-  }
-}
-
-function anonymousCacheKey(userId: string): string {
-  return `onboarding:leaderboard-anonymous:${userId}`;
-}
-
-/** The toggle picked on Step 5, mirrored here so a refresh doesn't lose it -- unlike the other fields above, this one's saved to the DB immediately too, but the cache still avoids waiting on that fetch to resume it. */
-function readCachedAnonymous(userId: string): boolean | null {
-  try {
-    const raw = window.localStorage.getItem(anonymousCacheKey(userId));
-    return raw === "true" ? true : raw === "false" ? false : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedAnonymous(userId: string, value: boolean): void {
-  try {
-    window.localStorage.setItem(anonymousCacheKey(userId), String(value));
-  } catch {
-    // Ignore -- private browsing / storage disabled / quota exceeded.
-  }
-}
+ * same reasoning as the level draft below. */
+const knowsKanaDraft = localDraft<boolean>("knows-kana", toBoolean);
+/** The level picked on Step 1, mirrored here so a refresh doesn't lose it before the user has
+ * advanced past that step (the only point it's otherwise saved to the DB). Cleared by
+ * handleKnowsKanaChange's "Yes" branch -- enabled_levels goes back to null in the DB at the same
+ * time (nothing chosen yet), so a leftover draft here would otherwise keep resuming Step 2 as if
+ * a level had already been picked. */
+const levelDraft = localDraft<JlptLevel>("level", (raw) => ((JLPT_LEVELS as readonly string[]).includes(raw) ? (raw as JlptLevel) : null));
+/** The country picked on Step 2, mirrored here so a refresh doesn't lose it -- also saved to the
+ * DB immediately, but the draft avoids waiting on that fetch to resume it, and stops the
+ * timezone guess from ever showing again once a real pick exists. */
+const countryDraft = localDraft<string>("country", (raw) => raw);
+/** The server region picked on Step 3 -- same reasoning as the country draft above. */
+const regionDraft = localDraft<ServerRegion>("region", (raw) => (raw === "America" || raw === "Europe" ? raw : null));
+/** The toggle picked on Step 5, mirrored here so a refresh doesn't lose it -- unlike the other
+ * fields above, this one's saved to the DB immediately too, but the draft still avoids waiting
+ * on that fetch to resume it. */
+const anonymousDraft = localDraft<boolean>("leaderboard-anonymous", toBoolean);
 
 /** Delays invoking `fn` until `delayMs` has passed with no further calls through the same
  * scheduler, cancelling any previously scheduled call. Used below to collapse a rapid burst of
@@ -275,7 +192,7 @@ export default function OnboardingPage() {
     // Once a country's actually been picked (and cached), it should never be replaced by the
     // guess again -- the profile-seed effect below would eventually correct it anyway, but this
     // avoids even briefly holding the wrong value.
-    if (!readCachedCountry(user.id)) {
+    if (!countryDraft.read(user.id)) {
       const guessedCountry = guessCountryFromTimezone();
       if (guessedCountry) setCountry(guessedCountry);
     }
@@ -283,7 +200,7 @@ export default function OnboardingPage() {
     // always recomputed. `region` is the actual pick -- same guard as country above.
     const guessedRegion = guessServerRegion();
     setRecommendedRegion(guessedRegion);
-    if (!readCachedRegion(user.id)) {
+    if (!regionDraft.read(user.id)) {
       setRegion(guessedRegion);
     }
   }, [user]);
@@ -295,14 +212,14 @@ export default function OnboardingPage() {
     if (profileStatus === "loaded" && profile) {
       // A locally cached draft (typed but not yet confirmed saved before a refresh) wins over
       // the DB value -- the debounced autosave below picks it back up and re-saves it.
-      const cachedName = readCachedDisplayName(user.id);
+      const cachedName = displayNameDraft.read(user.id);
       setDisplayName(cachedName ?? profile.display_name ?? "");
       setSavedName(profile.display_name ?? "");
       setAvatarUrl(profile.avatar_url);
       // Unlike the timezone guess, a saved country means the user actually picked one -- it
       // should win over the guess, not the other way round. Cache first (it's the freshest, and
       // avoids waiting on this fetch at all), then the DB value.
-      const cachedCountry = readCachedCountry(user.id);
+      const cachedCountry = countryDraft.read(user.id);
       if (cachedCountry) {
         setCountry(cachedCountry);
       } else if (profile.country) {
@@ -319,7 +236,7 @@ export default function OnboardingPage() {
   // the draft survives a refresh even before the debounce (or the network) has caught up.
   useEffect(() => {
     if (!user || !profileSeeded) return;
-    writeCachedDisplayName(user.id, displayName);
+    displayNameDraft.write(user.id, displayName);
 
     const trimmed = displayName.trim();
     if (trimmed === savedName || trimmed.length === 0 || trimmed.length > MAX_DISPLAY_NAME_LENGTH) return;
@@ -356,7 +273,7 @@ export default function OnboardingPage() {
       // advanced past) wins over the DB value. Otherwise, only trust study_track as "the
       // user's actual pick" once they've ever reached past the kana step -- before that it's
       // just the row's default ('standard'), never chosen.
-      const cachedKnowsKana = readCachedKnowsKana(user.id);
+      const cachedKnowsKana = knowsKanaDraft.read(user.id);
       if (cachedKnowsKana !== null) {
         setKnowsKana(cachedKnowsKana);
       } else if (resumeFurthest > 0) {
@@ -371,7 +288,7 @@ export default function OnboardingPage() {
       // -- going back to Step 1 and re-confirming "Yes" clears it back to "not chosen yet" even
       // after the level step was already passed once -- so this leaves `level` at null (its
       // default) rather than passing null into mostAdvancedLevel, which requires a real array.
-      const cachedLevel = readCachedLevel(user.id);
+      const cachedLevel = levelDraft.read(user.id);
       if (cachedLevel) {
         setLevel(cachedLevel);
       } else if (resumeFurthest > 1 && studySettings.enabled_levels) {
@@ -380,7 +297,7 @@ export default function OnboardingPage() {
       // Same cache-first idea as the level above. This is null in the DB until the user
       // actually picks one -- so a saved value here should win over the timezone guess, not the
       // other way.
-      const cachedRegion = readCachedRegion(user.id);
+      const cachedRegion = regionDraft.read(user.id);
       if (cachedRegion) {
         setRegion(cachedRegion);
       } else if (studySettings.preferred_server_region) {
@@ -390,7 +307,7 @@ export default function OnboardingPage() {
       // this DB fallback is trustworthy -- null really does mean "never chosen" now, not just
       // "defaulted to false", so resuming on a different device/browser (no local cache) still
       // resolves correctly instead of guessing "with my profile".
-      const cachedAnonymous = readCachedAnonymous(user.id);
+      const cachedAnonymous = anonymousDraft.read(user.id);
       if (cachedAnonymous !== null) {
         setAnonymous(cachedAnonymous);
       } else if (studySettings.leaderboard_anonymous !== null) {
@@ -477,7 +394,7 @@ export default function OnboardingPage() {
   function handleKnowsKanaChange(next: boolean) {
     setKnowsKana(next);
     if (!user) return;
-    writeCachedKnowsKana(user.id, next);
+    knowsKanaDraft.write(user.id, next);
     const patch: StudySettingsPatch = next
       ? {
           enabled_levels: null,
@@ -497,7 +414,7 @@ export default function OnboardingPage() {
         };
     if (next) {
       setLevel(null);
-      clearCachedLevel(user.id);
+      levelDraft.clear(user.id);
     }
     // Debounced (not sent on every single click) so a rapid Yes/No/Yes flurry only ever writes
     // the final answer -- otherwise an earlier click's slower response can land after a later
@@ -518,7 +435,7 @@ export default function OnboardingPage() {
   function handleLevelChange(next: JlptLevel) {
     setLevel(next);
     if (!user) return;
-    writeCachedLevel(user.id, next);
+    levelDraft.write(user.id, next);
     const userId = user.id;
     scheduleLevelSave(() => {
       updateStudySettings(userId, { enabled_levels: enabledLevelsFor(next) })
@@ -535,7 +452,7 @@ export default function OnboardingPage() {
   function handleCountryChange(next: string) {
     setCountry(next);
     if (!user) return;
-    writeCachedCountry(user.id, next);
+    countryDraft.write(user.id, next);
     const userId = user.id;
     scheduleCountrySave(() => {
       updateCountry(userId, next)
@@ -553,7 +470,7 @@ export default function OnboardingPage() {
   function handleRegionChange(next: ServerRegion) {
     setRegion(next);
     if (!user) return;
-    writeCachedRegion(user.id, next);
+    regionDraft.write(user.id, next);
     const userId = user.id;
     scheduleRegionSave(() => {
       updateStudySettings(userId, { preferred_server_region: next })
@@ -571,7 +488,7 @@ export default function OnboardingPage() {
   function handleAnonymousChange(next: boolean) {
     setAnonymous(next);
     if (!user) return;
-    writeCachedAnonymous(user.id, next);
+    anonymousDraft.write(user.id, next);
     const userId = user.id;
     scheduleAnonymousSave(() => {
       updateStudySettings(userId, { leaderboard_anonymous: next })

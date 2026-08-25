@@ -1,45 +1,13 @@
 import { createClient } from "@/lib/supabase/client";
 import type { KanjiDetail, KanjiListResponse, KanjiRow } from "@/lib/types";
 import { fetchKanjiDetailWords } from "@/lib/kanji/detailWords";
+import { fetchSearchableList, type SearchableListParams } from "@/lib/data/searchableList";
 
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 500;
-
-export interface KanjiListParams {
-  search?: string | null;
-  levels?: string[] | null;
-  limit?: number;
-  offset?: number;
-}
+export type KanjiListParams = SearchableListParams;
 
 /** Assumes levels have already been validated against JLPT_LEVELS by the caller. */
-export async function fetchKanjiList({
-  search = null,
-  levels = null,
-  limit = DEFAULT_LIMIT,
-  offset = 0,
-}: KanjiListParams): Promise<KanjiListResponse> {
-  const boundedLimit = Math.min(limit || DEFAULT_LIMIT, MAX_LIMIT);
-  const boundedOffset = Math.max(offset || 0, 0);
-
-  const supabase = createClient();
-  const { data, error } = await supabase.rpc("search_kanji", {
-    p_query: search,
-    p_level: levels,
-    p_limit: boundedLimit,
-    p_offset: boundedOffset,
-  });
-
-  if (error) throw new Error(error.message);
-
-  const count = data[0]?.total_count ?? 0;
-  const rows = (data as (KanjiRow & { total_count: number })[]).map((row) => {
-    const { total_count, ...rest } = row;
-    void total_count;
-    return rest;
-  });
-
-  return { data: rows, count, limit: boundedLimit, offset: boundedOffset };
+export async function fetchKanjiList(params: KanjiListParams): Promise<KanjiListResponse> {
+  return fetchSearchableList<KanjiRow & { total_count: number }>(createClient(), "search_kanji", params);
 }
 
 export async function fetchKanjiDetail(id: number): Promise<KanjiDetail | null> {

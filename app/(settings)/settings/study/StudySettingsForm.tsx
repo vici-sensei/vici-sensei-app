@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LevelGrid } from "@/app/components/ui/LevelGrid";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Toggle } from "@/app/components/ui/Toggle";
+import { Stepper, stepperButtonClass, stepperValueClass } from "@/app/components/ui/Stepper";
 import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -361,124 +362,80 @@ export function StudySettingsForm({
 
   const includedLevels = levelsInRange(floor, level);
 
-  const stepperBtn =
-    "flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-soft bg-white/[0.04] text-white enabled:hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
-  const stepperVal = "w-15 text-center text-[1.05rem] font-extrabold tabular-nums";
-
   return (
     <div>
       {studyTrack === "standard" ? (
         <>
           <GlassCard padding="lg" className="mb-5.5">
-            <div className="mb-[22px]">
-              <label className={fieldLabel}>New kanji per day</label>
-              <div className="flex items-center gap-2.5">
-                <button type="button" className={stepperBtn} onClick={() => adjustKanji(-1)} disabled={disabled || newKanjiPerDay <= 1}>
-                  <FaMinus />
-                </button>
-                <span className={stepperVal}>{newKanjiPerDay}</span>
-                <button type="button" className={stepperBtn} onClick={() => adjustKanji(1)} disabled={disabled}>
-                  <FaPlus />
-                </button>
-              </div>
-              <div className="mt-2.5 flex items-center gap-2 text-sm text-accent-blue [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0">
-                <FaLink />
-                Linked 1:6 with new vocabulary — changing one updates the other.
-              </div>
-            </div>
-            <div>
-              <label className={fieldLabel}>New vocabulary per day</label>
-              <div className="flex items-center gap-2.5">
-                <button type="button" className={stepperBtn} onClick={() => adjustVocab(-1)} disabled={disabled || newVocabPerDay <= 6}>
-                  <FaMinus />
-                </button>
-                <span className={stepperVal}>{newVocabPerDay}</span>
-                <button type="button" className={stepperBtn} onClick={() => adjustVocab(1)} disabled={disabled}>
-                  <FaPlus />
-                </button>
-              </div>
-            </div>
+            <Stepper
+              className="mb-[22px]"
+              label="New kanji per day"
+              value={newKanjiPerDay}
+              onDecrement={() => adjustKanji(-1)}
+              onIncrement={() => adjustKanji(1)}
+              decrementDisabled={newKanjiPerDay <= 1}
+              disabled={disabled}
+              hint={
+                <div className="mt-2.5 flex items-center gap-2 text-sm text-accent-blue [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0">
+                  <FaLink />
+                  Linked 1:6 with new vocabulary — changing one updates the other.
+                </div>
+              }
+            />
+            <Stepper
+              label="New vocabulary per day"
+              value={newVocabPerDay}
+              onDecrement={() => adjustVocab(-1)}
+              onIncrement={() => adjustVocab(1)}
+              decrementDisabled={newVocabPerDay <= 6}
+              disabled={disabled}
+            />
           </GlassCard>
 
           <GlassCard padding="lg" className="mb-5.5">
-            <div>
-              <label className={fieldLabel}>Max reviews per day</label>
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  className={stepperBtn}
-                  onClick={() => adjustReviews(-1)}
-                  disabled={disabled || maxReviewsPerDay <= REVIEWS_STEP}
-                >
-                  <FaMinus />
-                </button>
-                <span className={stepperVal}>{maxReviewsPerDay}</span>
-                <button type="button" className={stepperBtn} onClick={() => adjustReviews(1)} disabled={disabled}>
-                  <FaPlus />
-                </button>
-              </div>
-              <div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>
-            </div>
+            <Stepper
+              label="Max reviews per day"
+              value={maxReviewsPerDay}
+              onDecrement={() => adjustReviews(-1)}
+              onIncrement={() => adjustReviews(1)}
+              decrementDisabled={maxReviewsPerDay <= REVIEWS_STEP}
+              disabled={disabled}
+              hint={<div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>}
+            />
           </GlassCard>
         </>
       ) : (
         <>
           <GlassCard padding="lg" className="mb-5.5">
-            <div className="mb-[22px]">
-              <label className={fieldLabel}>New hiragana per day</label>
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  className={stepperBtn}
-                  onClick={() => adjustHiragana(-1)}
-                  disabled={disabled || newHiraganaPerDay <= KANA_MIN}
-                >
-                  <FaMinus />
-                </button>
-                <span className={stepperVal}>{newHiraganaPerDay}</span>
-                <button type="button" className={stepperBtn} onClick={() => adjustHiragana(1)} disabled={disabled}>
-                  <FaPlus />
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className={fieldLabel}>New katakana per day</label>
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  className={stepperBtn}
-                  onClick={() => adjustKatakana(-1)}
-                  disabled={disabled || newKatakanaPerDay <= KANA_MIN}
-                >
-                  <FaMinus />
-                </button>
-                <span className={stepperVal}>{newKatakanaPerDay}</span>
-                <button type="button" className={stepperBtn} onClick={() => adjustKatakana(1)} disabled={disabled}>
-                  <FaPlus />
-                </button>
-              </div>
-            </div>
+            <Stepper
+              className="mb-[22px]"
+              label="New hiragana per day"
+              value={newHiraganaPerDay}
+              onDecrement={() => adjustHiragana(-1)}
+              onIncrement={() => adjustHiragana(1)}
+              decrementDisabled={newHiraganaPerDay <= KANA_MIN}
+              disabled={disabled}
+            />
+            <Stepper
+              label="New katakana per day"
+              value={newKatakanaPerDay}
+              onDecrement={() => adjustKatakana(-1)}
+              onIncrement={() => adjustKatakana(1)}
+              decrementDisabled={newKatakanaPerDay <= KANA_MIN}
+              disabled={disabled}
+            />
           </GlassCard>
 
           <GlassCard padding="lg" className="mb-5.5">
-            <div>
-              <label className={fieldLabel}>Max reviews per day</label>
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  className={stepperBtn}
-                  onClick={() => adjustReviews(-1)}
-                  disabled={disabled || maxReviewsPerDay <= REVIEWS_STEP}
-                >
-                  <FaMinus />
-                </button>
-                <span className={stepperVal}>{maxReviewsPerDay}</span>
-                <button type="button" className={stepperBtn} onClick={() => adjustReviews(1)} disabled={disabled}>
-                  <FaPlus />
-                </button>
-              </div>
-              <div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>
-            </div>
+            <Stepper
+              label="Max reviews per day"
+              value={maxReviewsPerDay}
+              onDecrement={() => adjustReviews(-1)}
+              onIncrement={() => adjustReviews(1)}
+              decrementDisabled={maxReviewsPerDay <= REVIEWS_STEP}
+              disabled={disabled}
+              hint={<div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>}
+            />
           </GlassCard>
         </>
       )}
@@ -535,16 +492,16 @@ export function StudySettingsForm({
               <div className="flex shrink-0 items-center gap-2.5">
                 <button
                   type="button"
-                  className={stepperBtn}
+                  className={stepperButtonClass}
                   onClick={() => adjustFloor(-1)}
                   disabled={disabled || studyTrack === "kana" || JLPT_LEVELS.indexOf(floor) <= 0}
                 >
                   <FaMinus />
                 </button>
-                <span className={stepperVal}>{floor}</span>
+                <span className={stepperValueClass}>{floor}</span>
                 <button
                   type="button"
-                  className={stepperBtn}
+                  className={stepperButtonClass}
                   onClick={() => adjustFloor(1)}
                   disabled={disabled || studyTrack === "kana" || JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level)}
                 >
