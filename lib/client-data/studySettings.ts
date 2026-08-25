@@ -163,6 +163,22 @@ export async function updateStudySettings(userId: string, patch: StudySettingsPa
   return data;
 }
 
+/** Whether every hiragana character is already mastered (status review/relearning) --
+ * mirrors the exact condition the DB's enforce_katakana_requires_hiragana_trigger checks
+ * (20260825_enforce_katakana_requires_hiragana.sql), so the "Study katakana" toggle in
+ * Settings can be disabled client-side instead of only failing server-side on submit.
+ * get_level_progress's hiragana_reading row ignores its p_level argument (kana has no JLPT
+ * level), so "N5" here is just a placeholder to satisfy the RPC's signature. */
+export async function fetchHiraganaMastered(userId: string): Promise<boolean> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_level_progress", { p_user_id: userId, p_level: "N5" });
+  if (error) throw new ApiError(500, error.message);
+  const row = (data as { category: string; learned: number; total: number }[] | null)?.find(
+    (r) => r.category === "hiragana_reading"
+  );
+  return row != null && row.total > 0 && row.learned >= row.total;
+}
+
 /** Assigns a new random leaderboard alias to the current user (the settings page's dice button). */
 export async function rerollLeaderboardAlias(): Promise<LeaderboardAlias> {
   const supabase = createClient();

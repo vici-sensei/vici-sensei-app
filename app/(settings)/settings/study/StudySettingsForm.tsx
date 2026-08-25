@@ -8,7 +8,7 @@ import { Stepper, stepperButtonClass, stepperValueClass } from "@/app/components
 import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { updateStudySettings, rerollLeaderboardAlias } from "@/lib/client-data/studySettings";
+import { updateStudySettings, rerollLeaderboardAlias, fetchHiraganaMastered } from "@/lib/client-data/studySettings";
 import { useToast } from "@/app/components/ui/Toast";
 import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 import { JLPT_LEVELS, mostAdvancedLevel, leastAdvancedLevel, levelsInRange, type JlptLevel } from "@/lib/srs/constants";
@@ -101,6 +101,26 @@ export function StudySettingsForm({
   // atomic save, never by the periodic autosave.
   const [studyTrack, setStudyTrack] = useState(initial.study_track);
   const [saved, setSaved] = useState<Snapshot>(() => snapshotFrom(initial));
+  // null while unknown (still loading) -- treated the same as "not mastered" everywhere below,
+  // so the katakana toggle never flashes enabled before this resolves. Fetched once per mount
+  // rather than re-synced on every settings change, since a user isn't studying hiragana to
+  // completion in the middle of a Settings visit.
+  const [hiraganaMastered, setHiraganaMastered] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchHiraganaMastered(user.id)
+      .then((mastered) => {
+        if (!cancelled) setHiraganaMastered(mastered);
+      })
+      .catch(() => {
+        // Leaves it at null (locked) -- a failed check should never accidentally unlock katakana.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // A background refetch (any autosave calls onSaved -> refetch) hands us a fresh
   // `initial` — resync the alias from it the same way ProfileSettingsForm resyncs
@@ -218,9 +238,14 @@ export function StudySettingsForm({
   function toggleStudyKatakana() {
     if (studyTrack === "kana") {
       if (studyKatakana && !studyHiragana) return;
+      // Katakana can only ever be turned ON once every hiragana character is mastered --
+      // turning it back off is always allowed, same gate the DB trigger enforces server-side
+      // (enforce_katakana_requires_hiragana_trigger, 20260825_enforce_katakana_requires_hiragana.sql).
+      if (!studyKatakana && !hiraganaMastered) return;
       setStudyKatakana(!studyKatakana);
       return;
     }
+    if (!hiraganaMastered) return;
     void handleCrossTrack({
       study_track: "kana",
       study_katakana: true,
@@ -524,9 +549,17 @@ export function StudySettingsForm({
         <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
           <div>
             <div className="mb-0.5 text-[0.95rem] font-bold">Study katakana</div>
-            <div className="text-sm text-text-muted">Include katakana reading cards in your queue.</div>
+            <div className="text-sm text-text-muted">
+              {hiraganaMastered
+                ? "Include katakana reading cards in your queue."
+                : "Finish learning all hiragana first to unlock katakana."}
+            </div>
           </div>
-          <Toggle checked={studyKatakana} onChange={toggleStudyKatakana} disabled={disabled || (studyKatakana && !studyHiragana)} />
+          <Toggle
+            checked={studyKatakana && Boolean(hiraganaMastered)}
+            onChange={toggleStudyKatakana}
+            disabled={disabled || (studyKatakana && !studyHiragana) || !hiraganaMastered}
+          />
         </div>
         <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
           <div>

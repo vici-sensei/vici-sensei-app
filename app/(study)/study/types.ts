@@ -1,7 +1,19 @@
 import type { DueCard, NewKanjiCandidate, NewVocabCandidate, NewHiraganaCandidate, NewKatakanaCandidate } from "@/lib/types";
 
 export type QueueItem =
-  | { key: string; kind: "review"; card: DueCard }
+  | {
+      key: string;
+      kind: "review";
+      card: DueCard;
+      /** React render key, only ever set when it must differ from `key` (see
+       * submitDrillAnswer's held-card retry in useStudyQueue.ts): a drill card that's answered
+       * wrong and reshown -- with nothing else rendered in between, since it never left `queue`
+       * -- needs a fresh key each time so React remounts ReviewCardKanaReading instead of
+       * reusing the previous attempt's stale typed-answer state. `key` itself stays the stable
+       * reviewKey(card) throughout, since that's what dedup/pool-membership checks compare
+       * against. Falls back to `key` when unset. */
+      renderKey?: string;
+    }
   | { key: string; kind: "new_kanji"; candidate: NewKanjiCandidate }
   | { key: string; kind: "new_vocab"; candidate: NewVocabCandidate }
   | { key: string; kind: "new_hiragana"; candidate: NewHiraganaCandidate }

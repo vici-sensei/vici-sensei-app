@@ -1,10 +1,16 @@
 import { createClient } from "@/lib/supabase/client";
 import { ApiError } from "@/lib/api/client";
-import { fetchFirstDueCard, fetchStudyQueue } from "@/lib/data/studyQueue";
+import {
+  fetchFirstDueCard,
+  fetchHiraganaReadingCards,
+  fetchKatakanaReadingCards,
+  fetchStudyQueue,
+} from "@/lib/data/studyQueue";
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { submitReview as submitReviewData, undoReview as undoReviewData } from "@/lib/data/reviews";
 import { startStudySession, endStudySession, getSessionProgress as getSessionProgressData } from "@/lib/data/studySessions";
 import { introduceCard as introduceCardData, type IntroduceKind } from "@/lib/data/introduce";
+import { recordHiraganaDrillResult, recordKatakanaDrillResult, type KanaDrillResult } from "@/lib/data/kanaDrill";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
@@ -110,4 +116,31 @@ export function introduceHiragana(hiraganaId: number, sessionId?: number): Promi
 
 export function introduceKatakana(katakanaId: number, sessionId?: number): Promise<void> {
   return introduce("katakana", katakanaId, sessionId);
+}
+
+/** Called right after a whole "New Hiragana" gojuon pack finishes introducing, to fetch
+ * that same pack's "Hiragana reading" cards for immediate display (see introduce_hiragana,
+ * which sets due_at = now() on introduce specifically so these are ready right away). */
+export async function getHiraganaReadingCards(hiraganaIds: number[]): Promise<DueCard[]> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return fetchHiraganaReadingCards(supabase, userId, hiraganaIds);
+}
+
+export async function getKatakanaReadingCards(katakanaIds: number[]): Promise<DueCard[]> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return fetchKatakanaReadingCards(supabase, userId, katakanaIds);
+}
+
+export async function submitHiraganaDrillResult(hiraganaId: number, correct: boolean): Promise<KanaDrillResult> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return recordHiraganaDrillResult(supabase, userId, hiraganaId, correct);
+}
+
+export async function submitKatakanaDrillResult(katakanaId: number, correct: boolean): Promise<KanaDrillResult> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return recordKatakanaDrillResult(supabase, userId, katakanaId, correct);
 }

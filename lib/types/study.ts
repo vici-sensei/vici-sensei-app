@@ -1,4 +1,4 @@
-import type { ExerciseType, JlptLevel } from "@/lib/srs/constants";
+import type { ExerciseType, JlptLevel, ProgressStatus } from "@/lib/srs/constants";
 import type { StudyTrack } from "./settings";
 
 export interface NewKanjiIntroWord {
@@ -57,6 +57,11 @@ export interface DueCard {
   /** The expected typed romaji answer for hiragana_reading/katakana_reading cards. */
   kana_romaji: string | null;
   rating_previews: RatingPreviews;
+  /** 'learning' on a hiragana_reading/katakana_reading card means it's still in the
+   * post-introduction drill (see ReviewCardKanaReading) -- no Hard/Good/Easy buttons, graded
+   * purely correct/incorrect, repeats until answered right 3 times in a row. Every other
+   * exercise_type/status combination keeps the normal rating flow. */
+  status: ProgressStatus;
 }
 
 export interface NewKanjiCandidate {

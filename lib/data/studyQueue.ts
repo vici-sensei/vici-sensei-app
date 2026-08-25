@@ -19,10 +19,17 @@ import type {
 type DueCardRow = Omit<DueCard, "rating_previews"> & ProgressRow;
 
 function toDueCard(row: DueCardRow): DueCard {
-  const { status, ease_factor, interval_days, repetitions, lapses, learning_step, ...card } = row;
+  const { ease_factor, interval_days, repetitions, lapses, learning_step, ...card } = row;
   return {
     ...card,
-    rating_previews: previewRatingLabels({ status, ease_factor, interval_days, repetitions, lapses, learning_step }),
+    rating_previews: previewRatingLabels({
+      status: row.status,
+      ease_factor,
+      interval_days,
+      repetitions,
+      lapses,
+      learning_step,
+    }),
   };
 }
 
@@ -49,6 +56,40 @@ export async function fetchFirstDueCard(
   if (error) throw new Error(error.message);
   const row = ((data ?? []) as DueCardRow[])[0];
   return row ? toDueCard(row) : null;
+}
+
+/** Fetches the fresh hiragana_reading/katakana_reading cards for hiragana/katakana ids that
+ * were just introduced (see introduce_hiragana/introduce_katakana, which set due_at = now()
+ * for exactly this reason) -- called once a whole gojuon pack finishes introducing, so
+ * useStudyQueue can prepend its reading cards as one block right behind it, instead of
+ * waiting for the next poll/timer to pick them up via get_due_cards. Order follows `ids`
+ * (the pack's gojuon order), not due_at, since every row here is equally due right now. */
+export async function fetchHiraganaReadingCards(
+  supabase: AppSupabaseClient,
+  userId: string,
+  ids: number[]
+): Promise<DueCard[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.rpc("get_hiragana_reading_cards", {
+    p_user_id: userId,
+    p_hiragana_ids: ids,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as DueCardRow[]).map(toDueCard);
+}
+
+export async function fetchKatakanaReadingCards(
+  supabase: AppSupabaseClient,
+  userId: string,
+  ids: number[]
+): Promise<DueCard[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.rpc("get_katakana_reading_cards", {
+    p_user_id: userId,
+    p_katakana_ids: ids,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as DueCardRow[]).map(toDueCard);
 }
 
 export async function fetchStudyQueue(

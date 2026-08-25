@@ -6,6 +6,8 @@ import { ApiError } from "@/lib/api/client";
 import {
   endSession as endStudySessionApi,
   getFirstDueCard,
+  getHiraganaReadingCards,
+  getKatakanaReadingCards,
   getSessionProgress as getSessionProgressApi,
   getStudyQueue,
   introduceKanji as introduceKanjiApi,
@@ -13,6 +15,8 @@ import {
   introduceHiragana as introduceHiraganaApi,
   introduceKatakana as introduceKatakanaApi,
   startSession as startStudySessionApi,
+  submitHiraganaDrillResult as submitHiraganaDrillResultApi,
+  submitKatakanaDrillResult as submitKatakanaDrillResultApi,
   submitReview as submitReviewApi,
   undoReview as undoReviewApi,
 } from "@/lib/client-data/study";
@@ -73,26 +77,105 @@ function shuffle<T>(items: T[]): T[] {
 
 // Reviews always come before new material, so a review that becomes due mid-session
 // (e.g. a learning-step retest) never gets stuck behind new cards that were already queued.
-// Within each group the order is shuffled so a session doesn't always present cards in the
-// same due_at/id order.
+// Reviews are shuffled together -- so hiragana_reading and katakana_reading (and, on the
+// standard track, kanji/vocab reviews) interleave instead of clumping by category. New
+// material keeps the order the DB already returns it in (sort_order/id) instead of being
+// shuffled, and stays grouped one category block at a time in the order buildQueue appended
+// them (new_kanji, new_vocab, new_hiragana, new_katakana) -- e.g. all New hiragana before any
+// New katakana, each internally in gojuon order.
 function reviewsFirst(items: QueueItem[]): QueueItem[] {
   const reviews = shuffle(items.filter((i) => i.kind === "review"));
-  const newCards = shuffle(items.filter((i) => i.kind !== "review"));
+  const newCards = items.filter((i) => i.kind !== "review");
   return [...reviews, ...newCards];
 }
 
 // Same priority, but leaves the card currently on screen in place so a merge never
 // yanks it out from under the user mid-answer, and leaves already-queued cards in place too --
-// only the newly-fetched additions get shuffled in, so the rest of the queue doesn't visibly
-// reorder itself out from under the user on every poll.
-function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueItem[] {
+// only newly-fetched review additions get shuffled in (new-material additions keep DB order,
+// same reasoning as reviewsFirst), so the rest of the queue doesn't visibly reorder itself out
+// from under the user on every poll.
+//
+// One exception: the remaining, not-yet-shown members of a gojuon pack the user has already
+// started (isInProgressPackItem -- see introduceKanaCard) are kept ahead of anything newly
+// discovered by this merge. Without this, a review that becomes due mid-pack (e.g. yesterday's
+// hiragana coming due while today's "New Hiragana" pack is only half introduced) would splice
+// in front of the pack's remaining cards, breaking the "New Hiragana pack, then its Hiragana
+// reading pack, with nothing else in between" guarantee.
+function mergeKeepingCurrent(
+  prev: QueueItem[],
+  additions: QueueItem[],
+  isInProgressPackItem: (item: QueueItem) => boolean
+): QueueItem[] {
   if (prev.length === 0) return reviewsFirst(additions);
   const [current, ...rest] = prev;
   const restReviews = rest.filter((i) => i.kind === "review");
   const restNew = rest.filter((i) => i.kind !== "review");
+  const restInProgressPack = restNew.filter(isInProgressPackItem);
+  const restOtherNew = restNew.filter((i) => !isInProgressPackItem(i));
   const addReviews = shuffle(additions.filter((i) => i.kind === "review"));
-  const addNew = shuffle(additions.filter((i) => i.kind !== "review"));
-  return [current, ...restReviews, ...addReviews, ...restNew, ...addNew];
+  const addNew = additions.filter((i) => i.kind !== "review");
+  return [current, ...restReviews, ...restInProgressPack, ...addReviews, ...restOtherNew, ...addNew];
+}
+
+// A hiragana_reading/katakana_reading card whose progress is still status='learning' is mid
+// post-introduction drill (see submitDrillAnswer) -- answered right or wrong, it keeps coming
+// back until it's graduated. At most one such card is ever shown at a time; the rest sit in
+// hiragana/katakanaDrillPoolRef and get drawn at random as the visible one is answered.
+function isDrillCard(item: QueueItem): item is QueueItem & { kind: "review" } {
+  return (
+    item.kind === "review" &&
+    item.card.status === "learning" &&
+    (item.card.exercise_type === "hiragana_reading" || item.card.exercise_type === "katakana_reading")
+  );
+}
+
+function hasVisibleDrillCard(items: QueueItem[], exerciseType: "hiragana_reading" | "katakana_reading"): boolean {
+  return items.some((i) => isDrillCard(i) && i.card.exercise_type === exerciseType);
+}
+
+// Applied to any freshly-fetched batch of due_cards (not just the first hand-off from
+// introduceKanaCard's finishPack) so that resuming a drill after a page refresh -- where
+// get_due_cards can return several still-learning hiragana_reading/katakana_reading rows at
+// once -- still only ever surfaces one at a time, with the rest pooled, instead of scattering
+// them back across the normal review shuffle.
+//
+// hiragana/katakanaInFlight guard a real race: a drill card that's just been answered (or a
+// pack that's just finished introducing) briefly sits in NEITHER `queue` NOR the pool while its
+// own async resolution (submitDrillAnswer/finishPack) is still in flight -- fetchStudyQueue's
+// due_cards still includes it (its due_at never advances until it graduates), so a poll that
+// lands in exactly that window would otherwise see zero visible drill cards, wrongly decide
+// this row is a fresh discovery, and add a SECOND copy to the queue instead of pooling it --
+// two hiragana_reading cards visible at once, one of them never reachable again. Any id in
+// these sets is temporarily "owned" by that in-flight resolution, so it's dropped here entirely
+// instead of pooled or kept -- the owner will place it correctly once it resolves.
+function poolExtraDrillCards(
+  additions: QueueItem[],
+  prev: QueueItem[],
+  hiraganaPool: DueCard[],
+  katakanaPool: DueCard[],
+  hiraganaInFlight: Set<number>,
+  katakanaInFlight: Set<number>
+): QueueItem[] {
+  let hiraganaTaken = hasVisibleDrillCard(prev, "hiragana_reading");
+  let katakanaTaken = hasVisibleDrillCard(prev, "katakana_reading");
+  const kept: QueueItem[] = [];
+  for (const item of additions) {
+    if (!isDrillCard(item)) {
+      kept.push(item);
+      continue;
+    }
+    const isHiragana = item.card.exercise_type === "hiragana_reading";
+    const id = isHiragana ? item.card.hiragana_id : item.card.katakana_id;
+    if (id != null && (isHiragana ? hiraganaInFlight : katakanaInFlight).has(id)) continue;
+    if (isHiragana ? hiraganaTaken : katakanaTaken) {
+      (isHiragana ? hiraganaPool : katakanaPool).push(item.card);
+    } else {
+      kept.push(item);
+      if (isHiragana) hiraganaTaken = true;
+      else katakanaTaken = true;
+    }
+  }
+  return kept;
 }
 
 function reviewBody(card: DueCard, rating: Rating, sessionId: number | undefined): ReviewRequestBody {
@@ -117,6 +200,12 @@ export function useStudyQueue() {
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const [undoPending, setUndoPending] = useState(false);
   const [undoDisabled, setUndoDisabled] = useState(false);
+  // Key of the one card currently held on screen instead of being optimistically removed --
+  // either a pack-completing new_hiragana/new_katakana card awaiting its reading pack, or a
+  // drill card (see submitDrillAnswer) answered when no other pool card was left to swap in.
+  // Held so the page can disable its button and avoid a double-submit while the result is
+  // still in flight. Only one of these can ever be true at once (there's only one `current`).
+  const [pendingCardKey, setPendingCardKey] = useState<string | null>(null);
   // Only this route group lacks a StudyStatsProvider ((shell) is the only layout with one) --
   // fetched directly here, same as the leaderboard page and /study/summary.
   const clockOffsetMs = useServerClockOffset();
@@ -134,6 +223,37 @@ export function useStudyQueue() {
   // the server sees them in the order the user actually answered — important for undo,
   // which needs the review it's undoing to have landed first.
   const mutationChainRef = useRef<Promise<void>>(Promise.resolve());
+  // Pack tracking for introduceKanaCard (below): activeRef marks a gojuon_row as "being
+  // introduced" from the moment its first card is tapped (synchronous, so mergeKeepingCurrent
+  // can protect its remaining cards from the very first tap, not just once the server confirms
+  // it) until the pack completes. doneRef accumulates the ids actually confirmed introduced, in
+  // resolution order, so the reading-pack fetch asks for exactly the right characters.
+  const hiraganaActivePackRef = useRef<Set<string>>(new Set());
+  const hiraganaPackDoneRef = useRef<Map<string, number[]>>(new Map());
+  const katakanaActivePackRef = useRef<Set<string>>(new Set());
+  const katakanaPackDoneRef = useRef<Map<string, number[]>>(new Map());
+  // Post-introduction drill pools (see submitDrillAnswer): not-yet-graduated hiragana_reading/
+  // katakana_reading cards waiting for their turn. Only one card of each kind is ever visible
+  // in `queue` at a time -- the next one is drawn at random from here whenever the visible one
+  // is answered, and pushed back in (unless it just graduated) once its result comes back.
+  const hiraganaDrillPoolRef = useRef<DueCard[]>([]);
+  const katakanaDrillPoolRef = useRef<DueCard[]>([]);
+  // Ids currently "owned" by an in-flight finishPack/submitDrillAnswer resolution -- see
+  // poolExtraDrillCards for why this is needed (closes a real race between a concurrent
+  // refreshQueue poll and a drill card's own async resolution).
+  const hiraganaInFlightRef = useRef<Set<number>>(new Set());
+  const katakanaInFlightRef = useRef<Set<number>>(new Set());
+  // See QueueItem.renderKey -- incremented each time submitDrillAnswer reshows a held card
+  // after a not-yet-graduated result, so its React key differs from the previous attempt.
+  const drillRetryCounterRef = useRef(0);
+
+  // Whether `item` is a not-yet-shown member of a gojuon pack the user has already started --
+  // see mergeKeepingCurrent's isInProgressPackItem parameter.
+  const isInProgressPackItem = useCallback((item: QueueItem): boolean => {
+    if (item.kind === "new_hiragana") return hiraganaActivePackRef.current.has(item.candidate.gojuon_row);
+    if (item.kind === "new_katakana") return katakanaActivePackRef.current.has(item.candidate.gojuon_row);
+    return false;
+  }, []);
 
   const endSession = useCallback(
     async (hasProgress: boolean) => {
@@ -178,14 +298,18 @@ export function useStudyQueue() {
       const incoming = buildQueue(data);
       setNextDueAt(data.next_due_at);
       setQueue((prev) => {
-        const existingKeys = new Set(prev.map((i) => i.key));
-        const additions = incoming.filter((i) => !existingKeys.has(i.key));
-        return mergeKeepingCurrent(prev, additions);
+        const poolKeys = new Set(
+          [...hiraganaDrillPoolRef.current, ...katakanaDrillPoolRef.current].map((c) => reviewKey(c))
+        );
+        const existingKeys = new Set([...prev.map((i) => i.key), ...poolKeys]);
+        const rawAdditions = incoming.filter((i) => !existingKeys.has(i.key));
+        const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
+        return mergeKeepingCurrent(prev, additions, isInProgressPackItem);
       });
     } catch {
       // periodic refresh failures shouldn't interrupt an active session
     }
-  }, [user.id, settings]);
+  }, [user.id, settings, isInProgressPackItem]);
 
   useEffect(() => {
     let cancelled = false;
@@ -270,15 +394,21 @@ export function useStudyQueue() {
 
         if (settled) {
           setQueue((prev) => {
-            const existingKeys = new Set(prev.map((i) => i.key));
-            const additions = items.filter((i) => !existingKeys.has(i.key));
-            return mergeKeepingCurrent(prev, additions);
+            const poolKeys = new Set(
+              [...hiraganaDrillPoolRef.current, ...katakanaDrillPoolRef.current].map((c) => reviewKey(c))
+            );
+            const existingKeys = new Set([...prev.map((i) => i.key), ...poolKeys]);
+            const rawAdditions = items.filter((i) => !existingKeys.has(i.key));
+            const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
+            return mergeKeepingCurrent(prev, additions, isInProgressPackItem);
           });
           return;
         }
 
         settled = true;
-        setQueue(items);
+        // The very first paint of a full queue -- no `prev` to check for an already-visible
+        // drill card, so pass an empty array (nothing's visible yet).
+        setQueue(poolExtraDrillCards(items, [], hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current));
         if (items.length === 0) {
           clearFirstCardCache(user.id);
           void endSession(false);
@@ -336,8 +466,100 @@ export function useStudyQueue() {
     mutationChainRef.current = mutationChainRef.current.then(mutate, mutate);
   }, []);
 
+  // Post-introduction drill for hiragana_reading/katakana_reading (record_hiragana_drill_result/
+  // record_katakana_drill_result -- 20260827_hiragana_katakana_drill.sql): correct/incorrect
+  // only, no rating, and -- unlike rate() below -- this never touches the normal SRS schedule or
+  // review_logs. Draws the next card to show from the pool (hiragana/katakanaDrillPoolRef) the
+  // instant this one is answered, same optimistic-swap feel used everywhere else in this hook --
+  // except when the pool is empty, in which case (same reasoning as introduceKanaCard's last
+  // pack card) this card stays on screen, disabled via pendingCardKey, until the server confirms
+  // whether it graduated or needs to go around again.
+  const submitDrillAnswer = useCallback(
+    (card: DueCard, correct: boolean) => {
+      const isHiragana = card.exercise_type === "hiragana_reading";
+      const poolRef = isHiragana ? hiraganaDrillPoolRef : katakanaDrillPoolRef;
+      const inFlightRef = isHiragana ? hiraganaInFlightRef : katakanaInFlightRef;
+      const apiCall = isHiragana ? submitHiraganaDrillResultApi : submitKatakanaDrillResultApi;
+      const itemId = isHiragana ? card.hiragana_id : card.katakana_id;
+      const key = reviewKey(card);
+
+      if (itemId == null) return; // shouldn't happen -- hiragana_reading/katakana_reading always carries its id
+
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      // This card is about to leave `queue` (optimistic swap) or stays put but its fate is
+      // pending (held) -- either way, mark it owned until resolved so a concurrent
+      // refreshQueue poll doesn't mistake it for a fresh discovery (see poolExtraDrillCards).
+      inFlightRef.current.add(itemId);
+
+      let nextCard: DueCard | null = null;
+      if (poolRef.current.length > 0) {
+        const idx = Math.floor(Math.random() * poolRef.current.length);
+        [nextCard] = poolRef.current.splice(idx, 1);
+        const drawn = nextCard;
+        setQueue((prev) => {
+          const withoutItem = prev.filter((i) => i.key !== key);
+          if (withoutItem.some((i) => i.key === reviewKey(drawn))) return withoutItem;
+          return [{ key: reviewKey(drawn), kind: "review", card: drawn }, ...withoutItem];
+        });
+      } else {
+        setPendingCardKey(key);
+      }
+
+      // Reshows the held card (it never left `queue`) with a fresh renderKey (see
+      // QueueItem.renderKey) so ReviewCardKanaReading remounts instead of reusing the previous
+      // attempt's revealed/typed-answer state -- used both when it needs another round and
+      // when the submit itself failed and must be retried.
+      const reshowHeldCard = () => {
+        drillRetryCounterRef.current += 1;
+        const renderKey = `${key}::retry${drillRetryCounterRef.current}`;
+        setQueue((prev) => prev.map((i) => (i.key === key ? { ...i, renderKey } : i)));
+      };
+
+      enqueueMutation(async () => {
+        try {
+          const { graduated } = await apiCall(itemId, correct);
+          if (nextCard) {
+            if (!graduated) poolRef.current.push(card);
+            inFlightRef.current.delete(itemId);
+            return;
+          }
+          // This was the held-visible last-known card -- resolve it now.
+          setPendingCardKey(null);
+          if (graduated) setQueue((prev) => prev.filter((i) => i.key !== key));
+          else reshowHeldCard();
+          inFlightRef.current.delete(itemId);
+        } catch (err) {
+          setCompletedCount((c) => Math.max(0, c - 1));
+          if (nextCard) {
+            poolRef.current.push(card);
+          } else {
+            setPendingCardKey(null);
+            reshowHeldCard();
+          }
+          inFlightRef.current.delete(itemId);
+          showToast(err instanceof ApiError ? err.message : "Could not submit your answer. Please try again.", "error");
+        }
+      });
+    },
+    [enqueueMutation, showToast]
+  );
+
   const rate = useCallback(
     (card: DueCard, rating: Rating) => {
+      // hiragana_reading/katakana_reading cards still in the post-introduction drill
+      // (status='learning') never go through the normal rating flow below -- see
+      // submitDrillAnswer. rating is repurposed as a plain pass/fail signal here (>=2 matches
+      // the same "correct" threshold submit_review already uses), since ReviewCardKanaReading's
+      // drill mode grades purely on typed-answer correctness, with no Hard/Good/Easy picker.
+      if (
+        (card.exercise_type === "hiragana_reading" || card.exercise_type === "katakana_reading") &&
+        card.status === "learning"
+      ) {
+        submitDrillAnswer(card, rating >= 2);
+        return;
+      }
+
       hasProcessedAnyRef.current = true;
       // Invalidated until the submit below actually confirms an id -- guards Undo against
       // firing on a stale id from an earlier review while this one is still in flight.
@@ -376,12 +598,12 @@ export function useStudyQueue() {
         }
       });
     },
-    [enqueueMutation, showToast, refreshQueue]
+    [enqueueMutation, showToast, refreshQueue, submitDrillAnswer]
   );
 
   const introduceCard = useCallback(
     (
-      item: QueueItem & { kind: "new_kanji" | "new_vocab" | "new_hiragana" | "new_katakana" },
+      item: QueueItem & { kind: "new_kanji" | "new_vocab" },
       apiCall: (candidateId: number, sessionId?: number) => Promise<void>,
       noun: string
     ) => {
@@ -403,6 +625,113 @@ export function useStudyQueue() {
     [enqueueMutation, showToast]
   );
 
+  // introduce_hiragana/introduce_katakana handle new_hiragana/new_katakana instead of the
+  // generic introduceCard above, because finishing a whole gojuon pack (e.g. あ,い,う,え,お)
+  // needs to hand the user its "Hiragana reading"/"Katakana reading" pack immediately after,
+  // with nothing else ever shown in between -- see the two-part guarantee this maintains:
+  //
+  // 1. mergeKeepingCurrent (above) keeps a pack's remaining, not-yet-shown cards ahead of any
+  //    review that becomes newly due mid-pack, once hiragana/katakanaActivePackRef marks the
+  //    row active (set synchronously below, the moment its first card is tapped).
+  //
+  // 2. The pack's *last* card is the one moment this function does NOT optimistically remove
+  //    the item from the queue: since cards are only ever shown/tapped one at a time, front to
+  //    back, "no sibling from this row still sits in `queue`" can only be true for the very
+  //    last tap of the pack -- every earlier one has, by construction, already been shown and
+  //    removed. Holding that last card on screen (button disabled via pendingCardKey)
+  //    until its reading pack has actually been fetched means the swap from "New Hiragana" to
+  //    "Hiragana reading" happens as one atomic setQueue call, with no other card ever
+  //    flashing in the gap while that fetch is in flight.
+  const introduceKanaCard = useCallback(
+    (
+      kind: "hiragana" | "katakana",
+      item: QueueItem & { kind: "new_hiragana" | "new_katakana" },
+      apiCall: (candidateId: number, sessionId?: number) => Promise<void>,
+      fetchReadingCards: (ids: number[]) => Promise<DueCard[]>,
+      noun: string
+    ) => {
+      const activeSet = kind === "hiragana" ? hiraganaActivePackRef.current : katakanaActivePackRef.current;
+      const doneMap = kind === "hiragana" ? hiraganaPackDoneRef.current : katakanaPackDoneRef.current;
+      const row = item.candidate.gojuon_row;
+      const isLastInPack = !queue.some(
+        (i) => i.key !== item.key && i.kind === item.kind && i.candidate.gojuon_row === row
+      );
+
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      activeSet.add(row);
+
+      if (isLastInPack) {
+        setPendingCardKey(item.key);
+      } else {
+        setQueue((prev) => prev.filter((i) => i.key !== item.key));
+      }
+
+      const recordIntroduced = () => {
+        const done = doneMap.get(row) ?? [];
+        done.push(item.candidate.id);
+        doneMap.set(row, done);
+        return done;
+      };
+
+      const drillPoolRef = kind === "hiragana" ? hiraganaDrillPoolRef : katakanaDrillPoolRef;
+      const drillInFlightRef = kind === "hiragana" ? hiraganaInFlightRef : katakanaInFlightRef;
+
+      // Hands the pack straight into the post-introduction drill (submitDrillAnswer): only
+      // one reading card is ever shown at a time, so this shuffles the freshly-fetched pack,
+      // shows one, and stashes the rest in the pool -- submitDrillAnswer draws from it
+      // (and refills it) as the user answers each one, until every character has graduated.
+      const finishPack = async (ids: number[]) => {
+        activeSet.delete(row);
+        doneMap.delete(row);
+        // Marked in-flight for the whole fetch: by now every row in `ids` already exists in
+        // the DB (status='learning', due -- see introduce_hiragana/introduce_katakana) but
+        // isn't reflected in `queue` or the pool yet -- see poolExtraDrillCards for why a
+        // concurrent refreshQueue poll landing in this gap needs to know that.
+        for (const id of ids) drillInFlightRef.current.add(id);
+        const cards = await fetchReadingCards(ids).catch(() => [] as DueCard[]);
+        setPendingCardKey(null);
+        if (cards.length === 0) {
+          setQueue((prev) => prev.filter((i) => i.key !== item.key));
+          for (const id of ids) drillInFlightRef.current.delete(id);
+          return;
+        }
+        const [first, ...restPool] = shuffle(cards);
+        drillPoolRef.current.push(...restPool);
+        setQueue((prev) => {
+          const withoutItem = prev.filter((i) => i.key !== item.key);
+          if (withoutItem.some((i) => i.key === reviewKey(first))) return withoutItem;
+          return [{ key: reviewKey(first), kind: "review", card: first }, ...withoutItem];
+        });
+        for (const id of ids) drillInFlightRef.current.delete(id);
+      };
+
+      enqueueMutation(async () => {
+        try {
+          await apiCall(item.candidate.id, sessionIdRef.current ?? undefined);
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 409) {
+            // Already introduced elsewhere — not a failure, still counts toward the pack.
+            const done = recordIntroduced();
+            if (isLastInPack) await finishPack([...done]);
+            return;
+          }
+          // Pack stays active either way (it isn't finished) -- only finishPack clears it,
+          // once the pack actually completes.
+          setCompletedCount((c) => Math.max(0, c - 1));
+          if (isLastInPack) setPendingCardKey(null);
+          else setQueue((prev) => [item, ...prev]);
+          showToast(err instanceof ApiError ? err.message : `Could not introduce this ${noun}. Please try again.`, "error");
+          return;
+        }
+
+        const done = recordIntroduced();
+        if (isLastInPack) await finishPack([...done]);
+      });
+    },
+    [enqueueMutation, showToast, queue]
+  );
+
   const introduceKanji = useCallback(
     (item: QueueItem & { kind: "new_kanji" }) => introduceCard(item, introduceKanjiApi, "kanji"),
     [introduceCard]
@@ -414,13 +743,15 @@ export function useStudyQueue() {
   );
 
   const introduceHiragana = useCallback(
-    (item: QueueItem & { kind: "new_hiragana" }) => introduceCard(item, introduceHiraganaApi, "hiragana character"),
-    [introduceCard]
+    (item: QueueItem & { kind: "new_hiragana" }) =>
+      introduceKanaCard("hiragana", item, introduceHiraganaApi, getHiraganaReadingCards, "hiragana character"),
+    [introduceKanaCard]
   );
 
   const introduceKatakana = useCallback(
-    (item: QueueItem & { kind: "new_katakana" }) => introduceCard(item, introduceKatakanaApi, "katakana character"),
-    [introduceCard]
+    (item: QueueItem & { kind: "new_katakana" }) =>
+      introduceKanaCard("katakana", item, introduceKatakanaApi, getKatakanaReadingCards, "katakana character"),
+    [introduceKanaCard]
   );
 
   const undoLast = useCallback(() => {
@@ -467,11 +798,22 @@ export function useStudyQueue() {
     error,
     current: queue[0] ?? null,
     completedCount,
-    totalKnown: completedCount + queue.length,
+    // The held card (see pendingCardKey) counted itself into completedCount the moment it was
+    // answered but, unlike every other card, stays sitting in `queue` a little longer --
+    // discount it here so it isn't counted as both done and still-queued while its result is
+    // in flight. Cards sitting in the drill pool (not yet drawn into `queue`) aren't counted
+    // here -- refs can't be read during render -- so the total can dip slightly during a long
+    // drill and recover as pooled cards get drawn; cosmetic only, not a correctness issue.
+    totalKnown: completedCount + queue.length - (pendingCardKey !== null ? 1 : 0),
     nextDueAt,
     clockOffsetMs,
     lastReview,
     actionPending: undoPending,
+    // True when `current` is a held card awaiting a result -- either a pack-completing
+    // new_hiragana/new_katakana card (introduceKanaCard) or a drill card answered when the
+    // pool was empty (submitDrillAnswer). The page disables that card's button with this so
+    // the same tap can't fire twice while the swap is in flight.
+    cardPending: pendingCardKey !== null && queue[0]?.key === pendingCardKey,
     undoDisabled,
     actions: { rate, introduceKanji, introduceVocab, introduceHiragana, introduceKatakana, undoLast },
   };

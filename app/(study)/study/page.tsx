@@ -61,6 +61,7 @@ export default function StudyPage() {
     clockOffsetMs,
     lastReview,
     actionPending,
+    cardPending,
     undoDisabled,
     actions,
   } = useStudyQueue();
@@ -146,9 +147,9 @@ export default function StudyPage() {
         {current.kind === "review" &&
           (current.card.exercise_type === "hiragana_reading" || current.card.exercise_type === "katakana_reading") && (
             <ReviewCardKanaReading
-              key={current.key}
+              key={current.renderKey ?? current.key}
               card={current.card}
-              disabled={false}
+              disabled={cardPending}
               onRate={actions.rate}
               onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
             />
@@ -174,7 +175,7 @@ export default function StudyPage() {
             key={current.key}
             candidate={current.candidate}
             script="hiragana"
-            disabled={false}
+            disabled={cardPending}
             onConfirm={() => actions.introduceHiragana(current)}
           />
         )}
@@ -183,7 +184,7 @@ export default function StudyPage() {
             key={current.key}
             candidate={current.candidate}
             script="katakana"
-            disabled={false}
+            disabled={cardPending}
             onConfirm={() => actions.introduceKatakana(current)}
           />
         )}

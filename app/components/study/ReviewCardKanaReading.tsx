@@ -22,12 +22,18 @@ interface Props {
  * concerns (siblings, furigana): a kana character tests exactly one fixed romaji string. */
 export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChange }: Props) {
   const isHiragana = card.exercise_type === "hiragana_reading";
+  // 'learning' means this character hasn't graduated the post-introduction drill yet (see
+  // useStudyQueue.ts's rate()/submitDrillAnswer and record_hiragana_drill_result) -- no
+  // Hard/Good/Easy picker, graded purely on typed-answer correctness, repeats until answered
+  // right 3 times in a row.
+  const drillMode = card.status === "learning";
   const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
     card,
     disabled,
     onRate,
     (input) => checkKanaReadingAnswer(input, card.kana_romaji ?? ""),
-    onCancelableChange
+    onCancelableChange,
+    drillMode
   );
 
   return (
@@ -46,6 +52,7 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
       ratingPreviews={card.rating_previews}
       onRate={handleRate}
       onContinue={handleContinue}
+      hideRatingOnCorrect={drillMode}
       answerForm={
         <AnswerForm
           answer={answer}
