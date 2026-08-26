@@ -32,7 +32,10 @@ export async function submitReview(supabase: AppSupabaseClient, userId: string, 
     throw new ApiError(500, error.message);
   }
 
-  return { reviewLogId: data as number };
+  // submit_review now returns a one-row table (see 20260901_submit_review_resurfaces_today.sql)
+  // instead of a bare log id.
+  const row = (data as { review_log_id: number; resurfaces_today: boolean }[])[0];
+  return { reviewLogId: row.review_log_id, resurfacesToday: row.resurfaces_today };
 }
 
 export async function undoReview(supabase: AppSupabaseClient, userId: string, reviewLogId?: number): Promise<void> {

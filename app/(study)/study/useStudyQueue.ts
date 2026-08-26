@@ -334,6 +334,23 @@ export function useStudyQueue() {
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
+  // The whole day's card count, including not-yet-created future cards (see
+  // computePredictedTotal in lib/data/studyQueue.ts) -- (re)computed from every full queue
+  // fetch (init and refreshQueue), independent of `queue`'s own length. This is what drives the
+  // progress bar's denominator: unlike the old completedCount + queue.length scheme, it's
+  // already as large as the whole day will ever need from the very first fetch, so answering a
+  // "New kanji"/"New vocabulary" card and getting its whole bundle/batch back doesn't grow the
+  // denominator at all -- it was already counted.
+  //
+  // Only ever RAISED (via setPredictedTotal's own Math.max, never assigned the fresh value
+  // outright) -- a fresh recompute is a snapshot of "what's due or predictable right now", and
+  // it legitimately DIPS below the running total whenever something just answered leaves the
+  // due-now set (e.g. an Easy rating graduating a card days into the future takes it out of
+  // get_due_cards immediately, even though it was already counted once in the original
+  // prediction and just got its one and only answer). Never letting the total drop keeps that
+  // dip from ever being visible; a genuinely new discovery (e.g. a learning-step retry becoming
+  // due later this session) still raises it, with the usual "+N" badge in QueueProgressBar.
+  const [predictedTotal, setPredictedTotal] = useState(0);
   const [nextDueAt, setNextDueAt] = useState<string | null>(null);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const [undoPending, setUndoPending] = useState(false);
@@ -443,6 +460,7 @@ export function useStudyQueue() {
       });
       const incoming = buildQueue(data);
       setNextDueAt(data.next_due_at);
+      setPredictedTotal((t) => Math.max(t, data.predicted_total));
       setQueue((prev) => {
         const poolKeys = new Set(
           [...hiraganaDrillPoolRef.current, ...katakanaDrillPoolRef.current].map((c) => reviewKey(c))
@@ -541,6 +559,7 @@ export function useStudyQueue() {
         const items = reviewsFirst(buildQueue(data));
         setNextDueAt(data.next_due_at);
         setUndoDisabled(data.undo_disabled);
+        setPredictedTotal((t) => Math.max(t, data.predicted_total));
 
         if (settled) {
           setQueue((prev) => {
@@ -680,6 +699,11 @@ export function useStudyQueue() {
       enqueueMutation(async () => {
         try {
           const { graduated } = await apiCall(itemId, correct);
+          // Same reasoning as rate()'s resurfaces_today check: computePredictedTotal counts
+          // this card once, but a drill needs 3 correct answers in a row to graduate, so
+          // anything short of that guarantees at least one more attempt today -- grow the
+          // total now rather than let completedCount silently overtake it.
+          if (!graduated) setPredictedTotal((t) => t + 1);
           if (nextCard) {
             if (!graduated) poolRef.current.push(card);
             inFlightRef.current.delete(itemId);
@@ -731,8 +755,19 @@ export function useStudyQueue() {
 
       enqueueMutation(async () => {
         try {
-          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating, sessionIdRef.current ?? undefined));
+          const { reviewLogId, resurfacesToday } = await submitReviewApi(
+            reviewBody(card, rating, sessionIdRef.current ?? undefined)
+          );
           lastReviewLogIdRef.current = reviewLogId;
+          // computePredictedTotal only ever counts this card once -- it has no way to know in
+          // advance whether the user will get it right the first time. submit_review's own
+          // authoritative answer (the row's real new status, not a client-side guess) tells us
+          // the instant it resolves whether this rating left the card still due again today --
+          // if so, grow the total by the one extra attempt it now needs, otherwise
+          // completedCount would silently overtake predictedTotal on any wrong answer, and the
+          // bar could show "N/N" while a card the user just got wrong is still waiting to be
+          // retried.
+          if (resurfacesToday) setPredictedTotal((t) => t + 1);
           // A wrong answer can schedule this card to resurface later in the same session
           // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown)
           // picks that up immediately instead of waiting out the 45s poll.
@@ -1072,13 +1107,14 @@ export function useStudyQueue() {
     error,
     current: queue[0] ?? null,
     completedCount,
-    // The held card (see pendingCardKey) counted itself into completedCount the moment it was
-    // answered but, unlike every other card, stays sitting in `queue` a little longer --
-    // discount it here so it isn't counted as both done and still-queued while its result is
-    // in flight. Cards sitting in the drill pool (not yet drawn into `queue`) aren't counted
-    // here -- refs can't be read during render -- so the total can dip slightly during a long
-    // drill and recover as pooled cards get drawn; cosmetic only, not a correctness issue.
-    totalKnown: completedCount + queue.length - (pendingCardKey !== null ? 1 : 0),
+    // predictedTotal already counts every future card the app can see coming (see its
+    // declaration above), so it doesn't need queue.length or pendingCardKey bookkeeping the way
+    // the old completedCount + queue.length scheme did. The Math.max floor is just a safety net
+    // for the brief window right after something genuinely unpredictable becomes due (a
+    // learning-step retry) but before the next refreshQueue poll has re-fetched a
+    // predictedTotal that accounts for it -- without it, completedCount could transiently
+    // exceed predictedTotal and show something like "6/5".
+    totalKnown: Math.max(predictedTotal, completedCount),
     nextDueAt,
     clockOffsetMs,
     lastReview,

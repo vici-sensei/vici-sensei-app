@@ -71,6 +71,11 @@ export interface NewKanjiCandidate {
   level: string | null;
   kun_readings: string[] | null;
   on_readings: string[] | null;
+  /** How many kanji_reading ("Word reading") cards introducing this kanji will produce --
+   * known up front from kanji_detail_words, independent of `words` below (which carries their
+   * actual content, fetched separately/lazily). Used to predict the day's whole total before
+   * this candidate is ever introduced -- see computePredictedTotal in lib/data/studyQueue.ts. */
+  word_count: number;
   words: NewKanjiIntroWord[];
 }
 
@@ -108,6 +113,12 @@ export interface StudyQueueResponse {
   next_due_at: string | null;
   /** Manually flagged accounts (see 20260815_undo_disabled_flag.sql) lose the Undo button on /study. */
   undo_disabled: boolean;
+  /** How many cards there are to get through today in total, counting not-yet-created future
+   * cards (a New kanji's meaning + word readings, a New word's Vocabulary card, a New
+   * hiragana/katakana's reading card) as already certain -- see computePredictedTotal. Drives
+   * the /study progress bar's denominator so it's accurate from the very first paint instead of
+   * jumping every time a bundle/batch actually materializes. */
+  predicted_total: number;
 }
 
 export interface WeeklyActivityDay {
@@ -193,6 +204,12 @@ export interface ReviewRequestBody {
 export interface SubmitReviewResult {
   /** review_logs.id for the row just inserted -- pass this to undoReview so it targets exactly this review. */
   reviewLogId: number;
+  /** Authoritative -- computed by submit_review itself from the row's actual new status, not
+   * predicted client-side. True unless this rating graduated the card to status='review'
+   * (whose intervals are always at least a day) -- see
+   * 20260901_submit_review_resurfaces_today.sql. useStudyQueue's rate() uses this to grow the
+   * predicted daily total by the one extra attempt this card now needs later today. */
+  resurfacesToday: boolean;
 }
 
 export interface StudySessionStart {

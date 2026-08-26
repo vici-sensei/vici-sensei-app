@@ -8,10 +8,17 @@ import type {
   NewHiraganaCandidate,
   NewKanjiIntroWord,
   NewKatakanaCandidate,
+  NewVocabCandidate,
   StudySettings,
   StudyQueueResponse,
   TodayActivityCounts,
 } from "@/lib/types";
+
+// get_new_kanji_candidates' row shape: KanjiRow plus word_count (see
+// 20260831_predicted_daily_total.sql) -- how many kanji_reading cards this candidate will
+// produce once introduced, known up front from kanji_detail_words alone, independent of the
+// word *content* fetchKanjiDetailWordsBatch fetches separately/lazily below.
+type NewKanjiCandidateRow = KanjiRow & { word_count: number };
 
 // Raw shape of a get_due_cards() row: DueCard's fields plus the SRS state columns
 // (status/ease_factor/interval_days/repetitions/lapses/learning_step) that only
@@ -127,6 +134,25 @@ export async function fetchCompleteVocabBatch(supabase: AppSupabaseClient, userI
   return ((data ?? []) as DueCardRow[]).map(toDueCard);
 }
 
+// The whole day's card count, predicted before any of the not-yet-created future cards exist:
+// every already-due review counts as 1, and every New candidate counts as itself PLUS the
+// review card(s) introducing it is guaranteed to produce -- 1 (the New kanji card itself) + 1
+// (Kanji meaning) + word_count (Word reading) for a kanji, or a flat 2 (the New card itself +
+// its one future review card) for vocab/hiragana/katakana, each of which has exactly one future
+// review card per candidate (get_kanji_intro_cards, complete_vocab_batch,
+// get_hiragana/katakana_reading_cards all confirm this 1:1 relationship). See
+// 20260831_predicted_daily_total.sql for why this is knowable without creating anything.
+function computePredictedTotal(
+  dueCardCount: number,
+  kanjiCandidates: NewKanjiCandidateRow[],
+  vocabCandidateCount: number,
+  hiraganaCandidateCount: number,
+  katakanaCandidateCount: number
+): number {
+  const kanjiTotal = kanjiCandidates.reduce((sum, c) => sum + 2 + c.word_count, 0);
+  return dueCardCount + kanjiTotal + vocabCandidateCount * 2 + hiraganaCandidateCount * 2 + katakanaCandidateCount * 2;
+}
+
 export async function fetchStudyQueue(
   supabase: AppSupabaseClient,
   userId: string,
@@ -176,14 +202,14 @@ export async function fetchStudyQueue(
           p_enabled_levels: enabledLevels,
           p_limit: kanjiRemaining,
         })
-      : Promise.resolve({ data: [] as KanjiRow[], error: null }),
+      : Promise.resolve({ data: [] as NewKanjiCandidateRow[], error: null }),
     vocabRemaining > 0
       ? supabase.rpc("get_new_vocab_candidates", {
           p_user_id: userId,
           p_enabled_levels: enabledLevels,
           p_limit: vocabRemaining,
         })
-      : Promise.resolve({ data: [] as unknown[], error: null }),
+      : Promise.resolve({ data: [] as NewVocabCandidate[], error: null }),
     hiraganaRemaining > 0
       ? supabase.rpc("get_new_hiragana_candidates", { p_user_id: userId, p_limit: hiraganaRemaining })
       : Promise.resolve({ data: [] as NewHiraganaCandidate[], error: null }),
@@ -197,7 +223,7 @@ export async function fetchStudyQueue(
   if (hiraganaCandidatesResult.error) throw new Error(hiraganaCandidatesResult.error.message);
   if (katakanaCandidatesResult.error) throw new Error(katakanaCandidatesResult.error.message);
 
-  const kanjiCandidateRows = (kanjiCandidatesResult.data ?? []) as KanjiRow[];
+  const kanjiCandidateRows = (kanjiCandidatesResult.data ?? []) as NewKanjiCandidateRow[];
   if (kanjiCandidateRows.length > 0 && onKanjiWordsReady) {
     void fetchKanjiDetailWordsBatch(supabase, kanjiCandidateRows.map((c) => c.id)).then(
       ({ wordsByKanjiId, error: wordsError }) => {
@@ -228,13 +254,24 @@ export async function fetchStudyQueue(
     dueCards.push(...flushed);
   }
 
+  const vocabCandidates = (vocabCandidatesResult.data ?? []) as NewVocabCandidate[];
+  const hiraganaCandidates = (hiraganaCandidatesResult.data ?? []) as NewHiraganaCandidate[];
+  const katakanaCandidates = (katakanaCandidatesResult.data ?? []) as NewKatakanaCandidate[];
+
   return {
     due_cards: dueCards,
     new_kanji_to_introduce: newKanjiToIntroduce,
-    new_vocab_to_introduce: vocabCandidatesResult.data ?? [],
-    new_hiragana_to_introduce: hiraganaCandidatesResult.data ?? [],
-    new_katakana_to_introduce: katakanaCandidatesResult.data ?? [],
+    new_vocab_to_introduce: vocabCandidates,
+    new_hiragana_to_introduce: hiraganaCandidates,
+    new_katakana_to_introduce: katakanaCandidates,
     next_due_at: nextDue.data.next_due_at,
     undo_disabled: userFlagsResult.data?.undo_disabled ?? false,
+    predicted_total: computePredictedTotal(
+      dueCards.length,
+      kanjiCandidateRows,
+      vocabCandidates.length,
+      hiraganaCandidates.length,
+      katakanaCandidates.length
+    ),
   };
 }

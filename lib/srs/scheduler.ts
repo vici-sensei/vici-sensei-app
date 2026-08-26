@@ -217,3 +217,4 @@ export function previewRatingLabels(current: ProgressRow): RatingPreviews {
     easy: formatIntervalLabel(applyReview(current, 3).due_at),
   }
 }
+
