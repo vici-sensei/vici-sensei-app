@@ -56,6 +56,10 @@ export interface DueCard {
   kana_character: string | null;
   /** The expected typed romaji answer for hiragana_reading/katakana_reading cards. */
   kana_romaji: string | null;
+  /** How many times in a row this hiragana_reading/katakana_reading card has been answered
+   * correctly during its post-introduction drill so far (see ReviewCardKanaReading) -- null for
+   * every other exercise_type, and for a kana card that isn't currently mid-drill. */
+  drill_streak: number | null;
   rating_previews: RatingPreviews;
   /** 'learning' on a hiragana_reading/katakana_reading card means it's still in the
    * post-introduction drill (see ReviewCardKanaReading) -- no Hard/Good/Easy buttons, graded

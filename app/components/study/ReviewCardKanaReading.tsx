@@ -35,6 +35,11 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
     onCancelableChange,
     drillMode
   );
+  // card.drill_streak is the streak as of when this card was fetched (i.e. before this
+  // attempt) -- see get_due_cards/get_hiragana_reading_cards/get_katakana_reading_cards.
+  // A correct answer counts one further than that; a wrong one resets to 0, matching
+  // record_hiragana_drill_result/record_katakana_drill_result's own behavior.
+  const streakAfterThisAnswer = result ? (result.correct ? (card.drill_streak ?? 0) + 1 : 0) : null;
 
   return (
     <ReviewCardShell
@@ -76,6 +81,27 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
               <TokenDiffList
                 tokens={[{ raw: "", correct: false, userDiff: result.userDiff, targetDiff: result.targetDiff }]}
               />
+            )}
+            {drillMode && streakAfterThisAnswer !== null && (
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="flex gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        i < streakAfterThisAnswer
+                          ? isHiragana
+                            ? "bg-accent-violet"
+                            : "bg-accent-orange"
+                          : "bg-border-soft"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-[0.85rem] text-text-muted">
+                  {streakAfterThisAnswer} in a row{streakAfterThisAnswer < 3 ? " — need 3" : ""}
+                </span>
+              </div>
             )}
           </div>
         )

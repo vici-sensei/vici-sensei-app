@@ -19,8 +19,8 @@ interface Props {
   onRate: (rating: Rating) => void;
   onContinue: () => void;
   // Set by the post-introduction kana drill (ReviewCardKanaReading's drillMode): a correct
-  // answer shows nothing here instead of the Hard/Good/Easy grid -- useTypedReviewCard's
-  // autoAdvanceOnCorrect already schedules the next card on its own.
+  // answer shows the Continue button instead of the Hard/Good/Easy grid -- useTypedReviewCard's
+  // handleContinue rates it 2 once pressed.
   hideRatingOnCorrect?: boolean;
 }
 
@@ -39,7 +39,7 @@ export function ReviewCardShell({
   onContinue,
   hideRatingOnCorrect,
 }: Props) {
-  const showContinue = revealed && !correct;
+  const showContinue = revealed && (!correct || hideRatingOnCorrect);
 
   useEffect(() => {
     if (!showContinue || disabled) return;
@@ -65,10 +65,8 @@ export function ReviewCardShell({
 
       <div className="mt-8.5">
         {revealed &&
-          (correct ? (
-            hideRatingOnCorrect ? null : (
-              <RatingGrid visible disabled={disabled} hideAgain accent={accent} previews={ratingPreviews} onRate={onRate} />
-            )
+          (correct && !hideRatingOnCorrect ? (
+            <RatingGrid visible disabled={disabled} hideAgain accent={accent} previews={ratingPreviews} onRate={onRate} />
           ) : (
             <Button variant="secondary" className="w-full" disabled={disabled} onClick={onContinue}>
               Continue

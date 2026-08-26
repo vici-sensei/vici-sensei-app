@@ -750,16 +750,23 @@ export function useStudyQueue() {
       // Reshows the held card (it never left `queue`) with a fresh renderKey (see
       // QueueItem.renderKey) so ReviewCardKanaReading remounts instead of reusing the previous
       // attempt's revealed/typed-answer state -- used both when it needs another round and
-      // when the submit itself failed and must be retried.
-      const reshowHeldCard = () => {
+      // when the submit itself failed and must be retried. drillStreak carries the server's
+      // freshly-confirmed streak onto the reshown card so its own next Check (see
+      // ReviewCardKanaReading's streak indicator) counts up from the real value instead of the
+      // stale one this card was originally fetched with.
+      const reshowHeldCard = (drillStreak: number) => {
         drillRetryCounterRef.current += 1;
         const renderKey = `${key}::retry${drillRetryCounterRef.current}`;
-        setQueue((prev) => prev.map((i) => (i.key === key ? { ...i, renderKey } : i)));
+        setQueue((prev) =>
+          prev.map((i) =>
+            i.key === key && i.kind === "review" ? { ...i, renderKey, card: { ...i.card, drill_streak: drillStreak } } : i
+          )
+        );
       };
 
       enqueueMutation(async () => {
         try {
-          const { graduated } = await apiCall(itemId, correct);
+          const { drillStreak, graduated } = await apiCall(itemId, correct);
           // Deliberately NOT the same as rate()'s attemptedKeysRef treatment below -- a drill
           // round trip is seconds, not minutes, so unlike a kanji/vocab retry it's realistic to
           // finish the whole drill (3 correct in a row) inside this same session. computePredictedTotal
@@ -768,14 +775,14 @@ export function useStudyQueue() {
           // it.
           if (!graduated) setPredictedTotal((t) => t + 1);
           if (nextCard) {
-            if (!graduated) poolRef.current.push(card);
+            if (!graduated) poolRef.current.push({ ...card, drill_streak: drillStreak });
             inFlightRef.current.delete(itemId);
             return;
           }
           // This was the held-visible last-known card -- resolve it now.
           setPendingCardKey(null);
           if (graduated) setQueue((prev) => prev.filter((i) => i.key !== key));
-          else reshowHeldCard();
+          else reshowHeldCard(drillStreak);
           inFlightRef.current.delete(itemId);
         } catch (err) {
           setCompletedCount((c) => Math.max(0, c - 1));
@@ -783,7 +790,7 @@ export function useStudyQueue() {
             poolRef.current.push(card);
           } else {
             setPendingCardKey(null);
-            reshowHeldCard();
+            reshowHeldCard(card.drill_streak ?? 0);
           }
           inFlightRef.current.delete(itemId);
           showToast(err instanceof ApiError ? err.message : "Could not submit your answer. Please try again.", "error");
