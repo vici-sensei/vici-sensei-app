@@ -232,6 +232,29 @@ function dropInFlightIntroCards(
   });
 }
 
+// Drops any freshly-fetched review row this session has already rated (see attemptedKeysRef in
+// useStudyQueue) -- a wrong answer schedules a resurface later today, but that resurface belongs
+// to a FUTURE session, not this one: without this filter, a slow-enough session would see its own
+// just-failed cards wander back into `queue` the moment their due_at actually arrives, exactly
+// like any other newly-due card, undoing the "answering a card never grows the denominator"
+// guarantee below.
+function dropAttemptedThisSession(additions: QueueItem[], attemptedKeys: Set<string>): QueueItem[] {
+  return additions.filter((item) => item.kind !== "review" || !attemptedKeys.has(item.key));
+}
+
+// Same reasoning, applied to the total instead of the queue: computePredictedTotal's dueCardCount
+// (server-side) counts every due_at<=now() row with no idea which ones this session already
+// rated -- so a just-failed card that has since crossed back into "due now" would otherwise still
+// inflate predicted_total the moment refreshQueue's Math.max recompute picks it up, even though
+// dropAttemptedThisSession above keeps it out of `queue`. Subtracting how many of the fetch's own
+// due_cards are attempted-this-session rows cancels exactly that inflation, and only that --
+// candidates (new kanji/vocab/kana) are never in attemptedKeysRef, so their contribution is
+// untouched.
+function adjustedPredictedTotal(data: StudyQueueResponse, attemptedKeys: Set<string>): number {
+  const staleDueCount = data.due_cards.filter((c) => attemptedKeys.has(reviewKey(c))).length;
+  return data.predicted_total - staleDueCount;
+}
+
 // Keeps a still-learning kanji bundle or the vocab batch contiguous, AND pulls it ahead of
 // unrelated reviews -- so a page refresh, which has no memory of introduceKanji's/
 // introduceVocab's own atomic block insert below, still lands the user right back where they
@@ -283,14 +306,21 @@ function groupIntroBundles(items: QueueItem[], hasFixedCurrent = true): QueueIte
   let rest = items;
   if (hasFixedCurrent) {
     const headKey = introBundleKey(items[0]);
+    head.push(items[0]);
+    placed.add(items[0]);
     if (headKey != null) {
+      // orderBundle reshuffles its whole group on every call (that's the point, for the
+      // siblings) -- but items[0] is already on screen and must stay first, so it's pinned
+      // above and explicitly skipped here rather than let the shuffle place it anywhere in
+      // `head`. Without this, every refreshQueue merge while the bundle is still incomplete
+      // (i.e. for the entire time the user is answering it) would have a real chance of
+      // silently swapping the visible card for a sibling the instant this runs -- no click,
+      // no card-count change, just the word/kanji on screen changing under the user.
       for (const item of orderBundle(headKey)) {
+        if (item === items[0]) continue;
         head.push(item);
         placed.add(item);
       }
-    } else {
-      head.push(items[0]);
-      placed.add(items[0]);
     }
     rest = items.slice(1);
   }
@@ -348,10 +378,22 @@ export function useStudyQueue() {
   // due-now set (e.g. an Easy rating graduating a card days into the future takes it out of
   // get_due_cards immediately, even though it was already counted once in the original
   // prediction and just got its one and only answer). Never letting the total drop keeps that
-  // dip from ever being visible; a genuinely new discovery (e.g. a learning-step retry becoming
-  // due later this session) still raises it, with the usual "+N" badge in QueueProgressBar.
+  // dip from ever being visible.
+  //
+  // A card THIS session already rated never raises it again, no matter what its due_at does --
+  // see attemptedKeysRef/adjustedPredictedTotal below: rate()'s only guarantee is that totalKnown
+  // is always reachable within the session you're actually in, so a wrong answer's resurface is a
+  // future session's concern, not a reason to chase a growing denominator right now. A genuinely
+  // independent discovery -- a "review"-status card that was never touched this session, or new
+  // material -- still raises it, with the usual "+N" badge in QueueProgressBar.
   const [predictedTotal, setPredictedTotal] = useState(0);
   const [nextDueAt, setNextDueAt] = useState<string | null>(null);
+  // Status of the row nextDueAt belongs to -- see next_due_status in lib/types/study.ts. Drives
+  // whether QueueProgressBar's countdown is worth showing: 'learning'/'relearning' is an SRS
+  // retry from something already attempted this session (see attemptedKeysRef -- it's done for
+  // the session and can't raise totalKnown again, so announcing its comeback is just noise);
+  // 'review' is an independent card becoming due on its own, which nothing else here announces.
+  const [nextDueStatus, setNextDueStatus] = useState<string | null>(null);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const [undoPending, setUndoPending] = useState(false);
   const [undoDisabled, setUndoDisabled] = useState(false);
@@ -409,6 +451,17 @@ export function useStudyQueue() {
   // See QueueItem.renderKey -- incremented each time submitDrillAnswer reshows a held card
   // after a not-yet-graduated result, so its React key differs from the previous attempt.
   const drillRetryCounterRef = useRef(0);
+  // reviewKey()s of every kanji_meaning/kanji_reading/vocab_meaning card rate() has already
+  // submitted this session (right or wrong) -- NOT populated for hiragana/katakana drill cards,
+  // which keep their own separate re-surfacing behavior via submitDrillAnswer/the pool refs
+  // above. A card added here is done for this session: once its rating schedules it to resurface
+  // later today (a wrong answer, or a "review" card regressing to "relearning"), it must NOT
+  // re-enter `queue` or grow `predictedTotal` again before the session ends, even if its due_at
+  // actually arrives while the session is still open -- see refreshQueue/init's filtering below.
+  // A failed submit removes its key again (in rate()'s catch block) so the retry is treated
+  // normally. This is what guarantees totalKnown is always reachable: nothing you've already
+  // answered can silently reappear and push the denominator further away.
+  const attemptedKeysRef = useRef<Set<string>>(new Set());
 
   // Whether `item` is a not-yet-shown member of a gojuon pack the user has already started --
   // see mergeKeepingCurrent's isInProgressPackItem parameter.
@@ -460,16 +513,20 @@ export function useStudyQueue() {
       });
       const incoming = buildQueue(data);
       setNextDueAt(data.next_due_at);
-      setPredictedTotal((t) => Math.max(t, data.predicted_total));
+      setNextDueStatus(data.next_due_status);
+      setPredictedTotal((t) => Math.max(t, adjustedPredictedTotal(data, attemptedKeysRef.current)));
       setQueue((prev) => {
         const poolKeys = new Set(
           [...hiraganaDrillPoolRef.current, ...katakanaDrillPoolRef.current].map((c) => reviewKey(c))
         );
         const existingKeys = new Set([...prev.map((i) => i.key), ...poolKeys]);
-        const rawAdditions = dropInFlightIntroCards(
-          incoming.filter((i) => !existingKeys.has(i.key)),
-          kanjiInFlightRef.current,
-          vocabBatchInFlightRef.current
+        const rawAdditions = dropAttemptedThisSession(
+          dropInFlightIntroCards(
+            incoming.filter((i) => !existingKeys.has(i.key)),
+            kanjiInFlightRef.current,
+            vocabBatchInFlightRef.current
+          ),
+          attemptedKeysRef.current
         );
         const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
         return groupIntroBundles(mergeKeepingCurrent(prev, additions, isInProgressPackItem));
@@ -558,8 +615,9 @@ export function useStudyQueue() {
         if (cancelled) return;
         const items = reviewsFirst(buildQueue(data));
         setNextDueAt(data.next_due_at);
+        setNextDueStatus(data.next_due_status);
         setUndoDisabled(data.undo_disabled);
-        setPredictedTotal((t) => Math.max(t, data.predicted_total));
+        setPredictedTotal((t) => Math.max(t, adjustedPredictedTotal(data, attemptedKeysRef.current)));
 
         if (settled) {
           setQueue((prev) => {
@@ -567,10 +625,13 @@ export function useStudyQueue() {
               [...hiraganaDrillPoolRef.current, ...katakanaDrillPoolRef.current].map((c) => reviewKey(c))
             );
             const existingKeys = new Set([...prev.map((i) => i.key), ...poolKeys]);
-            const rawAdditions = dropInFlightIntroCards(
-              items.filter((i) => !existingKeys.has(i.key)),
-              kanjiInFlightRef.current,
-              vocabBatchInFlightRef.current
+            const rawAdditions = dropAttemptedThisSession(
+              dropInFlightIntroCards(
+                items.filter((i) => !existingKeys.has(i.key)),
+                kanjiInFlightRef.current,
+                vocabBatchInFlightRef.current
+              ),
+              attemptedKeysRef.current
             );
             const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
             return groupIntroBundles(mergeKeepingCurrent(prev, additions, isInProgressPackItem));
@@ -699,10 +760,12 @@ export function useStudyQueue() {
       enqueueMutation(async () => {
         try {
           const { graduated } = await apiCall(itemId, correct);
-          // Same reasoning as rate()'s resurfaces_today check: computePredictedTotal counts
-          // this card once, but a drill needs 3 correct answers in a row to graduate, so
-          // anything short of that guarantees at least one more attempt today -- grow the
-          // total now rather than let completedCount silently overtake it.
+          // Deliberately NOT the same as rate()'s attemptedKeysRef treatment below -- a drill
+          // round trip is seconds, not minutes, so unlike a kanji/vocab retry it's realistic to
+          // finish the whole drill (3 correct in a row) inside this same session. computePredictedTotal
+          // counts this card once, but anything short of graduating guarantees at least one more
+          // attempt today -- grow the total now rather than let completedCount silently overtake
+          // it.
           if (!graduated) setPredictedTotal((t) => t + 1);
           if (nextCard) {
             if (!graduated) poolRef.current.push(card);
@@ -752,28 +815,26 @@ export function useStudyQueue() {
       setLastReview({ card });
       setCompletedCount((c) => c + 1);
       setQueue((prev) => prev.filter((i) => i.key !== reviewKey(card)));
+      // Marked attempted synchronously, before the submit even resolves: this card is done for
+      // the session regardless of the rating (see attemptedKeysRef's declaration) -- totalKnown
+      // never grows for it again, and it can't wander back into `queue` even if its resurface
+      // due_at arrives while the session is still open. A failed submit undoes this below, same
+      // as it undoes completedCount.
+      attemptedKeysRef.current.add(reviewKey(card));
 
       enqueueMutation(async () => {
         try {
-          const { reviewLogId, resurfacesToday } = await submitReviewApi(
-            reviewBody(card, rating, sessionIdRef.current ?? undefined)
-          );
+          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating, sessionIdRef.current ?? undefined));
           lastReviewLogIdRef.current = reviewLogId;
-          // computePredictedTotal only ever counts this card once -- it has no way to know in
-          // advance whether the user will get it right the first time. submit_review's own
-          // authoritative answer (the row's real new status, not a client-side guess) tells us
-          // the instant it resolves whether this rating left the card still due again today --
-          // if so, grow the total by the one extra attempt it now needs, otherwise
-          // completedCount would silently overtake predictedTotal on any wrong answer, and the
-          // bar could show "N/N" while a card the user just got wrong is still waiting to be
-          // retried.
-          if (resurfacesToday) setPredictedTotal((t) => t + 1);
           // A wrong answer can schedule this card to resurface later in the same session
-          // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown)
-          // picks that up immediately instead of waiting out the 45s poll.
+          // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown) picks
+          // that up immediately instead of waiting out the 45s poll. attemptedKeysRef (just set
+          // above) keeps this same card from re-entering `queue`/totalKnown when that refetch
+          // resolves -- refreshQueue only ever surfaces something else independently due.
           void refreshQueue();
         } catch (err) {
           setCompletedCount((c) => Math.max(0, c - 1));
+          attemptedKeysRef.current.delete(reviewKey(card));
           setLastReview((prev) => (prev?.card === card ? null : prev));
           // A 400/404 means the server rejected this specific card -- its progress row was
           // suspended, reset, or deleted (e.g. from /browse/ in another tab) since it was
@@ -1116,6 +1177,13 @@ export function useStudyQueue() {
     // exceed predictedTotal and show something like "6/5".
     totalKnown: Math.max(predictedTotal, completedCount),
     nextDueAt,
+    // Whether nextDueAt is actually worth announcing -- see next_due_status's declaration
+    // above. A learning/relearning row is an SRS retry from something already attempted this
+    // session (attemptedKeysRef keeps it from ever raising totalKnown again), so a countdown for
+    // it would just be noise; a review row is an independent, long-scheduled card becoming due
+    // on its own, which totalKnown has no other way to announce in advance -- see
+    // QueueProgressBar.
+    nextDueStatus,
     clockOffsetMs,
     lastReview,
     actionPending: undoPending,

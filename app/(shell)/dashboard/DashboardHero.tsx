@@ -30,6 +30,13 @@ export function DashboardHero() {
   // Shown regardless of allDone -- a review or new card can still land later today even while
   // there are cards to do right now (e.g. a learning-phase card resurfacing this afternoon).
   const moreComingToday = stats ? stats.next_due_is_today && stats.next_due_at !== null : false;
+  // Only surfaced as an extra "Plus another card" line while there's already something to do
+  // (see the non-allDone branch below) when it's genuinely new information -- an independent,
+  // long-scheduled review becoming due. A learning/relearning row resurfacing isn't news: the
+  // user already knows about it, they just answered it and watched cardsToday count it
+  // instantly (see new_kanji_pending_review_cards / resurfaces_today). moreComingToday itself
+  // stays status-agnostic for the allDone branch, where it's the ONLY thing coming either way.
+  const moreReviewComingToday = moreComingToday && stats?.next_due_status === "review";
 
   // Phase, not card category, is what changes how a review behaves: learning/relearning cards
   // resurface later in the same session (LEARNING_STEPS_MINUTES), review cards won't come back
@@ -105,7 +112,7 @@ export function DashboardHero() {
               card{cardsToday === 1 ? "" : "s"} to do today.
             </h1>
             <p className="text-base leading-[1.6] text-text-muted">{summaryText}</p>
-            {moreComingToday && stats.next_due_at && (
+            {moreReviewComingToday && stats.next_due_at && (
               <p className="mt-1 text-sm text-text-muted">
                 Plus another card <NextCardEta dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />
               </p>

@@ -57,7 +57,7 @@ export function QueueProgressBar({ completed, total, nextDueAt, clockOffsetMs, o
           <p
             className={`text-center text-[0.75rem] text-text-muted/70 ${showCountdown ? "" : "invisible"}`}
           >
-            Next card in {showCountdown ? formatCountdown(remainingMs) : "0s"}
+            Plus another card in {showCountdown ? formatCountdown(remainingMs) : "0s"}
           </p>
         </div>
         <div className="relative whitespace-nowrap text-[0.85rem] font-bold tabular-nums text-text-muted">

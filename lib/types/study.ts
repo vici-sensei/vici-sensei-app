@@ -111,6 +111,12 @@ export interface StudyQueueResponse {
   new_hiragana_to_introduce: NewHiraganaCandidate[];
   new_katakana_to_introduce: NewKatakanaCandidate[];
   next_due_at: string | null;
+  /** Status of the row next_due_at belongs to -- see NextDue in lib/srs/nextDue.ts.
+   * 'learning'/'relearning' means it's an SRS retry the user already triggered (rating a card
+   * wrong grows the bar for it instantly via resurfaces_today, so a countdown for the same card
+   * is redundant); 'review' means an independent, long-scheduled card becoming due on its own,
+   * which the bar has no other way to announce -- see QueueProgressBar. */
+  next_due_status: string | null;
   /** Manually flagged accounts (see 20260815_undo_disabled_flag.sql) lose the Undo button on /study. */
   undo_disabled: boolean;
   /** How many cards there are to get through today in total, counting not-yet-created future
@@ -167,6 +173,14 @@ export interface StudyStats {
   reviewed_today: number;
   new_kanji_today: number;
   new_kanji_limit: number;
+  /** How many kanji_reading ("Word reading") cards the still-pending new-kanji candidates
+   * (new_kanji_limit - new_kanji_today of them) will produce once introduced -- known up front
+   * from kanji_detail_words alone (see get_new_kanji_candidates' word_count), same source
+   * computePredictedTotal in lib/data/studyQueue.ts uses for the /study progress bar. Needed
+   * because each candidate contributes a variable number of cards (1 kanji_meaning + N
+   * kanji_reading, N varying per kanji), unlike vocab/hiragana/katakana which are a flat 2 cards
+   * each -- so cardsRemainingToday can't derive this from new_kanji_limit/new_kanji_today alone. */
+  new_kanji_pending_review_cards: number;
   new_vocab_today: number;
   new_vocab_limit: number;
   new_hiragana_today: number;
@@ -180,6 +194,10 @@ export interface StudyStats {
   retention_rate: number | null;
   next_due_at: string | null;
   next_due_is_today: boolean;
+  /** Status of the row next_due_at belongs to -- see NextDue in lib/srs/nextDue.ts. Lets a
+   * caller distinguish "an SRS retry from earlier this session is about to resurface" (not
+   * news) from "an independent, long-scheduled review just became due" (worth surfacing). */
+  next_due_status: string | null;
   /** Null only if the user has no study settings row yet (shouldn't happen once onboarded). */
   level_progress: LevelProgress | null;
 }

@@ -221,7 +221,11 @@ function ReviewsTodayCard() {
         <span className="text-[1.1rem] text-text-muted">/{reviewedToday + dueToday}</span>
       </div>
       <div className="text-sm font-semibold text-text-muted">Reviews done today</div>
-      {stats && stats.next_due_is_today && stats.next_due_at && (
+      {/* Same reasoning as DashboardHero's moreReviewComingToday: only worth a callout when
+          it's an independent, long-scheduled review becoming due -- a learning/relearning row
+          resurfacing is just an SRS retry the user already knows about (see next_due_status in
+          lib/srs/nextDue.ts). */}
+      {stats && stats.next_due_is_today && stats.next_due_at && stats.next_due_status === "review" && (
         <div className="mt-1 text-[0.7rem] font-semibold text-accent-gold">
           Next card <NextCardCountdown dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />
         </div>

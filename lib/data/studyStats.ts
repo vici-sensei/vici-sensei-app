@@ -64,7 +64,31 @@ export async function fetchStudyStats(
     new_katakana_today: newKatakanaToday,
   } = activityCounts.data as TodayActivityCounts;
   const dueReview = dueToday - dueLearning;
-  const { next_due_at: nextDueAt, next_due_is_today: nextDueIsToday } = nextDue.data;
+  const { next_due_at: nextDueAt, next_due_is_today: nextDueIsToday, next_due_status: nextDueStatus } = nextDue.data;
+
+  // Same reasoning as computePredictedTotal in lib/data/studyQueue.ts: a pending new-kanji
+  // candidate doesn't cost just 1 card, it costs 1 (New kanji) + 1 (Kanji meaning) + word_count
+  // (Word reading, one per example word) once introduced. cardsRemainingToday on the dashboard
+  // used to count it as 1, badly undercounting "cards to do today" -- this fetches the same
+  // word_count data /study's queue already uses so both numbers agree. Only needs the kanji
+  // side: vocab/hiragana/katakana are a flat 2 cards per candidate regardless of content, so
+  // cardsRemainingToday can compute those directly from new_X_limit - new_X_today.
+  const kanjiRemaining = settingsResult.data?.study_kanji
+    ? Math.max(newKanjiPerDay - newKanjiToday, 0)
+    : 0;
+  const kanjiCandidatesResult =
+    kanjiRemaining > 0
+      ? await supabase.rpc("get_new_kanji_candidates", {
+          p_user_id: userId,
+          p_enabled_levels: (settingsResult.data?.enabled_levels ?? []) as string[],
+          p_limit: kanjiRemaining,
+        })
+      : { data: [] as { word_count: number }[], error: null };
+  if (kanjiCandidatesResult.error) throw new Error(kanjiCandidatesResult.error.message);
+  const newKanjiPendingReviewCards = ((kanjiCandidatesResult.data ?? []) as { word_count: number }[]).reduce(
+    (sum, c) => sum + c.word_count,
+    0
+  );
   const levelProgressRows = levelProgressResult.data as
     | {
         category: "kanji" | "kanji_reading" | "vocabulary" | "hiragana_reading" | "katakana_reading";
@@ -92,6 +116,7 @@ export async function fetchStudyStats(
     reviewed_today: reviewedToday,
     new_kanji_today: newKanjiToday,
     new_kanji_limit: newKanjiPerDay,
+    new_kanji_pending_review_cards: newKanjiPendingReviewCards,
     new_vocab_today: newVocabToday,
     new_vocab_limit: newVocabPerDay,
     new_hiragana_today: newHiraganaToday,
@@ -106,6 +131,7 @@ export async function fetchStudyStats(
     retention_rate: retentionResult.data,
     next_due_at: nextDueAt,
     next_due_is_today: nextDueIsToday,
+    next_due_status: nextDueStatus,
     level_progress: level
       ? {
           level,

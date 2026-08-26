@@ -265,6 +265,7 @@ export async function fetchStudyQueue(
     new_hiragana_to_introduce: hiraganaCandidates,
     new_katakana_to_introduce: katakanaCandidates,
     next_due_at: nextDue.data.next_due_at,
+    next_due_status: nextDue.data.next_due_status,
     undo_disabled: userFlagsResult.data?.undo_disabled ?? false,
     predicted_total: computePredictedTotal(
       dueCards.length,

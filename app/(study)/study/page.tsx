@@ -27,7 +27,7 @@ function StudyQueueSkeleton() {
           </div>
           <div className="flex flex-1 flex-col mt-5">
             <Skeleton className="h-1.5 w-full rounded-full" />
-            <p className="invisible text-center text-[0.75rem] text-text-muted/70">Next card in 0s</p>
+            <p className="invisible text-center text-[0.75rem] text-text-muted/70">Plus another card in 0s</p>
           </div>
           <Skeleton className="h-4 w-12 shrink-0" />
         </div>
@@ -58,6 +58,7 @@ export default function StudyPage() {
     completedCount,
     totalKnown,
     nextDueAt,
+    nextDueStatus,
     clockOffsetMs,
     lastReview,
     actionPending,
@@ -107,7 +108,7 @@ export default function StudyPage() {
         <QueueProgressBar
           completed={completedCount}
           total={totalKnown}
-          nextDueAt={nextDueAt}
+          nextDueAt={nextDueStatus === "review" ? nextDueAt : null}
           clockOffsetMs={clockOffsetMs}
           onExit={() => router.push("/dashboard")}
         />
