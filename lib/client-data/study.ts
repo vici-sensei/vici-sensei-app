@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/client";
 import { ApiError } from "@/lib/api/client";
 import {
+  fetchCompleteVocabBatch,
   fetchFirstDueCard,
   fetchHiraganaReadingCards,
+  fetchKanjiIntroCards,
   fetchKatakanaReadingCards,
   fetchStudyQueue,
 } from "@/lib/data/studyQueue";
@@ -106,8 +108,27 @@ export function introduceKanji(kanjiId: number, sessionId?: number): Promise<voi
   return introduce("kanji", kanjiId, sessionId);
 }
 
+/** Called right after a "New kanji" card finishes introducing, to fetch that kanji's
+ * kanji_meaning + kanji_reading cards for immediate display (see introduce_kanji, which sets
+ * due_at = now() on introduce specifically so these are ready right away). */
+export async function getKanjiIntroCards(kanjiId: number): Promise<DueCard[]> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return fetchKanjiIntroCards(supabase, userId, kanjiId);
+}
+
 export function introduceVocabulary(wordId: number, sessionId?: number): Promise<void> {
   return introduce("vocabulary", wordId, sessionId);
+}
+
+/** Called right after the last "New vocabulary" card in the queue finishes introducing, to
+ * atomically release and fetch today's whole vocab_meaning batch for immediate display -- see
+ * complete_vocab_batch, which flips pending_batch = false (the only thing that ever hides a
+ * fresh word from get_due_cards, with no delay involved) for every word still pending. */
+export async function completeVocabBatch(): Promise<DueCard[]> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return fetchCompleteVocabBatch(supabase, userId);
 }
 
 export function introduceHiragana(hiraganaId: number, sessionId?: number): Promise<void> {

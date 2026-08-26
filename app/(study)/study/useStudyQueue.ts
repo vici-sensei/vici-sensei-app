@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import {
+  completeVocabBatch,
   endSession as endStudySessionApi,
   getFirstDueCard,
   getHiraganaReadingCards,
+  getKanjiIntroCards,
   getKatakanaReadingCards,
   getSessionProgress as getSessionProgressApi,
   getStudyQueue,
@@ -178,6 +180,142 @@ function poolExtraDrillCards(
   return kept;
 }
 
+// A group key for the one shared "vocab batch" (see introduceVocab below and
+// 20260829_pair_new_vocab_with_vocab_batch.sql) -- unlike kanji, which has one bundle per
+// kanji_id, there's only ever one vocab batch per user at a time (today's), so every
+// still-'learning' vocab_meaning card shares this single constant key.
+const VOCAB_BATCH_KEY = "vocab-batch";
+
+// A still-learning kanji_meaning/kanji_reading card is part of a kanji's not-yet-completed
+// intro bundle (see introduceKanji below and 20260828_pair_new_kanji_with_intro_bundle.sql), and
+// a still-learning vocab_meaning card is part of today's not-yet-completed vocab batch -- once
+// either graduates to status='review' it's just a normal independent review again, and drops out
+// of its group. Unlike hiragana/katakana's drill, there's no separate "still drilling" flag
+// needed for either: a row simply never leaves 'learning' until it actually graduates through
+// the normal rating flow.
+function introBundleKey(item: QueueItem): string | null {
+  if (item.kind !== "review") return null;
+  const { card } = item;
+  if (card.status !== "learning") return null;
+  if (card.exercise_type === "kanji_meaning" || card.exercise_type === "kanji_reading") {
+    return `kanji-${card.kanji_id}`;
+  }
+  if (card.exercise_type === "vocab_meaning") return VOCAB_BATCH_KEY;
+  return null;
+}
+
+// Drops any freshly-fetched kanji_meaning/kanji_reading card whose kanji_id is currently owned
+// by an in-flight introduceKanji call (kanjiInFlight), and any vocab_meaning card while a
+// vocab-batch hand-off is in flight (vocabBatchInFlight) -- same reasoning as
+// poolExtraDrillCards' hiragana/katakanaInFlight sets: introduce_kanji sets due_at = now() on
+// insert, and complete_vocab_batch flips pending_batch/due_at for a whole batch at once, so a
+// refreshQueue poll landing between that resolving and the follow-up getKanjiIntroCards/
+// completeVocabBatch fetch resolving would otherwise "discover" these rows as a fresh addition
+// and duplicate them once the owning call's own block insert lands right after. (Not strictly
+// required for correctness any more -- complete_vocab_batch's UPDATE...RETURNING means a
+// concurrent caller can never receive the same row twice at the DB level -- but keeping it
+// symmetric with kanjiInFlight avoids a visible flash where a poll's generic merge briefly
+// shows the batch before this call's own atomic block insert does.)
+function dropInFlightIntroCards(
+  additions: QueueItem[],
+  kanjiInFlight: Set<number>,
+  vocabBatchInFlight: boolean
+): QueueItem[] {
+  return additions.filter((item) => {
+    if (item.kind !== "review") return true;
+    const { card } = item;
+    // kanji_id is only ever set on kanji_meaning/kanji_reading rows (see get_due_cards) --
+    // every other exercise_type carries it as null, so this alone disambiguates them.
+    if (card.kanji_id != null) return !kanjiInFlight.has(card.kanji_id);
+    if (card.exercise_type === "vocab_meaning") return !vocabBatchInFlight;
+    return true;
+  });
+}
+
+// Keeps a still-learning kanji bundle or the vocab batch contiguous, AND pulls it ahead of
+// unrelated reviews -- so a page refresh, which has no memory of introduceKanji's/
+// introduceVocab's own atomic block insert below, still lands the user right back where they
+// were: finishing the in-progress group before anything else, exactly like the live
+// (no-refresh) session already guarantees via mergeKeepingCurrent's "already-queued beats
+// newly-discovered" rule. The relative order of every non-grouped item is preserved exactly
+// (only grouped members get pulled forward, everything else just closes the gaps they leave) --
+// so this has zero effect on hiragana/katakana ordering, or on plain review-vs-review order,
+// whenever no kanji bundle or vocab batch is present.
+//
+// `hasFixedCurrent` (default true, matching every existing call site) says whether items[0] is
+// already on screen and therefore immovable -- mergeKeepingCurrent's own contract, for the
+// refreshQueue/settled-merge callers. Pass false only for a brand-new queue nothing has been
+// painted from yet (the cold-load branch in init()): there items[0] is just wherever
+// reviewsFirst's shuffle happened to land, not a real "current" -- without this, an unrelated
+// review that the shuffle placed first would keep winning by luck instead of the group always
+// taking priority.
+function groupIntroBundles(items: QueueItem[], hasFixedCurrent = true): QueueItem[] {
+  if (items.length <= 1) return items;
+
+  const groups = new Map<string, QueueItem[]>();
+  for (const item of items) {
+    const key = introBundleKey(item);
+    if (key == null) continue;
+    let group = groups.get(key);
+    if (!group) {
+      group = [];
+      groups.set(key, group);
+    }
+    group.push(item);
+  }
+  if (groups.size === 0) return items;
+
+  // The vocab batch is one flat shuffled list; a kanji bundle keeps its meaning card first,
+  // then shuffles only its reading cards.
+  const orderBundle = (key: string): QueueItem[] => {
+    const group = groups.get(key) ?? [];
+    if (key === VOCAB_BATCH_KEY) return shuffle(group);
+    const meaning = group.filter((i) => i.kind === "review" && i.card.exercise_type === "kanji_meaning");
+    const readings = shuffle(group.filter((i) => i.kind === "review" && i.card.exercise_type === "kanji_reading"));
+    return [...meaning, ...readings];
+  };
+
+  const placed = new Set<QueueItem>();
+  const head: QueueItem[] = []; // items[0]'s own group, only when it's pinned in place
+  const bundles: QueueItem[] = []; // every other incomplete group, pulled ahead of everything else
+  const others: QueueItem[] = []; // everything else, in its original relative order
+
+  let rest = items;
+  if (hasFixedCurrent) {
+    const headKey = introBundleKey(items[0]);
+    if (headKey != null) {
+      for (const item of orderBundle(headKey)) {
+        head.push(item);
+        placed.add(item);
+      }
+    } else {
+      head.push(items[0]);
+      placed.add(items[0]);
+    }
+    rest = items.slice(1);
+  }
+
+  const seenBundles = new Set<string>();
+  for (const item of rest) {
+    if (placed.has(item)) continue;
+    const key = introBundleKey(item);
+    if (key == null) {
+      others.push(item);
+      placed.add(item);
+      continue;
+    }
+    if (seenBundles.has(key)) continue; // already placed via an earlier member of the same group
+    seenBundles.add(key);
+    for (const sibling of orderBundle(key)) {
+      if (placed.has(sibling)) continue;
+      bundles.push(sibling);
+      placed.add(sibling);
+    }
+  }
+
+  return [...head, ...bundles, ...others];
+}
+
 function reviewBody(card: DueCard, rating: Rating, sessionId: number | undefined): ReviewRequestBody {
   const body: ReviewRequestBody = { exercise_type: card.exercise_type, rating, session_id: sessionId };
   if (card.exercise_type === "kanji_meaning") body.kanji_id = card.kanji_id ?? undefined;
@@ -243,6 +381,14 @@ export function useStudyQueue() {
   // refreshQueue poll and a drill card's own async resolution).
   const hiraganaInFlightRef = useRef<Set<number>>(new Set());
   const katakanaInFlightRef = useRef<Set<number>>(new Set());
+  // kanji_ids currently owned by an in-flight introduceKanji call (RPC + getKanjiIntroCards
+  // fetch) -- see dropInFlightIntroCards for why this is needed (same race as
+  // hiragana/katakanaInFlightRef above, one kanji at a time instead of pooled).
+  const kanjiInFlightRef = useRef<Set<number>>(new Set());
+  // Whether a vocab-batch hand-off (RPC + completeVocabBatch fetch, triggered by the last
+  // "New vocabulary" card in the queue) is currently in flight -- there's only ever one vocab
+  // batch at a time, so a boolean is enough (unlike kanjiInFlightRef's per-kanji Set).
+  const vocabBatchInFlightRef = useRef(false);
   // See QueueItem.renderKey -- incremented each time submitDrillAnswer reshows a held card
   // after a not-yet-graduated result, so its React key differs from the previous attempt.
   const drillRetryCounterRef = useRef(0);
@@ -302,9 +448,13 @@ export function useStudyQueue() {
           [...hiraganaDrillPoolRef.current, ...katakanaDrillPoolRef.current].map((c) => reviewKey(c))
         );
         const existingKeys = new Set([...prev.map((i) => i.key), ...poolKeys]);
-        const rawAdditions = incoming.filter((i) => !existingKeys.has(i.key));
+        const rawAdditions = dropInFlightIntroCards(
+          incoming.filter((i) => !existingKeys.has(i.key)),
+          kanjiInFlightRef.current,
+          vocabBatchInFlightRef.current
+        );
         const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
-        return mergeKeepingCurrent(prev, additions, isInProgressPackItem);
+        return groupIntroBundles(mergeKeepingCurrent(prev, additions, isInProgressPackItem));
       });
     } catch {
       // periodic refresh failures shouldn't interrupt an active session
@@ -398,17 +548,28 @@ export function useStudyQueue() {
               [...hiraganaDrillPoolRef.current, ...katakanaDrillPoolRef.current].map((c) => reviewKey(c))
             );
             const existingKeys = new Set([...prev.map((i) => i.key), ...poolKeys]);
-            const rawAdditions = items.filter((i) => !existingKeys.has(i.key));
+            const rawAdditions = dropInFlightIntroCards(
+              items.filter((i) => !existingKeys.has(i.key)),
+              kanjiInFlightRef.current,
+              vocabBatchInFlightRef.current
+            );
             const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
-            return mergeKeepingCurrent(prev, additions, isInProgressPackItem);
+            return groupIntroBundles(mergeKeepingCurrent(prev, additions, isInProgressPackItem));
           });
           return;
         }
 
         settled = true;
         // The very first paint of a full queue -- no `prev` to check for an already-visible
-        // drill card, so pass an empty array (nothing's visible yet).
-        setQueue(poolExtraDrillCards(items, [], hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current));
+        // drill card, so pass an empty array (nothing's visible yet). hasFixedCurrent=false:
+        // nothing is on screen yet either, so groupIntroBundles is free to reorder
+        // items[0] too instead of treating reviewsFirst's shuffle as already-final.
+        setQueue(
+          groupIntroBundles(
+            poolExtraDrillCards(items, [], hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current),
+            false
+          )
+        );
         if (items.length === 0) {
           clearFirstCardCache(user.id);
           void endSession(false);
@@ -732,14 +893,127 @@ export function useStudyQueue() {
     [enqueueMutation, showToast, queue]
   );
 
+  // introduce_kanji handles new_kanji instead of the generic introduceCard above, because
+  // (unlike new_vocab) finishing a "New kanji" card needs to hand the user its "Kanji meaning"
+  // card and every "Word reading" card immediately after, with nothing else ever shown in
+  // between -- see 20260828_pair_new_kanji_with_intro_bundle.sql. Unlike introduceKanaCard,
+  // there's no multi-tap pack to track: introduce_kanji creates every row for the bundle (one
+  // kanji_meaning_progress row, one kanji_reading_progress row per example word) in a single
+  // RPC call, so this item is always "the last (only) tap" -- it's held on screen (button
+  // disabled via pendingCardKey) until getKanjiIntroCards has actually fetched the fresh rows,
+  // then the swap from "New kanji" to [Kanji meaning, then its shuffled Word reading cards]
+  // happens as one atomic setQueue call, exactly like introduceKanaCard's finishPack.
   const introduceKanji = useCallback(
-    (item: QueueItem & { kind: "new_kanji" }) => introduceCard(item, introduceKanjiApi, "kanji"),
-    [introduceCard]
+    (item: QueueItem & { kind: "new_kanji" }) => {
+      const kanjiId = item.candidate.id;
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      setPendingCardKey(item.key);
+      kanjiInFlightRef.current.add(kanjiId);
+
+      enqueueMutation(async () => {
+        try {
+          await introduceKanjiApi(kanjiId, sessionIdRef.current ?? undefined);
+        } catch (err) {
+          if (!(err instanceof ApiError && err.status === 409)) {
+            // Not "already introduced elsewhere" -- a real failure, nothing to hand off.
+            kanjiInFlightRef.current.delete(kanjiId);
+            setCompletedCount((c) => Math.max(0, c - 1));
+            setPendingCardKey(null);
+            showToast(err instanceof ApiError ? err.message : "Could not introduce this kanji. Please try again.", "error");
+            return;
+          }
+          // 409: already introduced elsewhere -- its bundle still exists, hand it off below.
+        }
+
+        const cards = await getKanjiIntroCards(kanjiId).catch(() => [] as DueCard[]);
+        kanjiInFlightRef.current.delete(kanjiId);
+        setPendingCardKey(null);
+
+        if (cards.length === 0) {
+          setQueue((prev) => prev.filter((i) => i.key !== item.key));
+          return;
+        }
+
+        const meaning = cards.filter((c) => c.exercise_type === "kanji_meaning");
+        const readings = shuffle(cards.filter((c) => c.exercise_type === "kanji_reading"));
+        const block = [...meaning, ...readings].map((card) => ({
+          key: reviewKey(card),
+          kind: "review" as const,
+          card,
+        }));
+
+        setQueue((prev) => {
+          const withoutItem = prev.filter((i) => i.key !== item.key);
+          const existingKeys = new Set(withoutItem.map((i) => i.key));
+          const newBlock = block.filter((i) => !existingKeys.has(i.key));
+          return [...newBlock, ...withoutItem];
+        });
+      });
+    },
+    [enqueueMutation, showToast]
   );
 
+  // introduce_vocabulary handles new_vocab specially only for the LAST "New vocabulary" card
+  // still in the queue -- every earlier tap uses the plain introduceCard path above (optimistic
+  // removal, no special handling), same as this used to behave for every tap before batching.
+  // Once no other new_vocab candidate remains in the queue, this tap is the one that completes
+  // today's whole batch: introduce_vocabulary itself only ever marks the new row pending_batch
+  // (never touches due_at in a way that would surface it early -- see
+  // 20260830_vocab_batch_pending_flag.sql), so this call separately fires completeVocabBatch
+  // right after, which atomically releases every still-pending row for this user and hands them
+  // back -- so, like introduceKanji/introduceKanaCard's finishPack, this is held on screen
+  // (button disabled via pendingCardKey) until that fetch actually resolves, then the swap from
+  // the last "New vocabulary" card to the whole shuffled "Vocabulary" batch happens as one
+  // atomic setQueue call.
   const introduceVocab = useCallback(
-    (item: QueueItem & { kind: "new_vocab" }) => introduceCard(item, introduceVocabularyApi, "word"),
-    [introduceCard]
+    (item: QueueItem & { kind: "new_vocab" }) => {
+      const isLastInBatch = !queue.some((i) => i.key !== item.key && i.kind === "new_vocab");
+      if (!isLastInBatch) {
+        introduceCard(item, introduceVocabularyApi, "word");
+        return;
+      }
+
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      setPendingCardKey(item.key);
+      vocabBatchInFlightRef.current = true;
+
+      enqueueMutation(async () => {
+        try {
+          await introduceVocabularyApi(item.candidate.id, sessionIdRef.current ?? undefined);
+        } catch (err) {
+          if (!(err instanceof ApiError && err.status === 409)) {
+            vocabBatchInFlightRef.current = false;
+            setCompletedCount((c) => Math.max(0, c - 1));
+            setPendingCardKey(null);
+            showToast(err instanceof ApiError ? err.message : "Could not introduce this word. Please try again.", "error");
+            return;
+          }
+          // 409: already introduced elsewhere -- whatever's pending (including that word,
+          // introduced from another tab) still needs releasing, hand it off below.
+        }
+
+        const cards = await completeVocabBatch().catch(() => [] as DueCard[]);
+        vocabBatchInFlightRef.current = false;
+        setPendingCardKey(null);
+
+        if (cards.length === 0) {
+          setQueue((prev) => prev.filter((i) => i.key !== item.key));
+          return;
+        }
+
+        const block = shuffle(cards).map((card) => ({ key: reviewKey(card), kind: "review" as const, card }));
+
+        setQueue((prev) => {
+          const withoutItem = prev.filter((i) => i.key !== item.key);
+          const existingKeys = new Set(withoutItem.map((i) => i.key));
+          const newBlock = block.filter((i) => !existingKeys.has(i.key));
+          return [...newBlock, ...withoutItem];
+        });
+      });
+    },
+    [enqueueMutation, showToast, introduceCard, queue]
   );
 
   const introduceHiragana = useCallback(

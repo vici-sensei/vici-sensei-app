@@ -158,7 +158,7 @@ export default function StudyPage() {
           <NewKanjiIntroCard
             key={current.key}
             candidate={current.candidate}
-            disabled={false}
+            disabled={cardPending}
             onConfirm={() => actions.introduceKanji(current)}
           />
         )}
@@ -166,7 +166,7 @@ export default function StudyPage() {
           <NewVocabIntroCard
             key={current.key}
             candidate={current.candidate}
-            disabled={false}
+            disabled={cardPending}
             onConfirm={() => actions.introduceVocab(current)}
           />
         )}

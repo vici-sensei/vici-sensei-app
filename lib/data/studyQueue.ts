@@ -92,6 +92,41 @@ export async function fetchKatakanaReadingCards(
   return ((data ?? []) as DueCardRow[]).map(toDueCard);
 }
 
+/** Fetches the kanji_meaning + kanji_reading cards for a kanji that was just introduced (see
+ * introduce_kanji, which sets due_at = now() for both on insert for exactly this reason) --
+ * called once introduce_kanji resolves, so useStudyQueue can hand the whole bundle
+ * (meaning card, then its Word reading cards) straight to the queue as one block instead of
+ * waiting for the next poll/timer to pick them up via get_due_cards. Order is meaning first,
+ * then readings in kanji_detail_words rank order -- the caller shuffles the readings itself. */
+export async function fetchKanjiIntroCards(
+  supabase: AppSupabaseClient,
+  userId: string,
+  kanjiId: number
+): Promise<DueCard[]> {
+  const { data, error } = await supabase.rpc("get_kanji_intro_cards", {
+    p_user_id: userId,
+    p_kanji_id: kanjiId,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as DueCardRow[]).map(toDueCard);
+}
+
+/** Atomically releases every one of this user's still-pending vocab_meaning rows (see
+ * introduce_vocabulary, which inserts new words with pending_batch = true specifically so
+ * get_due_cards can never surface them early, no matter how much time passes) and returns
+ * exactly the rows it just released. Called both right when useStudyQueue detects the last
+ * "New vocabulary" card in the queue was just introduced, and opportunistically from
+ * fetchStudyQueue below whenever there are no New vocabulary candidates left at all -- so a
+ * batch left half-finished in an earlier session gets flushed the moment the queue is next
+ * loaded, instead of staying stuck. The UPDATE...RETURNING in complete_vocab_batch means a
+ * concurrent caller (another tab, or this same flush racing the same-session hand-off) can
+ * never receive the same row twice -- whichever transaction commits first captures it. */
+export async function fetchCompleteVocabBatch(supabase: AppSupabaseClient, userId: string): Promise<DueCard[]> {
+  const { data, error } = await supabase.rpc("complete_vocab_batch", { p_user_id: userId });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as DueCardRow[]).map(toDueCard);
+}
+
 export async function fetchStudyQueue(
   supabase: AppSupabaseClient,
   userId: string,
@@ -178,8 +213,23 @@ export async function fetchStudyQueue(
     words: [] as NewKanjiIntroWord[],
   }));
 
+  const dueCards = ((dueCardsResult.data ?? []) as DueCardRow[]).map(toDueCard);
+
+  // No New vocabulary candidates left to show at all (today's quota used up, or -- rarer -- the
+  // level simply ran out of unseen words before the quota did) -- either way, nothing will ever
+  // trigger useStudyQueue's own "last card in the batch" hand-off again, so flush any words
+  // still pending_batch here instead. Harmless no-op when nothing is pending (a fresh
+  // UPDATE...RETURNING with zero matching rows), so this is safe to run on every fetch. Can
+  // never duplicate a row already in dueCards above: get_due_cards excludes pending_batch rows
+  // outright, and complete_vocab_batch only ever returns rows that were still pending_batch at
+  // the moment of its own UPDATE -- the two sets are disjoint by construction.
+  if (settings.study_vocabulary && (vocabCandidatesResult.data ?? []).length === 0) {
+    const flushed = await fetchCompleteVocabBatch(supabase, userId).catch(() => [] as DueCard[]);
+    dueCards.push(...flushed);
+  }
+
   return {
-    due_cards: ((dueCardsResult.data ?? []) as DueCardRow[]).map(toDueCard),
+    due_cards: dueCards,
     new_kanji_to_introduce: newKanjiToIntroduce,
     new_vocab_to_introduce: vocabCandidatesResult.data ?? [],
     new_hiragana_to_introduce: hiraganaCandidatesResult.data ?? [],
