@@ -6,10 +6,13 @@ import { fetchAllHiragana, fetchAllKatakana } from "@/lib/data/kana";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import { getErrorMessage } from "@/lib/api/client";
-import type { AsyncStatus, NewHiraganaCandidate, NewKatakanaCandidate } from "@/lib/types";
+import type { AsyncStatus, BrowseKanaEntry } from "@/lib/types";
 
-const HIRAGANA_CACHE_KEY = "cache:hiragana-list";
-const KATAKANA_CACHE_KEY = "cache:katakana-list";
+// v2: bumped when BrowseKanaEntry gained kana_type/entry_kind/etc (20260903_kana_orthography_rules.sql)
+// -- old cached rows lack those fields, and partitioning logic in BrowseKanaListPage would
+// silently drop them (undefined !== "character") until the background refetch overwrites them.
+const HIRAGANA_CACHE_KEY = "cache:hiragana-list:v2";
+const KATAKANA_CACHE_KEY = "cache:katakana-list:v2";
 
 /** Loads the whole set once (reference data, same for every user) -- Browse then filters this
  * in-memory list locally instead of a server round trip per keystroke. */
@@ -45,11 +48,11 @@ function useKanaList<T>(
 }
 
 export function useHiraganaList() {
-  return useKanaList<NewHiraganaCandidate>(() => fetchAllHiragana(createClient()), HIRAGANA_CACHE_KEY);
+  return useKanaList<BrowseKanaEntry>(() => fetchAllHiragana(createClient()), HIRAGANA_CACHE_KEY);
 }
 
 export function useKatakanaList() {
-  return useKanaList<NewKatakanaCandidate>(() => fetchAllKatakana(createClient()), KATAKANA_CACHE_KEY);
+  return useKanaList<BrowseKanaEntry>(() => fetchAllKatakana(createClient()), KATAKANA_CACHE_KEY);
 }
 
 /** Fire-and-forget: called on hover/focus/touchstart of an Explore nav entry point, well before

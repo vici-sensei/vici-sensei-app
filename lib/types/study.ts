@@ -108,6 +108,34 @@ export interface NewKatakanaCandidate {
   gojuon_row: string;
 }
 
+/** Browse's richer row shape -- unlike NewHiraganaCandidate/NewKatakanaCandidate (which mirror
+ * exactly what get_new_hiragana_candidates/get_new_katakana_candidates return for the intro
+ * flow), Browse reads the reference tables directly and needs the orthography-rule metadata
+ * added in 20260903_kana_orthography_rules.sql/20260903_kana_orthography_rules_expansion.sql to
+ * split the page into sections. */
+export interface BrowseKanaEntry {
+  id: number;
+  character: string;
+  romaji: string;
+  gojuon_row: string;
+  kana_type:
+    | "seion"
+    | "dakuten"
+    | "handakuten"
+    | "yoon"
+    | "sokuon"
+    | "choonpu"
+    | "extended"
+    | "n_gemination"
+    | "rendaku"
+    | "particle_reading"
+    | "historical";
+  entry_kind: "character" | "rule" | "example";
+  sound_origin: "native" | "loanword";
+  frequency_tier: "core" | "rare" | "very_rare" | "historical";
+  notes: string | null;
+}
+
 export interface StudyQueueResponse {
   due_cards: DueCard[];
   new_kanji_to_introduce: NewKanjiCandidate[];
