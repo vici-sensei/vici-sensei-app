@@ -6,8 +6,10 @@ import type {
   DueCard,
   KanjiRow,
   NewHiraganaCandidate,
+  NewHiraganaRuleCandidate,
   NewKanjiIntroWord,
   NewKatakanaCandidate,
+  NewKatakanaRuleCandidate,
   NewVocabCandidate,
   StudySettings,
   StudyQueueResponse,
@@ -19,6 +21,15 @@ import type {
 // produce once introduced, known up front from kanji_detail_words alone, independent of the
 // word *content* fetchKanjiDetailWordsBatch fetches separately/lazily below.
 type NewKanjiCandidateRow = KanjiRow & { word_count: number };
+
+// get_new_hiragana_candidates/get_new_katakana_candidates' raw row shape: the public
+// NewHiraganaCandidate/NewKatakanaCandidate fields plus entry_kind, which only exists so
+// fetchStudyQueue below can split each gojuon_row pack into character rows (rendered as a
+// new_hiragana/new_katakana intro card, same as before) vs example rows (batch-introduced
+// silently -- see introduceHiraganaExamples/introduceKatakanaExamples,
+// 20260906_kana_examples_skip_intro_card.sql) before either ever reaches the client.
+type NewHiraganaCandidateRow = NewHiraganaCandidate & { entry_kind: "character" | "example" };
+type NewKatakanaCandidateRow = NewKatakanaCandidate & { entry_kind: "character" | "example" };
 
 // Raw shape of a get_due_cards() row: DueCard's fields plus the SRS state columns
 // (status/ease_factor/interval_days/repetitions/lapses/learning_step) that only
@@ -99,6 +110,33 @@ export async function fetchKatakanaReadingCards(
   return ((data ?? []) as DueCardRow[]).map(toDueCard);
 }
 
+// Batch-introduces every given entry_kind = 'example' hiragana/katakana id in one round trip
+// (introduce_hiragana_examples/introduce_katakana_examples, 20260906_kana_examples_skip_intro_card.sql)
+// -- these ids never get their own new_hiragana/new_katakana intro card (their content is already
+// shown, all at once, on their kana_type's new_rule card), so fetchStudyQueue calls this the
+// instant it sees any among this fetch's candidates, then immediately fetches their fresh reading
+// cards below so they arrive as ordinary due_cards from the very first render -- no visible intro
+// step, and no per-item round trip even for a pack as large as chōonpu's 44.
+async function introduceHiraganaExamples(supabase: AppSupabaseClient, userId: string, ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await supabase.rpc("introduce_hiragana_examples", {
+    p_user_id: userId,
+    p_hiragana_ids: ids,
+    p_session_id: null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+async function introduceKatakanaExamples(supabase: AppSupabaseClient, userId: string, ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await supabase.rpc("introduce_katakana_examples", {
+    p_user_id: userId,
+    p_katakana_ids: ids,
+    p_session_id: null,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /** Fetches the kanji_meaning + kanji_reading cards for a kanji that was just introduced (see
  * introduce_kanji, which sets due_at = now() for both on insert for exactly this reason) --
  * called once introduce_kanji resolves, so useStudyQueue can hand the whole bundle
@@ -141,16 +179,29 @@ export async function fetchCompleteVocabBatch(supabase: AppSupabaseClient, userI
 // its one future review card) for vocab/hiragana/katakana, each of which has exactly one future
 // review card per candidate (get_kanji_intro_cards, complete_vocab_batch,
 // get_hiragana/katakana_reading_cards all confirm this 1:1 relationship). See
-// 20260831_predicted_daily_total.sql for why this is knowable without creating anything.
+// 20260831_predicted_daily_total.sql for why this is knowable without creating anything. A
+// hiragana/katakana rule candidate counts as a flat 1 instead -- it's read-only and never
+// produces a follow-up review card (see introduce_hiragana_rule/introduce_katakana_rule,
+// 20260904_kana_rule_cards.sql).
 function computePredictedTotal(
   dueCardCount: number,
   kanjiCandidates: NewKanjiCandidateRow[],
   vocabCandidateCount: number,
   hiraganaCandidateCount: number,
-  katakanaCandidateCount: number
+  katakanaCandidateCount: number,
+  hiraganaRuleCandidateCount: number,
+  katakanaRuleCandidateCount: number
 ): number {
   const kanjiTotal = kanjiCandidates.reduce((sum, c) => sum + 2 + c.word_count, 0);
-  return dueCardCount + kanjiTotal + vocabCandidateCount * 2 + hiraganaCandidateCount * 2 + katakanaCandidateCount * 2;
+  return (
+    dueCardCount +
+    kanjiTotal +
+    vocabCandidateCount * 2 +
+    hiraganaCandidateCount * 2 +
+    katakanaCandidateCount * 2 +
+    hiraganaRuleCandidateCount +
+    katakanaRuleCandidateCount
+  );
 }
 
 export async function fetchStudyQueue(
@@ -195,7 +246,14 @@ export async function fetchStudyQueue(
     ? Math.max(settings.new_katakana_per_day - counts.new_katakana_today, 0)
     : 0;
 
-  const [kanjiCandidatesResult, vocabCandidatesResult, hiraganaCandidatesResult, katakanaCandidatesResult] = await Promise.all([
+  const [
+    kanjiCandidatesResult,
+    vocabCandidatesResult,
+    hiraganaCandidatesResult,
+    katakanaCandidatesResult,
+    hiraganaRuleCandidatesResult,
+    katakanaRuleCandidatesResult,
+  ] = await Promise.all([
     kanjiRemaining > 0
       ? supabase.rpc("get_new_kanji_candidates", {
           p_user_id: userId,
@@ -212,16 +270,29 @@ export async function fetchStudyQueue(
       : Promise.resolve({ data: [] as NewVocabCandidate[], error: null }),
     hiraganaRemaining > 0
       ? supabase.rpc("get_new_hiragana_candidates", { p_user_id: userId, p_limit: hiraganaRemaining })
-      : Promise.resolve({ data: [] as NewHiraganaCandidate[], error: null }),
+      : Promise.resolve({ data: [] as NewHiraganaCandidateRow[], error: null }),
     katakanaRemaining > 0
       ? supabase.rpc("get_new_katakana_candidates", { p_user_id: userId, p_limit: katakanaRemaining })
-      : Promise.resolve({ data: [] as NewKatakanaCandidate[], error: null }),
+      : Promise.resolve({ data: [] as NewKatakanaCandidateRow[], error: null }),
+    // Unlike the character candidates above, rule candidates don't consume
+    // new_hiragana_per_day/new_katakana_per_day -- so this still runs even once
+    // hiraganaRemaining/katakanaRemaining hits 0, passing it through as p_limit anyway (0 is
+    // handled correctly -- see get_new_hiragana_rule_candidates) so a rule due today still shows
+    // even on a day the character cap is already spent, gated only on the track being enabled.
+    settings.study_hiragana
+      ? supabase.rpc("get_new_hiragana_rule_candidates", { p_user_id: userId, p_limit: hiraganaRemaining })
+      : Promise.resolve({ data: [] as NewHiraganaRuleCandidate[], error: null }),
+    settings.study_katakana
+      ? supabase.rpc("get_new_katakana_rule_candidates", { p_user_id: userId, p_limit: katakanaRemaining })
+      : Promise.resolve({ data: [] as NewKatakanaRuleCandidate[], error: null }),
   ]);
 
   if (kanjiCandidatesResult.error) throw new Error(kanjiCandidatesResult.error.message);
   if (vocabCandidatesResult.error) throw new Error(vocabCandidatesResult.error.message);
   if (hiraganaCandidatesResult.error) throw new Error(hiraganaCandidatesResult.error.message);
   if (katakanaCandidatesResult.error) throw new Error(katakanaCandidatesResult.error.message);
+  if (hiraganaRuleCandidatesResult.error) throw new Error(hiraganaRuleCandidatesResult.error.message);
+  if (katakanaRuleCandidatesResult.error) throw new Error(katakanaRuleCandidatesResult.error.message);
 
   const kanjiCandidateRows = (kanjiCandidatesResult.data ?? []) as NewKanjiCandidateRow[];
   if (kanjiCandidateRows.length > 0 && onKanjiWordsReady) {
@@ -255,8 +326,30 @@ export async function fetchStudyQueue(
   }
 
   const vocabCandidates = (vocabCandidatesResult.data ?? []) as NewVocabCandidate[];
-  const hiraganaCandidates = (hiraganaCandidatesResult.data ?? []) as NewHiraganaCandidate[];
-  const katakanaCandidates = (katakanaCandidatesResult.data ?? []) as NewKatakanaCandidate[];
+  const hiraganaRows = (hiraganaCandidatesResult.data ?? []) as NewHiraganaCandidateRow[];
+  const katakanaRows = (katakanaCandidatesResult.data ?? []) as NewKatakanaCandidateRow[];
+  const hiraganaRuleCandidates = (hiraganaRuleCandidatesResult.data ?? []) as NewHiraganaRuleCandidate[];
+  const katakanaRuleCandidates = (katakanaRuleCandidatesResult.data ?? []) as NewKatakanaRuleCandidate[];
+
+  // Split each script's candidates by entry_kind: 'character' rows still become new_hiragana/
+  // new_katakana intro cards (unchanged), 'example' rows are batch-introduced silently and their
+  // fresh reading cards folded straight into due_cards -- see introduceHiraganaExamples/
+  // introduceKatakanaExamples above. Both scripts' batches run in parallel; each is a no-op when
+  // its id list is empty (the common case -- an example-row pack is only ever "due" right around
+  // the moment its kana_type's sokuon/yōon/n_gemination/chōonpu/extended rule becomes reachable).
+  const hiraganaCandidates = hiraganaRows.filter((c) => c.entry_kind === "character");
+  const hiraganaExampleIds = hiraganaRows.filter((c) => c.entry_kind === "example").map((c) => c.id);
+  const katakanaCandidates = katakanaRows.filter((c) => c.entry_kind === "character");
+  const katakanaExampleIds = katakanaRows.filter((c) => c.entry_kind === "example").map((c) => c.id);
+
+  if (hiraganaExampleIds.length > 0) {
+    await introduceHiraganaExamples(supabase, userId, hiraganaExampleIds);
+    dueCards.push(...(await fetchHiraganaReadingCards(supabase, userId, hiraganaExampleIds)));
+  }
+  if (katakanaExampleIds.length > 0) {
+    await introduceKatakanaExamples(supabase, userId, katakanaExampleIds);
+    dueCards.push(...(await fetchKatakanaReadingCards(supabase, userId, katakanaExampleIds)));
+  }
 
   return {
     due_cards: dueCards,
@@ -264,6 +357,8 @@ export async function fetchStudyQueue(
     new_vocab_to_introduce: vocabCandidates,
     new_hiragana_to_introduce: hiraganaCandidates,
     new_katakana_to_introduce: katakanaCandidates,
+    new_hiragana_rules_to_introduce: hiraganaRuleCandidates,
+    new_katakana_rules_to_introduce: katakanaRuleCandidates,
     next_due_at: nextDue.data.next_due_at,
     next_due_status: nextDue.data.next_due_status,
     undo_disabled: userFlagsResult.data?.undo_disabled ?? false,
@@ -272,7 +367,9 @@ export async function fetchStudyQueue(
       kanjiCandidateRows,
       vocabCandidates.length,
       hiraganaCandidates.length,
-      katakanaCandidates.length
+      katakanaCandidates.length,
+      hiraganaRuleCandidates.length,
+      katakanaRuleCandidates.length
     ),
   };
 }

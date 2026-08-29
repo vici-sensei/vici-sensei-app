@@ -13,6 +13,7 @@ import { ReviewCardKanaReading } from "@/app/components/study/ReviewCardKanaRead
 import { NewKanjiIntroCard } from "@/app/components/study/NewKanjiIntroCard";
 import { NewVocabIntroCard } from "@/app/components/study/NewVocabIntroCard";
 import { NewKanaIntroCard } from "@/app/components/study/NewKanaIntroCard";
+import { NewKanaRuleIntroCard } from "@/app/components/study/NewKanaRuleIntroCard";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
@@ -187,6 +188,24 @@ export default function StudyPage() {
             script="katakana"
             disabled={cardPending}
             onConfirm={() => actions.introduceKatakana(current)}
+          />
+        )}
+        {current.kind === "new_hiragana_rule" && (
+          <NewKanaRuleIntroCard
+            key={current.key}
+            candidate={current.candidate}
+            script="hiragana"
+            disabled={cardPending}
+            onConfirm={() => actions.introduceHiraganaRule(current)}
+          />
+        )}
+        {current.kind === "new_katakana_rule" && (
+          <NewKanaRuleIntroCard
+            key={current.key}
+            candidate={current.candidate}
+            script="katakana"
+            disabled={cardPending}
+            onConfirm={() => actions.introduceKatakanaRule(current)}
           />
         )}
       </div>

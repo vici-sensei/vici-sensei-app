@@ -139,6 +139,14 @@ export function introduceKatakana(katakanaId: number, sessionId?: number): Promi
   return introduce("katakana", katakanaId, sessionId);
 }
 
+export function introduceHiraganaRule(hiraganaId: number, sessionId?: number): Promise<void> {
+  return introduce("hiragana_rule", hiraganaId, sessionId);
+}
+
+export function introduceKatakanaRule(katakanaId: number, sessionId?: number): Promise<void> {
+  return introduce("katakana_rule", katakanaId, sessionId);
+}
+
 /** Called right after a whole "New Hiragana" gojuon pack finishes introducing, to fetch
  * that same pack's "Hiragana reading" cards for immediate display (see introduce_hiragana,
  * which sets due_at = now() on introduce specifically so these are ready right away). */

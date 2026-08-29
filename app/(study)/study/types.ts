@@ -1,4 +1,12 @@
-import type { DueCard, NewKanjiCandidate, NewVocabCandidate, NewHiraganaCandidate, NewKatakanaCandidate } from "@/lib/types";
+import type {
+  DueCard,
+  NewKanjiCandidate,
+  NewVocabCandidate,
+  NewHiraganaCandidate,
+  NewKatakanaCandidate,
+  NewHiraganaRuleCandidate,
+  NewKatakanaRuleCandidate,
+} from "@/lib/types";
 
 export type QueueItem =
   | {
@@ -17,7 +25,9 @@ export type QueueItem =
   | { key: string; kind: "new_kanji"; candidate: NewKanjiCandidate }
   | { key: string; kind: "new_vocab"; candidate: NewVocabCandidate }
   | { key: string; kind: "new_hiragana"; candidate: NewHiraganaCandidate }
-  | { key: string; kind: "new_katakana"; candidate: NewKatakanaCandidate };
+  | { key: string; kind: "new_katakana"; candidate: NewKatakanaCandidate }
+  | { key: string; kind: "new_hiragana_rule"; candidate: NewHiraganaRuleCandidate }
+  | { key: string; kind: "new_katakana_rule"; candidate: NewKatakanaRuleCandidate };
 
 export function reviewKey(card: DueCard): string {
   return `review-${card.exercise_type}-${card.progress_id}`;
@@ -37,4 +47,12 @@ export function newHiraganaKey(id: number): string {
 
 export function newKatakanaKey(id: number): string {
   return `new_katakana-${id}`;
+}
+
+export function newHiraganaRuleKey(id: number): string {
+  return `new_hiragana_rule-${id}`;
+}
+
+export function newKatakanaRuleKey(id: number): string {
+  return `new_katakana_rule-${id}`;
 }

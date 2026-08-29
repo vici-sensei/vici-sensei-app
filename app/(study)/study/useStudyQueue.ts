@@ -16,6 +16,8 @@ import {
   introduceVocabulary as introduceVocabularyApi,
   introduceHiragana as introduceHiraganaApi,
   introduceKatakana as introduceKatakanaApi,
+  introduceHiraganaRule as introduceHiraganaRuleApi,
+  introduceKatakanaRule as introduceKatakanaRuleApi,
   startSession as startStudySessionApi,
   submitHiraganaDrillResult as submitHiraganaDrillResultApi,
   submitKatakanaDrillResult as submitKatakanaDrillResultApi,
@@ -28,7 +30,16 @@ import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
 import type { DueCard, NewKanjiIntroWord, Rating, ReviewRequestBody, StudyQueueResponse } from "@/lib/types";
-import { newKanjiKey, newVocabKey, newHiraganaKey, newKatakanaKey, reviewKey, type QueueItem } from "./types";
+import {
+  newKanjiKey,
+  newVocabKey,
+  newHiraganaKey,
+  newKatakanaKey,
+  newHiraganaRuleKey,
+  newKatakanaRuleKey,
+  reviewKey,
+  type QueueItem,
+} from "./types";
 
 const REFRESH_INTERVAL_MS = 45_000;
 
@@ -36,6 +47,17 @@ type Status = "loading" | "ready" | "ending" | "error";
 
 interface LastReview {
   card: DueCard;
+}
+
+// Merges a script's character-pack candidates with its rule candidates into one sequence ordered
+// by sort_order -- get_new_hiragana_candidates/get_new_katakana_candidates and
+// get_new_hiragana_rule_candidates/get_new_katakana_rule_candidates (20260904_kana_rule_cards.sql)
+// are two separate result sets, each already sorted within itself, but a rule (e.g. the dakuten
+// rule) is only meaningful shown right before the characters it explains (だ/ば/ざ...) -- so
+// buildQueue interleaves them here rather than appending rule items as their own trailing block
+// the way new_kanji/new_vocab are appended below.
+function sortItemsBySortOrder(items: { sortOrder: number; item: QueueItem }[]): QueueItem[] {
+  return [...items].sort((a, b) => a.sortOrder - b.sortOrder).map((i) => i.item);
 }
 
 function buildQueue(data: StudyQueueResponse): QueueItem[] {
@@ -47,12 +69,31 @@ function buildQueue(data: StudyQueueResponse): QueueItem[] {
   for (const candidate of data.new_vocab_to_introduce) {
     items.push({ key: newVocabKey(candidate.id), kind: "new_vocab", candidate });
   }
-  for (const candidate of data.new_hiragana_to_introduce) {
-    items.push({ key: newHiraganaKey(candidate.id), kind: "new_hiragana", candidate });
-  }
-  for (const candidate of data.new_katakana_to_introduce) {
-    items.push({ key: newKatakanaKey(candidate.id), kind: "new_katakana", candidate });
-  }
+
+  const hiraganaEntries: { sortOrder: number; item: QueueItem }[] = [
+    ...data.new_hiragana_to_introduce.map((candidate) => ({
+      sortOrder: candidate.sort_order,
+      item: { key: newHiraganaKey(candidate.id), kind: "new_hiragana" as const, candidate },
+    })),
+    ...data.new_hiragana_rules_to_introduce.map((candidate) => ({
+      sortOrder: candidate.sort_order,
+      item: { key: newHiraganaRuleKey(candidate.id), kind: "new_hiragana_rule" as const, candidate },
+    })),
+  ];
+  items.push(...sortItemsBySortOrder(hiraganaEntries));
+
+  const katakanaEntries: { sortOrder: number; item: QueueItem }[] = [
+    ...data.new_katakana_to_introduce.map((candidate) => ({
+      sortOrder: candidate.sort_order,
+      item: { key: newKatakanaKey(candidate.id), kind: "new_katakana" as const, candidate },
+    })),
+    ...data.new_katakana_rules_to_introduce.map((candidate) => ({
+      sortOrder: candidate.sort_order,
+      item: { key: newKatakanaRuleKey(candidate.id), kind: "new_katakana_rule" as const, candidate },
+    })),
+  ];
+  items.push(...sortItemsBySortOrder(katakanaEntries));
+
   return items;
 }
 
@@ -123,10 +164,14 @@ function mergeKeepingCurrent(
 // post-introduction drill (see submitDrillAnswer) -- answered right or wrong, it keeps coming
 // back until it's graduated. At most one such card is ever shown at a time; the rest sit in
 // hiragana/katakanaDrillPoolRef and get drawn at random as the visible one is answered.
+// Only kana_type 'seion' cards ever run the post-introduction drill -- dakuten/handakuten
+// characters and every drillable example skip straight to normal Hard/Good/Easy grading, even
+// while status is still 'learning' (see 20260906_selective_examples_and_seion_only_drill.sql).
 function isDrillCard(item: QueueItem): item is QueueItem & { kind: "review" } {
   return (
     item.kind === "review" &&
     item.card.status === "learning" &&
+    item.card.kana_type === "seion" &&
     (item.card.exercise_type === "hiragana_reading" || item.card.exercise_type === "katakana_reading")
   );
 }
@@ -186,13 +231,23 @@ function poolExtraDrillCards(
 // still-'learning' vocab_meaning card shares this single constant key.
 const VOCAB_BATCH_KEY = "vocab-batch";
 
+// kana_types whose entry_kind = 'example' rows get batch-introduced together
+// (introduceHiraganaExamples/introduceKatakanaExamples, fetchStudyQueue) and should stay grouped
+// in the queue the same way -- deliberately excludes 'seion' (handled entirely differently, via
+// the drill pool -- see isDrillCard/submitDrillAnswer) and 'dakuten'/'handakuten' (real
+// entry_kind = 'character' rows, already packed and pushed as one block per gojuon_row by
+// introduceKanaCard's finishPack, which stays contiguous on its own without needing this).
+const KANA_EXAMPLE_BUNDLE_TYPES = new Set(["sokuon", "yoon", "n_gemination", "choonpu", "extended"]);
+
 // A still-learning kanji_meaning/kanji_reading card is part of a kanji's not-yet-completed
-// intro bundle (see introduceKanji below and 20260828_pair_new_kanji_with_intro_bundle.sql), and
-// a still-learning vocab_meaning card is part of today's not-yet-completed vocab batch -- once
-// either graduates to status='review' it's just a normal independent review again, and drops out
-// of its group. Unlike hiragana/katakana's drill, there's no separate "still drilling" flag
-// needed for either: a row simply never leaves 'learning' until it actually graduates through
-// the normal rating flow.
+// intro bundle (see introduceKanji below and 20260828_pair_new_kanji_with_intro_bundle.sql), a
+// still-learning vocab_meaning card is part of today's not-yet-completed vocab batch, and a
+// still-learning hiragana_reading/katakana_reading card whose kana_type is one of
+// KANA_EXAMPLE_BUNDLE_TYPES is part of that kana_type's example pack (20260906_pack_examples_by_kana_type.sql)
+// -- once any of these graduates to status='review' it's just a normal independent review again,
+// and drops out of its group. Unlike seion's drill, there's no separate "still drilling" flag
+// needed for any of these: a row simply never leaves 'learning' until it actually graduates
+// through the normal rating flow.
 function introBundleKey(item: QueueItem): string | null {
   if (item.kind !== "review") return null;
   const { card } = item;
@@ -201,6 +256,13 @@ function introBundleKey(item: QueueItem): string | null {
     return `kanji-${card.kanji_id}`;
   }
   if (card.exercise_type === "vocab_meaning") return VOCAB_BATCH_KEY;
+  if (
+    (card.exercise_type === "hiragana_reading" || card.exercise_type === "katakana_reading") &&
+    card.kana_type != null &&
+    KANA_EXAMPLE_BUNDLE_TYPES.has(card.kana_type)
+  ) {
+    return `kana-example-${card.exercise_type}-${card.kana_type}`;
+  }
   return null;
 }
 
@@ -288,11 +350,11 @@ function groupIntroBundles(items: QueueItem[], hasFixedCurrent = true): QueueIte
   }
   if (groups.size === 0) return items;
 
-  // The vocab batch is one flat shuffled list; a kanji bundle keeps its meaning card first,
-  // then shuffles only its reading cards.
+  // The vocab batch and each kana-example pack are one flat shuffled list; a kanji bundle keeps
+  // its meaning card first, then shuffles only its reading cards.
   const orderBundle = (key: string): QueueItem[] => {
     const group = groups.get(key) ?? [];
-    if (key === VOCAB_BATCH_KEY) return shuffle(group);
+    if (key === VOCAB_BATCH_KEY || key.startsWith("kana-example-")) return shuffle(group);
     const meaning = group.filter((i) => i.kind === "review" && i.card.exercise_type === "kanji_meaning");
     const readings = shuffle(group.filter((i) => i.kind === "review" && i.card.exercise_type === "kanji_reading"));
     return [...meaning, ...readings];
@@ -867,7 +929,7 @@ export function useStudyQueue() {
 
   const introduceCard = useCallback(
     (
-      item: QueueItem & { kind: "new_kanji" | "new_vocab" },
+      item: QueueItem & { kind: "new_kanji" | "new_vocab" | "new_hiragana_rule" | "new_katakana_rule" },
       apiCall: (candidateId: number, sessionId?: number) => Promise<void>,
       noun: string
     ) => {
@@ -941,10 +1003,15 @@ export function useStudyQueue() {
       const drillPoolRef = kind === "hiragana" ? hiraganaDrillPoolRef : katakanaDrillPoolRef;
       const drillInFlightRef = kind === "hiragana" ? hiraganaInFlightRef : katakanaInFlightRef;
 
-      // Hands the pack straight into the post-introduction drill (submitDrillAnswer): only
-      // one reading card is ever shown at a time, so this shuffles the freshly-fetched pack,
-      // shows one, and stashes the rest in the pool -- submitDrillAnswer draws from it
-      // (and refills it) as the user answers each one, until every character has graduated.
+      // For a kana_type = 'seion' pack, hands it straight into the post-introduction drill
+      // (submitDrillAnswer): only one reading card is ever shown at a time, so this shuffles the
+      // freshly-fetched pack, shows one, and stashes the rest in the pool -- submitDrillAnswer
+      // draws from it (and refills it) as the user answers each one, until every character has
+      // graduated. Every other kana_type (dakuten/handakuten -- the only other characters that
+      // still reach this pack-based flow, see introduceKanaCard's header comment) skips the drill
+      // entirely: the whole pack is pushed into `queue` at once, same shape as
+      // introduceVocab's batch hand-off, and graded normally from the first review --
+      // 20260906_selective_examples_and_seion_only_drill.sql.
       const finishPack = async (ids: number[]) => {
         activeSet.delete(row);
         doneMap.delete(row);
@@ -960,13 +1027,23 @@ export function useStudyQueue() {
           for (const id of ids) drillInFlightRef.current.delete(id);
           return;
         }
-        const [first, ...restPool] = shuffle(cards);
-        drillPoolRef.current.push(...restPool);
-        setQueue((prev) => {
-          const withoutItem = prev.filter((i) => i.key !== item.key);
-          if (withoutItem.some((i) => i.key === reviewKey(first))) return withoutItem;
-          return [{ key: reviewKey(first), kind: "review", card: first }, ...withoutItem];
-        });
+        if (cards[0].kana_type === "seion") {
+          const [first, ...restPool] = shuffle(cards);
+          drillPoolRef.current.push(...restPool);
+          setQueue((prev) => {
+            const withoutItem = prev.filter((i) => i.key !== item.key);
+            if (withoutItem.some((i) => i.key === reviewKey(first))) return withoutItem;
+            return [{ key: reviewKey(first), kind: "review", card: first }, ...withoutItem];
+          });
+        } else {
+          const block = shuffle(cards).map((card) => ({ key: reviewKey(card), kind: "review" as const, card }));
+          setQueue((prev) => {
+            const withoutItem = prev.filter((i) => i.key !== item.key);
+            const existingKeys = new Set(withoutItem.map((i) => i.key));
+            const newBlock = block.filter((i) => !existingKeys.has(i.key));
+            return [...newBlock, ...withoutItem];
+          });
+        }
         for (const id of ids) drillInFlightRef.current.delete(id);
       };
 
@@ -1131,6 +1208,20 @@ export function useStudyQueue() {
     [introduceKanaCard]
   );
 
+  // Rule cards (new_hiragana_rule/new_katakana_rule) use the plain introduceCard path, not
+  // introduceKanaCard's pack/drill hand-off above -- there's no gojuon pack to complete and no
+  // follow-up reading card, introduce_hiragana_rule/introduce_katakana_rule just mark the rule
+  // permanently seen (20260904_kana_rule_cards.sql), so a simple optimistic removal is enough.
+  const introduceHiraganaRule = useCallback(
+    (item: QueueItem & { kind: "new_hiragana_rule" }) => introduceCard(item, introduceHiraganaRuleApi, "hiragana rule"),
+    [introduceCard]
+  );
+
+  const introduceKatakanaRule = useCallback(
+    (item: QueueItem & { kind: "new_katakana_rule" }) => introduceCard(item, introduceKatakanaRuleApi, "katakana rule"),
+    [introduceCard]
+  );
+
   const undoLast = useCallback(() => {
     if (!lastReview || undoDisabled) return;
     const toUndo = lastReview;
@@ -1200,6 +1291,15 @@ export function useStudyQueue() {
     // the same tap can't fire twice while the swap is in flight.
     cardPending: pendingCardKey !== null && queue[0]?.key === pendingCardKey,
     undoDisabled,
-    actions: { rate, introduceKanji, introduceVocab, introduceHiragana, introduceKatakana, undoLast },
+    actions: {
+      rate,
+      introduceKanji,
+      introduceVocab,
+      introduceHiragana,
+      introduceKatakana,
+      introduceHiraganaRule,
+      introduceKatakanaRule,
+      undoLast,
+    },
   };
 }

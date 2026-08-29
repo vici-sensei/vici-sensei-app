@@ -8,13 +8,15 @@ import { ApiError } from "@/lib/api/client";
 // catch block.
 const CAP_OR_DUPLICATE_ERRCODE = "P0002";
 
-export type IntroduceKind = "kanji" | "vocabulary" | "hiragana" | "katakana";
+export type IntroduceKind = "kanji" | "vocabulary" | "hiragana" | "katakana" | "hiragana_rule" | "katakana_rule";
 
 const INTRODUCE_RPCS: Record<IntroduceKind, { rpc: string; param: string }> = {
   kanji: { rpc: "introduce_kanji", param: "p_kanji_id" },
   vocabulary: { rpc: "introduce_vocabulary", param: "p_word_id" },
   hiragana: { rpc: "introduce_hiragana", param: "p_hiragana_id" },
   katakana: { rpc: "introduce_katakana", param: "p_katakana_id" },
+  hiragana_rule: { rpc: "introduce_hiragana_rule", param: "p_hiragana_id" },
+  katakana_rule: { rpc: "introduce_katakana_rule", param: "p_katakana_id" },
 };
 
 export async function introduceCard(

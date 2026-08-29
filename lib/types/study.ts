@@ -56,15 +56,22 @@ export interface DueCard {
   kana_character: string | null;
   /** The expected typed romaji answer for hiragana_reading/katakana_reading cards. */
   kana_romaji: string | null;
+  /** hiragana.kana_type/katakana.kana_type for hiragana_reading/katakana_reading cards (seion,
+   * dakuten, handakuten, yoon, sokuon, n_gemination, choonpu, extended) -- null for every other
+   * exercise_type. Gates the post-introduction drill (see `status` below): only kana_type =
+   * 'seion' cards ever use it, regardless of status. */
+  kana_type: string | null;
   /** How many times in a row this hiragana_reading/katakana_reading card has been answered
    * correctly during its post-introduction drill so far (see ReviewCardKanaReading) -- null for
    * every other exercise_type, and for a kana card that isn't currently mid-drill. */
   drill_streak: number | null;
   rating_previews: RatingPreviews;
-  /** 'learning' on a hiragana_reading/katakana_reading card means it's still in the
-   * post-introduction drill (see ReviewCardKanaReading) -- no Hard/Good/Easy buttons, graded
-   * purely correct/incorrect, repeats until answered right 3 times in a row. Every other
-   * exercise_type/status combination keeps the normal rating flow. */
+  /** 'learning' on a kana_type = 'seion' hiragana_reading/katakana_reading card means it's still
+   * in the post-introduction drill (see ReviewCardKanaReading) -- no Hard/Good/Easy buttons,
+   * graded purely correct/incorrect, repeats until answered right 3 times in a row. Every other
+   * kana_type skips the drill entirely regardless of status (dakuten/handakuten characters and
+   * every drillable example go straight to normal Hard/Good/Easy grading, same as
+   * kanji_meaning/vocab_meaning) -- see 20260906_selective_examples_and_seion_only_drill.sql. */
   status: ProgressStatus;
 }
 
@@ -99,6 +106,7 @@ export interface NewHiraganaCandidate {
   character: string;
   romaji: string;
   gojuon_row: string;
+  sort_order: number;
 }
 
 export interface NewKatakanaCandidate {
@@ -106,6 +114,46 @@ export interface NewKatakanaCandidate {
   character: string;
   romaji: string;
   gojuon_row: string;
+  sort_order: number;
+}
+
+export interface KanaRuleExample {
+  character: string;
+  romaji: string;
+  /** Used to split the example grid into per-family sub-groups (see groupByGojuonRow/
+   * resolveRuleExampleRowLabel in lib/srs/gojuon.ts), same grouping Browse's RuleSubsection
+   * shows -- not otherwise displayed. */
+  gojuon_row: string;
+}
+
+/** A one-time, read-only "new_rule" intro card -- entry_kind = 'rule' rows in hiragana/katakana
+ * (dakuten, sokuon, yoon, ...). Shown once; confirming it just marks it permanently seen (see
+ * introduce_hiragana_rule/introduce_katakana_rule) -- it's never graded and never produces a
+ * hiragana_reading/katakana_reading card. `examples` is the rule's illustrative row set (the
+ * dedicated entry_kind = 'example' rows for sokuon/yoon/n_gemination/choonpu/extended, or the real
+ * entry_kind = 'character' rows for seion/dakuten/handakuten, which have no separate examples of
+ * their own) -- see get_new_hiragana_rule_candidates/get_new_katakana_rule_candidates
+ * (20260904_kana_rule_cards.sql). */
+export interface NewHiraganaRuleCandidate {
+  id: number;
+  character: string;
+  notes: string | null;
+  kana_type: string;
+  sort_order: number;
+  label: string | null;
+  technical_term: string | null;
+  examples: KanaRuleExample[];
+}
+
+export interface NewKatakanaRuleCandidate {
+  id: number;
+  character: string;
+  notes: string | null;
+  kana_type: string;
+  sort_order: number;
+  label: string | null;
+  technical_term: string | null;
+  examples: KanaRuleExample[];
 }
 
 /** Browse's richer row shape -- unlike NewHiraganaCandidate/NewKatakanaCandidate (which mirror
@@ -151,6 +199,8 @@ export interface StudyQueueResponse {
   new_vocab_to_introduce: NewVocabCandidate[];
   new_hiragana_to_introduce: NewHiraganaCandidate[];
   new_katakana_to_introduce: NewKatakanaCandidate[];
+  new_hiragana_rules_to_introduce: NewHiraganaRuleCandidate[];
+  new_katakana_rules_to_introduce: NewKatakanaRuleCandidate[];
   next_due_at: string | null;
   /** Status of the row next_due_at belongs to -- see NextDue in lib/srs/nextDue.ts.
    * 'learning'/'relearning' means it's an SRS retry the user already triggered (rating a card

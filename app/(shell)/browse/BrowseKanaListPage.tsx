@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { GOJUON_ROW_LABELS, GOJUON_ROW_LAYOUT, EXTENDED_KATAKANA_ROW_LABELS } from "@/lib/srs/gojuon";
+import { GOJUON_ROW_LABELS, GOJUON_ROW_LAYOUT, groupByGojuonRow, resolveRuleExampleRowLabel } from "@/lib/srs/gojuon";
 import { BrowseTabs } from "./BrowseTabs";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { scrollWindowToTopOnFocus } from "@/lib/scrollFocus";
+import { renderKanaRuleNotes } from "@/lib/study/kanaRuleNotes";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 import type { BrowseKanaEntry, KanaRuleLabel } from "@/lib/types";
 
@@ -17,16 +18,6 @@ function normalize(value: string): string {
 function matches(row: KanaRow, query: string): boolean {
   if (!query) return true;
   return row.character.includes(query) || normalize(row.romaji).includes(query);
-}
-
-function groupByRow(rows: KanaRow[]): [string, KanaRow[]][] {
-  const byRow = new Map<string, KanaRow[]>();
-  for (const row of rows) {
-    const list = byRow.get(row.gojuon_row);
-    if (list) list.push(row);
-    else byRow.set(row.gojuon_row, [row]);
-  }
-  return Array.from(byRow.entries());
 }
 
 const TIER_LABELS: Partial<Record<BrowseKanaEntry["frequency_tier"], string>> = {
@@ -91,28 +82,14 @@ function KanaCard({ row, accentClass, showTier }: { row: KanaRow; accentClass: s
   );
 }
 
-/** Notes use a tiny markdown-style convention -- `**text**` for emphasis -- since the column is
- * plain text, not rich text; this is the one place that convention gets parsed back into markup. */
-function renderNotes(notes: string): ReactNode {
-  return notes
-    .split(/(\*\*[^*]+\*\*)/g)
-    .map((part, i) =>
-      part.startsWith("**") && part.endsWith("**") ? (
-        <strong key={i} className="font-bold text-text-main">
-          {part.slice(2, -2)}
-        </strong>
-      ) : (
-        part
-      )
-    );
-}
-
 function RuleCard({ row, accentClass }: { row: KanaRow; accentClass: string }) {
   return (
     <div className="mb-3 flex items-start gap-4 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px]">
       <div className={`shrink-0 text-3xl ${accentClass}`}>{row.character}</div>
       {row.notes && (
-        <p className="whitespace-pre-line text-[0.85rem] leading-relaxed text-text-muted">{renderNotes(row.notes)}</p>
+        <p className="whitespace-pre-line text-[0.85rem] leading-relaxed text-text-muted">
+          {renderKanaRuleNotes(row.notes)}
+        </p>
       )}
     </div>
   );
@@ -120,20 +97,48 @@ function RuleCard({ row, accentClass }: { row: KanaRow; accentClass: string }) {
 
 /** Renders one orthography rule as its explanatory card followed by its example grid -- rows come
  * pre-filtered to a single group (by kana_type or gojuon_row, depending on the caller) by the
- * caller. Returns null once search has filtered the group down to nothing. */
+ * caller. Returns null once search has filtered the group down to nothing.
+ *
+ * Examples are further split into per-family sub-groups (a small uppercase row label, same style
+ * as GojuonRowSection's) whenever there's at least one gojuon_row group to show -- yōon
+ * (kya/sha/cha/...), sokuon (sokuon_ka/sa/ta/pa + katakana's loanword group), n_gemination (a
+ * single na-row -- still gets its own "NA" label, for visual consistency with every other
+ * category, even though there's nothing else to split it from), and katakana's chōonpu (retagged
+ * with the main chart's own row keys -- a/ka/sa/ta/na/ha/ma/ya/ra/wa -- in
+ * 20260906_choonpu_gojuon_row_tags.sql) all split this way. Only a kana_type with zero rows ever
+ * skips the labeled branch (the `rows.length === 0` guard above already returns null for that). */
 function RuleSubsection({ title, rows, accentClass }: { title: ReactNode; rows: KanaRow[]; accentClass: string }) {
   if (rows.length === 0) return null;
   const rule = rows.find((row) => row.entry_kind === "rule");
   const examples = rows.filter((row) => row.entry_kind === "example");
+  const groups = groupByGojuonRow(examples);
+  const showRowLabels = groups.length > 0;
   return (
     <div>
       <div className="mb-2.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">{title}</div>
       {rule && <RuleCard row={rule} accentClass={accentClass} />}
-      <div className="flex flex-wrap gap-2.5">
-        {examples.map((row) => (
-          <KanaCard key={row.id} row={row} accentClass={accentClass} />
-        ))}
-      </div>
+      {showRowLabels ? (
+        <div className="flex flex-col gap-4">
+          {groups.map(([gojuonRow, groupRows]) => (
+            <div key={gojuonRow}>
+              <div className="mb-2.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">
+                {resolveRuleExampleRowLabel(gojuonRow)}
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {groupRows.map((row) => (
+                  <KanaCard key={row.id} row={row} accentClass={accentClass} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2.5">
+          {examples.map((row) => (
+            <KanaCard key={row.id} row={row} accentClass={accentClass} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -216,18 +221,23 @@ export function BrowseKanaListPage({ active, placeholder, accentClass, data, sta
     const handakuten = rows.filter((row) => row.entry_kind === "character" && row.kana_type === "handakuten");
     const dakutenRule = rows.find((row) => row.entry_kind === "rule" && row.kana_type === "dakuten");
     const handakutenRule = rows.find((row) => row.entry_kind === "rule" && row.kana_type === "handakuten");
-    const extended = rows.filter((row) => row.entry_kind === "character" && row.kana_type === "extended");
+    // Unlike seion/dakuten/handakuten (real gojuon-chart characters, entry_kind = "character"),
+    // extended katakana's 19 core-tier loanword combinations are entry_kind = "example" -- they
+    // still render here (grouped by consonant family, with a rarity badge) rather than folding
+    // into "Sound Rules & Combinations" below, which is why "extended" stays excluded from
+    // SOUND_RULE_KANA_TYPES/soundRules.
+    const extended = rows.filter((row) => row.entry_kind === "example" && row.kana_type === "extended");
     const extendedRule = rows.find((row) => row.entry_kind === "rule" && row.kana_type === "extended");
     const soundRules = rows.filter((row) => row.entry_kind !== "character" && row.kana_type !== "seion" && row.kana_type !== "dakuten" && row.kana_type !== "handakuten" && row.kana_type !== "extended");
 
     return {
-      mainGroups: groupByRow(seion),
+      mainGroups: groupByGojuonRow(seion),
       seionRule,
-      dakutenGroups: groupByRow(dakuten),
-      handakutenGroups: groupByRow(handakuten),
+      dakutenGroups: groupByGojuonRow(dakuten),
+      handakutenGroups: groupByGojuonRow(handakuten),
       dakutenRule,
       handakutenRule,
-      extendedGroups: groupByRow(extended),
+      extendedGroups: groupByGojuonRow(extended),
       extendedRule,
       soundRuleSections: (labels ?? [])
         .filter((entry) => SOUND_RULE_KANA_TYPES.has(entry.kana_type))
@@ -325,7 +335,7 @@ export function BrowseKanaListPage({ active, placeholder, accentClass, data, sta
                 {partitioned.extendedGroups.map(([gojuonRow, rows]) => (
                   <div key={gojuonRow}>
                     <div className="mb-2.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">
-                      {EXTENDED_KATAKANA_ROW_LABELS[gojuonRow] ?? gojuonRow}
+                      {resolveRuleExampleRowLabel(gojuonRow)}
                     </div>
                     <div className="flex flex-wrap gap-2.5">
                       {rows.map((row) => (
