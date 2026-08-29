@@ -1,11 +1,12 @@
 "use client";
 
 import { Suspense } from "react";
-import { useHiraganaList } from "@/lib/client-data/kana";
+import { useHiraganaList, useKanaRuleLabels } from "@/lib/client-data/kana";
 import { BrowseKanaListPage, BrowseKanaListSkeleton } from "../BrowseKanaListPage";
 
 function HiraganaListing() {
   const { data, status } = useHiraganaList();
+  const { data: labels } = useKanaRuleLabels();
   return (
     <BrowseKanaListPage
       active="hiragana"
@@ -13,6 +14,7 @@ function HiraganaListing() {
       accentClass="text-accent-violet"
       data={data}
       status={status}
+      labels={labels}
     />
   );
 }

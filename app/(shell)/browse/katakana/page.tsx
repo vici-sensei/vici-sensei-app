@@ -1,11 +1,12 @@
 "use client";
 
 import { Suspense } from "react";
-import { useKatakanaList } from "@/lib/client-data/kana";
+import { useKatakanaList, useKanaRuleLabels } from "@/lib/client-data/kana";
 import { BrowseKanaListPage, BrowseKanaListSkeleton } from "../BrowseKanaListPage";
 
 function KatakanaListing() {
   const { data, status } = useKatakanaList();
+  const { data: labels } = useKanaRuleLabels();
   return (
     <BrowseKanaListPage
       active="katakana"
@@ -13,6 +14,7 @@ function KatakanaListing() {
       accentClass="text-accent-orange"
       data={data}
       status={status}
+      labels={labels}
     />
   );
 }

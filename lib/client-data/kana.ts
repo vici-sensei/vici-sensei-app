@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { fetchAllHiragana, fetchAllKatakana } from "@/lib/data/kana";
+import { fetchAllHiragana, fetchAllKatakana, fetchKanaRuleLabels } from "@/lib/data/kana";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import { getErrorMessage } from "@/lib/api/client";
-import type { AsyncStatus, BrowseKanaEntry } from "@/lib/types";
+import type { AsyncStatus, BrowseKanaEntry, KanaRuleLabel } from "@/lib/types";
 
 // v2: bumped when BrowseKanaEntry gained kana_type/entry_kind/etc (20260903_kana_orthography_rules.sql)
 // -- old cached rows lack those fields, and partitioning logic in BrowseKanaListPage would
 // silently drop them (undefined !== "character") until the background refetch overwrites them.
 const HIRAGANA_CACHE_KEY = "cache:hiragana-list:v2";
 const KATAKANA_CACHE_KEY = "cache:katakana-list:v2";
+const KANA_RULE_LABELS_CACHE_KEY = "cache:kana-rule-labels:v1";
 
 /** Loads the whole set once (reference data, same for every user) -- Browse then filters this
  * in-memory list locally instead of a server round trip per keystroke. */
@@ -55,6 +56,12 @@ export function useKatakanaList() {
   return useKanaList<BrowseKanaEntry>(() => fetchAllKatakana(createClient()), KATAKANA_CACHE_KEY);
 }
 
+/** Beginner-friendly section headings (e.g. "Ten-Ten (Dakuten)"), shared by both Browse pages --
+ * see KanaRuleLabel. */
+export function useKanaRuleLabels() {
+  return useKanaList<KanaRuleLabel>(() => fetchKanaRuleLabels(createClient()), KANA_RULE_LABELS_CACHE_KEY);
+}
+
 /** Fire-and-forget: called on hover/focus/touchstart of an Explore nav entry point, well before
  * the user actually navigates to the list page -- mirrors prefetchKanjiList/prefetchVocabularyList
  * so Hiragana/Katakana paint from a warm cache too instead of always starting cold on mount. */
@@ -66,4 +73,9 @@ export const prefetchHiraganaList = createPrefetcher(async () => {
 export const prefetchKatakanaList = createPrefetcher(async () => {
   const rows = await fetchAllKatakana(createClient());
   writeCache(KATAKANA_CACHE_KEY, rows);
+});
+
+export const prefetchKanaRuleLabels = createPrefetcher(async () => {
+  const rows = await fetchKanaRuleLabels(createClient());
+  writeCache(KANA_RULE_LABELS_CACHE_KEY, rows);
 });

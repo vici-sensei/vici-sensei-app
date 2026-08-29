@@ -126,14 +126,23 @@ export interface BrowseKanaEntry {
     | "sokuon"
     | "choonpu"
     | "extended"
-    | "n_gemination"
-    | "rendaku"
-    | "particle_reading"
-    | "historical";
+    | "n_gemination";
   entry_kind: "character" | "rule" | "example";
   sound_origin: "native" | "loanword";
-  frequency_tier: "core" | "rare" | "very_rare" | "historical";
+  frequency_tier: "core" | "rare" | "very_rare";
   notes: string | null;
+}
+
+/** Browse section heading for a kana_type -- shared by hiragana and katakana (same concept, same
+ * label, regardless of script). `label` is the beginner-friendly heading; `technical_term` is the
+ * Japanese linguistic term shown smaller/muted next to it. Lives in public.kana_rule_labels
+ * (20260829_kana_rule_labels_table.sql) rather than hardcoded in BrowseKanaListPage.tsx so other
+ * pages can reuse the same titles. */
+export interface KanaRuleLabel {
+  kana_type: BrowseKanaEntry["kana_type"];
+  label: string;
+  technical_term: string;
+  sort_order: number;
 }
 
 export interface StudyQueueResponse {

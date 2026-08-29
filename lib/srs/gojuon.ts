@@ -25,7 +25,10 @@ export const GOJUON_ROW_LABELS: Record<string, string> = {
 /** Family-group labels for Browse's "Extended Katakana" section (loanword sound combinations
  * from the 1991 gairaigo notice, e.g. ファ/ヴァ/ティ) -- kept separate from
  * GOJUON_ROW_LABELS above since it's a distinct set added in
- * 20260903_kana_orthography_rules.sql, unlike the closed classical gojuon chart. */
+ * 20260903_kana_orthography_rules.sql, unlike the closed classical gojuon chart. The rare/
+ * very_rare combinations (ツァ, デュ, フュ, イェ, クァ/グァ, クィ family, テュ, ヴュ family) were
+ * dropped per user request (20260829_drop_katakana_rare_extended_and_historical.sql), leaving
+ * only the core-tier families below. */
 export const EXTENDED_KATAKANA_ROW_LABELS: Record<string, string> = {
   va: "ヴァ",
   she: "シェ",
@@ -35,25 +38,6 @@ export const EXTENDED_KATAKANA_ROW_LABELS: Record<string, string> = {
   di: "ディ / ドゥ",
   fa: "ファ",
   wi: "ウィ",
-  tsa: "ツァ",
-  dyu: "デュ",
-  fyu: "フュ",
-  ye: "イェ",
-  kwa: "クァ",
-  kwi: "クィ",
-  tyu: "テュ",
-  vyu: "ヴュ",
-};
-
-/** Group labels for Browse's "Historical & Rare" section, added in
- * 20260903_kana_orthography_rules_expansion.sql -- covers both the obsolete わ-row characters
- * (ゐ/ゑ, ヰ/ヱ) and the iteration marks (ゝ/ゞ, ヽ/ヾ), which repeat the preceding kana instead
- * of having a sound of their own. */
-export const HISTORICAL_ROW_LABELS: Record<string, string> = {
-  historical_wa: "Obsolete わ-row (wi / we)",
-  historical_va: "ゔ (rare voiced う)",
-  iteration_unvoiced: "Iteration Mark (unvoiced)",
-  iteration_voiced: "Iteration Mark (voiced)",
 };
 
 /** Row order + character count per gojuon row for the *main grid only* -- seion/dakuten/
