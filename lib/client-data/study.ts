@@ -13,10 +13,12 @@ import { submitReview as submitReviewData, undoReview as undoReviewData } from "
 import { startStudySession, endStudySession, getSessionProgress as getSessionProgressData } from "@/lib/data/studySessions";
 import { introduceCard as introduceCardData, type IntroduceKind } from "@/lib/data/introduce";
 import { recordHiraganaDrillResult, recordKatakanaDrillResult, type KanaDrillResult } from "@/lib/data/kanaDrill";
+import { checkJlptLevelUp as checkJlptLevelUpData } from "@/lib/data/jlptLevel";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
   DueCard,
+  JlptLevelUpResult,
   NewKanjiIntroWord,
   ReviewRequestBody,
   StudySettings,
@@ -78,6 +80,13 @@ export async function undoReview(reviewLogId?: number): Promise<void> {
   const supabase = createClient();
   const userId = await requireUserId();
   await undoReviewData(supabase, userId, reviewLogId);
+}
+
+/** Called right after a kanji_meaning/kanji_reading/vocab_meaning review lands, to check whether
+ * that review just finished the user's current JLPT level -- see check_and_advance_jlpt_level. */
+export async function checkJlptLevelUp(userId: string): Promise<JlptLevelUpResult> {
+  const supabase = createClient();
+  return checkJlptLevelUpData(supabase, userId);
 }
 
 export async function startSession(userId: string): Promise<StudySessionStart> {

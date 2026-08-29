@@ -1,3 +1,5 @@
+import { FaLock } from "react-icons/fa6";
+
 interface ToggleProps {
   checked: boolean;
   onChange: () => void;
@@ -17,7 +19,10 @@ export function Toggle({ checked, onChange, disabled, className, ...rest }: Togg
         disabled={disabled}
         {...rest}
       />
-      <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 before:absolute before:left-[3px] before:top-[3px] before:h-5 before:w-5 before:rounded-full before:bg-white before:transition-transform before:duration-200 peer-checked:bg-accent-red peer-checked:before:translate-x-5 peer-disabled:cursor-not-allowed peer-disabled:opacity-40" />
+      <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 peer-checked:bg-accent-red peer-disabled:cursor-not-allowed peer-disabled:opacity-40" />
+      <span className="pointer-events-none absolute left-[3px] top-[3px] flex h-5 w-5 items-center justify-center rounded-full bg-white transition-transform duration-200 peer-checked:translate-x-5">
+        {disabled ? <FaLock className="h-2.5 w-2.5 text-black/50" /> : null}
+      </span>
     </label>
   );
 }

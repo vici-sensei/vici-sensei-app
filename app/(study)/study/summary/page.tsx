@@ -7,26 +7,11 @@ import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
+import { celebrate } from "@/lib/confetti";
 import type { StudySessionEnd } from "@/lib/types";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { NextCardEta } from "@/app/(shell)/dashboard/NextCardEta";
-
-const CONFETTI_COLORS = ["#ffd200", "#ff4a5a", "#00d2ff"];
-
-// canvas-confetti is only ever needed on this one screen, and only for the (majority of)
-// visitors who don't have reduced-motion set -- loaded on demand instead of bundled statically.
-async function celebrate() {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const { default: confetti } = await import("canvas-confetti");
-  confetti({
-    particleCount: 120,
-    spread: 80,
-    startVelocity: 45,
-    origin: { y: 0.6 },
-    colors: CONFETTI_COLORS,
-  });
-}
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import {
+  checkJlptLevelUp as checkJlptLevelUpApi,
   completeVocabBatch,
   endSession as endStudySessionApi,
   getFirstDueCard,
@@ -24,12 +25,22 @@ import {
   submitReview as submitReviewApi,
   undoReview as undoReviewApi,
 } from "@/lib/client-data/study";
+import { refreshStudySettings } from "@/lib/client-data/studySettings";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/lib/study/firstCardCache";
+import { hasCelebratedMaxLevel, markMaxLevelCelebrated } from "@/lib/study/levelUpCache";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
-import type { DueCard, NewKanjiIntroWord, Rating, ReviewRequestBody, StudyQueueResponse } from "@/lib/types";
+import type {
+  DueCard,
+  JlptLevelUpResult,
+  KanaGraduationKind,
+  NewKanjiIntroWord,
+  Rating,
+  ReviewRequestBody,
+  StudyQueueResponse,
+} from "@/lib/types";
 import {
   newKanjiKey,
   newVocabKey,
@@ -422,6 +433,14 @@ export function useStudyQueue() {
   const router = useRouter();
   const { user, settings } = useStudyOnboarding();
   const { showToast } = useToast();
+  // Always-current mirror of `settings`, read (not subscribed to) from checkKanaGraduation below
+  // -- lets that callback compare "settings just before this review" against a fresh refetch
+  // without needing `settings` in its own dependency array (same reasoning as every other *Ref in
+  // this hook: a plain closure over `settings` would go stale between renders).
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -459,6 +478,13 @@ export function useStudyQueue() {
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const [undoPending, setUndoPending] = useState(false);
   const [undoDisabled, setUndoDisabled] = useState(false);
+  // Set right after a kanji_meaning/kanji_reading/vocab_meaning review turns out to have just
+  // finished the user's current JLPT level (see checkLevelUp below) -- StudyPage renders
+  // JlptLevelUpModal whenever this is non-null, and dismissLevelUp clears it back to null.
+  const [levelUpResult, setLevelUpResult] = useState<JlptLevelUpResult | null>(null);
+  // Same idea as levelUpResult, but for the kana track's two milestones (see checkKanaGraduation
+  // below) -- StudyPage renders KanaGraduationModal whenever this is non-null.
+  const [kanaGraduationResult, setKanaGraduationResult] = useState<KanaGraduationKind | null>(null);
   // Key of the one card currently held on screen instead of being optimistically removed --
   // either a pack-completing new_hiragana/new_katakana card awaiting its reading pack, or a
   // drill card (see submitDrillAnswer) answered when no other pool card was left to swap in.
@@ -862,6 +888,81 @@ export function useStudyQueue() {
     [enqueueMutation, showToast]
   );
 
+  // Checks whether the review just submitted (kanji_meaning/kanji_reading/vocab_meaning only --
+  // hiragana/katakana reviews can never affect a JLPT level) finished the user's current JLPT
+  // level -- see check_and_advance_jlpt_level. Fire-and-forget: failures here shouldn't interrupt
+  // the review flow, and a missed check just means the celebration (and the settings resync)
+  // waits for the next relevant review.
+  const checkLevelUp = useCallback(
+    (exerciseType: DueCard["exercise_type"]) => {
+      if (exerciseType !== "kanji_meaning" && exerciseType !== "kanji_reading" && exerciseType !== "vocab_meaning") return;
+      checkJlptLevelUpApi(user.id)
+        .then((result) => {
+          if (!result.leveledUp) return;
+          if (result.isMaxLevel) {
+            // check_and_advance_jlpt_level keeps reporting this on every future call once N1 is
+            // fully learned (there's nothing further to advance to that would naturally stop it)
+            // -- this client-side flag is what keeps the modal from reappearing on every review.
+            if (hasCelebratedMaxLevel(user.id)) return;
+            markMaxLevelCelebrated(user.id);
+            setLevelUpResult(result);
+            return;
+          }
+          setLevelUpResult(result);
+          // The DB-side advance already committed -- this just resyncs /study's own `settings`
+          // (StudyLayout -> useStudyOnboarding) so the very next queue fetch already asks for the
+          // new level's candidates instead of waiting for a full page reload.
+          void refreshStudySettings(user.id).catch(() => {
+            // Non-critical -- see comment above.
+          });
+        })
+        .catch(() => {
+          // Non-critical -- see comment above.
+        });
+    },
+    [user.id]
+  );
+
+  const dismissLevelUp = useCallback(() => setLevelUpResult(null), []);
+
+  // Checks whether the review just submitted (hiragana_reading/katakana_reading only) just
+  // crossed one of the kana track's two milestones -- both are already applied server-side as a
+  // side effect of the same submit_review call that graded this card (hiragana_auto_activate_katakana/
+  // katakana_auto_activate_standard triggers on user_hiragana_progress/user_katakana_progress),
+  // so this is purely detection: compare the settings snapshot from just before this review
+  // against a fresh refetch, and see which (if either) flag flipped.
+  //
+  // Unlike checkLevelUp's isMaxLevel case, neither transition here needs a client-side "already
+  // celebrated" flag -- study_katakana and study_track are real, durable flags that can only
+  // flip false->true (or 'kana'->'standard') once per genuine completion; comparing against the
+  // immediately-prior snapshot is enough to fire exactly once per transition, including a
+  // legitimate second time if hiragana regresses (hiragana_regression_disables_katakana) and is
+  // later re-mastered.
+  const checkKanaGraduation = useCallback(
+    (exerciseType: DueCard["exercise_type"]) => {
+      if (exerciseType !== "hiragana_reading" && exerciseType !== "katakana_reading") return;
+      const before = settingsRef.current;
+      if (before.study_track !== "kana") return;
+
+      refreshStudySettings(user.id)
+        .then((fresh) => {
+          if (fresh.study_track === "standard") {
+            setKanaGraduationResult("katakana_complete");
+            return;
+          }
+          if (!before.study_katakana && fresh.study_katakana) {
+            setKanaGraduationResult("hiragana_complete");
+          }
+        })
+        .catch(() => {
+          // Non-critical -- see checkLevelUp's identical reasoning above.
+        });
+    },
+    [user.id]
+  );
+
+  const dismissKanaGraduation = useCallback(() => setKanaGraduationResult(null), []);
+
   const rate = useCallback(
     (card: DueCard, rating: Rating) => {
       // hiragana_reading/katakana_reading cards still in the post-introduction drill
@@ -901,6 +1002,8 @@ export function useStudyQueue() {
           // above) keeps this same card from re-entering `queue`/totalKnown when that refetch
           // resolves -- refreshQueue only ever surfaces something else independently due.
           void refreshQueue();
+          checkLevelUp(card.exercise_type);
+          checkKanaGraduation(card.exercise_type);
         } catch (err) {
           setCompletedCount((c) => Math.max(0, c - 1));
           attemptedKeysRef.current.delete(reviewKey(card));
@@ -924,7 +1027,7 @@ export function useStudyQueue() {
         }
       });
     },
-    [enqueueMutation, showToast, refreshQueue, submitDrillAnswer]
+    [enqueueMutation, showToast, refreshQueue, submitDrillAnswer, checkLevelUp, checkKanaGraduation]
   );
 
   const introduceCard = useCallback(
@@ -1284,6 +1387,8 @@ export function useStudyQueue() {
     nextDueStatus,
     clockOffsetMs,
     lastReview,
+    levelUpResult,
+    kanaGraduationResult,
     actionPending: undoPending,
     // True when `current` is a held card awaiting a result -- either a pack-completing
     // new_hiragana/new_katakana card (introduceKanaCard) or a drill card answered when the
@@ -1300,6 +1405,8 @@ export function useStudyQueue() {
       introduceHiraganaRule,
       introduceKatakanaRule,
       undoLast,
+      dismissLevelUp,
+      dismissKanaGraduation,
     },
   };
 }

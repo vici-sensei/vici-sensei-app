@@ -1,5 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
-import type { LevelProgressCategory, StudyStats, TodayActivityCounts } from "@/lib/types";
+import type { KanaRuleProgress, LevelProgressCategory, StudyStats, TodayActivityCounts } from "@/lib/types";
 import { getNextDue } from "@/lib/srs/nextDue";
 import { mostAdvancedLevel } from "@/lib/srs/constants";
 
@@ -29,13 +29,24 @@ export async function fetchStudyStats(
 
   const level = settingsResult.data ? mostAdvancedLevel(settingsResult.data.enabled_levels as string[]) : null;
 
-  const [activityCounts, nextDue, retentionResult, streakResult, weeklyActivityResult, levelProgressResult] = await Promise.all([
+  const [
+    activityCounts,
+    nextDue,
+    retentionResult,
+    streakResult,
+    streakRecordResult,
+    weeklyActivityResult,
+    levelProgressResult,
+  ] = await Promise.all([
     supabase.rpc("get_today_activity_counts", { p_user_id: userId, p_timezone: timezone ?? "UTC" }).single(),
     getNextDue(supabase, userId, timezone),
     // Aggregated in SQL (get_retention_rate, 20260802_retention_rate_rpc.sql) instead of
     // pulling every review_logs row in the window and computing the ratio in JS.
     supabase.rpc("get_retention_rate", { p_user_id: userId, p_window_days: RETENTION_WINDOW_DAYS }),
     supabase.rpc("get_review_streak", { p_user_id: userId }),
+    // Longest streak ever, tracked incrementally on leaderboard_stats.longest_streak
+    // (20260909_streak_record.sql) rather than rescanned from review_logs on every poll.
+    supabase.rpc("get_review_streak_record", { p_user_id: userId }),
     supabase.rpc("get_review_activity", { p_user_id: userId, p_timezone: timezone ?? "UTC", p_days: 7 }),
     level
       ? supabase.rpc("get_level_progress", { p_user_id: userId, p_level: level })
@@ -46,6 +57,7 @@ export async function fetchStudyStats(
   if (nextDue.error !== null) throw new Error(nextDue.error);
   if (retentionResult.error) throw new Error(retentionResult.error.message);
   if (streakResult.error) throw new Error(streakResult.error.message);
+  if (streakRecordResult.error) throw new Error(streakRecordResult.error.message);
   if (weeklyActivityResult.error) throw new Error(weeklyActivityResult.error.message);
   if (levelProgressResult.error) throw new Error(levelProgressResult.error.message);
 
@@ -90,19 +102,19 @@ export async function fetchStudyStats(
     0
   );
   const levelProgressRows = levelProgressResult.data as
-    | {
-        category: "kanji" | "kanji_reading" | "vocabulary" | "hiragana_reading" | "katakana_reading";
-        seen: number;
-        learned: number;
-        total: number;
-      }[]
+    | { category: string; seen: number; learned: number; total: number }[]
     | null;
-  const categoryFor = (
-    category: "kanji" | "kanji_reading" | "vocabulary" | "hiragana_reading" | "katakana_reading"
-  ): LevelProgressCategory => {
+  const categoryFor = (category: string): LevelProgressCategory => {
     const row = levelProgressRows?.find((r) => r.category === category);
     return { seen: row?.seen ?? 0, learned: row?.learned ?? 0, total: row?.total ?? 0 };
   };
+  // Order here is what the dashboard's hiragana/katakana progress cards render, outermost ring
+  // first -- see get_level_progress's 'hiragana_' || kana_type / 'katakana_' || kana_type rows
+  // (20260907_kana_rule_level_progress.sql).
+  const HIRAGANA_KANA_TYPES = ["seion", "dakuten", "handakuten", "yoon", "sokuon", "n_gemination"];
+  const KATAKANA_KANA_TYPES = [...HIRAGANA_KANA_TYPES, "choonpu", "extended"];
+  const kanaRulesFor = (script: "hiragana" | "katakana", kanaTypes: string[]): KanaRuleProgress[] =>
+    kanaTypes.map((kanaType) => ({ kana_type: kanaType, ...categoryFor(`${script}_${kanaType}`) }));
 
   return {
     study_track: studyTrack,
@@ -124,6 +136,7 @@ export async function fetchStudyStats(
     new_katakana_today: newKatakanaToday,
     new_katakana_limit: newKatakanaPerDay,
     streak: streakResult.data,
+    streak_record: streakRecordResult.data,
     weekly_activity: (weeklyActivityResult.data ?? []).map((row: { day: string; has_activity: boolean }) => ({
       date: row.day,
       active: row.has_activity,
@@ -140,6 +153,8 @@ export async function fetchStudyStats(
           vocabulary: categoryFor("vocabulary"),
           hiragana_reading: categoryFor("hiragana_reading"),
           katakana_reading: categoryFor("katakana_reading"),
+          hiragana_rules: kanaRulesFor("hiragana", HIRAGANA_KANA_TYPES),
+          katakana_rules: kanaRulesFor("katakana", KATAKANA_KANA_TYPES),
         }
       : null,
   };

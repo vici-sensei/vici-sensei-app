@@ -16,7 +16,7 @@ import { NextCardCountdown } from "./NextCardCountdown";
 import { CheckoutBanner } from "./CheckoutBanner";
 import { WeekStreak } from "./WeekStreak";
 import { LevelProgressCard } from "./LevelProgressCard";
-import { FaBook, FaFire, FaArrowRight, FaArrowsRotate } from "react-icons/fa6";
+import { FaBook, FaFire, FaArrowRight, FaArrowsRotate, FaTrophy } from "react-icons/fa6";
 import type { WeeklyActivityDay } from "@/lib/types";
 
 // mingcute:target-fill (https://icon-sets.iconify.design/mingcute/target-fill) -- react-icons
@@ -49,24 +49,96 @@ function placeholderWeekActivity(): WeeklyActivityDay[] {
   return days;
 }
 
+// Scattered across the whole card behind the streak number when a new record just landed.
+// Fixed positions/colors/speeds (not randomized) so the layout is stable across re-renders and
+// SSR. `top` is each dot's resting position -- used as-is when motion is reduced (see
+// .vici-confetti-dot in globals.css), and as the starting point the fall animation reads from
+// before overriding it. `delay` is negative and roughly proportional to `duration` so every dot
+// is already mid-fall on first paint instead of all starting bunched at the top together.
+const CONFETTI_DOTS: { top: string; left: string; size: number; color: string; duration: number; delay: number }[] = [
+  { top: "14%", left: "10%", size: 5, color: "bg-accent-gold", duration: 7, delay: -1.5 },
+  { top: "24%", left: "84%", size: 4, color: "bg-accent-red", duration: 6, delay: -3.5 },
+  { top: "72%", left: "13%", size: 4, color: "bg-accent-violet", duration: 8, delay: -0.5 },
+  { top: "80%", left: "90%", size: 5, color: "bg-accent-gold", duration: 5.5, delay: -4 },
+  { top: "46%", left: "95%", size: 3, color: "bg-accent-red", duration: 9, delay: -6 },
+  { top: "8%", left: "48%", size: 3, color: "bg-accent-violet", duration: 6.5, delay: -2 },
+  { top: "88%", left: "50%", size: 4, color: "bg-accent-gold", duration: 7.5, delay: -5 },
+  { top: "55%", left: "4%", size: 3, color: "bg-accent-red", duration: 5, delay: -1 },
+];
+
+// Purely decorative -- sits behind the card content (see the isolate+overflow-hidden/z-0/z-10
+// split in StreakCard below) so it never needs to fight the shell Header (z-50) or
+// MobileNavMenu (z-45) for stacking: `isolate` on the card gives this whole subtree its own
+// stacking context, so no z-index in here can ever escape above page chrome outside the card.
+function RecordConfetti() {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+      {CONFETTI_DOTS.map((dot, i) => (
+        <span
+          key={i}
+          className={`vici-confetti-dot absolute rounded-full ${dot.color}`}
+          style={
+            {
+              top: dot.top,
+              left: dot.left,
+              width: dot.size,
+              height: dot.size,
+              "--confetti-fall-duration": `${dot.duration}s`,
+              "--confetti-fall-delay": `${dot.delay}s`,
+            } as CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 function StreakCard() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
   // no separate fetch here.
   const { stats } = useStudyStats();
   const streak = stats?.streak ?? 0;
+  const record = stats?.streak_record ?? 0;
   const displayedStreak = useCountUp(streak);
   const activity = stats?.weekly_activity ?? placeholderWeekActivity();
   const todayDone = stats ? cardsRemainingToday(stats) === 0 : false;
+  // Once the live streak reaches the longest one ever, it *is* the record from here on
+  // (longest_streak tracks current_streak in lockstep past that point) -- so this stays
+  // true for the rest of the run, not just the single day it was broken.
+  const isNewRecord = streak > 0 && streak >= record;
 
   return (
-    <GlassCard padding="sm">
-      <div className="flex flex-col gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left justify-center items-center h-full">
-        <div className="flex items-center gap-3.5">
-          <div className="flex flex-col items-center sm:gap-2">
-            <div className="text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{displayedStreak}</div>
-            <div className="text-sm font-semibold text-text-muted">Day streak</div>
+    <GlassCard
+      padding="sm"
+      tone={isNewRecord ? "gold" : "default"}
+      // isolate: gives this card its own stacking context, so RecordConfetti's z-0 and the
+      // content wrapper's z-10 below are only ever compared against each other -- never against
+      // the shell Header/MobileNavMenu's z-50/z-45 outside the card. overflow-hidden clips the
+      // dots to the card's own rounded corners.
+      className={isNewRecord ? "isolate overflow-hidden" : undefined}
+    >
+      {isNewRecord && <RecordConfetti />}
+      <div className="relative z-10 flex flex-col gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left justify-center items-center h-full">
+        {isNewRecord ? (
+          <div className="flex flex-col items-center gap-1">
+            <div className="text-4xl font-extrabold leading-none tracking-tight text-accent-gold">{displayedStreak}</div>
+            <div className="flex items-center gap-1.5 text-sm font-bold text-accent-gold">
+              <FaTrophy className="h-3 w-3" />
+              New personal best
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3.5 sm:gap-6">
+            <div className="flex flex-col items-center sm:gap-2">
+              <div className="text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{displayedStreak}</div>
+              <div className="text-sm font-semibold text-text-muted">Day streak</div>
+            </div>
+            <div className="flex flex-col items-center sm:gap-2">
+              <div className="text-3xl font-extrabold leading-none tracking-tight">{record}</div>
+              <div className="text-sm font-semibold text-text-muted">Best streak</div>
+            </div>
+          </div>
+        )}
         <WeekStreak activity={activity} streak={streak} todayDone={todayDone} />
       </div>
     </GlassCard>

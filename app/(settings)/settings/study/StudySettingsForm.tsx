@@ -546,20 +546,21 @@ export function StudySettingsForm({
           </div>
           <Toggle checked={studyHiragana} onChange={toggleStudyHiragana} disabled={disabled || (studyHiragana && !studyKatakana)} />
         </div>
-        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-          <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Study katakana</div>
-            <div className="text-sm text-text-muted">
-              {hiraganaMastered
-                ? "Include katakana reading cards in your queue."
-                : "Finish learning all hiragana first to unlock katakana."}
+        <div className="border-b border-border-soft py-4 last:border-b-0">
+          <div className="flex items-center justify-between gap-5">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Study katakana</div>
+              <div className="text-sm text-text-muted">Include katakana reading cards in your queue.</div>
             </div>
+            <Toggle
+              checked={studyKatakana && Boolean(hiraganaMastered)}
+              onChange={toggleStudyKatakana}
+              disabled={disabled || (studyKatakana && !studyHiragana) || !hiraganaMastered}
+            />
           </div>
-          <Toggle
-            checked={studyKatakana && Boolean(hiraganaMastered)}
-            onChange={toggleStudyKatakana}
-            disabled={disabled || (studyKatakana && !studyHiragana) || !hiraganaMastered}
-          />
+          {!hiraganaMastered && (
+            <div className="mt-2.5 text-xs text-amber-400">Finish learning all hiragana first to unlock katakana.</div>
+          )}
         </div>
         <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
           <div>

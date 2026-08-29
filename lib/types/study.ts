@@ -233,6 +233,13 @@ export interface LevelProgressCategory {
   total: number;
 }
 
+/** hiragana.kana_type/katakana.kana_type this category breaks down (seion, dakuten, handakuten,
+ * yoon, sokuon, n_gemination, or katakana-only choonpu/extended) plus its seen/learned/total
+ * counts -- same shape as LevelProgressCategory, just tagged with which rule it's for. */
+export interface KanaRuleProgress extends LevelProgressCategory {
+  kana_type: string;
+}
+
 export interface LevelProgress {
   /** The student's current (most advanced enabled) JLPT level. */
   level: JlptLevel;
@@ -240,9 +247,18 @@ export interface LevelProgress {
   /** Vocabulary entries used to drill a kanji's reading (kanji_detail_words). */
   kanji_reading: LevelProgressCategory;
   vocabulary: LevelProgressCategory;
-  /** No JLPT level of their own -- identical regardless of `level`. */
+  /** No JLPT level of their own -- identical regardless of `level`. Aggregated across every
+   * kana_type -- seen/learned/total each equal the sum of the matching fields across
+   * hiragana_rules/katakana_rules below. The dashboard card reads the per-rule breakdown instead
+   * now, but get_level_progress still returns the aggregate too, so it stays here for any future
+   * caller that just wants the total without reducing the array itself. */
   hiragana_reading: LevelProgressCategory;
   katakana_reading: LevelProgressCategory;
+  /** Per-kana_type breakdown for the dashboard's hiragana progress card: seion, dakuten,
+   * handakuten, yoon, sokuon, n_gemination, in that order. */
+  hiragana_rules: KanaRuleProgress[];
+  /** Same as hiragana_rules, plus katakana-only choonpu and extended at the end. */
+  katakana_rules: KanaRuleProgress[];
 }
 
 export interface StudyStats {
@@ -280,6 +296,8 @@ export interface StudyStats {
   new_katakana_limit: number;
   /** Current unbroken run of days studied, ending today. */
   streak: number;
+  /** Longest unbroken run of days studied ever, including the current one -- never decreases. */
+  streak_record: number;
   /** Raw per-day activity for the last 7 local days, oldest first, ending today -- independent of `streak`. */
   weekly_activity: WeeklyActivityDay[];
   retention_rate: number | null;
@@ -325,6 +343,29 @@ export interface StudySessionStart {
   session_id: number;
   started_at: string;
 }
+
+/** Result of check_and_advance_jlpt_level (20260908_auto_advance_jlpt_level.sql), called after
+ * every kanji_meaning/kanji_reading/vocab_meaning review. `leveledUp` false means nothing to
+ * celebrate; true with `isMaxLevel` false means completedLevel just finished and the user's
+ * enabled_levels already advanced to newLevel server-side (completedLevel stays included); true
+ * with `isMaxLevel` true means N1 itself was just fully mastered, with nothing left to advance
+ * to -- newLevel is null in that case. */
+export interface JlptLevelUpResult {
+  leveledUp: boolean;
+  completedLevel: JlptLevel | null;
+  newLevel: JlptLevel | null;
+  isMaxLevel: boolean;
+}
+
+/** Which kana-track milestone useStudyQueue's checkKanaGraduation just detected, by comparing
+ * user_study_settings before/after a hiragana_reading/katakana_reading review -- the transition
+ * itself already happened server-side (hiragana_auto_activate_katakana/
+ * katakana_auto_activate_standard triggers), this is purely "is there something to celebrate".
+ * 'hiragana_complete': every hiragana character just reached review/relearning, so study_katakana
+ * flipped false -> true. 'katakana_complete': every katakana character did too (with hiragana
+ * already mastered), so study_track flipped 'kana' -> 'standard' -- the bigger milestone, moving
+ * off the kana track onto kanji/vocabulary. */
+export type KanaGraduationKind = "hiragana_complete" | "katakana_complete";
 
 export interface StudySessionEnd {
   id: number;

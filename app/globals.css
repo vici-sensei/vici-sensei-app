@@ -20,6 +20,8 @@
   --color-accent-orange: #fb923c;
   --color-accent-green: #34d399;
   --color-accent-green-glow: rgba(52, 211, 153, 0.35);
+  --color-accent-pink: #f472b6;
+  --color-accent-indigo: #818cf8;
   --color-border-soft: rgba(255, 255, 255, 0.05);
 
   --breakpoint-xs: 280px;
@@ -205,6 +207,47 @@ input:disabled ~ span {
   }
   50% {
     filter: drop-shadow(0 0 9px currentColor) brightness(1.4);
+  }
+}
+
+/* Streak card's "new record" confetti dots (dashboard/page.tsx's RecordConfetti) -- falls like
+   snow, plus a slower independent side-to-side sway layered on top. Each dot sets its own
+   --confetti-fall-duration/--confetti-fall-delay inline (speed varies per dot, and the delay is
+   negative so every dot starts already mid-fall instead of bunched at the top on first paint) --
+   those vary per dot at render time, so they can't be baked into a static Tailwind class the way
+   the rest of the card's animations are.
+   Animates `top` (not `transform: translateY`): the dot is absolutely positioned inside the
+   card, so a `top` percentage is relative to the *card's* height, where a transform's percentage
+   would only be relative to the dot's own few px. */
+.vici-confetti-dot {
+  animation:
+    vici-confetti-fall var(--confetti-fall-duration, 7s) linear infinite,
+    vici-confetti-sway 2.6s ease-in-out infinite alternate;
+  animation-delay: var(--confetti-fall-delay, 0s), 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vici-confetti-dot {
+    animation: none;
+  }
+}
+
+@keyframes vici-confetti-fall {
+  0% {
+    top: -8%;
+  }
+  100% {
+    top: 108%;
+  }
+}
+
+@keyframes vici-confetti-sway {
+  0%,
+  100% {
+    transform: translateX(-3px);
+  }
+  50% {
+    transform: translateX(3px);
   }
 }
 

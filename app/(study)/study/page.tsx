@@ -14,6 +14,8 @@ import { NewKanjiIntroCard } from "@/app/components/study/NewKanjiIntroCard";
 import { NewVocabIntroCard } from "@/app/components/study/NewVocabIntroCard";
 import { NewKanaIntroCard } from "@/app/components/study/NewKanaIntroCard";
 import { NewKanaRuleIntroCard } from "@/app/components/study/NewKanaRuleIntroCard";
+import { JlptLevelUpModal } from "@/app/components/study/JlptLevelUpModal";
+import { KanaGraduationModal } from "@/app/components/study/KanaGraduationModal";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
@@ -62,6 +64,8 @@ export default function StudyPage() {
     nextDueStatus,
     clockOffsetMs,
     lastReview,
+    levelUpResult,
+    kanaGraduationResult,
     actionPending,
     cardPending,
     undoDisabled,
@@ -216,6 +220,8 @@ export default function StudyPage() {
           onUndo={handleUndo}
         />
       </div>
+      {levelUpResult && <JlptLevelUpModal result={levelUpResult} onClose={actions.dismissLevelUp} />}
+      {kanaGraduationResult && <KanaGraduationModal kind={kanaGraduationResult} onClose={actions.dismissKanaGraduation} />}
     </div>
   );
 }

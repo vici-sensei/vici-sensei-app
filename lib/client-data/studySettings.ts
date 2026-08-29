@@ -92,6 +92,22 @@ export function useStudySettings(user: User | null) {
   return { data, status, error, refetch };
 }
 
+/** Re-fetches this user's settings row and pushes it out to every other mounted
+ * useStudySettings instance in this tab via the same event updateStudySettings uses -- for
+ * mutations that change user_study_settings server-side without going through updateStudySettings
+ * itself (currently just check_and_advance_jlpt_level's auto-advance, called from useStudyQueue's
+ * rate()). Without this, /study's own `settings` (fed by StudyLayout's useRequireOnboarded) would
+ * keep querying the just-completed level's new-card candidates against the pre-advance
+ * enabled_levels until the next full page load. */
+export async function refreshStudySettings(userId: string): Promise<StudySettings> {
+  const supabase = createClient();
+  const settings = await fetchStudySettings(supabase, userId);
+  if (!settings) throw new ApiError(404, "Study settings not found.");
+  writeCache(studySettingsCacheKey(userId), settings);
+  announceStudySettingsUpdate(userId, settings);
+  return settings;
+}
+
 export async function updateStudySettings(userId: string, patch: StudySettingsPatch): Promise<StudySettings> {
   if (Object.keys(patch).length === 0) {
     throw new ApiError(400, "At least one field must be provided.");
