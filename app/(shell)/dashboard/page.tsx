@@ -50,20 +50,30 @@ function placeholderWeekActivity(): WeeklyActivityDay[] {
 }
 
 // Scattered across the whole card behind the streak number when a new record just landed.
-// Fixed positions/colors/speeds (not randomized) so the layout is stable across re-renders and
-// SSR. `top` is each dot's resting position -- used as-is when motion is reduced (see
-// .vici-confetti-dot in globals.css), and as the starting point the fall animation reads from
-// before overriding it. `delay` is negative and roughly proportional to `duration` so every dot
-// is already mid-fall on first paint instead of all starting bunched at the top together.
-const CONFETTI_DOTS: { top: string; left: string; size: number; color: string; duration: number; delay: number }[] = [
-  { top: "14%", left: "10%", size: 5, color: "bg-accent-gold", duration: 7, delay: -1.5 },
-  { top: "24%", left: "84%", size: 4, color: "bg-accent-red", duration: 6, delay: -3.5 },
-  { top: "72%", left: "13%", size: 4, color: "bg-accent-violet", duration: 8, delay: -0.5 },
-  { top: "80%", left: "90%", size: 5, color: "bg-accent-gold", duration: 5.5, delay: -4 },
-  { top: "46%", left: "95%", size: 3, color: "bg-accent-red", duration: 9, delay: -6 },
-  { top: "8%", left: "48%", size: 3, color: "bg-accent-violet", duration: 6.5, delay: -2 },
-  { top: "88%", left: "50%", size: 4, color: "bg-accent-gold", duration: 7.5, delay: -5 },
-  { top: "55%", left: "4%", size: 3, color: "bg-accent-red", duration: 5, delay: -1 },
+// Sakura-ish palette (pink/blush/white), fixed positions/colors/speeds (not randomized) so the
+// layout is stable across re-renders and SSR. `top` is each petal's resting position -- used
+// as-is when motion is reduced (see .vici-confetti-petal in globals.css), and as the starting
+// point the fall animation reads from before overriding it. `delay`/`driftDelay` are negative and
+// roughly proportional to their durations so every petal is already mid-fall and mid-rotation on
+// first paint instead of all starting in sync.
+const CONFETTI_PETALS: {
+  top: string;
+  left: string;
+  size: number;
+  color: string;
+  duration: number;
+  delay: number;
+  driftDuration: number;
+  driftDelay: number;
+}[] = [
+  { top: "10%", left: "8%", size: 9, color: "bg-accent-pink", duration: 11, delay: -2, driftDuration: 4.2, driftDelay: -0.6 },
+  { top: "20%", left: "80%", size: 7, color: "bg-white", duration: 9, delay: -5, driftDuration: 3.6, driftDelay: -2.1 },
+  { top: "68%", left: "16%", size: 8, color: "bg-accent-pink", duration: 12, delay: -1, driftDuration: 5, driftDelay: -1.4 },
+  { top: "78%", left: "88%", size: 10, color: "bg-[#ffd9e6]", duration: 8, delay: -6, driftDuration: 4.6, driftDelay: -3 },
+  { top: "42%", left: "94%", size: 7, color: "bg-accent-pink", duration: 13, delay: -3.5, driftDuration: 3.9, driftDelay: -0.2 },
+  { top: "6%", left: "46%", size: 8, color: "bg-white", duration: 10, delay: -4, driftDuration: 4.8, driftDelay: -1.8 },
+  { top: "86%", left: "52%", size: 9, color: "bg-[#ffd9e6]", duration: 9.5, delay: -7, driftDuration: 4.1, driftDelay: -2.6 },
+  { top: "52%", left: "2%", size: 7, color: "bg-accent-pink", duration: 8.5, delay: -1.5, driftDuration: 3.4, driftDelay: -3.4 },
 ];
 
 // Purely decorative -- sits behind the card content (see the isolate+overflow-hidden/z-0/z-10
@@ -73,18 +83,20 @@ const CONFETTI_DOTS: { top: string; left: string; size: number; color: string; d
 function RecordConfetti() {
   return (
     <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-      {CONFETTI_DOTS.map((dot, i) => (
+      {CONFETTI_PETALS.map((petal, i) => (
         <span
           key={i}
-          className={`vici-confetti-dot absolute rounded-full ${dot.color}`}
+          className={`vici-confetti-petal absolute ${petal.color}`}
           style={
             {
-              top: dot.top,
-              left: dot.left,
-              width: dot.size,
-              height: dot.size,
-              "--confetti-fall-duration": `${dot.duration}s`,
-              "--confetti-fall-delay": `${dot.delay}s`,
+              top: petal.top,
+              left: petal.left,
+              width: petal.size,
+              height: petal.size * 0.72,
+              "--confetti-fall-duration": `${petal.duration}s`,
+              "--confetti-fall-delay": `${petal.delay}s`,
+              "--confetti-drift-duration": `${petal.driftDuration}s`,
+              "--confetti-drift-delay": `${petal.driftDelay}s`,
             } as CSSProperties
           }
         />

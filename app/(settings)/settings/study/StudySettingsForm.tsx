@@ -106,6 +106,22 @@ export function StudySettingsForm({
   // rather than re-synced on every settings change, since a user isn't studying hiragana to
   // completion in the middle of a Settings visit.
   const [hiraganaMastered, setHiraganaMastered] = useState<boolean | null>(null);
+  // Tracks which of kanji/vocabulary just turned on as a side effect of the user directly
+  // toggling the other one (crossing from the kana track turns both on together). Purely a
+  // live UI cue for the toggle that got flipped "for free" -- never persisted, and cleared
+  // below the moment that toggle turns off or locks, so a page reload never resurrects it.
+  const [justCrossedPartner, setJustCrossedPartner] = useState<"kanji" | "vocabulary" | null>(null);
+  // Mirrors justCrossedPartner for the opposite direction: whichever of hiragana/katakana was
+  // on when the user crossed to the standard track (by turning on kanji or vocabulary) got
+  // turned off as a side effect, not by a direct click on it. Cleared the moment that toggle
+  // turns back on -- live UI-only, never persisted or derived from `initial`.
+  const [hiraganaJustCrossedOff, setHiraganaJustCrossedOff] = useState(false);
+  const [katakanaJustCrossedOff, setKatakanaJustCrossedOff] = useState(false);
+  // Mirrors hiraganaJustCrossedOff/katakanaJustCrossedOff for the reverse crossing: whichever of
+  // kanji/vocabulary was on when the user crossed to the kana track (by turning on hiragana or
+  // katakana) got turned off as a side effect. Same live-only, cleared-on-turn-back-on contract.
+  const [kanjiJustCrossedOff, setKanjiJustCrossedOff] = useState(false);
+  const [vocabularyJustCrossedOff, setVocabularyJustCrossedOff] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -133,6 +149,36 @@ export function StudySettingsForm({
   useEffect(() => {
     setStudyTrack(initial.study_track);
   }, [initial.study_track]);
+
+  // Clears the "turned on together" cue the instant its toggle turns off or locks (goes
+  // disabled) -- e.g. the user turns kanji back off, or turns vocabulary off so kanji becomes
+  // the sole active one and locks. Reacts to live toggle state only, never to `initial`/the
+  // database, so a refetch or page reload never resurrects a stale cue.
+  useEffect(() => {
+    if (justCrossedPartner === "vocabulary") {
+      const vocabularyLocked = disabled || (studyVocabulary && !studyKanji);
+      if (!studyVocabulary || vocabularyLocked) setJustCrossedPartner(null);
+    } else if (justCrossedPartner === "kanji") {
+      const kanjiLocked = disabled || (studyKanji && !studyVocabulary);
+      if (!studyKanji || kanjiLocked) setJustCrossedPartner(null);
+    }
+  }, [justCrossedPartner, studyKanji, studyVocabulary, disabled]);
+
+  useEffect(() => {
+    if (studyHiragana && hiraganaJustCrossedOff) setHiraganaJustCrossedOff(false);
+  }, [studyHiragana, hiraganaJustCrossedOff]);
+
+  useEffect(() => {
+    if (studyKatakana && katakanaJustCrossedOff) setKatakanaJustCrossedOff(false);
+  }, [studyKatakana, katakanaJustCrossedOff]);
+
+  useEffect(() => {
+    if (studyKanji && kanjiJustCrossedOff) setKanjiJustCrossedOff(false);
+  }, [studyKanji, kanjiJustCrossedOff]);
+
+  useEffect(() => {
+    if (studyVocabulary && vocabularyJustCrossedOff) setVocabularyJustCrossedOff(false);
+  }, [studyVocabulary, vocabularyJustCrossedOff]);
 
   function adjustKanji(delta: number) {
     const next = Math.max(1, newKanjiPerDay + delta);
@@ -191,13 +237,19 @@ export function StudySettingsForm({
     // Crossing activates both kanji and vocabulary together, not just the one toggled -- matches
     // the state a student lands in via kana-track graduation, so manually starting standard from
     // either toggle doesn't leave them in a lopsided kanji-only/vocab-only state.
-    void handleCrossTrack({
-      study_track: "standard",
-      study_kanji: true,
-      study_vocabulary: true,
-      study_hiragana: false,
-      study_katakana: false,
-    });
+    const crossedOffKana: Array<"hiragana" | "katakana"> = [];
+    if (studyHiragana) crossedOffKana.push("hiragana");
+    if (studyKatakana) crossedOffKana.push("katakana");
+    void handleCrossTrack(
+      {
+        study_track: "standard",
+        study_kanji: true,
+        study_vocabulary: true,
+        study_hiragana: false,
+        study_katakana: false,
+      },
+      { crossedPartner: "vocabulary", crossedOffKana },
+    );
   }
 
   function toggleStudyVocabulary() {
@@ -206,13 +258,19 @@ export function StudySettingsForm({
       setStudyVocabulary(!studyVocabulary);
       return;
     }
-    void handleCrossTrack({
-      study_track: "standard",
-      study_kanji: true,
-      study_vocabulary: true,
-      study_hiragana: false,
-      study_katakana: false,
-    });
+    const crossedOffKana: Array<"hiragana" | "katakana"> = [];
+    if (studyHiragana) crossedOffKana.push("hiragana");
+    if (studyKatakana) crossedOffKana.push("katakana");
+    void handleCrossTrack(
+      {
+        study_track: "standard",
+        study_kanji: true,
+        study_vocabulary: true,
+        study_hiragana: false,
+        study_katakana: false,
+      },
+      { crossedPartner: "kanji", crossedOffKana },
+    );
   }
 
   function toggleStudyHiragana() {
@@ -221,18 +279,24 @@ export function StudySettingsForm({
       setStudyHiragana(!studyHiragana);
       return;
     }
-    void handleCrossTrack({
-      study_track: "kana",
-      study_hiragana: true,
-      study_katakana: studyKatakana,
-      study_kanji: false,
-      study_vocabulary: false,
-      // Required alongside study_track by the kana_level_check CHECK constraint -- see
-      // handleCrossTrack's comment. Without this, a user who'd picked a level above N5 on the
-      // standard track would hit a DB constraint violation crossing over here instead of
-      // resetting to N5, same as onboarding's handleKnowsKanaChange does for its "No" branch.
-      enabled_levels: ["N5"],
-    });
+    const crossedOffStandard: Array<"kanji" | "vocabulary"> = [];
+    if (studyKanji) crossedOffStandard.push("kanji");
+    if (studyVocabulary) crossedOffStandard.push("vocabulary");
+    void handleCrossTrack(
+      {
+        study_track: "kana",
+        study_hiragana: true,
+        study_katakana: studyKatakana,
+        study_kanji: false,
+        study_vocabulary: false,
+        // Required alongside study_track by the kana_level_check CHECK constraint -- see
+        // handleCrossTrack's comment. Without this, a user who'd picked a level above N5 on the
+        // standard track would hit a DB constraint violation crossing over here instead of
+        // resetting to N5, same as onboarding's handleKnowsKanaChange does for its "No" branch.
+        enabled_levels: ["N5"],
+      },
+      { crossedOffStandard },
+    );
   }
 
   function toggleStudyKatakana() {
@@ -246,14 +310,20 @@ export function StudySettingsForm({
       return;
     }
     if (!hiraganaMastered) return;
-    void handleCrossTrack({
-      study_track: "kana",
-      study_katakana: true,
-      study_hiragana: studyHiragana,
-      study_kanji: false,
-      study_vocabulary: false,
-      enabled_levels: ["N5"],
-    });
+    const crossedOffStandard: Array<"kanji" | "vocabulary"> = [];
+    if (studyKanji) crossedOffStandard.push("kanji");
+    if (studyVocabulary) crossedOffStandard.push("vocabulary");
+    void handleCrossTrack(
+      {
+        study_track: "kana",
+        study_katakana: true,
+        study_hiragana: studyHiragana,
+        study_kanji: false,
+        study_vocabulary: false,
+        enabled_levels: ["N5"],
+      },
+      { crossedOffStandard },
+    );
   }
 
   function revertTo(snapshot: Snapshot) {
@@ -286,7 +356,14 @@ export function StudySettingsForm({
   // directions: switching to kana never deletes progress, resets enabled_levels to N5 (required
   // by kana_level_check, same as onboarding's "No" branch), and switching back to standard
   // doesn't touch enabled_levels (stays N5 until the user picks a level again).
-  async function handleCrossTrack(patch: StudySettingsPatch) {
+  async function handleCrossTrack(
+    patch: StudySettingsPatch,
+    cues?: {
+      crossedPartner?: "kanji" | "vocabulary";
+      crossedOffKana?: Array<"hiragana" | "katakana">;
+      crossedOffStandard?: Array<"kanji" | "vocabulary">;
+    },
+  ) {
     if (!user) return;
     try {
       const updated = await updateStudySettings(user.id, patch);
@@ -295,6 +372,14 @@ export function StudySettingsForm({
       setStudyVocabulary(updated.study_vocabulary);
       setStudyHiragana(updated.study_hiragana);
       setStudyKatakana(updated.study_katakana);
+      // Set only once the cross-track save has actually landed -- studyKanji/studyVocabulary
+      // above are the freshly confirmed values, so the "clear" effect (keyed on those same
+      // state vars) never races against this and wipes the cue before it can render.
+      if (cues?.crossedPartner) setJustCrossedPartner(cues.crossedPartner);
+      if (cues?.crossedOffKana?.includes("hiragana")) setHiraganaJustCrossedOff(true);
+      if (cues?.crossedOffKana?.includes("katakana")) setKatakanaJustCrossedOff(true);
+      if (cues?.crossedOffStandard?.includes("kanji")) setKanjiJustCrossedOff(true);
+      if (cues?.crossedOffStandard?.includes("vocabulary")) setVocabularyJustCrossedOff(true);
       // Crossing to kana resets enabled_levels server-side to N5 (see the patches above) --
       // resync local level/floor from the response so the (disabled, but still visible) JLPT
       // grid shows N5 right away instead of whatever level was picked on the standard track,
@@ -539,12 +624,23 @@ export function StudySettingsForm({
       </GlassCard>
 
       <GlassCard padding="lg">
-        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-          <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Study hiragana</div>
-            <div className="text-sm text-text-muted">Include hiragana reading cards in your queue.</div>
+        <div className="border-b border-border-soft py-4 last:border-b-0">
+          <div className="flex items-center justify-between gap-5">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Study hiragana</div>
+              <div className="text-sm text-text-muted">Include hiragana reading cards in your queue.</div>
+            </div>
+            <Toggle checked={studyHiragana} onChange={toggleStudyHiragana} disabled={disabled || (studyHiragana && !studyKatakana)} />
           </div>
-          <Toggle checked={studyHiragana} onChange={toggleStudyHiragana} disabled={disabled || (studyHiragana && !studyKatakana)} />
+          {studyHiragana && (disabled || !studyKatakana) ? (
+            <div className="mt-2.5 text-xs text-amber-400">At least one toggle must stay on.</div>
+          ) : (
+            hiraganaJustCrossedOff && (
+              <div className="mt-2.5 text-xs text-amber-400">
+                You can't study kana alongside kanji and vocabulary, so this turned off for now.
+              </div>
+            )
+          )}
         </div>
         <div className="border-b border-border-soft py-4 last:border-b-0">
           <div className="flex items-center justify-between gap-5">
@@ -558,23 +654,61 @@ export function StudySettingsForm({
               disabled={disabled || (studyKatakana && !studyHiragana) || !hiraganaMastered}
             />
           </div>
-          {!hiraganaMastered && (
+          {!hiraganaMastered ? (
             <div className="mt-2.5 text-xs text-amber-400">Finish learning all hiragana first to unlock katakana.</div>
+          ) : studyKatakana && (disabled || !studyHiragana) ? (
+            <div className="mt-2.5 text-xs text-amber-400">At least one toggle must stay on.</div>
+          ) : (
+            katakanaJustCrossedOff && (
+              <div className="mt-2.5 text-xs text-amber-400">
+                You can't study kana alongside kanji and vocabulary, so this turned off for now.
+              </div>
+            )
           )}
         </div>
-        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-          <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
-            <div className="text-sm text-text-muted">Include kanji meaning &amp; word reading cards in your queue.</div>
+        <div className="border-b border-border-soft py-4 last:border-b-0">
+          <div className="flex items-center justify-between gap-5">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
+              <div className="text-sm text-text-muted">Include kanji meaning &amp; word reading cards in your queue.</div>
+            </div>
+            <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
           </div>
-          <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
+          {studyKanji && (disabled || !studyVocabulary) ? (
+            <div className="mt-2.5 text-xs text-amber-400">At least one toggle must stay on.</div>
+          ) : justCrossedPartner === "kanji" ? (
+            <div className="mt-2.5 text-xs text-amber-400">
+              We recommend learning kanji and vocabulary together, so this turned on too.
+            </div>
+          ) : (
+            kanjiJustCrossedOff && (
+              <div className="mt-2.5 text-xs text-amber-400">
+                You can't study kana alongside kanji and vocabulary, so this turned off for now.
+              </div>
+            )
+          )}
         </div>
-        <div className="flex items-center justify-between gap-5 border-b border-border-soft py-4 last:border-b-0">
-          <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Study vocabulary</div>
-            <div className="text-sm text-text-muted">Include vocabulary meaning cards in your queue.</div>
+        <div className="border-b border-border-soft py-4 last:border-b-0">
+          <div className="flex items-center justify-between gap-5">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Study vocabulary</div>
+              <div className="text-sm text-text-muted">Include vocabulary meaning cards in your queue.</div>
+            </div>
+            <Toggle checked={studyVocabulary} onChange={toggleStudyVocabulary} disabled={disabled || (studyVocabulary && !studyKanji)} />
           </div>
-          <Toggle checked={studyVocabulary} onChange={toggleStudyVocabulary} disabled={disabled || (studyVocabulary && !studyKanji)} />
+          {studyVocabulary && (disabled || !studyKanji) ? (
+            <div className="mt-2.5 text-xs text-amber-400">At least one toggle must stay on.</div>
+          ) : justCrossedPartner === "vocabulary" ? (
+            <div className="mt-2.5 text-xs text-amber-400">
+              We recommend learning kanji and vocabulary together, so this turned on too.
+            </div>
+          ) : (
+            vocabularyJustCrossedOff && (
+              <div className="mt-2.5 text-xs text-amber-400">
+                You can't study kana alongside kanji and vocabulary, so this turned off for now.
+              </div>
+            )
+          )}
         </div>
         <div className={`${fieldHint} mt-2.5`}>Hiragana/Katakana and Kanji/Vocabulary are separate tracks — you're always on one. Switching on the other pair moves you over to it, and at least one toggle in your current pair must stay on.</div>
       </GlassCard>

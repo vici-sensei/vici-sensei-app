@@ -210,24 +210,30 @@ input:disabled ~ span {
   }
 }
 
-/* Streak card's "new record" confetti dots (dashboard/page.tsx's RecordConfetti) -- falls like
-   snow, plus a slower independent side-to-side sway layered on top. Each dot sets its own
-   --confetti-fall-duration/--confetti-fall-delay inline (speed varies per dot, and the delay is
-   negative so every dot starts already mid-fall instead of bunched at the top on first paint) --
-   those vary per dot at render time, so they can't be baked into a static Tailwind class the way
-   the rest of the card's animations are.
-   Animates `top` (not `transform: translateY`): the dot is absolutely positioned inside the
-   card, so a `top` percentage is relative to the *card's* height, where a transform's percentage
-   would only be relative to the dot's own few px. */
-.vici-confetti-dot {
+/* Streak card's "new record" background (dashboard/page.tsx's RecordConfetti) -- petals drift
+   down and slowly rotate, like falling sakura, rather than a straight-down snow/confetti fall.
+   Each petal sets its own --confetti-fall-duration/--confetti-fall-delay (vertical speed, and a
+   negative delay so it's already mid-fall on first paint instead of starting bunched at the top)
+   and --confetti-drift-duration/--confetti-drift-delay (its own rotate+sway phase) -- these vary
+   per petal at render time, so they can't be baked into a static Tailwind class the way the rest
+   of the card's animations are.
+   Animates `top` (not `transform: translateY`) for the fall: the petal is absolutely positioned
+   inside the card, so a `top` percentage is relative to the *card's* height, where a transform's
+   percentage would only be relative to the petal's own few px. Rotation and horizontal sway are
+   both `transform`, so they're combined into one vici-petal-drift animation instead of two --
+   two separate animations both writing to `transform` would just have the later one win outright,
+   not compose with the first. */
+.vici-confetti-petal {
+  opacity: 0.9;
+  border-radius: 60% 40% 60% 40% / 40% 60% 40% 60%;
   animation:
-    vici-confetti-fall var(--confetti-fall-duration, 7s) linear infinite,
-    vici-confetti-sway 2.6s ease-in-out infinite alternate;
-  animation-delay: var(--confetti-fall-delay, 0s), 0s;
+    vici-confetti-fall var(--confetti-fall-duration, 10s) linear infinite,
+    vici-petal-drift var(--confetti-drift-duration, 4s) ease-in-out infinite;
+  animation-delay: var(--confetti-fall-delay, 0s), var(--confetti-drift-delay, 0s);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vici-confetti-dot {
+  .vici-confetti-petal {
     animation: none;
   }
 }
@@ -241,13 +247,21 @@ input:disabled ~ span {
   }
 }
 
-@keyframes vici-confetti-sway {
-  0%,
-  100% {
-    transform: translateX(-3px);
+@keyframes vici-petal-drift {
+  0% {
+    transform: translateX(-7px) rotate(0deg);
+  }
+  25% {
+    transform: translateX(9px) rotate(90deg);
   }
   50% {
-    transform: translateX(3px);
+    transform: translateX(-9px) rotate(180deg);
+  }
+  75% {
+    transform: translateX(7px) rotate(270deg);
+  }
+  100% {
+    transform: translateX(-7px) rotate(360deg);
   }
 }
 
