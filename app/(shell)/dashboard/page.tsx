@@ -134,20 +134,22 @@ function StreakCard() {
         {isNewRecord ? (
           <div className="flex flex-col items-center gap-1">
             <div className="text-4xl font-extrabold leading-none tracking-tight text-accent-gold">{displayedStreak}</div>
-            <div className="flex items-center gap-1.5 text-sm font-bold text-accent-gold">
+            <div className="flex-wrap items-center justify-center gap-1.5 text-sm font-bold text-accent-gold">
               <FaTrophy className="h-3 w-3" />
-              New personal best
+              <div className="text-center">
+                New personal best
+              </div>
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-3.5 sm:gap-6">
             <div className="flex flex-col items-center sm:gap-2">
               <div className="text-3xl font-extrabold leading-none tracking-tight text-accent-gold">{displayedStreak}</div>
-              <div className="text-sm font-semibold text-text-muted">Day streak</div>
+              <div className="text-sm font-semibold text-text-muted text-center">Day streak</div>
             </div>
             <div className="flex flex-col items-center sm:gap-2">
               <div className="text-3xl font-extrabold leading-none tracking-tight">{record}</div>
-              <div className="text-sm font-semibold text-text-muted">Best streak</div>
+              <div className="text-sm font-semibold text-text-muted text-center">Best streak</div>
             </div>
           </div>
         )}
@@ -351,55 +353,47 @@ function AccuracyCard() {
 type Placement = { row?: number; col?: number; colSpan?: number; rowSpan?: number };
 type ResponsivePlacement = { base: Placement; xs?: Placement; sm?: Placement; md?: Placement; lg?: Placement };
 
-const LAYOUT: Record<
-  "hero" | "streak" | "level" | "statKanji" | "statVocab" | "statReviews" | "statAccuracy",
-  ResponsivePlacement
-> = {
+const LAYOUT: Record<"hero" | "streak", ResponsivePlacement> = {
   // Hero + Streak: stacked (each full width) below "md" (768px); paired on one row,
   // 8/4 split, from "md" up.
   hero: { base: { row: 1, col: 1, colSpan: 12 }, md: { row: 1, col: 1, colSpan: 8 } },
 
   streak: { base: { row: 2, col: 1, colSpan: 12 }, md: { row: 1, col: 9, colSpan: 4 } },
+};
 
-  // Stat cards: full width, each on its own row, below "xs" (280px); 2x2 from "xs" up;
-  // one row of 4 from "sm" up. "md" only moves them up a row, since Hero+Streak now
-  // share row 1 instead of taking rows 1-2.
-  statKanji: {
-    base: { row: 3, col: 1, colSpan: 12 },
-    xs: { row: 3, col: 1, colSpan: 6 },
-    sm: { row: 3, col: 1, colSpan: 3 },
+/** Placement for the `index`-th (0-based) of `count` stat cards -- "New X today" cards plus
+ * Reviews/Accuracy, whichever of the four "new X today" ones are actually enabled (see
+ * showPrimary/showSecondary in DashboardPage). Below "xs" (280px) each gets its own full-width
+ * row; from "xs" to "sm" (480px, the common phone-width range) they sit 2 per row, except a lone
+ * odd-one-out on the last row (count is odd and this is its final card) spans the full row
+ * instead of leaving its other half empty; from "sm" up (including "md", which just moves the
+ * row up since Hero+Streak now share row 1) they split ONE row evenly across all 12 columns --
+ * so e.g. 3 cards take 4 columns each instead of the usual 3, filling the row completely instead
+ * of leaving the 4th card's column reserved and blank. */
+function statCardPlacement(index: number, count: number): ResponsivePlacement {
+  const colSpan = 12 / count;
+  const isLoneLastCard = count % 2 === 1 && index === count - 1;
+  return {
+    base: { row: 3 + index, col: 1, colSpan: 12 },
+    xs: isLoneLastCard
+      ? { row: 3 + Math.floor(index / 2), col: 1, colSpan: 12 }
+      : { row: 3 + Math.floor(index / 2), col: 1 + (index % 2) * 6, colSpan: 6 },
+    sm: { row: 3, col: 1 + index * colSpan, colSpan },
     md: { row: 2 },
-  },
+  };
+}
 
-  statVocab: {
-    base: { row: 4, col: 1, colSpan: 12 },
-    xs: { row: 3, col: 7, colSpan: 6 },
-    sm: { row: 3, col: 4, colSpan: 3 },
-    md: { row: 2 },
-  },
-
-  statReviews: {
-    base: { row: 5, col: 1, colSpan: 12 },
-    xs: { row: 4, col: 1, colSpan: 6 },
-    sm: { row: 3, col: 7, colSpan: 3 },
-    md: { row: 2 },
-  },
-
-  statAccuracy: {
-    base: { row: 6, col: 1, colSpan: 12 },
-    xs: { row: 4, col: 7, colSpan: 6 },
-    sm: { row: 3, col: 10, colSpan: 3 },
-    md: { row: 2 },
-  },
-
-  // Always the last row, full width, at every breakpoint.
-  level: {
-    base: { row: 7, col: 1, colSpan: 12 },
-    xs: { row: 5, col: 1, colSpan: 12 },
+/** Always the last row, full width, at every breakpoint -- right after however many rows the
+ * stat cards actually took (see statCardPlacement). "sm"/"md" don't depend on `count` since
+ * those tiers always pack every stat card into a single row regardless of how many there are. */
+function levelPlacement(count: number): ResponsivePlacement {
+  return {
+    base: { row: 3 + count, col: 1, colSpan: 12 },
+    xs: { row: 3 + Math.ceil(count / 2), col: 1, colSpan: 12 },
     sm: { row: 4, col: 1, colSpan: 12 },
     md: { row: 3 },
-  },
-};
+  };
+}
 
 function gridArea({ base, xs, sm, md, lg }: ResponsivePlacement): CSSProperties {
   const vars: Record<string, number> = {};
@@ -423,6 +417,18 @@ export default function DashboardPage() {
   const { stats } = useStudyStats();
   const isKana = stats?.study_track === "kana";
 
+  // Assume enabled while stats haven't loaded yet, so the card doesn't flash in once they do --
+  // once loaded, hide it if the user has turned that category off (at least one of the current
+  // track's pair always stays on, so this never hides both).
+  const showPrimary = stats ? (isKana ? stats.study_hiragana : stats.study_kanji) : true;
+  const showSecondary = stats ? (isKana ? stats.study_katakana : stats.study_vocabulary) : true;
+
+  const statCards: React.ReactNode[] = [];
+  if (showPrimary) statCards.push(isKana ? <NewHiraganaCard key="primary" /> : <NewKanjiCard key="primary" />);
+  if (showSecondary) statCards.push(isKana ? <NewKatakanaCard key="secondary" /> : <NewVocabCard key="secondary" />);
+  statCards.push(<ReviewsTodayCard key="reviews" />);
+  statCards.push(<AccuracyCard key="accuracy" />);
+
   function handleProgressIntent() {
     if (user) prefetchProgressSummary(user.id);
   }
@@ -440,19 +446,12 @@ export default function DashboardPage() {
         <div className="grid-item" style={gridArea(LAYOUT.streak)}>
           <StreakCard />
         </div>
-        <div className="grid-item" style={gridArea(LAYOUT.statKanji)}>
-          {isKana ? <NewHiraganaCard /> : <NewKanjiCard />}
-        </div>
-        <div className="grid-item" style={gridArea(LAYOUT.statVocab)}>
-          {isKana ? <NewKatakanaCard /> : <NewVocabCard />}
-        </div>
-        <div className="grid-item" style={gridArea(LAYOUT.statReviews)}>
-          <ReviewsTodayCard />
-        </div>
-        <div className="grid-item" style={gridArea(LAYOUT.statAccuracy)}>
-          <AccuracyCard />
-        </div>
-        <div className="grid-item" style={gridArea(LAYOUT.level)}>
+        {statCards.map((card, i) => (
+          <div className="grid-item" key={i} style={gridArea(statCardPlacement(i, statCards.length))}>
+            {card}
+          </div>
+        ))}
+        <div className="grid-item" style={gridArea(levelPlacement(statCards.length))}>
           <LevelProgressCard />
         </div>
       </div>

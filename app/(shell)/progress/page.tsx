@@ -85,10 +85,19 @@ export default function ProgressPage() {
   // vocabulary stay on top as today, with hiragana/katakana appended below as history -- kana
   // progress is never deleted when switching tracks, so it still deserves a place here.
   const BLOCKS: Block[] = settings?.study_track === "kana" ? KANA_BLOCKS : [...STANDARD_BLOCKS, ...KANA_BLOCKS];
+  // Hide blocks for categories the user has turned off in study settings -- e.g. kanji reading
+  // shouldn't show once study_kanji is off, independent of whether vocabulary is still on.
+  const visibleBlocks = BLOCKS.filter((block) => {
+    if (block.key === "kanji_meaning" || block.key === "kanji_reading") return settings?.study_kanji !== false;
+    if (block.key === "vocab_meaning") return settings?.study_vocabulary !== false;
+    if (block.key === "hiragana_reading") return settings?.study_hiragana !== false;
+    if (block.key === "katakana_reading") return settings?.study_katakana !== false;
+    return true;
+  });
 
   // grandTotal is only meaningful once summary has loaded -- kept at 0 (rather than computed
   // from EMPTY_COUNTS below) so the "no progress yet" empty state can't flash in before load.
-  const grandTotal = summary ? BLOCKS.reduce((sum, b) => sum + total(summary[b.key]), 0) : 0;
+  const grandTotal = summary ? visibleBlocks.reduce((sum, b) => sum + total(summary[b.key]), 0) : 0;
 
   return (
     <div>
@@ -104,12 +113,12 @@ export default function ProgressPage() {
           <StartStudyingLink />
         </div>
       ) : (
-        BLOCKS.map((block, idx) => {
+        visibleBlocks.map((block, idx) => {
           const counts = summary ? summary[block.key] : EMPTY_COUNTS;
           const blockTotal = total(counts);
           return (
             <div className="relative mb-[22px] pl-14" key={block.key}>
-              {idx < BLOCKS.length - 1 && (
+              {idx < visibleBlocks.length - 1 && (
                 <div
                   className="absolute bottom-[-22px] left-[19px] top-[66px] w-0.5 bg-[linear-gradient(to_bottom,var(--pb-accent),transparent)]"
                   style={{ "--pb-accent": block.accent } as CSSProperties}

@@ -747,7 +747,6 @@ export function StudySettingsForm({
             <div className="min-h-0 overflow-hidden text-xs text-amber-400">{vocabularyMessage}</div>
           </div>
         </div>
-        <div className={`${fieldHint} mt-2.5`}>Hiragana/Katakana and Kanji/Vocabulary are separate tracks — you're always on one. Switching on the other pair moves you over to it, and at least one toggle in your current pair must stay on.</div>
       </GlassCard>
 
       <GlassCard padding="lg" className="mt-5.5">

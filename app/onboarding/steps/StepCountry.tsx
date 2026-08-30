@@ -7,7 +7,7 @@ export function StepCountry({ country, onChange }: { country: string | null; onC
       <p className="mx-auto mb-6 max-w-md text-sm leading-[1.6] text-text-muted">
         Shown on the leaderboard, unless you choose to appear anonymously.
       </p>
-      <div className="mx-auto max-w-xs text-left">
+      <div className="mx-auto w-sm max-w-full text-left">
         <CountrySelect id="onboarding-country" value={country} onChange={onChange} placement="auto" />
       </div>
     </>

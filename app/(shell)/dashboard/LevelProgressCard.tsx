@@ -247,6 +247,15 @@ export function LevelProgressCard() {
   const progress = stats?.level_progress;
   const isKana = stats?.study_track === "kana";
 
+  // Hide rings for categories the user has turned off -- e.g. kanji study can be disabled
+  // independently of vocabulary on the standard track, so "Kanji meaning"/"Kanji reading" or
+  // "Vocabulary" shouldn't clutter the card (or count toward a permanent 0%) once switched off.
+  const visibleStandardRings = STANDARD_RINGS.filter((ring) => {
+    if (ring.key === "kanji" || ring.key === "kanji_reading") return stats?.study_kanji !== false;
+    if (ring.key === "vocabulary") return stats?.study_vocabulary !== false;
+    return true;
+  });
+
   // Kana track: two stacked cards (hiragana, katakana), each broken down by kana_type -- see
   // KanaProgressCard. Split out per user request instead of the single card with one ring per
   // script this used to render (still below, for the standard kanji/vocabulary track). Each card
@@ -286,7 +295,7 @@ export function LevelProgressCard() {
     >
       <div ref={ringsRef} className="relative h-[110px] w-[110px] shrink-0 xl:h-[150px] xl:w-[150px]">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full -rotate-90">
-          {STANDARD_RINGS.map((ring, i) => {
+          {visibleStandardRings.map((ring, i) => {
             const cat = progress ? progress[ring.key] : EMPTY_CATEGORY;
             return (
               <LevelRing
@@ -316,7 +325,7 @@ export function LevelProgressCard() {
         <div className="justify-self-center text-center text-xs text-text-muted">Seen at least once</div>
         <div className="justify-self-center text-center text-xs text-text-muted">Already learned</div>
 
-        {STANDARD_RINGS.map((ring) => {
+        {visibleStandardRings.map((ring) => {
           const cat = progress ? progress[ring.key] : EMPTY_CATEGORY;
           return (
             <Fragment key={ring.key}>
