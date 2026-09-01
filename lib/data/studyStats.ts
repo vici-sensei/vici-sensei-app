@@ -82,25 +82,53 @@ export async function fetchStudyStats(
   // candidate doesn't cost just 1 card, it costs 1 (New kanji) + 1 (Kanji meaning) + word_count
   // (Word reading, one per example word) once introduced. cardsRemainingToday on the dashboard
   // used to count it as 1, badly undercounting "cards to do today" -- this fetches the same
-  // word_count data /study's queue already uses so both numbers agree. Only needs the kanji
-  // side: vocab/hiragana/katakana are a flat 2 cards per candidate regardless of content, so
-  // cardsRemainingToday can compute those directly from new_X_limit - new_X_today.
-  const kanjiRemaining = settingsResult.data?.study_kanji
-    ? Math.max(newKanjiPerDay - newKanjiToday, 0)
+  // word_count data /study's queue already uses so both numbers agree.
+  //
+  // All four categories also fetch their real get_new_*_candidates rows here (not just kanji),
+  // even though vocab/hiragana/katakana are a flat 2 cards per candidate and don't need per-item
+  // data the way kanji's word_count does -- new_X_per_day has no upper bound tying it to how much
+  // content actually exists (kana only enforces >=15/step-of-5, kanji/vocab enforce nothing), so
+  // the *_limit - *_today quota-remaining figure alone can massively overstate what's actually
+  // learnable today. Using the real row count instead means new_X_available (and everything
+  // derived from it: cardsRemainingToday, the dashboard's "N ready to learn" text) can never
+  // overcount, no matter how the quota is set.
+  const kanjiRemaining = settingsResult.data?.study_kanji ? Math.max(newKanjiPerDay - newKanjiToday, 0) : 0;
+  const vocabRemaining = settingsResult.data?.study_vocabulary ? Math.max(newVocabPerDay - newVocabToday, 0) : 0;
+  const hiraganaRemaining = settingsResult.data?.study_hiragana
+    ? Math.max(newHiraganaPerDay - newHiraganaToday, 0)
     : 0;
-  const kanjiCandidatesResult =
-    kanjiRemaining > 0
-      ? await supabase.rpc("get_new_kanji_candidates", {
-          p_user_id: userId,
-          p_enabled_levels: (settingsResult.data?.enabled_levels ?? []) as string[],
-          p_limit: kanjiRemaining,
-        })
-      : { data: [] as { word_count: number }[], error: null };
+  const katakanaRemaining = settingsResult.data?.study_katakana
+    ? Math.max(newKatakanaPerDay - newKatakanaToday, 0)
+    : 0;
+  const enabledLevels = (settingsResult.data?.enabled_levels ?? []) as string[];
+
+  const [kanjiCandidatesResult, vocabCandidatesResult, hiraganaCandidatesResult, katakanaCandidatesResult] =
+    await Promise.all([
+      kanjiRemaining > 0
+        ? supabase.rpc("get_new_kanji_candidates", { p_user_id: userId, p_enabled_levels: enabledLevels, p_limit: kanjiRemaining })
+        : Promise.resolve({ data: [] as { word_count: number }[], error: null }),
+      vocabRemaining > 0
+        ? supabase.rpc("get_new_vocab_candidates", { p_user_id: userId, p_enabled_levels: enabledLevels, p_limit: vocabRemaining })
+        : Promise.resolve({ data: [] as unknown[], error: null }),
+      hiraganaRemaining > 0
+        ? supabase.rpc("get_new_hiragana_candidates", { p_user_id: userId, p_limit: hiraganaRemaining })
+        : Promise.resolve({ data: [] as unknown[], error: null }),
+      katakanaRemaining > 0
+        ? supabase.rpc("get_new_katakana_candidates", { p_user_id: userId, p_limit: katakanaRemaining })
+        : Promise.resolve({ data: [] as unknown[], error: null }),
+    ]);
   if (kanjiCandidatesResult.error) throw new Error(kanjiCandidatesResult.error.message);
+  if (vocabCandidatesResult.error) throw new Error(vocabCandidatesResult.error.message);
+  if (hiraganaCandidatesResult.error) throw new Error(hiraganaCandidatesResult.error.message);
+  if (katakanaCandidatesResult.error) throw new Error(katakanaCandidatesResult.error.message);
   const newKanjiPendingReviewCards = ((kanjiCandidatesResult.data ?? []) as { word_count: number }[]).reduce(
     (sum, c) => sum + c.word_count,
     0
   );
+  const newKanjiAvailable = (kanjiCandidatesResult.data ?? []).length;
+  const newVocabAvailable = (vocabCandidatesResult.data ?? []).length;
+  const newHiraganaAvailable = (hiraganaCandidatesResult.data ?? []).length;
+  const newKatakanaAvailable = (katakanaCandidatesResult.data ?? []).length;
   const levelProgressRows = levelProgressResult.data as
     | { category: string; seen: number; learned: number; total: number }[]
     | null;
@@ -129,6 +157,10 @@ export async function fetchStudyStats(
     new_kanji_today: newKanjiToday,
     new_kanji_limit: newKanjiPerDay,
     new_kanji_pending_review_cards: newKanjiPendingReviewCards,
+    new_kanji_available: newKanjiAvailable,
+    new_vocab_available: newVocabAvailable,
+    new_hiragana_available: newHiraganaAvailable,
+    new_katakana_available: newKatakanaAvailable,
     new_vocab_today: newVocabToday,
     new_vocab_limit: newVocabPerDay,
     new_hiragana_today: newHiraganaToday,

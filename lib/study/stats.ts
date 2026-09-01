@@ -17,18 +17,17 @@ export function cardsRemainingToday(stats: StudyStats): number {
   // a flat 2 for vocab/hiragana/katakana (the New card + its one future review card), or
   // 2 + word_count for kanji, since a kanji's Word reading cards vary with its example-word
   // count -- that per-candidate sum arrives pre-computed as new_kanji_pending_review_cards.
+  //
+  // Uses new_X_available (Math.min(quota remaining, real un-introduced rows left) --
+  // see fetchStudyStats) rather than new_X_limit - new_X_today directly: new_X_per_day has no
+  // upper bound tied to how much content actually exists, so a quota set above the real content
+  // pool would otherwise inflate this arbitrarily far past what /study could ever actually serve.
   if (stats.study_track === "kana") {
-    const remainingHiragana = stats.study_hiragana
-      ? Math.max(stats.new_hiragana_limit - stats.new_hiragana_today, 0)
-      : 0;
-    const remainingKatakana = stats.study_katakana
-      ? Math.max(stats.new_katakana_limit - stats.new_katakana_today, 0)
-      : 0;
+    const remainingHiragana = stats.study_hiragana ? stats.new_hiragana_available : 0;
+    const remainingKatakana = stats.study_katakana ? stats.new_katakana_available : 0;
     return stats.due_today + remainingHiragana * 2 + remainingKatakana * 2;
   }
-  const remainingKanji = stats.study_kanji ? Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0) : 0;
-  const remainingVocab = stats.study_vocabulary
-    ? Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0)
-    : 0;
+  const remainingKanji = stats.study_kanji ? stats.new_kanji_available : 0;
+  const remainingVocab = stats.study_vocabulary ? stats.new_vocab_available : 0;
   return stats.due_today + remainingKanji * 2 + stats.new_kanji_pending_review_cards + remainingVocab * 2;
 }

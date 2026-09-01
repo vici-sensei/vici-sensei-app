@@ -19,13 +19,15 @@ export function DashboardHero() {
   // Gated on each study_* flag -- e.g. study_katakana stays false until every hiragana has
   // graduated to review, so an unstudied category must read as 0 remaining, not a phantom
   // full day's limit (see cardsRemainingToday in lib/study/stats.ts for the same fix).
-  const remainingKanji = stats && stats.study_kanji ? Math.max(stats.new_kanji_limit - stats.new_kanji_today, 0) : 0;
-  const remainingVocab =
-    stats && stats.study_vocabulary ? Math.max(stats.new_vocab_limit - stats.new_vocab_today, 0) : 0;
-  const remainingHiragana =
-    stats && stats.study_hiragana ? Math.max(stats.new_hiragana_limit - stats.new_hiragana_today, 0) : 0;
-  const remainingKatakana =
-    stats && stats.study_katakana ? Math.max(stats.new_katakana_limit - stats.new_katakana_today, 0) : 0;
+  //
+  // Reads new_X_available (Math.min(quota remaining, real un-introduced rows left) -- see
+  // fetchStudyStats), not new_X_limit - new_X_today: the daily quota has no enforced ceiling
+  // tied to how much content actually exists, so a quota set above the real content pool would
+  // otherwise show a "ready to learn" count nothing on /study could ever actually produce.
+  const remainingKanji = stats && stats.study_kanji ? stats.new_kanji_available : 0;
+  const remainingVocab = stats && stats.study_vocabulary ? stats.new_vocab_available : 0;
+  const remainingHiragana = stats && stats.study_hiragana ? stats.new_hiragana_available : 0;
+  const remainingKatakana = stats && stats.study_katakana ? stats.new_katakana_available : 0;
   const cardsToday = stats ? cardsRemainingToday(stats) : 0;
   // Shown regardless of allDone -- a review or new card can still land later today even while
   // there are cards to do right now (e.g. a learning-phase card resurfacing this afternoon).

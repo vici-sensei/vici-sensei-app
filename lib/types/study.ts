@@ -281,13 +281,25 @@ export interface StudyStats {
   new_kanji_today: number;
   new_kanji_limit: number;
   /** How many kanji_reading ("Word reading") cards the still-pending new-kanji candidates
-   * (new_kanji_limit - new_kanji_today of them) will produce once introduced -- known up front
-   * from kanji_detail_words alone (see get_new_kanji_candidates' word_count), same source
+   * (new_kanji_available of them) will produce once introduced -- known up front from
+   * kanji_detail_words alone (see get_new_kanji_candidates' word_count), same source
    * computePredictedTotal in lib/data/studyQueue.ts uses for the /study progress bar. Needed
    * because each candidate contributes a variable number of cards (1 kanji_meaning + N
    * kanji_reading, N varying per kanji), unlike vocab/hiragana/katakana which are a flat 2 cards
-   * each -- so cardsRemainingToday can't derive this from new_kanji_limit/new_kanji_today alone. */
+   * each -- so cardsRemainingToday can't derive this from new_kanji_available alone. */
   new_kanji_pending_review_cards: number;
+  /** How many new kanji/vocab/hiragana/katakana candidates get_new_*_candidates would actually
+   * return right now -- i.e. Math.min(new_X_limit - new_X_today, however many un-introduced
+   * candidates genuinely exist). new_X_limit - new_X_today alone (the daily quota still open) is
+   * NOT a safe stand-in: a quota set well above the real content pool -- there's no upper bound
+   * on new_X_per_day besides a >=15/step-of-5 check for kana, and none at all for kanji/vocab --
+   * would make it claim far more "ready to learn" than actually exist. cardsRemainingToday and
+   * DashboardHero's "N new hiragana ready to learn" text both read these instead of computing
+   * their own quota arithmetic, so neither can overcount regardless of how the quota is set. */
+  new_kanji_available: number;
+  new_vocab_available: number;
+  new_hiragana_available: number;
+  new_katakana_available: number;
   new_vocab_today: number;
   new_vocab_limit: number;
   new_hiragana_today: number;
