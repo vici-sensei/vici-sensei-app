@@ -47,6 +47,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
         )
       }
       revealed={revealed}
+      checkDisabled={disabled || !answer.trim()}
       correct={result?.correct ?? false}
       disabled={disabled}
       ratingPreviews={card.rating_previews}

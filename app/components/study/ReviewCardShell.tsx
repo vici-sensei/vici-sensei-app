@@ -4,6 +4,7 @@ import type { ReviewAccent } from "@/lib/study/accent";
 import { RatingGrid } from "./RatingGrid";
 import { StudyCardShell } from "./StudyCardShell";
 import { Button } from "@/app/components/ui/Button";
+import { ANSWER_FORM_ID } from "./AnswerForm";
 
 interface Props {
   label: string;
@@ -12,6 +13,10 @@ interface Props {
   subtitle: ReactNode;
   revealed: boolean;
   answerForm: ReactNode;
+  // Whether the (not yet revealed) typed answer can be submitted -- mirrors the `disabled ||
+  // !answer.trim()` guard each review hook's own handleCheck applies, duplicated here so the
+  // Check button can sit in the bottom action slot instead of inside answerForm itself.
+  checkDisabled: boolean;
   revealContent: ReactNode;
   correct: boolean;
   disabled: boolean;
@@ -31,6 +36,7 @@ export function ReviewCardShell({
   subtitle,
   revealed,
   answerForm,
+  checkDisabled,
   revealContent,
   correct,
   disabled,
@@ -64,11 +70,16 @@ export function ReviewCardShell({
       {revealed && <div className="mt-7 border-t border-border-soft pt-3">{revealContent}</div>}
 
       <div className="mt-8.5">
+        {!revealed && (
+          <Button type="submit" form={ANSWER_FORM_ID} variant="secondary" className="min-w-[min(220px,100%)]" disabled={checkDisabled}>
+            Check
+          </Button>
+        )}
         {revealed &&
           (correct && !hideRatingOnCorrect ? (
             <RatingGrid visible disabled={disabled} hideAgain accent={accent} previews={ratingPreviews} onRate={onRate} />
           ) : (
-            <Button variant="secondary" className="w-full" disabled={disabled} onClick={onContinue}>
+            <Button variant="secondary" className="min-w-[min(220px,100%)]" disabled={disabled} onClick={onContinue}>
               Continue
             </Button>
           ))}

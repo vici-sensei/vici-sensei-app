@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import type { NewKanjiCandidate } from "@/lib/types";
 import { Button } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
@@ -8,6 +8,7 @@ import { StudyCardShell } from "./StudyCardShell";
 import { CardHeading } from "./CardHeading";
 import { InfoChip } from "./InfoChip";
 import { WordPreviewRow } from "./WordPreviewRow";
+import { useScrollHint } from "./useScrollHint";
 
 interface Props {
   candidate: NewKanjiCandidate;
@@ -15,46 +16,9 @@ interface Props {
   onConfirm: () => void;
 }
 
-// Gentle one-time "peek" scroll to hint the word list is scrollable.
-const NUDGE_DISTANCE = 14;
-const NUDGE_DURATION = 380;
-const NUDGE_DELAY = 450;
-const ARROW_SCROLL_DISTANCE = 60;
-
-function easeInOutQuad(t: number) {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-}
-
-function animateScrollTop(
-  el: HTMLElement,
-  to: number,
-  duration: number,
-  isCancelled: () => boolean,
-  onDone?: () => void,
-) {
-  const from = el.scrollTop;
-  const start = performance.now();
-
-  function step(now: number) {
-    if (isCancelled()) return;
-    const t = Math.min(1, (now - start) / duration);
-    el.scrollTop = from + (to - from) * easeInOutQuad(t);
-    if (t < 1) {
-      requestAnimationFrame(step);
-    } else {
-      onDone?.();
-    }
-  }
-
-  requestAnimationFrame(step);
-}
-
 export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
   const words = candidate.words;
-  const listRef = useRef<HTMLDivElement>(null);
-  const [showFade, setShowFade] = useState(false);
-  const [isScrollable, setIsScrollable] = useState(false);
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const { ref: listRef, showFade, isScrollable, hasScrolledToBottom } = useScrollHint<HTMLDivElement>();
   const nextDisabled = disabled || (isScrollable && !hasScrolledToBottom);
 
   useEffect(() => {
@@ -68,68 +32,6 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [nextDisabled, onConfirm]);
-
-  useEffect(() => {
-    if (!isScrollable) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
-      const el = listRef.current;
-      if (!el) return;
-      event.preventDefault();
-      el.scrollBy({ top: event.key === "ArrowDown" ? ARROW_SCROLL_DISTANCE : -ARROW_SCROLL_DISTANCE, behavior: "smooth" });
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isScrollable]);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-
-    const updateFade = () => {
-      const scrollable = el.scrollHeight - el.clientHeight > 1;
-      const atBottom = el.scrollHeight - el.clientHeight - el.scrollTop <= 1;
-      setShowFade(scrollable && !atBottom);
-      setIsScrollable(scrollable);
-      if (atBottom) setHasScrolledToBottom(true);
-    };
-
-    const observer = new ResizeObserver(updateFade);
-    observer.observe(el);
-    el.addEventListener("scroll", updateFade);
-    updateFade();
-
-    let cancelled = false;
-    let userScrolled = false;
-    const markUserScrolled = () => {
-      userScrolled = true;
-    };
-    el.addEventListener("wheel", markUserScrolled, { passive: true });
-    el.addEventListener("touchstart", markUserScrolled, { passive: true });
-
-    const nudgeTimeout = window.setTimeout(() => {
-      if (cancelled || userScrolled || el.scrollHeight - el.clientHeight <= 1) return;
-      animateScrollTop(
-        el,
-        NUDGE_DISTANCE,
-        NUDGE_DURATION,
-        () => cancelled || userScrolled,
-        () => {
-          if (cancelled || userScrolled) return;
-          animateScrollTop(el, 0, NUDGE_DURATION, () => cancelled);
-        },
-      );
-    }, NUDGE_DELAY);
-
-    return () => {
-      cancelled = true;
-      observer.disconnect();
-      el.removeEventListener("scroll", updateFade);
-      el.removeEventListener("wheel", markUserScrolled);
-      el.removeEventListener("touchstart", markUserScrolled);
-      window.clearTimeout(nudgeTimeout);
-    };
-  }, []);
 
   return (
     <StudyCardShell
@@ -181,7 +83,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
         </div>
       )}
       <div className="mt-4 shrink-0">
-        <Button className="w-full" disabled={nextDisabled} onClick={onConfirm}>
+        <Button className="min-w-[min(220px,100%)]" disabled={nextDisabled} onClick={onConfirm}>
           Next
         </Button>
       </div>

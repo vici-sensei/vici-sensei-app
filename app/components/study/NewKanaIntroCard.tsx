@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import type { NewHiraganaCandidate, NewKatakanaCandidate } from "@/lib/types";
 import { Button } from "@/app/components/ui/Button";
 import { StudyCardShell } from "./StudyCardShell";
-import { CardHeading } from "./CardHeading";
 
 interface Props {
   candidate: NewHiraganaCandidate | NewKatakanaCandidate;
@@ -29,12 +28,11 @@ export function NewKanaIntroCard({ candidate, script, disabled, onConfirm }: Pro
 
   return (
     <StudyCardShell label={script === "hiragana" ? "New hiragana" : "New katakana"} accent="gold">
-      <CardHeading>{candidate.character}</CardHeading>
-
-      <div className="mb-2 text-[1.3rem] font-bold text-white">{candidate.romaji}</div>
+      <div className="mb-2 text-4xl leading-none">{candidate.character}</div>
+      <div className="text-[1.3rem] font-bold text-white">{candidate.romaji}</div>
 
       <div className="mt-8.5">
-        <Button className="w-full" disabled={disabled} onClick={onConfirm}>
+        <Button className="min-w-[min(220px,100%)]" disabled={disabled} onClick={onConfirm}>
           Next
         </Button>
       </div>

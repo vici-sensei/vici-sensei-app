@@ -66,6 +66,7 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
         </>
       }
       revealed={revealed}
+      checkDisabled={disabled || !answer.trim()}
       correct={result?.correct ?? false}
       disabled={disabled}
       ratingPreviews={card.rating_previews}

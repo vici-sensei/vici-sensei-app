@@ -1,5 +1,4 @@
 import { useEffect, useRef, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
-import { Button } from "@/app/components/ui/Button";
 import { ACCENT_FOCUS_BORDER_CLASSES, type ReviewAccent } from "@/lib/study/accent";
 
 interface Props {
@@ -10,6 +9,11 @@ interface Props {
   disabled: boolean;
   accent: ReviewAccent;
 }
+
+// Referenced by ReviewCardShell's Check button (via the `form` attribute) so that button can
+// live in the card's bottom action slot -- alongside Continue/the rating grid -- instead of
+// being stuck directly under the input.
+export const ANSWER_FORM_ID = "answer-form";
 
 export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disabled, accent }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,7 +27,7 @@ export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disa
   };
 
   return (
-    <form onSubmit={onSubmit} className="mt-7 flex flex-col items-center gap-3">
+    <form id={ANSWER_FORM_ID} onSubmit={onSubmit} className="mt-7 flex flex-col items-center gap-3">
       <input
         ref={inputRef}
         type="text"
@@ -41,9 +45,6 @@ export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disa
         spellCheck={false}
         className={`w-full select-none rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-center text-[0.95rem] text-white outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${ACCENT_FOCUS_BORDER_CLASSES[accent]}`}
       />
-      <Button type="submit" variant="secondary" className="w-full" disabled={disabled || !answer.trim()}>
-        Check
-      </Button>
     </form>
   );
 }
