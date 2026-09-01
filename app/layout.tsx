@@ -45,15 +45,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} antialiased`}>
+    <html
+      lang="en"
+      translate="no"
+      className={`notranslate ${plusJakartaSans.variable} antialiased`}
+    >
       <head>
+        {/* Kana/kanji readings break if a browser or extension auto-translates them.
+            translate="no" is the HTML5 standard (Chrome, Edge, Safari respect it on <html>);
+            Firefox Translations has an open bug (Mozilla #1969828) where it ignores the
+            attribute on <html> and only checks <body>, hence the duplicate below. The
+            notranslate class + meta tag cover Google Translate's widget/extension, which
+            predates and doesn't fully trust the standard attribute. */}
+        <meta name="google" content="notranslate" />
         {/* AuthProvider fires its first Supabase request as soon as it mounts — warm the
             connection (DNS + TLS) while the JS bundle is still parsing so that request
             doesn't pay for handshake setup on top of the round trip. */}
         <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
         <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
       </head>
-      <body>
+      <body translate="no" className="notranslate">
         <ServiceWorkerRegistration />
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
