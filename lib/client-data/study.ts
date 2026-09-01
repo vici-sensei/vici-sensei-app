@@ -11,7 +11,14 @@ import {
 import { fetchStudySettings } from "@/lib/data/studySettings";
 import { submitReview as submitReviewData, undoReview as undoReviewData } from "@/lib/data/reviews";
 import { startStudySession, endStudySession, getSessionProgress as getSessionProgressData } from "@/lib/data/studySessions";
-import { introduceCard as introduceCardData, type IntroduceKind } from "@/lib/data/introduce";
+import {
+  introduceCard as introduceCardData,
+  introduceHiraganaCharacter as introduceHiraganaCharacterData,
+  introduceKatakanaCharacter as introduceKatakanaCharacterData,
+  type IntroduceKind,
+  type KanaPackResult,
+} from "@/lib/data/introduce";
+export type { KanaPackResult } from "@/lib/data/introduce";
 import { recordHiraganaDrillResult, recordKatakanaDrillResult, type KanaDrillResult } from "@/lib/data/kanaDrill";
 import { checkJlptLevelUp as checkJlptLevelUpData } from "@/lib/data/jlptLevel";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
@@ -140,12 +147,18 @@ export async function completeVocabBatch(): Promise<DueCard[]> {
   return fetchCompleteVocabBatch(supabase, userId);
 }
 
-export function introduceHiragana(hiraganaId: number, sessionId?: number): Promise<void> {
-  return introduce("hiragana", hiraganaId, sessionId);
+export async function introduceHiragana(hiraganaId: number, sessionId?: number): Promise<KanaPackResult> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return introduceHiraganaCharacterData(supabase, userId, hiraganaId, timezone, sessionId);
 }
 
-export function introduceKatakana(katakanaId: number, sessionId?: number): Promise<void> {
-  return introduce("katakana", katakanaId, sessionId);
+export async function introduceKatakana(katakanaId: number, sessionId?: number): Promise<KanaPackResult> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return introduceKatakanaCharacterData(supabase, userId, katakanaId, timezone, sessionId);
 }
 
 export function introduceHiraganaRule(hiraganaId: number, sessionId?: number): Promise<void> {
