@@ -1,5 +1,4 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
-import { PROGRESS_TABLES } from "@/lib/srs/progressTables";
 import type { ReviewRequestBody, SubmitReviewResult } from "@/lib/types";
 import { ApiError } from "@/lib/api/client";
 
@@ -38,55 +37,26 @@ export async function submitReview(supabase: AppSupabaseClient, userId: string, 
   return { reviewLogId: row.review_log_id, resurfacesToday: row.resurfaces_today };
 }
 
+// Raised by undo_review (supabase/migrations/20260911_drill_mode_and_atomic_undo.sql) when
+// there's no matching not-yet-undone review to restore -- same code submit_review uses for its
+// own not-found case, reused here for consistency (each RPC's callers only ever see their own).
+const UNDO_NOT_FOUND_ERRCODE = "SR404";
+
 export async function undoReview(supabase: AppSupabaseClient, userId: string, reviewLogId?: number): Promise<void> {
-  let logQuery = supabase.from("review_logs").select("*").eq("user_id", userId).eq("undone", false);
-  logQuery = reviewLogId ? logQuery.eq("id", reviewLogId) : logQuery.order("reviewed_at", { ascending: false }).limit(1);
+  // Single atomic RPC: finds the target log (explicit id, or the latest not-yet-undone one),
+  // restores the *_before snapshot onto the right progress table, and marks the log undone, all
+  // in one transaction -- previously this was a SELECT plus two separate client-issued UPDATEs
+  // with no transaction tying them together, so a dropped connection between the two updates
+  // could leave the progress row restored but the log still undone = false, and two concurrent
+  // undo calls (double-click, a second tab) could both read the same snapshot and race to write
+  // it.
+  const { error } = await supabase.rpc("undo_review", {
+    p_user_id: userId,
+    p_review_log_id: reviewLogId ?? null,
+  });
 
-  const { data: logs, error: logError } = await logQuery;
-  if (logError) throw new ApiError(500, logError.message);
-
-  const log = logs?.[0];
-  if (!log) throw new ApiError(404, "No undoable review found.");
-
-  const exerciseType = log.exercise_type as keyof typeof PROGRESS_TABLES;
-  const { table, key } = PROGRESS_TABLES[exerciseType];
-
-  let keyValue: number;
-  if (exerciseType === "kanji_meaning") {
-    keyValue = log.kanji_id;
-  } else if (exerciseType === "vocab_meaning") {
-    keyValue = log.word_id;
-  } else if (exerciseType === "hiragana_reading") {
-    keyValue = log.hiragana_id;
-  } else if (exerciseType === "katakana_reading") {
-    keyValue = log.katakana_id;
-  } else {
-    const { data: kanjiWord, error: kanjiWordError } = await supabase
-      .from("kanji_word")
-      .select("id")
-      .eq("id_kanji", log.kanji_id)
-      .eq("id_word", log.word_id)
-      .single();
-    if (kanjiWordError) throw new ApiError(500, kanjiWordError.message);
-    keyValue = kanjiWord.id;
+  if (error) {
+    if (error.code === UNDO_NOT_FOUND_ERRCODE) throw new ApiError(404, error.message);
+    throw new ApiError(500, error.message);
   }
-
-  const { error: restoreError } = await supabase
-    .from(table)
-    .update({
-      status: log.status_before,
-      ease_factor: log.ease_factor_before,
-      interval_days: log.interval_before,
-      repetitions: log.repetitions_before,
-      lapses: log.lapses_before,
-      learning_step: log.learning_step_before,
-      due_at: log.due_at_before,
-    })
-    .eq("user_id", userId)
-    .eq(key, keyValue);
-
-  if (restoreError) throw new ApiError(500, restoreError.message);
-
-  const { error: markUndoneError } = await supabase.from("review_logs").update({ undone: true }).eq("id", log.id);
-  if (markUndoneError) throw new ApiError(500, markUndoneError.message);
 }

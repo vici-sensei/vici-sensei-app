@@ -65,6 +65,15 @@ export interface DueCard {
    * correctly during its post-introduction drill so far (see ReviewCardKanaReading) -- null for
    * every other exercise_type, and for a kana card that isn't currently mid-drill. */
   drill_streak: number | null;
+  /** True iff this card is still in the post-introduction drill (repeat until 3 correct in a
+   * row, no Hard/Good/Easy buttons -- see ReviewCardKanaReading) -- computed server-side as
+   * `status = 'learning' and kana_type = 'seion'` (get_due_cards/get_hiragana_reading_cards/
+   * get_katakana_reading_cards, 20260911_drill_mode_and_atomic_undo.sql), always false for every
+   * non-kana exercise_type. Read this instead of re-deriving the same condition from status/
+   * kana_type -- useStudyQueue.ts's rate() used to recompute it separately from
+   * ReviewCardKanaReading's own copy and the two drifted out of sync, silently routing a
+   * Hard/Good/Easy-rated non-seion card into the drill. */
+  drill_mode: boolean;
   rating_previews: RatingPreviews;
   /** 'learning' on a kana_type = 'seion' hiragana_reading/katakana_reading card means it's still
    * in the post-introduction drill (see ReviewCardKanaReading) -- no Hard/Good/Easy buttons,

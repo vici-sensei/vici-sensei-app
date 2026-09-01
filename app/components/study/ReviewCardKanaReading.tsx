@@ -22,12 +22,14 @@ interface Props {
  * concerns (siblings, furigana): a kana character tests exactly one fixed romaji string. */
 export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChange }: Props) {
   const isHiragana = card.exercise_type === "hiragana_reading";
-  // 'learning' + kana_type 'seion' means this character hasn't graduated the post-introduction
-  // drill yet (see useStudyQueue.ts's rate()/submitDrillAnswer and record_hiragana_drill_result)
-  // -- no Hard/Good/Easy picker, graded purely on typed-answer correctness, repeats until
-  // answered right 3 times in a row. Every other kana_type skips the drill entirely, even while
-  // status is still 'learning' -- see 20260906_selective_examples_and_seion_only_drill.sql.
-  const drillMode = card.status === "learning" && card.kana_type === "seion";
+  // Server-computed (get_due_cards/get_hiragana_reading_cards/get_katakana_reading_cards --
+  // status = 'learning' and kana_type = 'seion') so this always agrees with useStudyQueue.ts's
+  // rate(), which routes on the same flag -- see card.drill_mode's own doc comment. True means
+  // this character hasn't graduated the post-introduction drill yet (see
+  // useStudyQueue.ts's rate()/submitDrillAnswer and record_hiragana_drill_result) -- no
+  // Hard/Good/Easy picker, graded purely on typed-answer correctness, repeats until answered
+  // right 3 times in a row.
+  const drillMode = card.drill_mode;
   const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
     card,
     disabled,

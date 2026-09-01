@@ -2,6 +2,7 @@ import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { getNextDue } from "@/lib/srs/nextDue";
 import { fetchKanjiDetailWordsBatch } from "@/lib/kanji/detailWords";
 import { previewRatingLabels, type ProgressRow } from "@/lib/srs/scheduler";
+import { computeTotalCardsToday } from "@/lib/study/totalCardsToday";
 import type {
   DueCard,
   KanjiRow,
@@ -172,17 +173,10 @@ export async function fetchCompleteVocabBatch(supabase: AppSupabaseClient, userI
   return ((data ?? []) as DueCardRow[]).map(toDueCard);
 }
 
-// The whole day's card count, predicted before any of the not-yet-created future cards exist:
-// every already-due review counts as 1, and every New candidate counts as itself PLUS the
-// review card(s) introducing it is guaranteed to produce -- 1 (the New kanji card itself) + 1
-// (Kanji meaning) + word_count (Word reading) for a kanji, or a flat 2 (the New card itself +
-// its one future review card) for vocab/hiragana/katakana, each of which has exactly one future
-// review card per candidate (get_kanji_intro_cards, complete_vocab_batch,
-// get_hiragana/katakana_reading_cards all confirm this 1:1 relationship). See
-// 20260831_predicted_daily_total.sql for why this is knowable without creating anything. A
-// hiragana/katakana rule candidate counts as a flat 1 instead -- it's read-only and never
-// produces a follow-up review card (see introduce_hiragana_rule/introduce_katakana_rule,
-// 20260904_kana_rule_cards.sql).
+// The whole day's card count, predicted before any of the not-yet-created future cards exist --
+// see computeTotalCardsToday for the shared formula (also used by the dashboard's
+// cardsRemainingToday, so the two never disagree). Only needs to turn kanjiCandidates' own array
+// into the two plain numbers that formula wants.
 function computePredictedTotal(
   dueCardCount: number,
   kanjiCandidates: NewKanjiCandidateRow[],
@@ -192,16 +186,16 @@ function computePredictedTotal(
   hiraganaRuleCandidateCount: number,
   katakanaRuleCandidateCount: number
 ): number {
-  const kanjiTotal = kanjiCandidates.reduce((sum, c) => sum + 2 + c.word_count, 0);
-  return (
-    dueCardCount +
-    kanjiTotal +
-    vocabCandidateCount * 2 +
-    hiraganaCandidateCount * 2 +
-    katakanaCandidateCount * 2 +
-    hiraganaRuleCandidateCount +
-    katakanaRuleCandidateCount
-  );
+  return computeTotalCardsToday({
+    dueCount: dueCardCount,
+    kanjiCandidateCount: kanjiCandidates.length,
+    kanjiWordReadingCardsTotal: kanjiCandidates.reduce((sum, c) => sum + c.word_count, 0),
+    vocabCandidateCount,
+    hiraganaCandidateCount,
+    katakanaCandidateCount,
+    hiraganaRuleCandidateCount,
+    katakanaRuleCandidateCount,
+  });
 }
 
 export async function fetchStudyQueue(

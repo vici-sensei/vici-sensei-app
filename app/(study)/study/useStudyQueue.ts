@@ -188,20 +188,12 @@ function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueIt
   return [current, ...restReviews, ...restSamePack, ...addReviews, ...restOtherNew, ...addNew];
 }
 
-// A hiragana_reading/katakana_reading card whose progress is still status='learning' is mid
-// post-introduction drill (see submitDrillAnswer) -- answered right or wrong, it keeps coming
-// back until it's graduated. At most one such card is ever shown at a time; the rest sit in
-// hiragana/katakanaDrillPoolRef and get drawn at random as the visible one is answered.
-// Only kana_type 'seion' cards ever run the post-introduction drill -- dakuten/handakuten
-// characters and every drillable example skip straight to normal Hard/Good/Easy grading, even
-// while status is still 'learning' (see 20260906_selective_examples_and_seion_only_drill.sql).
+// A hiragana_reading/katakana_reading card still in the post-introduction drill (card.drill_mode
+// -- server-computed, see its doc comment in lib/types/study.ts) -- answered right or wrong, it
+// keeps coming back until it's graduated. At most one such card is ever shown at a time; the rest
+// sit in hiragana/katakanaDrillPoolRef and get drawn at random as the visible one is answered.
 function isDrillCard(item: QueueItem): item is QueueItem & { kind: "review" } {
-  return (
-    item.kind === "review" &&
-    item.card.status === "learning" &&
-    item.card.kana_type === "seion" &&
-    (item.card.exercise_type === "hiragana_reading" || item.card.exercise_type === "katakana_reading")
-  );
+  return item.kind === "review" && item.card.drill_mode;
 }
 
 function hasVisibleDrillCard(items: QueueItem[], exerciseType: "hiragana_reading" | "katakana_reading"): boolean {
@@ -967,14 +959,18 @@ export function useStudyQueue() {
   const rate = useCallback(
     (card: DueCard, rating: Rating) => {
       // hiragana_reading/katakana_reading cards still in the post-introduction drill
-      // (status='learning') never go through the normal rating flow below -- see
-      // submitDrillAnswer. rating is repurposed as a plain pass/fail signal here (>=2 matches
-      // the same "correct" threshold submit_review already uses), since ReviewCardKanaReading's
-      // drill mode grades purely on typed-answer correctness, with no Hard/Good/Easy picker.
-      if (
-        (card.exercise_type === "hiragana_reading" || card.exercise_type === "katakana_reading") &&
-        card.status === "learning"
-      ) {
+      // (card.drill_mode -- server-computed, see its doc comment in lib/types/study.ts) never go
+      // through the normal rating flow below -- see submitDrillAnswer. rating is repurposed as a
+      // plain pass/fail signal here (>=2 matches the same "correct" threshold submit_review
+      // already uses), since ReviewCardKanaReading's drill mode grades purely on typed-answer
+      // correctness, with no Hard/Good/Easy picker. Reading the same server-computed flag
+      // ReviewCardKanaReading uses to decide which UI to show is what guarantees the two always
+      // agree -- they used to each recompute status='learning' && kana_type='seion' separately,
+      // and drifted: this used to check status alone, silently rerouting a Hard/Good/Easy-rated
+      // non-seion card (e.g. a still-learning yoon example) into the drill instead of
+      // submit_review -- no review_logs row, no real SM-2 scheduling, stuck needing 3 "good
+      // enough" answers despite the UI showing normal one-shot rating buttons the whole time.
+      if (card.drill_mode) {
         submitDrillAnswer(card, rating >= 2);
         return;
       }
@@ -1132,15 +1128,17 @@ export function useStudyQueue() {
           return;
         }
 
-        // For a kana_type = 'seion' pack, hands it straight into the post-introduction drill
-        // (submitDrillAnswer): only one reading card is ever shown at a time, so this shuffles the
-        // freshly-fetched pack, shows one, and stashes the rest in the pool -- submitDrillAnswer
-        // draws from it (and refills it) as the user answers each one, until every character has
-        // graduated. Every other kana_type (dakuten/handakuten -- the only other characters that
-        // still reach this pack-based flow) skips the drill entirely: the whole pack is pushed
-        // into `queue` at once, same shape as introduceVocab's batch hand-off, and graded
-        // normally from the first review -- 20260906_selective_examples_and_seion_only_drill.sql.
-        if (cards[0].kana_type === "seion") {
+        // For a kana_type = 'seion' pack (card.drill_mode -- server-computed, always true here
+        // since every freshly-introduced row starts at status='learning'), hands it straight
+        // into the post-introduction drill (submitDrillAnswer): only one reading card is ever
+        // shown at a time, so this shuffles the freshly-fetched pack, shows one, and stashes the
+        // rest in the pool -- submitDrillAnswer draws from it (and refills it) as the user
+        // answers each one, until every character has graduated. Every other kana_type
+        // (dakuten/handakuten -- the only other characters that still reach this pack-based
+        // flow) skips the drill entirely: the whole pack is pushed into `queue` at once, same
+        // shape as introduceVocab's batch hand-off, and graded normally from the first review --
+        // 20260906_selective_examples_and_seion_only_drill.sql.
+        if (cards[0].drill_mode) {
           const [first, ...restPool] = shuffle(cards);
           drillPoolRef.current.push(...restPool);
           setQueue((prev) => {
