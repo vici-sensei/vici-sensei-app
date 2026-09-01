@@ -15,7 +15,7 @@ export function TokenDiffList({ tokens }: Props) {
             token.correct ? "border-accent-green/20 bg-accent-green/[0.05]" : "border-accent-red/20 bg-accent-red/[0.05]"
           }`}
         >
-          <div className="font-mono text-[1.05rem] leading-relaxed">
+          <div className="font-mono text-[1.05rem] leading-relaxed flex items-center">
             {token.correct ? (
               <span className="inline-flex items-center gap-1.5 text-accent-green">
                 <FaCheck /> {token.raw}

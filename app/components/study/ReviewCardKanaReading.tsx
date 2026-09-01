@@ -48,7 +48,18 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
     <ReviewCardShell
       label={isHiragana ? "Hiragana reading" : "Katakana reading"}
       accent={isHiragana ? "violet" : "orange"}
-      prompt={<CardHeading masked={!revealed}>{card.kana_character}</CardHeading>}
+      prompt={
+        <CardHeading furigana={revealed && !result?.correct} masked={!revealed}>
+          {revealed && !result?.correct ? (
+            <ruby>
+              {card.kana_character}
+              <rt className="mb-[0.5em] select-none text-base font-normal text-text-muted">{card.kana_romaji}</rt>
+            </ruby>
+          ) : (
+            card.kana_character
+          )}
+        </CardHeading>
+      }
       subtitle={
         <>
           How is this <Accent accent={isHiragana ? "violet" : "orange"}>character read</Accent>?
