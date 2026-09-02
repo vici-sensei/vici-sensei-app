@@ -29,11 +29,9 @@ interface WeekStreakProps {
   activity: WeeklyActivityDay[];
   /** Current unbroken streak ending today -- at 7+ the whole strip lights up gold. */
   streak: number;
-  /** True once every due/new card for today has been studied. */
-  todayDone: boolean;
 }
 
-export function WeekStreak({ activity, streak, todayDone }: WeekStreakProps) {
+export function WeekStreak({ activity, streak }: WeekStreakProps) {
   if (activity.length === 0) return null;
   const todayIndex = activity.length - 1;
   const milestone = streak >= 7;
@@ -51,7 +49,10 @@ export function WeekStreak({ activity, streak, todayDone }: WeekStreakProps) {
           flameColor = "text-accent-gold";
           lit = true;
         } else if (isToday) {
-          flameColor = todayDone ? "text-accent-red" : "text-accent-red/35";
+          // `day.active` for today is "reviewed at least one card today" (from
+          // get_review_activity), same signal every other day uses -- just kept in its own
+          // branch so an inactive today still shows faded red (lit) instead of gray (unlit).
+          flameColor = day.active ? "text-accent-red" : "text-accent-red/35";
           lit = true;
         } else {
           flameColor = day.active ? "text-accent-red" : "text-text-muted/50";

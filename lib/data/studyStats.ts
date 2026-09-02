@@ -29,6 +29,8 @@ export async function fetchStudyStats(
 
   const level = settingsResult.data ? mostAdvancedLevel(settingsResult.data.enabled_levels as string[]) : null;
 
+  const isKana = settingsResult.data?.study_track === "kana";
+
   const [
     activityCounts,
     nextDue,
@@ -37,6 +39,7 @@ export async function fetchStudyStats(
     streakRecordResult,
     weeklyActivityResult,
     levelProgressResult,
+    readingTestPassedResult,
   ] = await Promise.all([
     supabase.rpc("get_today_activity_counts", { p_user_id: userId, p_timezone: timezone ?? "UTC" }).single(),
     getNextDue(supabase, userId, timezone),
@@ -51,6 +54,10 @@ export async function fetchStudyStats(
     level
       ? supabase.rpc("get_level_progress", { p_user_id: userId, p_level: level })
       : Promise.resolve({ data: null, error: null }),
+    // Only meaningful on the kana track -- see reading_test_passed (20260915_user_reading_test_progress.sql).
+    isKana
+      ? supabase.rpc("reading_test_passed", { p_user_id: userId, p_test_type: "hiragana" })
+      : Promise.resolve({ data: false, error: null }),
   ]);
 
   if (activityCounts.error) throw new Error(activityCounts.error.message);
@@ -60,6 +67,7 @@ export async function fetchStudyStats(
   if (streakRecordResult.error) throw new Error(streakRecordResult.error.message);
   if (weeklyActivityResult.error) throw new Error(weeklyActivityResult.error.message);
   if (levelProgressResult.error) throw new Error(levelProgressResult.error.message);
+  if (readingTestPassedResult.error) throw new Error(readingTestPassedResult.error.message);
 
   const newKanjiPerDay = settingsResult.data?.new_kanji_per_day ?? DEFAULT_NEW_KANJI_PER_DAY;
   const newVocabPerDay = settingsResult.data?.new_vocab_per_day ?? DEFAULT_NEW_VOCAB_PER_DAY;
@@ -143,6 +151,10 @@ export async function fetchStudyStats(
   const KATAKANA_KANA_TYPES = [...HIRAGANA_KANA_TYPES, "choonpu", "extended"];
   const kanaRulesFor = (script: "hiragana" | "katakana", kanaTypes: string[]): KanaRuleProgress[] =>
     kanaTypes.map((kanaType) => ({ kana_type: kanaType, ...categoryFor(`${script}_${kanaType}`) }));
+  // Reuses the hiragana_reading row the level-progress call above already returned (it ignores
+  // p_level for this category) instead of a second RPC just to check mastery.
+  const hiraganaReadingProgress = categoryFor("hiragana_reading");
+  const hiraganaMastered = hiraganaReadingProgress.total > 0 && hiraganaReadingProgress.learned >= hiraganaReadingProgress.total;
 
   return {
     study_track: studyTrack,
@@ -177,6 +189,8 @@ export async function fetchStudyStats(
     next_due_at: nextDueAt,
     next_due_is_today: nextDueIsToday,
     next_due_status: nextDueStatus,
+    hiragana_mastered: hiraganaMastered,
+    reading_test_passed: Boolean(readingTestPassedResult.data),
     level_progress: level
       ? {
           level,

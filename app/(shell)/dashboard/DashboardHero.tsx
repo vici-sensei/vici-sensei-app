@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { GiPalmTree, GiPartyPopper } from "react-icons/gi";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { buttonClasses } from "@/app/components/ui/Button";
 import { StartStudyButton } from "./StartStudyButton";
 import { NextCardEta } from "./NextCardEta";
 
@@ -16,6 +18,11 @@ export function DashboardHero() {
   const { stats, studyDisabled: allDone, stale, clockOffsetMs, refresh } = useStudyStats();
 
   const isKana = stats?.study_track === "kana";
+  // Only worth showing once there's actually something to do about it -- hiragana done but the
+  // reading test not yet 100%'d (see 20260915_reading_test_gates_katakana.sql). Disappears the
+  // instant the test is passed, whether the student got there via this button or navigated there
+  // themselves.
+  const showReadingTestCta = Boolean(isKana && stats?.hiragana_mastered && !stats?.reading_test_passed);
   // Gated on each study_* flag -- e.g. study_katakana stays false until every hiragana has
   // graduated to review, so an unstudied category must read as 0 remaining, not a phantom
   // full day's limit (see cardsRemainingToday in lib/study/stats.ts for the same fix).
@@ -125,7 +132,17 @@ export function DashboardHero() {
           <p className="mt-2.5 text-sm text-text-muted">Couldn&apos;t refresh your stats — try reloading the page.</p>
         )}
       </div>
-      <StartStudyButton disabled={allDone} />
+      <div className="flex flex-col items-center gap-3 sm:items-end">
+        <StartStudyButton disabled={allDone} />
+        {showReadingTestCta && (
+          <Link
+            href="/study/test/hiragana"
+            className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
+          >
+            Take the reading test
+          </Link>
+        )}
+      </div>
     </GlassCard>
   );
 }

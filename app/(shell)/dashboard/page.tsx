@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
-import { cardsRemainingToday } from "@/lib/study/stats";
 import { useInView } from "@/lib/useInView";
 import { useCountUp } from "@/lib/useCountUp";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -113,7 +112,6 @@ function StreakCard() {
   const record = stats?.streak_record ?? 0;
   const displayedStreak = useCountUp(streak);
   const activity = stats?.weekly_activity ?? placeholderWeekActivity();
-  const todayDone = stats ? cardsRemainingToday(stats) === 0 : false;
   // Once the live streak reaches the longest one ever, it *is* the record from here on
   // (longest_streak tracks current_streak in lockstep past that point) -- so this stays
   // true for the rest of the run, not just the single day it was broken.
@@ -134,7 +132,7 @@ function StreakCard() {
         {isNewRecord ? (
           <div className="flex flex-col items-center gap-1">
             <div className="text-4xl font-extrabold leading-none tracking-tight text-accent-gold">{displayedStreak}</div>
-            <div className="flex-wrap items-center justify-center gap-1.5 text-sm font-bold text-accent-gold">
+            <div className="flex flex-wrap w-full items-center justify-center gap-1.5 text-sm font-bold text-accent-gold">
               <FaTrophy className="h-3 w-3" />
               <div className="text-center">
                 New personal best
@@ -153,7 +151,7 @@ function StreakCard() {
             </div>
           </div>
         )}
-        <WeekStreak activity={activity} streak={streak} todayDone={todayDone} />
+        <WeekStreak activity={activity} streak={streak} />
       </div>
     </GlassCard>
   );

@@ -190,6 +190,21 @@ export interface BrowseKanaEntry {
   notes: string | null;
 }
 
+/** One sentence of the standalone /study/test reading text (public.reading_test_sentences) --
+ * a fixed, non-per-user story, unrelated to hiragana progress/mastery. */
+export interface ReadingTestSentence {
+  id: number;
+  test_type: string;
+  sort_order: number;
+  hiragana: string;
+  romaji: string;
+  english: string;
+  /** Parallel to Array.from(hiragana), null everywhere except は/を/へ occurrences actually read
+   * as the "wa"/"o"/"e" grammatical particle -- word-internal は/へ (はなばたけ, はしる, へび, ...)
+   * are left null. Same shape as vocabulary.furiganas; rendered with renderWordWithFurigana. */
+  particle_furiganas: (string | null)[] | null;
+}
+
 /** Browse section heading for a kana_type -- shared by hiragana and katakana (same concept, same
  * label, regardless of script). `label` is the beginner-friendly heading; `technical_term` is the
  * Japanese linguistic term shown smaller/muted next to it. Lives in public.kana_rule_labels
@@ -330,6 +345,17 @@ export interface StudyStats {
   next_due_status: string | null;
   /** Null only if the user has no study settings row yet (shouldn't happen once onboarded). */
   level_progress: LevelProgress | null;
+  /** Whether every hiragana character is mastered (status review/relearning) -- derived from the
+   * same hiragana_reading row get_level_progress already returns, no extra query. Only ever
+   * meaningful on the kana track; false on the standard track. Drives DashboardHero's reading-test
+   * CTA (see reading_test_passed below) -- both together decide when to show "Take the reading
+   * test" without a page needing to compute the mastery count itself. */
+  hiragana_mastered: boolean;
+  /** Whether the user has 100%'d the hiragana reading test (public.reading_test_passed RPC, see
+   * 20260915_user_reading_test_progress.sql) -- only fetched on the kana track, false otherwise.
+   * Passing this (alongside hiragana_mastered) is what the katakana-gating DB triggers require
+   * before study_katakana can turn on. */
+  reading_test_passed: boolean;
 }
 
 export type Rating = 0 | 1 | 2 | 3;

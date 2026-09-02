@@ -3,11 +3,12 @@ import type { TokenResult } from "@/lib/study/kanjiMeaningMatch";
 
 interface Props {
   tokens: TokenResult[];
+  className?: string;
 }
 
-export function TokenDiffList({ tokens }: Props) {
+export function TokenDiffList({ tokens, className = "mt-3" }: Props) {
   return (
-    <div className="mt-3 space-y-2.5 text-left">
+    <div className={`${className} space-y-2.5 text-left`}>
       {tokens.map((token, i) => (
         <div
           key={i}

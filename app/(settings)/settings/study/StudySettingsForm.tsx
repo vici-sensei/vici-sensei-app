@@ -9,6 +9,7 @@ import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { updateStudySettings, rerollLeaderboardAlias, fetchHiraganaMastered } from "@/lib/client-data/studySettings";
+import { fetchReadingTestPassedStatus } from "@/lib/client-data/readingTest";
 import { useToast } from "@/app/components/ui/Toast";
 import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 import { JLPT_LEVELS, mostAdvancedLevel, leastAdvancedLevel, levelsInRange, type JlptLevel } from "@/lib/srs/constants";
@@ -106,6 +107,9 @@ export function StudySettingsForm({
   // rather than re-synced on every settings change, since a user isn't studying hiragana to
   // completion in the middle of a Settings visit.
   const [hiraganaMastered, setHiraganaMastered] = useState<boolean | null>(null);
+  // Same "null while unknown, treated as not-yet-there" contract as hiraganaMastered above --
+  // katakana now needs BOTH before its toggle unlocks (20260915_reading_test_gates_katakana.sql).
+  const [testPassed, setTestPassed] = useState<boolean | null>(null);
   // Tracks which of kanji/vocabulary just turned on as a side effect of the user directly
   // toggling the other one (crossing from the kana track turns both on together). Purely a
   // live UI cue for the toggle that got flipped "for free" -- never persisted, and cleared
@@ -139,6 +143,13 @@ export function StudySettingsForm({
       })
       .catch(() => {
         // Leaves it at null (locked) -- a failed check should never accidentally unlock katakana.
+      });
+    fetchReadingTestPassedStatus(user.id, "hiragana")
+      .then((passed) => {
+        if (!cancelled) setTestPassed(passed);
+      })
+      .catch(() => {
+        // Leaves it at null (locked) -- same reasoning as hiraganaMastered above.
       });
     return () => {
       cancelled = true;
@@ -296,7 +307,7 @@ export function StudySettingsForm({
     // Hiragana was already fully mastered on a previous stint on the kana track -- there's no
     // reason to make the user flip katakana on by hand too, so turn it on together and explain
     // why via the autoEnabledKatakana cue.
-    const autoEnableKatakana = !studyKatakana && Boolean(hiraganaMastered);
+    const autoEnableKatakana = !studyKatakana && Boolean(hiraganaMastered) && Boolean(testPassed);
     void handleCrossTrack(
       {
         study_track: "kana",
@@ -317,14 +328,15 @@ export function StudySettingsForm({
   function toggleStudyKatakana() {
     if (studyTrack === "kana") {
       if (studyKatakana && !studyHiragana) return;
-      // Katakana can only ever be turned ON once every hiragana character is mastered --
-      // turning it back off is always allowed, same gate the DB trigger enforces server-side
-      // (enforce_katakana_requires_hiragana_trigger, 20260825_enforce_katakana_requires_hiragana.sql).
-      if (!studyKatakana && !hiraganaMastered) return;
+      // Katakana can only ever be turned ON once every hiragana character is mastered AND the
+      // reading test is passed -- turning it back off is always allowed, same gate the DB
+      // triggers enforce server-side (enforce_katakana_requires_hiragana_trigger, now also
+      // checking reading_test_passed -- see 20260915_reading_test_gates_katakana.sql).
+      if (!studyKatakana && !(hiraganaMastered && testPassed)) return;
       setStudyKatakana(!studyKatakana);
       return;
     }
-    if (!hiraganaMastered) return;
+    if (!(hiraganaMastered && testPassed)) return;
     const crossedOffStandard: Array<"kanji" | "vocabulary"> = [];
     if (studyKanji) crossedOffStandard.push("kanji");
     if (studyVocabulary) crossedOffStandard.push("vocabulary");
@@ -501,13 +513,15 @@ export function StudySettingsForm({
 
   const katakanaMessage = !hiraganaMastered
     ? "Finish learning all hiragana first to unlock katakana."
-    : studyKatakana && (disabled || !studyHiragana)
-      ? "At least one toggle must stay on."
-      : katakanaAutoEnabled
-        ? "You've already learned all hiragana, so we recommend studying katakana too — we turned it on for you."
-        : katakanaJustCrossedOff
-          ? "You can't study kana alongside kanji and vocabulary, so this turned off for now."
-          : null;
+    : !testPassed
+      ? "Pass the hiragana reading test to unlock katakana."
+      : studyKatakana && (disabled || !studyHiragana)
+        ? "At least one toggle must stay on."
+        : katakanaAutoEnabled
+          ? "You've already learned all hiragana, so we recommend studying katakana too — we turned it on for you."
+          : katakanaJustCrossedOff
+            ? "You can't study kana alongside kanji and vocabulary, so this turned off for now."
+            : null;
 
   const kanjiMessage =
     studyKanji && (disabled || !studyVocabulary)
@@ -702,9 +716,9 @@ export function StudySettingsForm({
               <div className="text-sm text-text-muted">Include katakana reading cards in your queue.</div>
             </div>
             <Toggle
-              checked={studyKatakana && Boolean(hiraganaMastered)}
+              checked={studyKatakana && Boolean(hiraganaMastered && testPassed)}
               onChange={toggleStudyKatakana}
-              disabled={disabled || (studyKatakana && !studyHiragana) || !hiraganaMastered}
+              disabled={disabled || (studyKatakana && !studyHiragana) || !(hiraganaMastered && testPassed)}
             />
           </div>
           <div

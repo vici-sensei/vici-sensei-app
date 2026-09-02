@@ -26,7 +26,7 @@ import {
   undoReview as undoReviewApi,
   type KanaPackResult,
 } from "@/lib/client-data/study";
-import { refreshStudySettings } from "@/lib/client-data/studySettings";
+import { fetchHiraganaMastered, refreshStudySettings } from "@/lib/client-data/studySettings";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/lib/study/firstCardCache";
@@ -450,6 +450,22 @@ export function useStudyQueue() {
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+  // Whether every hiragana character was mastered as of the last check -- study_katakana no
+  // longer flips the instant hiragana is mastered (it now also needs the reading test passed, see
+  // 20260915_reading_test_gates_katakana.sql), so checkKanaGraduation can't detect "hiragana just
+  // finished" from settings alone anymore. Fetched once on mount and refreshed by
+  // checkKanaGraduation itself below; same "ref mirrors async state" pattern as settingsRef.
+  const hiraganaMasteredRef = useRef(false);
+  useEffect(() => {
+    fetchHiraganaMastered(user.id)
+      .then((mastered) => {
+        hiraganaMasteredRef.current = mastered;
+      })
+      .catch(() => {
+        // Leaves it at false -- worst case, a student whose hiragana was already mastered before
+        // this loaded sees the "Hiragana mastered!" modal fire once more than it should.
+      });
+  }, [user.id]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -937,19 +953,34 @@ export function useStudyQueue() {
       const before = settingsRef.current;
       if (before.study_track !== "kana") return;
 
+      // Full kana curriculum done -- still genuinely driven by study_track flipping to
+      // 'standard' (katakana_auto_activate_standard), unaffected by the reading-test gate.
       refreshStudySettings(user.id)
         .then((fresh) => {
           if (fresh.study_track === "standard") {
             setKanaGraduationResult("katakana_complete");
-            return;
-          }
-          if (!before.study_katakana && fresh.study_katakana) {
-            setKanaGraduationResult("hiragana_complete");
           }
         })
         .catch(() => {
           // Non-critical -- see checkLevelUp's identical reasoning above.
         });
+
+      // Hiragana just mastered -- no longer detectable via study_katakana (that now waits on the
+      // reading test too, see hiraganaMasteredRef's own comment above), so this compares
+      // fetchHiraganaMastered's own false->true transition instead. Only worth checking after a
+      // hiragana_reading review, and only while it hasn't already fired once.
+      if (exerciseType === "hiragana_reading" && !hiraganaMasteredRef.current) {
+        fetchHiraganaMastered(user.id)
+          .then((masteredNow) => {
+            if (masteredNow && !hiraganaMasteredRef.current) {
+              hiraganaMasteredRef.current = true;
+              setKanaGraduationResult("hiragana_complete");
+            }
+          })
+          .catch(() => {
+            // Non-critical -- see checkLevelUp's identical reasoning above.
+          });
+      }
     },
     [user.id]
   );

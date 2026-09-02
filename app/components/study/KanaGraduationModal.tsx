@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Modal } from "@/app/components/ui/Modal";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
@@ -14,6 +15,7 @@ interface KanaGraduationModalProps {
 }
 
 export function KanaGraduationModal({ kind, onClose }: KanaGraduationModalProps) {
+  const router = useRouter();
   const isKatakanaComplete = kind === "katakana_complete";
 
   // Fires once per mount -- a fresh `kind` always means a brand new modal instance (the page
@@ -28,7 +30,7 @@ export function KanaGraduationModal({ kind, onClose }: KanaGraduationModalProps)
         <Badge color="gold">
           <span className="inline-flex items-center gap-1.5">
             {isKatakanaComplete ? <FaGraduationCap className="h-3 w-3" /> : <FaUnlock className="h-3 w-3" />}
-            {isKatakanaComplete ? "Kana complete" : "Katakana unlocked"}
+            {isKatakanaComplete ? "Kana complete" : "Hiragana mastered"}
           </span>
         </Badge>
 
@@ -46,16 +48,33 @@ export function KanaGraduationModal({ kind, onClose }: KanaGraduationModalProps)
             </>
           ) : (
             <>
-              You&apos;ve just finished every hiragana character! <strong className="text-white">Katakana</strong> is
-              now unlocked, so you&apos;ll start seeing new katakana characters in your queue. You can always turn it
-              back off in Settings if you&apos;d like more time on hiragana first.
+              You&apos;ve just finished every hiragana character! Before <strong className="text-white">katakana</strong>{" "}
+              unlocks, take a quick reading test to make sure everything stuck — it&apos;s a short story written
+              entirely in hiragana.
             </>
           )}
         </p>
 
-        <Button className="mt-7 w-full" onClick={onClose}>
-          Continue
-        </Button>
+        {isKatakanaComplete ? (
+          <Button className="mt-7 w-full" onClick={onClose}>
+            Continue
+          </Button>
+        ) : (
+          <div className="mt-7 flex flex-col gap-3">
+            <Button
+              className="w-full"
+              onClick={() => {
+                onClose();
+                router.push("/study/test/hiragana");
+              }}
+            >
+              Start the test
+            </Button>
+            <Button variant="secondary" className="w-full" onClick={onClose}>
+              Later
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   );
