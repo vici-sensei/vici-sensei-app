@@ -195,6 +195,27 @@ export async function fetchHiraganaMastered(userId: string): Promise<boolean> {
   return row != null && row.total > 0 && row.learned >= row.total;
 }
 
+export interface NewCardCaps {
+  kanjiMax: number;
+  vocabMax: number;
+  hiraganaMax: number;
+  katakanaMax: number;
+}
+
+/** How high each "New X per day" stepper can go right now -- get_new_card_caps
+ * (20260902_harden_new_card_introduction.sql) derives all four straight from how much content
+ * currently exists in kanji/vocabulary/hiragana/katakana, the same numbers
+ * clamp_new_card_caps_trigger enforces server-side on save. Fetched so StudySettingsForm can
+ * disable each "+" before the user ever hits that server-side clamp, instead of only finding out
+ * after an autosave silently reduces the value. */
+export async function fetchNewCardCaps(): Promise<NewCardCaps> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_new_card_caps").single();
+  if (error) throw new ApiError(500, error.message);
+  const row = data as { kanji_max: number; vocab_max: number; hiragana_max: number; katakana_max: number };
+  return { kanjiMax: row.kanji_max, vocabMax: row.vocab_max, hiraganaMax: row.hiragana_max, katakanaMax: row.katakana_max };
+}
+
 /** Assigns a new random leaderboard alias to the current user (the settings page's dice button). */
 export async function rerollLeaderboardAlias(): Promise<LeaderboardAlias> {
   const supabase = createClient();

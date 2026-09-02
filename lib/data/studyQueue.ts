@@ -111,31 +111,36 @@ export async function fetchKatakanaReadingCards(
   return ((data ?? []) as DueCardRow[]).map(toDueCard);
 }
 
-// Batch-introduces every given entry_kind = 'example' hiragana/katakana id in one round trip
-// (introduce_hiragana_examples/introduce_katakana_examples, 20260906_kana_examples_skip_intro_card.sql)
+// Introduces whichever entry_kind = 'example' hiragana/katakana rows are actually due today (see
+// introduce_hiragana_examples/introduce_katakana_examples, 20260902_harden_new_card_introduction.sql)
 // -- these ids never get their own new_hiragana/new_katakana intro card (their content is already
-// shown, all at once, on their kana_type's new_rule card), so fetchStudyQueue calls this the
-// instant it sees any among this fetch's candidates, then immediately fetches their fresh reading
-// cards below so they arrive as ordinary due_cards from the very first render -- no visible intro
-// step, and no per-item round trip even for a pack as large as chōonpu's 44.
-async function introduceHiraganaExamples(supabase: AppSupabaseClient, userId: string, ids: number[]): Promise<void> {
-  if (ids.length === 0) return;
-  const { error } = await supabase.rpc("introduce_hiragana_examples", {
+// shown, all at once, on their kana_type's new_rule card), so fetchStudyQueue calls this whenever it
+// sees any example candidates in this fetch, then immediately fetches their fresh reading cards
+// below so they arrive as ordinary due_cards from the very first render -- no visible intro step,
+// and no per-item round trip even for a pack as large as chōonpu's 44. Deliberately takes no id list
+// -- the database re-derives exactly what's eligible and how much fits under today's remaining
+// new_hiragana_per_day/new_katakana_per_day budget itself, so this can never introduce more (or
+// something different) than the server would independently agree is due right now. Returns the ids
+// it actually inserted, which can be fewer than this fetch's own candidates (or none) once the
+// day's cap is spent.
+async function introduceHiraganaExamples(supabase: AppSupabaseClient, userId: string, timezone: string): Promise<number[]> {
+  const { data, error } = await supabase.rpc("introduce_hiragana_examples", {
     p_user_id: userId,
-    p_hiragana_ids: ids,
+    p_timezone: timezone,
     p_session_id: null,
   });
   if (error) throw new Error(error.message);
+  return ((data ?? []) as { hiragana_id: number }[]).map((row) => row.hiragana_id);
 }
 
-async function introduceKatakanaExamples(supabase: AppSupabaseClient, userId: string, ids: number[]): Promise<void> {
-  if (ids.length === 0) return;
-  const { error } = await supabase.rpc("introduce_katakana_examples", {
+async function introduceKatakanaExamples(supabase: AppSupabaseClient, userId: string, timezone: string): Promise<number[]> {
+  const { data, error } = await supabase.rpc("introduce_katakana_examples", {
     p_user_id: userId,
-    p_katakana_ids: ids,
+    p_timezone: timezone,
     p_session_id: null,
   });
   if (error) throw new Error(error.message);
+  return ((data ?? []) as { katakana_id: number }[]).map((row) => row.katakana_id);
 }
 
 /** Fetches the kanji_meaning + kanji_reading cards for a kanji that was just introduced (see
@@ -328,21 +333,23 @@ export async function fetchStudyQueue(
   // Split each script's candidates by entry_kind: 'character' rows still become new_hiragana/
   // new_katakana intro cards (unchanged), 'example' rows are batch-introduced silently and their
   // fresh reading cards folded straight into due_cards -- see introduceHiraganaExamples/
-  // introduceKatakanaExamples above. Both scripts' batches run in parallel; each is a no-op when
-  // its id list is empty (the common case -- an example-row pack is only ever "due" right around
-  // the moment its kana_type's sokuon/yōon/n_gemination/chōonpu/extended rule becomes reachable).
+  // introduceKatakanaExamples above. This array is only used to decide whether the round trip is
+  // worth making at all (the common case -- an example-row pack is only ever "due" right around
+  // the moment its kana_type's sokuon/yōon/n_gemination/chōonpu/extended rule becomes reachable) --
+  // the RPC itself re-derives which ids are actually eligible and how many fit today's budget, so
+  // its own returned ids (not this list) are what get used to fetch reading cards below.
   const hiraganaCandidates = hiraganaRows.filter((c) => c.entry_kind === "character");
-  const hiraganaExampleIds = hiraganaRows.filter((c) => c.entry_kind === "example").map((c) => c.id);
+  const hasHiraganaExamples = hiraganaRows.some((c) => c.entry_kind === "example");
   const katakanaCandidates = katakanaRows.filter((c) => c.entry_kind === "character");
-  const katakanaExampleIds = katakanaRows.filter((c) => c.entry_kind === "example").map((c) => c.id);
+  const hasKatakanaExamples = katakanaRows.some((c) => c.entry_kind === "example");
 
-  if (hiraganaExampleIds.length > 0) {
-    await introduceHiraganaExamples(supabase, userId, hiraganaExampleIds);
-    dueCards.push(...(await fetchHiraganaReadingCards(supabase, userId, hiraganaExampleIds)));
+  if (hasHiraganaExamples) {
+    const introducedIds = await introduceHiraganaExamples(supabase, userId, timezone ?? "UTC");
+    if (introducedIds.length > 0) dueCards.push(...(await fetchHiraganaReadingCards(supabase, userId, introducedIds)));
   }
-  if (katakanaExampleIds.length > 0) {
-    await introduceKatakanaExamples(supabase, userId, katakanaExampleIds);
-    dueCards.push(...(await fetchKatakanaReadingCards(supabase, userId, katakanaExampleIds)));
+  if (hasKatakanaExamples) {
+    const introducedIds = await introduceKatakanaExamples(supabase, userId, timezone ?? "UTC");
+    if (introducedIds.length > 0) dueCards.push(...(await fetchKatakanaReadingCards(supabase, userId, introducedIds)));
   }
 
   return {

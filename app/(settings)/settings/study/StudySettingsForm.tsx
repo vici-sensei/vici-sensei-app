@@ -8,7 +8,13 @@ import { Stepper, stepperButtonClass, stepperValueClass } from "@/app/components
 import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { updateStudySettings, rerollLeaderboardAlias, fetchHiraganaMastered } from "@/lib/client-data/studySettings";
+import {
+  updateStudySettings,
+  rerollLeaderboardAlias,
+  fetchHiraganaMastered,
+  fetchNewCardCaps,
+  type NewCardCaps,
+} from "@/lib/client-data/studySettings";
 import { fetchReadingTestPassedStatus } from "@/lib/client-data/readingTest";
 import { useToast } from "@/app/components/ui/Toast";
 import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
@@ -133,6 +139,25 @@ export function StudySettingsForm({
   // study_katakana: true in toggleStudyHiragana below replicates that same recommendation here).
   // Live UI-only, cleared the moment studyKatakana turns off, same contract as the cues above.
   const [katakanaAutoEnabled, setKatakanaAutoEnabled] = useState(false);
+  // How high each "New X per day" stepper can go right now (fetchNewCardCaps -- same numbers
+  // clamp_new_card_caps_trigger enforces server-side, see 20260902_harden_new_card_introduction.sql).
+  // null while unknown -- left undisabled until this resolves rather than guessing, since the
+  // server-side clamp is the real backstop either way.
+  const [newCardCaps, setNewCardCaps] = useState<NewCardCaps | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNewCardCaps()
+      .then((caps) => {
+        if (!cancelled) setNewCardCaps(caps);
+      })
+      .catch(() => {
+        // Leaves it at null (undisabled) -- the server-side trigger still enforces the real cap.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -471,8 +496,29 @@ export function StudySettingsForm({
       };
       try {
         const updated = await updateStudySettings(user.id, body);
-        setSaved(current);
+        // The server can clamp any of the four "per day" fields down (clamp_new_card_caps_trigger,
+        // 20260902_harden_new_card_introduction.sql caps each at how much content actually exists) --
+        // resync from its response rather than trusting `current` outright, so a value this component
+        // requested but the database silently reduced doesn't keep showing as if it had been saved.
+        if (updated.new_kanji_per_day !== current.newKanjiPerDay) setNewKanjiPerDay(updated.new_kanji_per_day);
+        if (updated.new_vocab_per_day !== current.newVocabPerDay) setNewVocabPerDay(updated.new_vocab_per_day);
+        if (updated.new_hiragana_per_day !== current.newHiraganaPerDay) setNewHiraganaPerDay(updated.new_hiragana_per_day);
+        if (updated.new_katakana_per_day !== current.newKatakanaPerDay) setNewKatakanaPerDay(updated.new_katakana_per_day);
+        setSaved({
+          ...current,
+          newKanjiPerDay: updated.new_kanji_per_day,
+          newVocabPerDay: updated.new_vocab_per_day,
+          newHiraganaPerDay: updated.new_hiragana_per_day,
+          newKatakanaPerDay: updated.new_katakana_per_day,
+        });
         setLeaderboardAlias(updated.leaderboard_alias);
+        if (
+          updated.new_hiragana_per_day !== current.newHiraganaPerDay ||
+          updated.new_katakana_per_day !== current.newKatakanaPerDay ||
+          updated.new_kanji_per_day !== current.newKanjiPerDay
+        ) {
+          showToast("Capped to how much content is available right now.");
+        }
         onSaved();
       } catch (err) {
         showToast(err instanceof ApiError ? err.message : "Could not save your settings.", "error");
@@ -553,6 +599,7 @@ export function StudySettingsForm({
               onDecrement={() => adjustKanji(-1)}
               onIncrement={() => adjustKanji(1)}
               decrementDisabled={newKanjiPerDay <= 1}
+              incrementDisabled={newCardCaps != null && newKanjiPerDay + 1 > newCardCaps.kanjiMax}
               disabled={disabled}
               hint={
                 <div className="mt-2.5 flex items-center gap-2 text-sm text-accent-blue [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0">
@@ -567,6 +614,7 @@ export function StudySettingsForm({
               onDecrement={() => adjustVocab(-1)}
               onIncrement={() => adjustVocab(1)}
               decrementDisabled={newVocabPerDay <= 6}
+              incrementDisabled={newCardCaps != null && newVocabPerDay + 6 > newCardCaps.vocabMax}
               disabled={disabled}
             />
           </GlassCard>
@@ -593,6 +641,7 @@ export function StudySettingsForm({
               onDecrement={() => adjustHiragana(-1)}
               onIncrement={() => adjustHiragana(1)}
               decrementDisabled={newHiraganaPerDay <= KANA_MIN}
+              incrementDisabled={newCardCaps != null && newHiraganaPerDay + KANA_STEP > newCardCaps.hiraganaMax}
               disabled={disabled}
             />
             <Stepper
@@ -601,6 +650,7 @@ export function StudySettingsForm({
               onDecrement={() => adjustKatakana(-1)}
               onIncrement={() => adjustKatakana(1)}
               decrementDisabled={newKatakanaPerDay <= KANA_MIN}
+              incrementDisabled={newCardCaps != null && newKatakanaPerDay + KANA_STEP > newCardCaps.katakanaMax}
               disabled={disabled}
             />
           </GlassCard>
