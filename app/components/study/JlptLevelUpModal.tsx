@@ -56,10 +56,9 @@ export function JlptLevelUpModal({ result, onClose }: JlptLevelUpModalProps) {
               You&apos;ve just finished every kanji and vocabulary card for{" "}
               <strong className="text-white">{result.completedLevel}</strong>, so you&apos;ve moved up to{" "}
               <strong className="text-white">{result.newLevel}</strong>. {result.completedLevel} stays enabled, so
-              you&apos;ll keep seeing its reviews too.
+              you&apos;ll keep seeing its reviews too. You can always change your levels anytime in Settings.
             </>
-          )}{" "}
-          You can always change your levels anytime in Settings.
+          )}
         </p>
 
         <Button className="mt-7 w-full" onClick={onClose}>

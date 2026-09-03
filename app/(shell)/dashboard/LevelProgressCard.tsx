@@ -163,10 +163,12 @@ function KanaProgressCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [ringsRef, ringsInView] = useInView<HTMLDivElement>();
 
-  // The base script ring (seion) always shows -- every other rule ring only appears once the
-  // user has seen at least one card from it, so untouched rules (e.g. dakuten before the user
-  // has reached any が/ざ/だ/ば cards) don't clutter the ring stack or legend with a permanent 0%.
-  const visibleRings = rings.filter((ring) => ring.key === "seion" || findRule(rules, ring.key).seen > 0);
+  // Every category the user has reached (seen > 0) stays visible, plus exactly one untouched one --
+  // the next in line, in rings' teaching order -- as a preview of what's coming. Showing every
+  // future 0% category at once is the clutter the original design avoided; showing none of them
+  // once everything reached so far is 100% reads as "done" when it isn't.
+  const firstUnseenIndex = rings.findIndex((ring) => findRule(rules, ring.key).seen === 0);
+  const visibleRings = rings.filter((ring, i) => i === firstUnseenIndex || findRule(rules, ring.key).seen > 0);
   const kanaStroke = kanaStrokeWidth(visibleRings.length);
   const kanaRingGap = kanaGap(visibleRings.length);
 

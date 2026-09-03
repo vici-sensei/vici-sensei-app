@@ -125,59 +125,61 @@ export function AvatarCropModal({ file, outputSize, onCancel, onCropped }: Avata
 
   return (
     <Modal onClose={onCancel} labelledBy="crop-modal-title">
-      <h3 id="crop-modal-title" className="mb-1.5 text-lg font-extrabold">
-        Adjust your photo
-      </h3>
-      <p className="mb-5 text-[0.85rem] leading-normal text-text-muted">
-        Drag to reposition, and use the slider to zoom.
-      </p>
+      <div className="text-center">
+        <h3 id="crop-modal-title" className="mb-1.5 text-lg font-extrabold">
+          Adjust your photo
+        </h3>
+        <p className="mb-5 text-[0.85rem] leading-normal text-text-muted">
+          Drag to reposition, and use the slider to zoom.
+        </p>
 
-      <div
-        className="relative mx-auto h-[320px] w-[320px] touch-none select-none overflow-hidden rounded-2xl border border-white/15 bg-black/40"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-      >
-        {imgUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- object URL drawn to canvas via ref, not a static asset
-          <img
-            ref={imgRef}
-            src={imgUrl}
-            alt=""
-            draggable={false}
-            onLoad={handleImageLoad}
-            className="pointer-events-none absolute left-0 top-0 max-w-none origin-top-left"
-            style={{
-              width: natural ? natural.w * scale : undefined,
-              height: natural ? natural.h * scale : undefined,
-              transform: `translate(${offset.x}px, ${offset.y}px)`,
-            }}
+        <div
+          className="relative mx-auto h-[320px] w-[320px] touch-none select-none overflow-hidden rounded-2xl border border-white/15 bg-black/40"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+        >
+          {imgUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- object URL drawn to canvas via ref, not a static asset
+            <img
+              ref={imgRef}
+              src={imgUrl}
+              alt=""
+              draggable={false}
+              onLoad={handleImageLoad}
+              className="pointer-events-none absolute left-0 top-0 max-w-none origin-top-left"
+              style={{
+                width: natural ? natural.w * scale : undefined,
+                height: natural ? natural.h * scale : undefined,
+                transform: `translate(${offset.x}px, ${offset.y}px)`,
+              }}
+            />
+          )}
+        </div>
+
+        <div className="mt-5 flex items-center gap-3">
+          <span className="text-xs text-text-muted">Zoom</span>
+          <input
+            type="range"
+            min={1}
+            max={MAX_ZOOM}
+            step={0.01}
+            value={zoom}
+            disabled={!natural}
+            onChange={(e) => handleZoomChange(Number(e.target.value))}
+            className="w-full accent-accent-blue"
           />
-        )}
-      </div>
+        </div>
 
-      <div className="mt-5 flex items-center gap-3">
-        <span className="text-xs text-text-muted">Zoom</span>
-        <input
-          type="range"
-          min={1}
-          max={MAX_ZOOM}
-          step={0.01}
-          value={zoom}
-          disabled={!natural}
-          onChange={(e) => handleZoomChange(Number(e.target.value))}
-          className="w-full accent-accent-blue"
-        />
-      </div>
-
-      <div className="mt-7 flex justify-end gap-3">
-        <Button variant="secondary" onClick={onCancel} disabled={processing}>
-          Cancel
-        </Button>
-        <Button onClick={handleConfirm} disabled={!natural || processing}>
-          {processing ? "Saving..." : "Save photo"}
-        </Button>
+        <div className="mt-7 flex justify-center gap-3">
+          <Button variant="secondary" onClick={onCancel} disabled={processing}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} disabled={!natural || processing}>
+            {processing ? "Saving..." : "Save photo"}
+          </Button>
+        </div>
       </div>
     </Modal>
   );

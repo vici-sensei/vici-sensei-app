@@ -348,14 +348,21 @@ export interface StudyStats {
   /** Whether every hiragana character is mastered (status review/relearning) -- derived from the
    * same hiragana_reading row get_level_progress already returns, no extra query. Only ever
    * meaningful on the kana track; false on the standard track. Drives DashboardHero's reading-test
-   * CTA (see reading_test_passed below) -- both together decide when to show "Take the reading
-   * test" without a page needing to compute the mastery count itself. */
+   * CTA (see hiragana_reading_test_passed below) -- both together decide when to show "Take the
+   * reading test" without a page needing to compute the mastery count itself. */
   hiragana_mastered: boolean;
   /** Whether the user has 100%'d the hiragana reading test (public.reading_test_passed RPC, see
    * 20260915_user_reading_test_progress.sql) -- only fetched on the kana track, false otherwise.
    * Passing this (alongside hiragana_mastered) is what the katakana-gating DB triggers require
    * before study_katakana can turn on. */
-  reading_test_passed: boolean;
+  hiragana_reading_test_passed: boolean;
+  /** Same as hiragana_mastered, but for katakana_reading -- drives the equivalent CTA for the
+   * katakana reading test. */
+  katakana_mastered: boolean;
+  /** Same as hiragana_reading_test_passed, but for test_type='katakana' -- passing this
+   * (alongside hiragana_mastered/katakana_mastered) is what
+   * 20260920_reading_test_gates_standard.sql requires before study_track can flip to 'standard'. */
+  katakana_reading_test_passed: boolean;
 }
 
 export type Rating = 0 | 1 | 2 | 3;
@@ -405,14 +412,21 @@ export interface JlptLevelUpResult {
 }
 
 /** Which kana-track milestone useStudyQueue's checkKanaGraduation just detected, by comparing
- * user_study_settings before/after a hiragana_reading/katakana_reading review -- the transition
- * itself already happened server-side (hiragana_auto_activate_katakana/
- * katakana_auto_activate_standard triggers), this is purely "is there something to celebrate".
- * 'hiragana_complete': every hiragana character just reached review/relearning, so study_katakana
- * flipped false -> true. 'katakana_complete': every katakana character did too (with hiragana
- * already mastered), so study_track flipped 'kana' -> 'standard' -- the bigger milestone, moving
- * off the kana track onto kanji/vocabulary. */
-export type KanaGraduationKind = "hiragana_complete" | "katakana_complete";
+ * user_study_settings/mastery state before/after a hiragana_reading/katakana_reading review --
+ * each transition itself already happened (or was already possible) server-side, this is purely
+ * "is there something to celebrate".
+ * 'hiragana_complete': every hiragana character just reached review/relearning -- study_katakana
+ * doesn't flip yet on its own (it also needs the hiragana reading test passed, see
+ * 20260915_reading_test_gates_katakana.sql), so this prompts the student to go take it.
+ * 'katakana_mastered': every katakana character did too (with hiragana already mastered) --
+ * study_track doesn't flip yet either (it also needs the katakana reading test passed, see
+ * 20260920_reading_test_gates_standard.sql), so this prompts that test.
+ * 'katakana_complete': study_track actually flipped 'kana' -> 'standard' -- the bigger milestone,
+ * moving off the kana track onto kanji/vocabulary. In the normal order (mastery, then test) this
+ * fires from the reading-test summary page instead, not from here -- this modal only catches it
+ * when the flip happens to land on a hiragana_reading/katakana_reading review, e.g. a student who
+ * passed the katakana test before finishing the last few katakana characters. */
+export type KanaGraduationKind = "hiragana_complete" | "katakana_mastered" | "katakana_complete";
 
 export interface StudySessionEnd {
   id: number;

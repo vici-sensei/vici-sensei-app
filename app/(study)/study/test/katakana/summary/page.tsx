@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { FaUnlock } from "react-icons/fa6";
 import { celebrate } from "@/lib/confetti";
 import { useReadingTestSentences, useReadingTestProgress, useReadingTestAttempt } from "@/lib/client-data/readingTest";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
@@ -13,12 +14,10 @@ import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 const TEST_TYPE = "katakana";
 
 /** Score screen for the katakana reading test -- correct/total is always freshly derived from
- * user_reading_test_progress (via useReadingTestProgress). At 100%, celebrates immediately here
- * rather than waiting for the next /study visit. Below 100%, "Retry" reopens every wrong word
- * (see retryWrong) before sending the student back to the test page.
- *
- * Unlike the hiragana test's summary, passing this one doesn't unlock anything further, so the
- * copy stays a plain "reading test" throughout instead of an "X unlocked" callout.
+ * user_reading_test_progress (via useReadingTestProgress), so it can never disagree with what the
+ * DB triggers used to decide whether kanji/vocabulary actually unlocked. At 100%, celebrates
+ * immediately here rather than waiting for the next /study visit. Below 100%, "Retry" reopens
+ * every wrong word (see retryWrong) before sending the student back to the test page.
  *
  * `?justFinished=1` (set only by the test page's own redirect, right after the pass that reached
  * 100%) is what lets this celebration render at all -- any other arrival at a passed test's
@@ -99,14 +98,17 @@ function SummaryContent() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.08)_0%,transparent_55%)]">
       <div className="relative w-full max-w-[480px] text-center">
         <Badge color={passed ? "gold" : "blue"}>
-          <span className="inline-flex items-center gap-1.5">Reading test</span>
+          <span className="inline-flex items-center gap-1.5">
+            {passed && <FaUnlock className="h-3 w-3" />}
+            {passed ? "Kanji unlocked" : "Reading test"}
+          </span>
         </Badge>
         <h1 className="mb-2 mt-4.5 text-[1.8rem] font-extrabold leading-[1.25]">
           {passed ? "Perfect score!" : "Here's how you did"}
         </h1>
         <p className="mb-7 text-base leading-[1.6] text-text-muted">
           {passed
-            ? "You got every word right!"
+            ? "You got every word right — kanji and vocabulary are now unlocked in your queue."
             : "Anything you haven't gotten right yet is still waiting for you below."}
         </p>
         <div className="mb-8.5 rounded-2xl border border-border-soft bg-bg-cards px-6 py-8 backdrop-blur-[10px]">

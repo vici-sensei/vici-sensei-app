@@ -195,6 +195,18 @@ export async function fetchHiraganaMastered(userId: string): Promise<boolean> {
   return row != null && row.total > 0 && row.learned >= row.total;
 }
 
+/** Same as fetchHiraganaMastered, but for katakana -- mirrors the condition
+ * katakana_auto_activate_standard checks (20260920_reading_test_gates_standard.sql). */
+export async function fetchKatakanaMastered(userId: string): Promise<boolean> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_level_progress", { p_user_id: userId, p_level: "N5" });
+  if (error) throw new ApiError(500, error.message);
+  const row = (data as { category: string; learned: number; total: number }[] | null)?.find(
+    (r) => r.category === "katakana_reading"
+  );
+  return row != null && row.total > 0 && row.learned >= row.total;
+}
+
 export interface NewCardCaps {
   kanjiMax: number;
   vocabMax: number;

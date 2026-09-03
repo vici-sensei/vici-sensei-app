@@ -26,7 +26,7 @@ import {
   undoReview as undoReviewApi,
   type KanaPackResult,
 } from "@/lib/client-data/study";
-import { fetchHiraganaMastered, refreshStudySettings } from "@/lib/client-data/studySettings";
+import { fetchHiraganaMastered, fetchKatakanaMastered, refreshStudySettings } from "@/lib/client-data/studySettings";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/lib/study/firstCardCache";
@@ -466,6 +466,19 @@ export function useStudyQueue() {
         // this loaded sees the "Hiragana mastered!" modal fire once more than it should.
       });
   }, [user.id]);
+  // Same as hiraganaMasteredRef above, for katakana -- study_track no longer flips the instant
+  // katakana is mastered either (it now also needs the katakana reading test passed, see
+  // 20260920_reading_test_gates_standard.sql).
+  const katakanaMasteredRef = useRef(false);
+  useEffect(() => {
+    fetchKatakanaMastered(user.id)
+      .then((mastered) => {
+        katakanaMasteredRef.current = mastered;
+      })
+      .catch(() => {
+        // Leaves it at false -- same reasoning as hiraganaMasteredRef above.
+      });
+  }, [user.id]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -633,8 +646,25 @@ export function useStudyQueue() {
     }
   }, [user.id, settings]);
 
+  // React Strict Mode (dev only) mounts this effect, cleans it up, then mounts it again --
+  // synchronously, before init()'s own network calls settle. Without a guard, init() would run
+  // twice and fire every one of its RPCs (session start, introduce_hiragana_examples/
+  // introduce_katakana_examples...) twice for real, since an already-sent request can't be
+  // un-sent just because React discarded its result. That's exactly what caused a card to be
+  // silently introduced by the first (discarded) run while the second run's own due-cards
+  // snapshot -- taken too early to see it -- found nothing and redirected to /dashboard.
+  // initStartedRef makes init() itself run only once per mount: deliberately never reset in the
+  // cleanup below, so it stays true across Strict Mode's synthetic replay (same component
+  // instance, same ref) but starts fresh (false) on a genuine unmount+remount (a new instance,
+  // a new ref). cancelledRef is reset to false at the top of every firing, including the
+  // replay -- so the one real init() call (started by the first firing) still sees
+  // cancelled = false by the time its awaits resolve, and only a genuine later unmount (with no
+  // following replay to reset it) leaves it true for good.
+  const initStartedRef = useRef(false);
+  const cancelledRef = useRef(false);
+
   useEffect(() => {
-    let cancelled = false;
+    cancelledRef.current = false;
 
     async function init() {
       const storedSessionId = getStoredSessionId(user.id);
@@ -646,7 +676,7 @@ export function useStudyQueue() {
         // reflects only what's left.
         getSessionProgressApi(storedSessionId)
           .then((count) => {
-            if (cancelled) return;
+            if (cancelledRef.current) return;
             setCompletedCount((c) => c + count);
           })
           .catch(() => {
@@ -658,7 +688,7 @@ export function useStudyQueue() {
         // background instead of making the user wait on an extra insert before card 1 shows.
         startStudySessionApi(user.id)
           .then((started) => {
-            if (cancelled) return;
+            if (cancelledRef.current) return;
             setStoredSessionId(user.id, started.session_id);
             sessionIdRef.current = started.session_id;
           })
@@ -687,7 +717,7 @@ export function useStudyQueue() {
 
       void getFirstDueCard(user.id, settings)
         .then((card) => {
-          if (cancelled || settled) return;
+          if (cancelledRef.current || settled) return;
           if (!card) {
             // The fast path can positively confirm a card, but not "there are none" -- that's
             // only true once the full fetch (which also checks new-material candidates)
@@ -706,10 +736,10 @@ export function useStudyQueue() {
 
       try {
         const data = await getStudyQueue(user.id, settings, (wordsByKanjiId) => {
-          if (cancelled) return;
+          if (cancelledRef.current) return;
           setQueue((prev) => patchKanjiWords(prev, wordsByKanjiId));
         });
-        if (cancelled) return;
+        if (cancelledRef.current) return;
         const items = reviewsFirst(buildQueue(data));
         setNextDueAt(data.next_due_at);
         setNextDueStatus(data.next_due_status);
@@ -754,17 +784,24 @@ export function useStudyQueue() {
         }
         setStatus("ready");
       } catch (err) {
-        if (cancelled || settled) return; // the fast path already painted real content
+        if (cancelledRef.current || settled) return; // the fast path already painted real content
         setError(err instanceof ApiError ? err.message : "Could not load your study queue.");
         setStatus("error");
       }
     }
 
-    void init();
+    if (!initStartedRef.current) {
+      initStartedRef.current = true;
+      void init();
+    }
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
     };
-    // Mount-only: session/queue initialization must run exactly once.
+    // Mount-only: session/queue initialization must run exactly once -- initStartedRef (never
+    // reset here) is what actually enforces that under Strict Mode's replay. This cleanup's
+    // cancelledRef flip still runs on every firing, replay included -- harmless, since the
+    // replay's own top-of-effect reset cancels it back out unless this was the real, final
+    // unmount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -794,6 +831,15 @@ export function useStudyQueue() {
 
   // Ends the session once the queue actually empties. Runs post-commit (not inside a
   // setQueue updater) so router.push doesn't fire a setState while StudyPage is rendering.
+  //
+  // Ending immediately (rather than waiting out a same-session learning-step retry, e.g. right
+  // after answering the last card wrong) is intentional, not a bug: there's no "hold the page
+  // open and wait" mode here -- /study/summary is the product's actual answer to "when do I come
+  // back", via its own next_due_at/next_due_is_today (endStudySession calls the same get_next_due
+  // this page does -- see studySessions.ts). That RPC used to never look at
+  // user_hiragana_progress/user_katakana_progress at all, so a kana-track account always got
+  // next_due_at = null there regardless of what was really coming due -- fixed at the source in
+  // 20260922_get_next_due_includes_kana.sql instead of worked around here.
   useEffect(() => {
     if (status === "ready" && queue.length === 0 && !endingRef.current) {
       void endSession(hasProcessedAnyRef.current);
@@ -953,8 +999,13 @@ export function useStudyQueue() {
       const before = settingsRef.current;
       if (before.study_track !== "kana") return;
 
-      // Full kana curriculum done -- still genuinely driven by study_track flipping to
-      // 'standard' (katakana_auto_activate_standard), unaffected by the reading-test gate.
+      // Full kana curriculum done -- driven by study_track flipping to 'standard'
+      // (katakana_auto_activate_standard). In the normal order (katakana mastered, then its
+      // reading test passed on a later visit to /study/test/katakana) that flip happens off this
+      // review entirely (see reading_test_progress_activates_standard,
+      // 20260920_reading_test_gates_standard.sql) and this check below just finds nothing new;
+      // it only actually fires here for the atypical order -- test passed before the last
+      // katakana character was mastered, so THIS review is what completes the gate.
       refreshStudySettings(user.id)
         .then((fresh) => {
           if (fresh.study_track === "standard") {
@@ -975,6 +1026,22 @@ export function useStudyQueue() {
             if (masteredNow && !hiraganaMasteredRef.current) {
               hiraganaMasteredRef.current = true;
               setKanaGraduationResult("hiragana_complete");
+            }
+          })
+          .catch(() => {
+            // Non-critical -- see checkLevelUp's identical reasoning above.
+          });
+      }
+
+      // Katakana just mastered too (with hiragana already mastered, a prerequisite for
+      // study_katakana ever turning on) -- same reasoning as the hiragana branch above, mirrored
+      // for the katakana -> standard gate (20260920_reading_test_gates_standard.sql).
+      if (exerciseType === "katakana_reading" && !katakanaMasteredRef.current) {
+        fetchKatakanaMastered(user.id)
+          .then((masteredNow) => {
+            if (masteredNow && !katakanaMasteredRef.current) {
+              katakanaMasteredRef.current = true;
+              setKanaGraduationResult("katakana_mastered");
             }
           })
           .catch(() => {

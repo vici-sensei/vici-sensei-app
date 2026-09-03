@@ -2,22 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { fetchUserBadges } from "@/lib/data/badges";
+import { fetchUserAchievements } from "@/lib/data/achievements";
 import { getErrorMessage } from "@/lib/api/client";
-import type { AsyncStatus, UserBadge } from "@/lib/types";
+import type { AsyncStatus, UserAchievement } from "@/lib/types";
 
-export function useUserBadges(userId: string): {
-  data: UserBadge[] | null;
+export function useUserAchievements(userId: string): {
+  data: UserAchievement[] | null;
   status: AsyncStatus;
   error: string | null;
 } {
-  const [data, setData] = useState<UserBadge[] | null>(null);
+  const [data, setData] = useState<UserAchievement[] | null>(null);
   const [status, setStatus] = useState<AsyncStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchUserBadges(createClient(), userId)
+    fetchUserAchievements(createClient(), userId)
       .then((rows) => {
         if (cancelled) return;
         setData(rows);
@@ -25,7 +25,7 @@ export function useUserBadges(userId: string): {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(getErrorMessage(err, "Failed to load badges."));
+        setError(getErrorMessage(err, "Failed to load achievements."));
         setStatus("error");
       });
     return () => {

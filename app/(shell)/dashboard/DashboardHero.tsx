@@ -22,7 +22,10 @@ export function DashboardHero() {
   // reading test not yet 100%'d (see 20260915_reading_test_gates_katakana.sql). Disappears the
   // instant the test is passed, whether the student got there via this button or navigated there
   // themselves.
-  const showReadingTestCta = Boolean(isKana && stats?.hiragana_mastered && !stats?.reading_test_passed);
+  const showHiraganaReadingTestCta = Boolean(isKana && stats?.hiragana_mastered && !stats?.hiragana_reading_test_passed);
+  // Same idea, for katakana -- gates study_track flipping to 'standard' instead of study_katakana
+  // turning on (see 20260920_reading_test_gates_standard.sql).
+  const showKatakanaReadingTestCta = Boolean(isKana && stats?.katakana_mastered && !stats?.katakana_reading_test_passed);
   // Gated on each study_* flag -- e.g. study_katakana stays false until every hiragana has
   // graduated to review, so an unstudied category must read as 0 remaining, not a phantom
   // full day's limit (see cardsRemainingToday in lib/study/stats.ts for the same fix).
@@ -134,9 +137,17 @@ export function DashboardHero() {
       </div>
       <div className="flex flex-col items-center gap-3 sm:items-end">
         <StartStudyButton disabled={allDone} />
-        {showReadingTestCta && (
+        {showHiraganaReadingTestCta && (
           <Link
             href="/study/test/hiragana"
+            className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
+          >
+            Take the reading test
+          </Link>
+        )}
+        {showKatakanaReadingTestCta && (
+          <Link
+            href="/study/test/katakana"
             className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
           >
             Take the reading test
