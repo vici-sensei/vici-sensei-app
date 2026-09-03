@@ -3,20 +3,20 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useReadingTestSentences, useReadingTestProgress } from "@/lib/client-data/readingTest";
-import { useHiraganaList } from "@/lib/client-data/kana";
+import { useKatakanaList } from "@/lib/client-data/kana";
 import { buildKanaRomajiMap } from "@/lib/study/readingTestFurigana";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useToast } from "@/app/components/ui/Toast";
 import { ReadingTestSentenceRow } from "@/app/components/readingTest/ReadingTestSentenceRow";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 
-const TEST_TYPE = "hiragana";
+const TEST_TYPE = "katakana";
 
-/** Hiragana reading test -- fixed text, one attempt per sentence. Both outcomes are persisted
- * (see user_reading_test_progress's doc comment), so a sentence stays locked across a
+/** Katakana reading test -- fixed word list, one attempt per word. Both outcomes are persisted
+ * (see user_reading_test_progress's doc comment), so a word stays locked across a
  * refresh/reopen once answered, right or wrong -- only the summary page's "Retry the ones I got
- * wrong" reopens a wrong one. Once every sentence has a result, redirects to the score screen. */
-export default function HiraganaReadingTestPage() {
+ * wrong" reopens a wrong one. Once every word has a result, redirects to the score screen. */
+export default function KatakanaReadingTestPage() {
   const router = useRouter();
   const { user } = useStudyOnboarding();
   const { showToast } = useToast();
@@ -27,17 +27,17 @@ export default function HiraganaReadingTestPage() {
     error: progressError,
     markAnswered,
   } = useReadingTestProgress(user.id, TEST_TYPE);
-  // Reuses Browse's hiragana reference table (character -> romaji, incl. yoon/sokuon/n-gemination
+  // Reuses Browse's katakana reference table (character -> romaji, incl. yoon/sokuon/n-gemination
   // combos) to build the full post-answer romaji reading -- built once here, not per row, since
   // every ReadingTestSentenceRow shares the same lookup.
-  const { data: hiraganaEntries } = useHiraganaList();
+  const { data: katakanaEntries } = useKatakanaList();
   const kanaRomajiMap = useMemo(
-    () => (hiraganaEntries ? buildKanaRomajiMap(hiraganaEntries) : null),
-    [hiraganaEntries]
+    () => (katakanaEntries ? buildKanaRomajiMap(katakanaEntries) : null),
+    [katakanaEntries]
   );
 
-  // Sentences with no saved attempt yet -- safe to recompute live (unlike a "frozen at load"
-  // set) because a sentence only ever LEAVES this list (the moment it gets any result) and can
+  // Words with no saved attempt yet -- safe to recompute live (unlike a "frozen at load"
+  // set) because a word only ever LEAVES this list (the moment it gets any result) and can
   // only re-enter it via the summary page's retryWrong, which happens on a different page mount.
   const pendingIds = useMemo(
     () => (sentences && progress ? sentences.filter((s) => !progress.has(s.id)).map((s) => s.id) : null),
@@ -46,7 +46,7 @@ export default function HiraganaReadingTestPage() {
   const [scrolledToFirst, setScrolledToFirst] = useState(false);
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
 
-  // Distinguishes "just answered the last pending sentence this visit" (worth a trip through the
+  // Distinguishes "just answered the last pending word this visit" (worth a trip through the
   // summary's celebration) from "was already fully done before this page even loaded" (a revisit
   // of a 100%'d test, which should skip straight past both the test and its summary -- see below).
   const initialPendingCountRef = useRef<number | null>(null);
@@ -58,7 +58,7 @@ export default function HiraganaReadingTestPage() {
 
   const passed = sentences != null && progress != null && sentences.length > 0 && [...progress.values()].filter((a) => a.correct).length >= sentences.length;
 
-  // Covers both "already 100% on load" and "just answered the last pending sentence" -- either
+  // Covers both "already 100% on load" and "just answered the last pending word" -- either
   // way, nothing left pending means this pass is done. A 100% pass that was ALREADY done before
   // this page loaded (revisiting a finished test) skips the summary entirely and goes straight to
   // the dashboard, since there's nothing new to celebrate and the test is meant to stay locked
@@ -76,10 +76,10 @@ export default function HiraganaReadingTestPage() {
       router.replace("/dashboard");
       return;
     }
-    window.location.href = passed ? "/study/test/hiragana/summary?justFinished=1" : "/study/test/hiragana/summary";
+    window.location.href = passed ? "/study/test/katakana/summary?justFinished=1" : "/study/test/katakana/summary";
   }, [pendingIds, sentences, passed, router]);
 
-  // One-time scroll to the first pending sentence, so resuming after a refresh/exit doesn't
+  // One-time scroll to the first pending word, so resuming after a refresh/exit doesn't
   // require scrolling back down through everything already answered.
   useEffect(() => {
     if (scrolledToFirst || !pendingIds || pendingIds.length === 0) return;
@@ -122,11 +122,6 @@ export default function HiraganaReadingTestPage() {
           <p className="">
             Type the romaji reading for each word below, then press Check to
             see it.
-          </p>
-          <p>
-            Because of a grammar rule you&apos;ll learn later on, one word is
-            read differently than usual — that&apos;s why you&apos;ll find its
-            correct reading written above it, as a little hint.
           </p>
         </div>
         <div className="flex flex-col gap-8">

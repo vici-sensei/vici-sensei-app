@@ -61,17 +61,17 @@ export function ReadingTestSentenceRow({ sentence, kanaRomajiMap, userId, testTy
   const furiganas = useMemo(
     () =>
       result && kanaRomajiMap
-        ? buildFullRomajiFuriganas(sentence.hiragana, kanaRomajiMap, sentence.particle_furiganas)
+        ? buildFullRomajiFuriganas(sentence.question, kanaRomajiMap, sentence.particle_furiganas)
         : sentence.particle_furiganas
           ? sentence.particle_furiganas.map((r) => r ?? "")
           : null,
-    [result, kanaRomajiMap, sentence.hiragana, sentence.particle_furiganas]
+    [result, kanaRomajiMap, sentence.question, sentence.particle_furiganas]
   );
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[1.3rem] leading-relaxed text-white">
-        {renderReadingTestSentence(sentence.hiragana, furiganas, sentence.particle_furiganas)}
+        {renderReadingTestSentence(sentence.question, furiganas, sentence.particle_furiganas)}
       </p>
       {result && <p className="text-[0.9rem] italic text-text-muted">{sentence.english}</p>}
       {!result && (

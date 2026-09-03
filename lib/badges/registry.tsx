@@ -15,6 +15,24 @@ const READING_TEST_LABELS: Record<string, string> = {
   katakana: "Katakana",
 };
 
+export interface BadgeCatalogEntry {
+  badgeKey: string;
+  icon: IconType;
+  title: string;
+  /** Shown while the badge is still locked, in place of the earned-attempt description. */
+  lockedDescription: string;
+}
+
+/** Every badge that exists, earned or not -- lets the UI show the full trophy case (locked
+ * entries greyed out) instead of only what a user has already unlocked. Keep in sync with
+ * READING_TEST_LABELS above; extend here whenever a new badge_key is introduced. */
+export const BADGE_CATALOG: BadgeCatalogEntry[] = Object.entries(READING_TEST_LABELS).map(([testType, label]) => ({
+  badgeKey: `reading_test_${testType}`,
+  icon: FaBookOpen,
+  title: `${label} Reading Test`,
+  lockedDescription: `Complete the ${label} reading test to earn this badge.`,
+}));
+
 /** Resolves a user_badges row (id/numbers only) into what the UI actually shows -- kept out of
  * the database so copy/icon changes don't need a migration. Falls back to a generic look for any
  * badge_key this registry doesn't recognize yet, so an older client never crashes on a newer

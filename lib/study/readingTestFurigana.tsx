@@ -13,8 +13,9 @@ const IDEOGRAPHIC_SPACE = "　";
 const ATOMIC_KANA_TYPES = new Set(["seion", "dakuten", "handakuten", "yoon", "sokuon", "n_gemination"]);
 
 /** Builds the character -> romaji lookup used by buildFullRomajiFuriganas, from the same
- * hiragana reference rows Browse renders (useHiraganaList). Longest entries are 3 characters
- * (sokuon + yoon, e.g. っきゃ -> kkya). */
+ * kana reference rows Browse renders (useHiraganaList/useKatakanaList, whichever matches the
+ * reading test's own test_type). Longest entries are 3 characters (sokuon + yoon, e.g. っきゃ ->
+ * kkya). */
 export function buildKanaRomajiMap(entries: BrowseKanaEntry[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const entry of entries) {
@@ -25,10 +26,10 @@ export function buildKanaRomajiMap(entries: BrowseKanaEntry[]): Map<string, stri
 }
 
 /**
- * Builds a full romaji reading for `hiragana`, one ruby group per natural sound unit (yoon
+ * Builds a full romaji reading for `kana`, one ruby group per natural sound unit (yoon
  * digraph, sokuon/n-gemination + following kana, or a single plain kana), by greedily matching
  * the longest known combo at each position against `kanaRomajiMap`. Same array shape/convention
- * as ReadingTestSentence.particle_furiganas (parallel to Array.from(hiragana): a group's first
+ * as ReadingTestSentence.particle_furiganas (parallel to Array.from(kana): a group's first
  * character holds the romaji, later characters in that group hold "-", unmatched characters
  * (punctuation, or a sokuon with nothing to attach to) hold "") -- rendered with the existing
  * renderWordWithFurigana, same as the particle-only hint shown before the user answers.
@@ -38,11 +39,11 @@ export function buildKanaRomajiMap(entries: BrowseKanaEntry[]): Map<string, stri
  * start a yoon/sokuon combo in this data, so overriding per-character here never splits a group.
  */
 export function buildFullRomajiFuriganas(
-  hiragana: string,
+  kana: string,
   kanaRomajiMap: Map<string, string>,
   particleFuriganas: (string | null)[] | null
 ): string[] {
-  const chars = Array.from(hiragana);
+  const chars = Array.from(kana);
   const result: string[] = new Array(chars.length).fill("");
 
   let i = 0;
@@ -105,7 +106,7 @@ function renderFuriganaGroup(text: string, furiganas: string[] | null, particleF
 }
 
 /**
- * Renders a reading-test sentence so that each "　"-delimited hiragana grouping (see
+ * Renders a reading-test sentence so that each "　"-delimited kana grouping (see
  * 20260902_reading_test_hiragana_spacing.sql -- one grouping per romaji word, comma/quote-attached
  * punctuation included) always stays on one line. Plain ruby/rt wraps every kana in its own inline
  * element, and CJK line-breaking allows a break between any two of them -- including inside a
@@ -114,11 +115,11 @@ function renderFuriganaGroup(text: string, furiganas: string[] | null, particleF
  * those blocks, so the sentence still wraps between groupings when it needs to.
  */
 export function renderReadingTestSentence(
-  hiragana: string,
+  kana: string,
   furiganas: (string | null)[] | string[] | null,
   particleFuriganas: (string | null)[] | null = null
 ): ReactNode[] {
-  const chars = Array.from(hiragana);
+  const chars = Array.from(kana);
   const alignedFuriganas = furiganas && furiganas.length === chars.length ? (furiganas as string[]) : null;
   const nodes: ReactNode[] = [];
   let start = 0;

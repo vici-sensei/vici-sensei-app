@@ -6,8 +6,8 @@ export async function fetchReadingTestSentences(
   testType: string
 ): Promise<ReadingTestSentence[]> {
   const { data, error } = await supabase
-    .from("reading_test_sentences")
-    .select("id, test_type, sort_order, hiragana, romaji, english, particle_furiganas")
+    .from("test")
+    .select("id, test_type, sort_order, question, romaji, english, particle_furiganas")
     .eq("test_type", testType)
     .order("sort_order");
   if (error) throw new Error(error.message);

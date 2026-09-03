@@ -46,10 +46,10 @@ export async function fetchStudyStats(
     // Aggregated in SQL (get_retention_rate, 20260802_retention_rate_rpc.sql) instead of
     // pulling every review_logs row in the window and computing the ratio in JS.
     supabase.rpc("get_retention_rate", { p_user_id: userId, p_window_days: RETENTION_WINDOW_DAYS }),
-    supabase.rpc("get_review_streak", { p_user_id: userId }),
+    supabase.rpc("get_review_streak", { p_user_id: userId, p_timezone: timezone ?? "UTC" }),
     // Longest streak ever, tracked incrementally on leaderboard_stats.longest_streak
     // (20260909_streak_record.sql) rather than rescanned from review_logs on every poll.
-    supabase.rpc("get_review_streak_record", { p_user_id: userId }),
+    supabase.rpc("get_review_streak_record", { p_user_id: userId, p_timezone: timezone ?? "UTC" }),
     supabase.rpc("get_review_activity", { p_user_id: userId, p_timezone: timezone ?? "UTC", p_days: 7 }),
     level
       ? supabase.rpc("get_level_progress", { p_user_id: userId, p_level: level })

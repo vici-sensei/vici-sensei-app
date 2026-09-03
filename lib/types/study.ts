@@ -190,16 +190,16 @@ export interface BrowseKanaEntry {
   notes: string | null;
 }
 
-/** One sentence of the standalone /study/test reading text (public.reading_test_sentences) --
- * a fixed, non-per-user story, unrelated to hiragana progress/mastery. */
+/** One entry of a standalone /study/test reading test (public.test) -- fixed, non-per-user
+ * content, unrelated to kana progress/mastery. */
 export interface ReadingTestSentence {
   id: number;
   test_type: string;
   sort_order: number;
-  hiragana: string;
+  question: string;
   romaji: string;
   english: string;
-  /** Parallel to Array.from(hiragana), null everywhere except は/を/へ occurrences actually read
+  /** Parallel to Array.from(question), null everywhere except は/を/へ occurrences actually read
    * as the "wa"/"o"/"e" grammatical particle -- word-internal は/へ (はなばたけ, はしる, へび, ...)
    * are left null. Same shape as vocabulary.furiganas; rendered with renderWordWithFurigana. */
   particle_furiganas: (string | null)[] | null;

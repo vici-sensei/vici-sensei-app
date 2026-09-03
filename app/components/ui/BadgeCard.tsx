@@ -1,5 +1,5 @@
 import type { UserBadge } from "@/lib/types";
-import { describeBadge } from "@/lib/badges/registry";
+import { describeBadge, type BadgeCatalogEntry } from "@/lib/badges/registry";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 
 export function BadgeCard({ badge }: { badge: UserBadge }) {
@@ -16,6 +16,24 @@ export function BadgeCard({ badge }: { badge: UserBadge }) {
       <div className="min-w-0">
         <div className="truncate text-[0.9rem] font-bold text-white">{title}</div>
         <div className="mt-0.5 text-[0.8rem] text-text-muted">{description}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Not-yet-earned entry from the badge catalog -- same layout as BadgeCard, greyscale and faded
+ * so the full trophy case reads as "locked" rather than as an error or an earned badge. */
+export function LockedBadgeCard({ entry }: { entry: BadgeCatalogEntry }) {
+  const Icon = entry.icon;
+
+  return (
+    <div className="flex items-center gap-3.5 rounded-xl border border-border-soft bg-white/[0.02] px-4 py-3.5 opacity-40 grayscale">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border-soft text-lg text-text-muted">
+        <Icon />
+      </span>
+      <div className="min-w-0">
+        <div className="truncate text-[0.9rem] font-bold text-white">{entry.title}</div>
+        <div className="mt-0.5 text-[0.8rem] text-text-muted">{entry.lockedDescription}</div>
       </div>
     </div>
   );
