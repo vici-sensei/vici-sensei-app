@@ -56,9 +56,10 @@ export function renderWordWithFurigana(
 
 // Shows furigana above every kanji in the word except the one being tested
 // (so the target's reading isn't given away before the user answers) and
-// except any "sibling" kanji whose exact reading the student has already
-// mastered (known_kanji_chars) -- if every character in a segment is known,
-// that segment's furigana is hidden too.
+// except any "sibling" kanji the server has flagged as known (known_kanji_chars) --
+// either its exact reading is already mastered, or its own JLPT level is lower
+// than the level of the kanji being tested. If every character in a segment is
+// known, that segment's furigana is hidden too.
 export function renderTargetWord(
   word: string,
   target: string,

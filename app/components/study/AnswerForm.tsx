@@ -43,7 +43,7 @@ export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disa
         autoComplete="off"
         autoCorrect="off"
         spellCheck={false}
-        className={`w-full select-none rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-center text-[0.95rem] text-white outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${ACCENT_FOCUS_BORDER_CLASSES[accent]}`}
+        className={`w-full select-none no-touch-callout rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-center text-[0.95rem] text-white outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${ACCENT_FOCUS_BORDER_CLASSES[accent]}`}
       />
     </form>
   );

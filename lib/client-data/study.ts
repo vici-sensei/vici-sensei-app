@@ -9,7 +9,12 @@ import {
   fetchStudyQueue,
 } from "@/lib/data/studyQueue";
 import { fetchStudySettings } from "@/lib/data/studySettings";
-import { submitReview as submitReviewData, undoReview as undoReviewData } from "@/lib/data/reviews";
+import {
+  submitReview as submitReviewData,
+  undoReview as undoReviewData,
+  resolveConfirmedSiblings as resolveConfirmedSiblingsData,
+  type ResolveConfirmedSiblingsInput,
+} from "@/lib/data/reviews";
 import { startStudySession, endStudySession, getSessionProgress as getSessionProgressData } from "@/lib/data/studySessions";
 import {
   introduceCard as introduceCardData,
@@ -87,6 +92,12 @@ export async function undoReview(reviewLogId?: number): Promise<void> {
   const supabase = createClient();
   const userId = await requireUserId();
   await undoReviewData(supabase, userId, reviewLogId);
+}
+
+export async function resolveConfirmedSiblings(input: ResolveConfirmedSiblingsInput): Promise<DueCard[]> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return resolveConfirmedSiblingsData(supabase, userId, input);
 }
 
 /** Called right after a kanji_meaning/kanji_reading/vocab_meaning review lands, to check whether

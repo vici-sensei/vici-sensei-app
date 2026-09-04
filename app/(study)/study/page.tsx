@@ -10,6 +10,7 @@ import { ReviewCardKanjiMeaning } from "@/app/components/study/ReviewCardKanjiMe
 import { ReviewCardKanjiReading } from "@/app/components/study/ReviewCardKanjiReading";
 import { ReviewCardVocabMeaning } from "@/app/components/study/ReviewCardVocabMeaning";
 import { ReviewCardKanaReading } from "@/app/components/study/ReviewCardKanaReading";
+import { ReviewCardRateSibling } from "@/app/components/study/ReviewCardRateSibling";
 import { NewKanjiIntroCard } from "@/app/components/study/NewKanjiIntroCard";
 import { NewVocabIntroCard } from "@/app/components/study/NewVocabIntroCard";
 import { NewKanaIntroCard } from "@/app/components/study/NewKanaIntroCard";
@@ -123,7 +124,15 @@ export default function StudyPage() {
           never grow past this section, so overflow becomes an internal card scrollbar
           instead of pushing the page past 100vh. */}
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4">
-        {current.kind === "review" && current.card.exercise_type === "kanji_meaning" && (
+        {current.kind === "review" && current.triggeredByReviewLogId != null && (
+          <ReviewCardRateSibling
+            key={current.key}
+            card={current.card}
+            disabled={false}
+            onRate={(rating) => actions.rateSibling(current, rating)}
+          />
+        )}
+        {current.kind === "review" && current.triggeredByReviewLogId == null && current.card.exercise_type === "kanji_meaning" && (
           <ReviewCardKanjiMeaning
             key={current.key}
             card={current.card}
@@ -132,20 +141,20 @@ export default function StudyPage() {
             onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
           />
         )}
-        {current.kind === "review" && current.card.exercise_type === "kanji_reading" && (
+        {current.kind === "review" && current.triggeredByReviewLogId == null && current.card.exercise_type === "kanji_reading" && (
           <ReviewCardKanjiReading
             key={current.key}
             card={current.card}
-            disabled={false}
+            disabled={cardPending}
             onRate={actions.rate}
             onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
           />
         )}
-        {current.kind === "review" && current.card.exercise_type === "vocab_meaning" && (
+        {current.kind === "review" && current.triggeredByReviewLogId == null && current.card.exercise_type === "vocab_meaning" && (
           <ReviewCardVocabMeaning
             key={current.key}
             card={current.card}
-            disabled={false}
+            disabled={cardPending}
             onRate={actions.rate}
             onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
           />

@@ -18,7 +18,7 @@ export type AlternateCheckOutcome<TResult> =
 export function useAlternateReviewCard<TResult>(
   card: DueCard,
   disabled: boolean,
-  onRate: (card: DueCard, rating: Rating) => void,
+  onRate: (card: DueCard, rating: Rating, confirmedAlternates?: string[]) => void,
   checkAnswer: (answer: string) => AlternateCheckOutcome<TResult>,
   onCancelableChange?: (cancel: (() => void) | null) => void
 ) {
@@ -61,12 +61,12 @@ export function useAlternateReviewCard<TResult>(
 
   function handleRate(rating: Rating) {
     setCommitted(true);
-    setTimeout(() => onRate(card, rating), FLASH_DELAY_MS);
+    setTimeout(() => onRate(card, rating, confirmedAlternates), FLASH_DELAY_MS);
   }
 
   function handleContinue() {
     setCommitted(true);
-    setTimeout(() => onRate(card, 0), FLASH_DELAY_MS);
+    setTimeout(() => onRate(card, 0, confirmedAlternates), FLASH_DELAY_MS);
   }
 
   useEffect(() => {

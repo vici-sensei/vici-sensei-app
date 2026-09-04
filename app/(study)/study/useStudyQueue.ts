@@ -19,6 +19,7 @@ import {
   introduceKatakana as introduceKatakanaApi,
   introduceHiraganaRule as introduceHiraganaRuleApi,
   introduceKatakanaRule as introduceKatakanaRuleApi,
+  resolveConfirmedSiblings as resolveConfirmedSiblingsApi,
   startSession as startStudySessionApi,
   submitHiraganaDrillResult as submitHiraganaDrillResultApi,
   submitKatakanaDrillResult as submitKatakanaDrillResultApi,
@@ -428,8 +429,18 @@ function groupIntroBundles(items: QueueItem[], hasFixedCurrent = true): QueueIte
   return [...head, ...bundles, ...others];
 }
 
-function reviewBody(card: DueCard, rating: Rating, sessionId: number | undefined): ReviewRequestBody {
-  const body: ReviewRequestBody = { exercise_type: card.exercise_type, rating, session_id: sessionId };
+function reviewBody(
+  card: DueCard,
+  rating: Rating,
+  sessionId: number | undefined,
+  triggeredByReviewLogId: number | undefined
+): ReviewRequestBody {
+  const body: ReviewRequestBody = {
+    exercise_type: card.exercise_type,
+    rating,
+    session_id: sessionId,
+    triggered_by_review_log_id: triggeredByReviewLogId,
+  };
   if (card.exercise_type === "kanji_meaning") body.kanji_id = card.kanji_id ?? undefined;
   else if (card.exercise_type === "kanji_reading") body.kanji_word_id = card.kanji_word_id ?? undefined;
   else if (card.exercise_type === "vocab_meaning") body.word_id = card.word_id ?? undefined;
@@ -1055,7 +1066,7 @@ export function useStudyQueue() {
   const dismissKanaGraduation = useCallback(() => setKanaGraduationResult(null), []);
 
   const rate = useCallback(
-    (card: DueCard, rating: Rating) => {
+    (card: DueCard, rating: Rating, confirmedSiblingMeanings?: string[]) => {
       // hiragana_reading/katakana_reading cards still in the post-introduction drill
       // (card.drill_mode -- server-computed, see its doc comment in lib/types/study.ts) never go
       // through the normal rating flow below -- see submitDrillAnswer. rating is repurposed as a
@@ -1079,17 +1090,35 @@ export function useStudyQueue() {
       lastReviewLogIdRef.current = null;
       setLastReview({ card });
       setCompletedCount((c) => c + 1);
-      setQueue((prev) => prev.filter((i) => i.key !== reviewKey(card)));
+      const key = reviewKey(card);
       // Marked attempted synchronously, before the submit even resolves: this card is done for
       // the session regardless of the rating (see attemptedKeysRef's declaration) -- totalKnown
       // never grows for it again, and it can't wander back into `queue` even if its resurface
       // due_at arrives while the session is still open. A failed submit undoes this below, same
       // as it undoes completedCount.
-      attemptedKeysRef.current.add(reviewKey(card));
+      attemptedKeysRef.current.add(key);
+
+      // A card with confirmed sibling meanings/readings holds the queue instead of advancing
+      // optimistically: resolving which sibling(s) they map to is its own async round trip after
+      // submit_review, and if the queue had already moved on by the time that lands, the sibling's
+      // rating step would cut in front of whatever the student is looking at by then -- possibly
+      // interrupting an in-progress answer on an unrelated card. Held here (via pendingCardKey,
+      // same "disable, wait for the server, then swap" pattern introduceKanji/introduceKanaCard
+      // use) means the very next thing shown after this card is always either the sibling's rating
+      // step or, if none resolved, whatever was already next -- never something in between getting
+      // bumped mid-answer. Every other card (no confirmed siblings) keeps the old optimistic
+      // instant-advance -- there's nothing to wait for.
+      const holdForSiblings =
+        !!confirmedSiblingMeanings &&
+        confirmedSiblingMeanings.length > 0 &&
+        (card.exercise_type === "vocab_meaning" || card.exercise_type === "kanji_reading");
+
+      if (holdForSiblings) setPendingCardKey(key);
+      else setQueue((prev) => prev.filter((i) => i.key !== key));
 
       enqueueMutation(async () => {
         try {
-          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating, sessionIdRef.current ?? undefined));
+          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating, sessionIdRef.current ?? undefined, undefined));
           lastReviewLogIdRef.current = reviewLogId;
           // A wrong answer can schedule this card to resurface later in the same session
           // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown) picks
@@ -1099,9 +1128,44 @@ export function useStudyQueue() {
           void refreshQueue();
           checkLevelUp(card.exercise_type);
           checkKanaGraduation(card.exercise_type);
+
+          if (!holdForSiblings) return;
+
+          // A confirmed sibling meaning/reading doesn't get its rating guessed for it (no forced
+          // "Good") -- look up which real sibling card(s) it actually resolves to (server-
+          // verified, see resolve_confirmed_siblings) and let the student rate each one for real,
+          // right after this card, on the same shell (ReviewCardRateSibling). A failed lookup just
+          // means no bonus rating step this time -- nothing already submitted above is affected --
+          // so it falls through to the plain "advance past this card" case either way.
+          const siblings = await resolveConfirmedSiblingsApi({
+            exerciseType: card.exercise_type as "vocab_meaning" | "kanji_reading",
+            kanjiId: card.kanji_id ?? undefined,
+            wordId: card.word_id ?? undefined,
+            kanjiWordId: card.kanji_word_id ?? undefined,
+            confirmedTexts: confirmedSiblingMeanings!,
+          }).catch(() => [] as DueCard[]);
+
+          setPendingCardKey(null);
+          const fresh = siblings.filter((s) => !attemptedKeysRef.current.has(reviewKey(s)));
+          setQueue((prev) => {
+            const withoutOriginal = prev.filter((i) => i.key !== key);
+            if (fresh.length === 0) return withoutOriginal;
+            const freshKeys = new Set(fresh.map((s) => reviewKey(s)));
+            const withoutDupes = withoutOriginal.filter((i) => !freshKeys.has(i.key));
+            return [
+              ...fresh.map((sibling) => ({
+                key: reviewKey(sibling),
+                kind: "review" as const,
+                card: sibling,
+                triggeredByReviewLogId: reviewLogId,
+              })),
+              ...withoutDupes,
+            ];
+          });
         } catch (err) {
+          if (holdForSiblings) setPendingCardKey(null);
           setCompletedCount((c) => Math.max(0, c - 1));
-          attemptedKeysRef.current.delete(reviewKey(card));
+          attemptedKeysRef.current.delete(key);
           setLastReview((prev) => (prev?.card === card ? null : prev));
           // A 400/404 means the server rejected this specific card -- its progress row was
           // suspended, reset, or deleted (e.g. from /browse/ in another tab) since it was
@@ -1110,7 +1174,14 @@ export function useStudyQueue() {
           // can never end if it was the last card left. Anything else (network blip, 500) is
           // presumed transient and worth retrying.
           const isStale = err instanceof ApiError && (err.status === 400 || err.status === 404);
-          if (!isStale) setQueue((prev) => [{ key: reviewKey(card), kind: "review", card }, ...prev]);
+          if (holdForSiblings) {
+            // Never left `queue` in the first place (only pendingCardKey held it) -- a stale
+            // card is dropped same as the non-held path; anything else just un-disables it,
+            // already sitting exactly where it was, ready to retry.
+            if (isStale) setQueue((prev) => prev.filter((i) => i.key !== key));
+          } else if (!isStale) {
+            setQueue((prev) => [{ key, kind: "review", card }, ...prev]);
+          }
           showToast(
             isStale
               ? "This card changed elsewhere and was skipped."
@@ -1123,6 +1194,51 @@ export function useStudyQueue() {
       });
     },
     [enqueueMutation, showToast, refreshQueue, submitDrillAnswer, checkLevelUp, checkKanaGraduation]
+  );
+
+  // Rates a sibling card resolved by rate()'s own confirmedSiblingMeanings lookup (see
+  // ReviewCardRateSibling) -- already known correct, so this is just the rating step, submitted
+  // as that sibling's own real review, linked back via triggered_by_review_log_id so undo_review
+  // cascades correctly. Mirrors rate()'s own bookkeeping (completedCount, attemptedKeysRef,
+  // lastReview/lastReviewLogIdRef for Undo, level-up/kana-graduation checks) so a sibling rating
+  // behaves the same as any other completed review for the rest of the session.
+  const rateSibling = useCallback(
+    (item: QueueItem & { kind: "review" }, rating: Rating) => {
+      const card = item.card;
+      hasProcessedAnyRef.current = true;
+      lastReviewLogIdRef.current = null;
+      setLastReview({ card });
+      setCompletedCount((c) => c + 1);
+      setQueue((prev) => prev.filter((i) => i.key !== item.key));
+      attemptedKeysRef.current.add(item.key);
+
+      enqueueMutation(async () => {
+        try {
+          const { reviewLogId } = await submitReviewApi(
+            reviewBody(card, rating, sessionIdRef.current ?? undefined, item.triggeredByReviewLogId)
+          );
+          lastReviewLogIdRef.current = reviewLogId;
+          void refreshQueue();
+          checkLevelUp(card.exercise_type);
+          checkKanaGraduation(card.exercise_type);
+        } catch (err) {
+          setCompletedCount((c) => Math.max(0, c - 1));
+          attemptedKeysRef.current.delete(item.key);
+          setLastReview((prev) => (prev?.card === card ? null : prev));
+          const isStale = err instanceof ApiError && (err.status === 400 || err.status === 404);
+          if (!isStale) setQueue((prev) => [item, ...prev]);
+          showToast(
+            isStale
+              ? "This card changed elsewhere and was skipped."
+              : err instanceof ApiError
+                ? err.message
+                : "Could not submit your answer. Please try again.",
+            "error"
+          );
+        }
+      });
+    },
+    [enqueueMutation, showToast, refreshQueue, checkLevelUp, checkKanaGraduation]
   );
 
   const introduceCard = useCallback(
@@ -1480,6 +1596,7 @@ export function useStudyQueue() {
     undoDisabled,
     actions: {
       rate,
+      rateSibling,
       introduceKanji,
       introduceVocab,
       introduceHiragana,

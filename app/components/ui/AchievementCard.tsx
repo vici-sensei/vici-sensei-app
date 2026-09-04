@@ -3,37 +3,21 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { AchievementCatalogEntry } from "@/lib/achievements/registry";
+import { achievementImageSrc } from "@/lib/achievements/badgeImages";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 
-/** Where a badge's artwork lives once generated -- one SVG per achievement_key, dropped into
- * public/images/badges/ with this exact filename (see public/images/badges/README.md for the
- * full badge-name-to-filename table). Nothing else needs to change when the art is added:
- * BadgeArt below falls back to the catalog's react-icons icon for any key whose image 404s --
- * i.e. every one of them today -- so the trophy case renders correctly whether or not the art
- * exists yet. */
-function achievementImageSrc(achievementKey: string): string {
-  return `/images/badges/${achievementKey}.svg`;
-}
-
-/** Same "onError swaps to a fallback" pattern as ProfileMenu.tsx's Avatar -- one failed <Image>
- * load (missing file today, a broken one later) just shows entry.icon instead, it never breaks
- * the card. */
+/** Shows a badge's artwork if one has been assigned (see lib/achievements/badgeImages.ts),
+ * falling back to its react-icons icon otherwise -- either because no filename has been set yet
+ * (no image ever attempted, so no doomed network request) or because the assigned file failed to
+ * load (same "onError swaps to a fallback" pattern as ProfileMenu.tsx's Avatar). */
 function BadgeArt({ entry }: { entry: AchievementCatalogEntry }) {
   const [imageFailed, setImageFailed] = useState(false);
   const Icon = entry.icon;
+  const src = achievementImageSrc(entry.achievementKey);
 
-  if (imageFailed) return <Icon />;
+  if (!src || imageFailed) return <Icon />;
 
-  return (
-    <Image
-      src={achievementImageSrc(entry.achievementKey)}
-      alt=""
-      fill
-      sizes="44px"
-      className="object-cover"
-      onError={() => setImageFailed(true)}
-    />
-  );
+  return <Image src={src} alt="" fill sizes="44px" className="object-cover" onError={() => setImageFailed(true)} />;
 }
 
 /** Earned entry from ACHIEVEMENT_CATALOG (lib/achievements/registry.tsx). Gold styling always --

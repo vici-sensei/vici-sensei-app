@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
 import { FaCheck } from "react-icons/fa6";
 import { checkKanaReadingAnswer } from "@/lib/study/kanaReadingMatch";
 import type { ReadingCheckResult } from "@/lib/study/kanjiReadingMatch";
@@ -55,6 +55,13 @@ export function ReadingTestSentenceRow({ sentence, kanaRomajiMap, userId, testTy
     onCheck(sentence.id, checked.correct, answer);
   };
 
+  // Anti-cheat, same as AnswerForm: block pasting an answer in, and block copying the question
+  // out, while it's still unanswered. Once answered (`result` set), the question is unlocked for
+  // copying like anywhere else in the app.
+  const preventClipboardBypass = (event: ClipboardEvent<HTMLInputElement> | DragEvent<HTMLInputElement>) => {
+    event.preventDefault();
+  };
+
   // Before answering: only the particle-reading hints (は/を/へ), same as always. Once answered
   // (right or wrong), swap in the full mora-by-mora romaji reading so the user can see how every
   // grouping of hiragana was actually read -- not shown earlier since it would give the answer away.
@@ -70,7 +77,11 @@ export function ReadingTestSentenceRow({ sentence, kanaRomajiMap, userId, testTy
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-[1.3rem] leading-relaxed text-white">
+      <p
+        className={`text-[1.3rem] leading-relaxed text-white ${result ? "" : "select-none no-touch-callout"}`}
+        onCopy={result ? undefined : (e) => e.preventDefault()}
+        onContextMenu={result ? undefined : (e) => e.preventDefault()}
+      >
         {renderReadingTestSentence(sentence.question, furiganas, sentence.particle_furiganas)}
       </p>
       {result && <p className="text-[0.9rem] italic text-text-muted">{sentence.english}</p>}
@@ -80,11 +91,16 @@ export function ReadingTestSentenceRow({ sentence, kanaRomajiMap, userId, testTy
             type="text"
             value={answer}
             onChange={(e) => handleAnswerChange(e.target.value)}
+            onPaste={preventClipboardBypass}
+            onCopy={preventClipboardBypass}
+            onCut={preventClipboardBypass}
+            onDrop={preventClipboardBypass}
+            onContextMenu={(e) => e.preventDefault()}
             placeholder="Type the reading…"
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
-            className={`flex-1 select-none rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors ${ACCENT_FOCUS_BORDER_CLASSES.violet}`}
+            className={`flex-1 select-none no-touch-callout rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors ${ACCENT_FOCUS_BORDER_CLASSES.violet}`}
           />
           <button
             type="submit"

@@ -21,6 +21,13 @@ export type QueueItem =
        * reviewKey(card) throughout, since that's what dedup/pool-membership checks compare
        * against. Falls back to `key` when unset. */
       renderKey?: string;
+      /** Set only when this card is a sibling word/reading resolved after a "Vocabulary"/"Word
+       * reading" review confirmed it along the way (see resolveConfirmedSiblings in
+       * lib/data/reviews.ts) -- already known correct, so it renders via ReviewCardRateSibling
+       * (straight to the rating step, no typing) instead of the normal typed review card. Its own
+       * review gets linked back to the review that surfaced it via
+       * review_logs.triggered_by_review_log_id (see useStudyQueue's rateSibling). */
+      triggeredByReviewLogId?: number;
     }
   | { key: string; kind: "new_kanji"; candidate: NewKanjiCandidate }
   | { key: string; kind: "new_vocab"; candidate: NewVocabCandidate }

@@ -29,8 +29,13 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
       label="Vocabulary"
       accent="orange"
       prompt={
+        // Furigana stays hidden until the card is revealed -- otherwise the student can read the
+        // word aloud from its kana and recall the meaning by sound, never actually recognizing the
+        // kanji itself (the whole point of this card, unlike "Word reading" which tests the
+        // reading directly). `furigana` on CardHeading still reserves the same vertical space
+        // either way, so revealing doesn't shift the kanji down.
         <CardHeading furigana masked={!revealed}>
-          {card.word ? renderWordWithFurigana(card.word, card.furiganas) : card.word}
+          {card.word ? renderWordWithFurigana(card.word, revealed ? card.furiganas : null) : card.word}
         </CardHeading>
       }
       subtitle={

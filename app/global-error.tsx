@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import "./globals.css";
 import { Button } from "@/app/components/ui/Button";
 import { FaArrowRotateRight } from "react-icons/fa6";
+import { logClientError } from "@/lib/client-data/errorLog";
 
 export default function GlobalError({
   error,
@@ -11,6 +13,10 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    void logClientError({ source: "global_error_boundary", error, digest: error.digest });
+  }, [error]);
+
   return (
     <html lang="en" className="antialiased">
       <body>

@@ -56,6 +56,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Pairs with select-none on anti-cheat question/answer text: user-select alone still lets iOS
+   Safari's long-press callout offer Look Up/Translate/Share on the text without ever firing a
+   copy event, so this is needed too. */
+@utility no-touch-callout {
+  -webkit-touch-callout: none;
+}
+
 @layer base {
   a {
     color: inherit;

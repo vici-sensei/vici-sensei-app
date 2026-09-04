@@ -1,6 +1,8 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
-import type { ReviewRequestBody, SubmitReviewResult } from "@/lib/types";
+import type { DueCard, ReviewRequestBody, SubmitReviewResult } from "@/lib/types";
+import type { ExerciseType } from "@/lib/srs/constants";
 import { ApiError } from "@/lib/api/client";
+import { previewRatingLabels, type ProgressRow } from "@/lib/srs/scheduler";
 
 export type ReviewInput = ReviewRequestBody;
 
@@ -23,6 +25,7 @@ export async function submitReview(supabase: AppSupabaseClient, userId: string, 
     p_katakana_id: input.katakana_id ?? null,
     p_user_answer: input.user_answer ?? null,
     p_session_id: input.session_id ?? null,
+    p_triggered_by_review_log_id: input.triggered_by_review_log_id ?? null,
   });
 
   if (error) {
@@ -59,4 +62,82 @@ export async function undoReview(supabase: AppSupabaseClient, userId: string, re
     if (error.code === UNDO_NOT_FOUND_ERRCODE) throw new ApiError(404, error.message);
     throw new ApiError(500, error.message);
   }
+}
+
+export interface ResolveConfirmedSiblingsInput {
+  exerciseType: "vocab_meaning" | "kanji_reading";
+  kanjiId?: number;
+  wordId?: number;
+  kanjiWordId?: number;
+  confirmedTexts: string[];
+}
+
+interface ResolvedSiblingRow extends ProgressRow {
+  exercise_type: ExerciseType;
+  progress_id: number;
+  kanji_id: number | null;
+  word_id: number | null;
+  kanji_word_id: number | null;
+  kanji_char: string | null;
+  word: string;
+  kana_reading: string | null;
+  furiganas: string[] | null;
+  word_meanings: string[] | null;
+}
+
+/**
+ * Read-only lookup, called right after a vocab_meaning/kanji_reading review whose student also
+ * confirmed a sibling homograph's meaning/reading along the way (see checkVocabMeaningAnswer/
+ * checkKanjiReadingAnswer's "alternate" outcome). Mutates nothing -- resolve_confirmed_siblings
+ * re-derives which sibling(s) actually own each confirmed text from public.vocabulary/kanji_word
+ * itself (never trusts an id from the client), and returns enough of their current SRS state to
+ * build a real DueCard for ReviewCardRateSibling, previews included. The caller still has to
+ * submit a genuine submit_review once the student picks a rating for it -- this alone changes
+ * nothing.
+ */
+export async function resolveConfirmedSiblings(
+  supabase: AppSupabaseClient,
+  userId: string,
+  input: ResolveConfirmedSiblingsInput
+): Promise<DueCard[]> {
+  if (input.confirmedTexts.length === 0) return [];
+
+  const { data, error } = await supabase.rpc("resolve_confirmed_siblings", {
+    p_user_id: userId,
+    p_exercise_type: input.exerciseType,
+    p_kanji_id: input.kanjiId ?? null,
+    p_word_id: input.wordId ?? null,
+    p_kanji_word_id: input.kanjiWordId ?? null,
+    p_confirmed_texts: input.confirmedTexts,
+  });
+
+  if (error) throw new ApiError(500, error.message);
+
+  return ((data ?? []) as ResolvedSiblingRow[]).map((row) => ({
+    exercise_type: row.exercise_type,
+    progress_id: row.progress_id,
+    kanji_id: row.kanji_id,
+    word_id: row.word_id,
+    kanji_word_id: row.kanji_word_id,
+    hiragana_id: null,
+    katakana_id: null,
+    kanji_char: row.kanji_char,
+    kanji_meanings: null,
+    word: row.word,
+    kana_reading: row.kana_reading,
+    romaji_reading: null,
+    other_readings: null,
+    furiganas: row.furiganas,
+    word_meanings: row.word_meanings,
+    all_word_meanings: null,
+    all_word_readings: null,
+    known_kanji_chars: null,
+    kana_character: null,
+    kana_romaji: null,
+    kana_type: null,
+    drill_streak: null,
+    drill_mode: false,
+    rating_previews: previewRatingLabels(row),
+    status: row.status,
+  }));
 }

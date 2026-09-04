@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Button, buttonClasses } from "@/app/components/ui/Button";
 import { FaArrowRotateRight, FaHouse } from "react-icons/fa6";
+import { logClientError } from "@/lib/client-data/errorLog";
 
 export default function Error({
   error,
@@ -11,6 +13,10 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    void logClientError({ source: "react_error_boundary", error, digest: error.digest });
+  }, [error]);
+
   return (
     <div className="flex min-h-screen items-center justify-center px-6 py-[60px] text-center">
       <div className="w-full max-w-[380px]">

@@ -50,7 +50,11 @@ export interface DueCard {
   all_word_meanings: string[] | null;
   /** Readings (kana/romaji/other) from every vocabulary row sharing this word -- same reasoning. */
   all_word_readings: string[] | null;
-  /** Sibling kanji (not the target) in this word whose specific reading the student has already mastered -- furigana can be hidden for them. kanji_reading cards only. */
+  /** Sibling kanji (not the target) in this word whose furigana can be hidden -- either because
+   * the student has already mastered that specific reading, or because the sibling's own JLPT
+   * level is lower (easier/earlier in the N5->N1 progression) than the level of the kanji this
+   * card is actually testing (see 20260927_hide_furigana_for_lower_level_kanji.sql). kanji_reading
+   * cards only. */
   known_kanji_chars: string[] | null;
   /** The character shown for hiragana_reading/katakana_reading cards. */
   kana_character: string | null;
@@ -380,6 +384,12 @@ export interface ReviewRequestBody {
    * client's own session id instead of having submit_review guess it from timing (see
    * supabase/migrations/20260821_submit_review_explicit_session_id.sql). */
   session_id?: number;
+  /** Links this review's review_logs row back to the review that surfaced it -- set only when
+   * this call is rating a sibling meaning/reading the student confirmed while answering a
+   * different card (see resolveConfirmedSiblings in lib/data/reviews.ts and
+   * ReviewCardRateSibling). Lets undo_review cascade: undoing the original review also undoes
+   * whichever sibling review(s) it triggered. Ignored (left null) for an ordinary review. */
+  triggered_by_review_log_id?: number;
 }
 
 export interface SubmitReviewResult {

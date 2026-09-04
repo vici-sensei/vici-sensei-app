@@ -15,7 +15,7 @@ export function CardHeading({ children, furigana = false, masked = false }: Prop
   const classes = [
     "mb-2 text-3xl leading-none",
     furigana && "pt-[0.6em]",
-    masked && "select-none",
+    masked && "select-none no-touch-callout",
   ]
     .filter(Boolean)
     .join(" ");
