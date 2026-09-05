@@ -10,11 +10,12 @@
  * this in -- the object itself is flat, order doesn't matter to the code.
  */
 export const BADGE_IMAGES: Record<string, string> = {
+  // TO DO - BADGE IMAGES
   // ===== Hiragana =====
   // Overall
-  hiragana_total_1: "", // First Hiragana
-  hiragana_total_5: "", // 5 Hiragana
-  hiragana_total_10: "", // 10 Hiragana
+  hiragana_total_1: "matcha_tea.jfif", // First Hiragana
+  hiragana_total_5: "geisha.jfif", // 5 Hiragana
+  hiragana_total_10: "koi_fish.jfif", // 10 Hiragana
   hiragana_total_20: "", // 20 Hiragana
   hiragana_total_30: "", // 30 Hiragana
   hiragana_total_40: "", // 40 Hiragana

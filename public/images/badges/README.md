@@ -1,11 +1,17 @@
 # Badge artwork
 
-Drop one **SVG** per achievement here, named exactly as the "Image File" column below -- e.g.
-`hiragana_all.svg`. `app/components/ui/AchievementCard.tsx`'s `BadgeArt` component requests
-`/images/badges/<achievement_key>.svg` for every badge shown in Settings > Profile > Badges (both
-earned and locked); if the file 404s it falls back to that badge's react-icons icon (`entry.icon`
-in `lib/achievements/registry.tsx`), so nothing breaks while art is missing -- add files here
-whenever they're ready, in any order, and they take over automatically with no code changes.
+Drop your **SVG** files in this folder, named however you like -- then point each achievement at
+its filename by editing `lib/achievements/badgeImages.ts`'s `BADGE_IMAGES` map (find the
+achievement's key in the table below, set its value to the filename). No naming convention is
+required; the mapping is what connects a badge to its file, not the filename itself.
+
+`app/components/ui/AchievementCard.tsx`'s `BadgeArt` component reads that map: a badge with an
+assigned filename loads `/images/badges/<that filename>`; a badge left unassigned (empty string,
+the default for all 87 today) just shows its react-icons icon (`entry.icon` in
+`lib/achievements/registry.tsx`) and never even attempts a network request for it. If an assigned
+file fails to load (typo, wrong path), it falls back to the icon too rather than breaking the
+card. Assign files here in any order, at any pace -- each takes over the moment its map entry is
+filled in, no other code changes needed.
 
 Rendered at 44×44 CSS px inside a `rounded-full` circle with `object-cover`. A square `viewBox`
 (e.g. `0 0 64 64`) with the design filling the frame edge-to-edge works best -- the circular mask
@@ -16,237 +22,238 @@ render correctly wherever it's dropped. Locked badges render the same file throu
 
 The table below is a snapshot of every achievement in `lib/achievements/registry.tsx` as of this
 writing (87 total), grouped exactly as they appear in Settings > Profile > Badges. It's not read
-by any code, just a checklist -- if achievements are added/removed/renamed there later, regenerate
-this table from that file instead of trusting it blindly.
+by any code, just a lookup to find the right key for `BADGE_IMAGES` -- if achievements are
+added/removed/renamed there later, regenerate this table (and the map's keys) from that file
+instead of trusting either blindly.
 
 ### Hiragana
 
 **Overall**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Hiragana | `hiragana_total_1.svg` |
-| 5 Hiragana | `hiragana_total_5.svg` |
-| 10 Hiragana | `hiragana_total_10.svg` |
-| 20 Hiragana | `hiragana_total_20.svg` |
-| 30 Hiragana | `hiragana_total_30.svg` |
-| 40 Hiragana | `hiragana_total_40.svg` |
-| Basic Sounds Master (Hiragana) | `hiragana_seion_all.svg` |
+| First Hiragana | `hiragana_total_1` |
+| 5 Hiragana | `hiragana_total_5` |
+| 10 Hiragana | `hiragana_total_10` |
+| 20 Hiragana | `hiragana_total_20` |
+| 30 Hiragana | `hiragana_total_30` |
+| 40 Hiragana | `hiragana_total_40` |
+| Basic Sounds Master (Hiragana) | `hiragana_seion_all` |
 
 **Ten-Ten**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Ten-Ten (Hiragana) | `hiragana_dakuten_1.svg` |
-| 5 Ten-Ten (Hiragana) | `hiragana_dakuten_5.svg` |
-| 10 Ten-Ten (Hiragana) | `hiragana_dakuten_10.svg` |
-| All Ten-Ten (Hiragana) | `hiragana_dakuten_all.svg` |
+| First Ten-Ten (Hiragana) | `hiragana_dakuten_1` |
+| 5 Ten-Ten (Hiragana) | `hiragana_dakuten_5` |
+| 10 Ten-Ten (Hiragana) | `hiragana_dakuten_10` |
+| All Ten-Ten (Hiragana) | `hiragana_dakuten_all` |
 
 **Maru**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Maru (Hiragana) | `hiragana_handakuten_1.svg` |
-| All Maru (Hiragana) | `hiragana_handakuten_all.svg` |
+| First Maru (Hiragana) | `hiragana_handakuten_1` |
+| All Maru (Hiragana) | `hiragana_handakuten_all` |
 
 **Combined Sounds**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Combined Sound (Hiragana) | `hiragana_yoon_1.svg` |
-| All Combined Sounds (Hiragana) | `hiragana_yoon_all.svg` |
+| First Combined Sound (Hiragana) | `hiragana_yoon_1` |
+| All Combined Sounds (Hiragana) | `hiragana_yoon_all` |
 
 **Double N Sound**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| Double N Sound (Hiragana) | `hiragana_n_gemination_all.svg` |
-| All Hiragana | `hiragana_all.svg` |
+| Double N Sound (Hiragana) | `hiragana_n_gemination_all` |
+| All Hiragana | `hiragana_all` |
 
 ### Katakana
 
 **Overall**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Katakana | `katakana_total_1.svg` |
-| 5 Katakana | `katakana_total_5.svg` |
-| 10 Katakana | `katakana_total_10.svg` |
-| 20 Katakana | `katakana_total_20.svg` |
-| 30 Katakana | `katakana_total_30.svg` |
-| 40 Katakana | `katakana_total_40.svg` |
-| Basic Sounds Master (Katakana) | `katakana_seion_all.svg` |
+| First Katakana | `katakana_total_1` |
+| 5 Katakana | `katakana_total_5` |
+| 10 Katakana | `katakana_total_10` |
+| 20 Katakana | `katakana_total_20` |
+| 30 Katakana | `katakana_total_30` |
+| 40 Katakana | `katakana_total_40` |
+| Basic Sounds Master (Katakana) | `katakana_seion_all` |
 
 **Ten-Ten**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Ten-Ten (Katakana) | `katakana_dakuten_1.svg` |
-| 5 Ten-Ten (Katakana) | `katakana_dakuten_5.svg` |
-| 10 Ten-Ten (Katakana) | `katakana_dakuten_10.svg` |
-| All Ten-Ten (Katakana) | `katakana_dakuten_all.svg` |
+| First Ten-Ten (Katakana) | `katakana_dakuten_1` |
+| 5 Ten-Ten (Katakana) | `katakana_dakuten_5` |
+| 10 Ten-Ten (Katakana) | `katakana_dakuten_10` |
+| All Ten-Ten (Katakana) | `katakana_dakuten_all` |
 
 **Maru**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Maru (Katakana) | `katakana_handakuten_1.svg` |
-| All Maru (Katakana) | `katakana_handakuten_all.svg` |
+| First Maru (Katakana) | `katakana_handakuten_1` |
+| All Maru (Katakana) | `katakana_handakuten_all` |
 
 **Combined Sounds**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Combined Sound (Katakana) | `katakana_yoon_1.svg` |
-| All Combined Sounds (Katakana) | `katakana_yoon_all.svg` |
+| First Combined Sound (Katakana) | `katakana_yoon_1` |
+| All Combined Sounds (Katakana) | `katakana_yoon_all` |
 
 **Double Consonants**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Double Consonant | `katakana_sokuon_1.svg` |
-| All Double Consonants | `katakana_sokuon_all.svg` |
+| First Double Consonant | `katakana_sokuon_1` |
+| All Double Consonants | `katakana_sokuon_all` |
 
 **Double N Sound**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| Double N Sound (Katakana) | `katakana_n_gemination_all.svg` |
+| Double N Sound (Katakana) | `katakana_n_gemination_all` |
 
 **Long Vowels**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Long Vowel | `katakana_choonpu_1.svg` |
-| All Long Vowels | `katakana_choonpu_all.svg` |
+| First Long Vowel | `katakana_choonpu_1` |
+| All Long Vowels | `katakana_choonpu_all` |
 
 **Foreign Sound Combos**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Foreign Sound Combo | `katakana_extended_1.svg` |
-| 5 Foreign Sound Combos | `katakana_extended_5.svg` |
-| All Foreign Sound Combos | `katakana_extended_all.svg` |
-| All Katakana | `katakana_all.svg` |
+| First Foreign Sound Combo | `katakana_extended_1` |
+| 5 Foreign Sound Combos | `katakana_extended_5` |
+| All Foreign Sound Combos | `katakana_extended_all` |
+| All Katakana | `katakana_all` |
 
 ### Kana
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| All Kana | `kana_all.svg` |
+| All Kana | `kana_all` |
 
 ### Reading Tests
 
 **Hiragana**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| Hiragana Reading Test | `hiragana_test.svg` |
-| Hiragana Reading Test — Perfect Score | `hiragana_test_100.svg` |
+| Hiragana Reading Test | `hiragana_test` |
+| Hiragana Reading Test — Perfect Score | `hiragana_test_100` |
 
 **Katakana**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| Katakana Reading Test | `katakana_test.svg` |
-| Katakana Reading Test — Perfect Score | `katakana_test_100.svg` |
+| Katakana Reading Test | `katakana_test` |
+| Katakana Reading Test — Perfect Score | `katakana_test_100` |
 
 ### Kanji
 
 **N5**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Kanji | `kanji_total_1.svg` |
-| 5 Kanji | `kanji_total_5.svg` |
-| 10 Kanji | `kanji_total_10.svg` |
-| 50 Kanji | `kanji_total_50.svg` |
-| All N5 Kanji | `kanji_n5_all.svg` |
+| First Kanji | `kanji_total_1` |
+| 5 Kanji | `kanji_total_5` |
+| 10 Kanji | `kanji_total_10` |
+| 50 Kanji | `kanji_total_50` |
+| All N5 Kanji | `kanji_n5_all` |
 
 **N4**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First N4 Kanji | `kanji_n4_1.svg` |
-| 100 Kanji | `kanji_total_100.svg` |
-| All N4 Kanji | `kanji_n4_all.svg` |
+| First N4 Kanji | `kanji_n4_1` |
+| 100 Kanji | `kanji_total_100` |
+| All N4 Kanji | `kanji_n4_all` |
 
 **N3**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First N3 Kanji | `kanji_n3_1.svg` |
-| 500 Kanji | `kanji_total_500.svg` |
-| All N3 Kanji | `kanji_n3_all.svg` |
+| First N3 Kanji | `kanji_n3_1` |
+| 500 Kanji | `kanji_total_500` |
+| All N3 Kanji | `kanji_n3_all` |
 
 **N2**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First N2 Kanji | `kanji_n2_1.svg` |
-| All N2 Kanji | `kanji_n2_all.svg` |
+| First N2 Kanji | `kanji_n2_1` |
+| All N2 Kanji | `kanji_n2_all` |
 
 **N1**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First N1 Kanji | `kanji_n1_1.svg` |
-| 1000 Kanji | `kanji_total_1000.svg` |
-| 1500 Kanji | `kanji_total_1500.svg` |
-| 2000 Kanji | `kanji_total_2000.svg` |
-| All N1 Kanji | `kanji_n1_all.svg` |
+| First N1 Kanji | `kanji_n1_1` |
+| 1000 Kanji | `kanji_total_1000` |
+| 1500 Kanji | `kanji_total_1500` |
+| 2000 Kanji | `kanji_total_2000` |
+| All N1 Kanji | `kanji_n1_all` |
 
 ### Vocabulary
 
 **N5**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First Word | `word_total_1.svg` |
-| 5 Words | `word_total_5.svg` |
-| 10 Words | `word_total_10.svg` |
-| 50 Words | `word_total_50.svg` |
-| 100 Words | `word_total_100.svg` |
-| 500 Words | `word_total_500.svg` |
-| All N5 Words | `word_n5_all.svg` |
+| First Word | `word_total_1` |
+| 5 Words | `word_total_5` |
+| 10 Words | `word_total_10` |
+| 50 Words | `word_total_50` |
+| 100 Words | `word_total_100` |
+| 500 Words | `word_total_500` |
+| All N5 Words | `word_n5_all` |
 
 **N4**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First N4 Word | `word_n4_1.svg` |
-| 1000 Words | `word_total_1000.svg` |
-| All N4 Words | `word_n4_all.svg` |
+| First N4 Word | `word_n4_1` |
+| 1000 Words | `word_total_1000` |
+| All N4 Words | `word_n4_all` |
 
 **N3**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First N3 Word | `word_n3_1.svg` |
-| 1500 Words | `word_total_1500.svg` |
-| 2000 Words | `word_total_2000.svg` |
-| All N3 Words | `word_n3_all.svg` |
+| First N3 Word | `word_n3_1` |
+| 1500 Words | `word_total_1500` |
+| 2000 Words | `word_total_2000` |
+| All N3 Words | `word_n3_all` |
 
 **N2**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First N2 Word | `word_n2_1.svg` |
-| All N2 Words | `word_n2_all.svg` |
+| First N2 Word | `word_n2_1` |
+| All N2 Words | `word_n2_all` |
 
 **N1**
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| First N1 Word | `word_n1_1.svg` |
-| All N1 Words | `word_n1_all.svg` |
+| First N1 Word | `word_n1_1` |
+| All N1 Words | `word_n1_all` |
 
 ### JLPT Levels
 
-| Badge Name | Image File |
+| Badge Name | Achievement Key |
 | --- | --- |
-| N5 Completed | `n5_completed.svg` |
-| N4 Completed | `n4_completed.svg` |
-| N3 Completed | `n3_completed.svg` |
-| N2 Completed | `n2_completed.svg` |
-| N1 Completed | `n1_completed.svg` |
+| N5 Completed | `n5_completed` |
+| N4 Completed | `n4_completed` |
+| N3 Completed | `n3_completed` |
+| N2 Completed | `n2_completed` |
+| N1 Completed | `n1_completed` |
