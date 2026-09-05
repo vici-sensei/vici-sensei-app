@@ -138,13 +138,14 @@ export type VocabMeaningOutcome =
 
 /**
  * public.vocabulary.word isn't unique -- the same written word can have several
- * rows with different senses (including rows that are the same kanji spelling
- * read entirely differently, e.g. 中 as なか vs ちゅう), and
- * get_due_cards.all_word_meanings aggregates meanings across every row sharing
- * this row's word, regardless of reading. That's safe because the card's
- * furigana is hidden until reveal (see ReviewCardVocabMeaning) -- the student
- * has no way to know which reading is being tested, so a cross-reading guess
- * is a fair sibling answer, not a mistake. Typing one of those sibling
+ * rows with different senses. get_due_cards.all_word_meanings aggregates
+ * meanings across every row sharing this row's word *and* kana_reading (see
+ * 20261004_scope_vocab_meanings_by_reading_again.sql) -- not across every
+ * reading, since furigana is now always visible and tells the student which
+ * reading is being tested, so a cross-reading guess (中 read ちゅう instead of
+ * the なか being shown) is a real mistake. A same-reading sibling row is still
+ * a fair guess, since true homonyms exist (元/もと "origin" vs "former") where
+ * the reading never disambiguates the sense. Typing one of those sibling
  * meanings is a real, valid sense of the word, but not the one this card is
  * testing, so it's reported as "alternate" rather than accepted outright --
  * the caller should prompt for another meaning instead of ending the review. A

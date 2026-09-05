@@ -13,80 +13,80 @@ export const BADGE_IMAGES: Record<string, string> = {
   // TO DO - BADGE IMAGES
   // ===== Hiragana =====
   // Overall
-  hiragana_total_1: "matcha_tea.jfif", // First Hiragana
-  hiragana_total_5: "geisha.jfif", // 5 Hiragana
-  hiragana_total_10: "koi_fish.jfif", // 10 Hiragana
-  hiragana_total_20: "", // 20 Hiragana
-  hiragana_total_30: "", // 30 Hiragana
-  hiragana_total_40: "", // 40 Hiragana
-  hiragana_seion_all: "", // Basic Sounds Master (Hiragana)
+  hiragana_total_1: "yukata_fireworks.webp", // First Hiragana
+  hiragana_total_5: "asakusa.webp", // 5 Hiragana
+  hiragana_total_10: "bonsai.webp", // 10 Hiragana
+  hiragana_total_20: "buddha.webp", // 20 Hiragana
+  hiragana_total_30: "chouchin.webp", // 30 Hiragana
+  hiragana_total_40: "dango.webp", // 40 Hiragana
+  hiragana_seion_all: "daruma.webp", // Basic Sounds Master (Hiragana)
   // Ten-Ten
-  hiragana_dakuten_1: "", // First Ten-Ten (Hiragana)
-  hiragana_dakuten_5: "", // 5 Ten-Ten (Hiragana)
-  hiragana_dakuten_10: "", // 10 Ten-Ten (Hiragana)
-  hiragana_dakuten_all: "", // All Ten-Ten (Hiragana)
+  hiragana_dakuten_1: "dragon.webp", // First Ten-Ten (Hiragana)
+  hiragana_dakuten_5: "ema.webp", // 5 Ten-Ten (Hiragana)
+  hiragana_dakuten_10: "fujin.webp", // 10 Ten-Ten (Hiragana)
+  hiragana_dakuten_all: "geisha.webp", // All Ten-Ten (Hiragana)
   // Maru
-  hiragana_handakuten_1: "", // First Maru (Hiragana)
-  hiragana_handakuten_all: "", // All Maru (Hiragana)
+  hiragana_handakuten_1: "Inari.webp", // First Maru (Hiragana)
+  hiragana_handakuten_all: "parashiyama.webp", // All Maru (Hiragana)
   // Combined Sounds
-  hiragana_yoon_1: "", // First Combined Sound (Hiragana)
-  hiragana_yoon_all: "", // All Combined Sounds (Hiragana)
+  hiragana_yoon_1: "karate.webp", // First Combined Sound (Hiragana)
+  hiragana_yoon_all: "karesansui.webp", // All Combined Sounds (Hiragana)
   // Double N Sound
-  hiragana_n_gemination_all: "", // Double N Sound (Hiragana)
-  hiragana_all: "", // All Hiragana
+  hiragana_n_gemination_all: "katana.webp", // Double N Sound (Hiragana)
+  hiragana_all: "kinkakuji.webp", // All Hiragana
 
   // ===== Katakana =====
   // Overall
-  katakana_total_1: "", // First Katakana
-  katakana_total_5: "", // 5 Katakana
-  katakana_total_10: "", // 10 Katakana
-  katakana_total_20: "", // 20 Katakana
-  katakana_total_30: "", // 30 Katakana
-  katakana_total_40: "", // 40 Katakana
-  katakana_seion_all: "", // Basic Sounds Master (Katakana)
+  katakana_total_1: "kitsune.webp", // First Katakana
+  katakana_total_5: "koi.webp", // 5 Katakana
+  katakana_total_10: "koinobori.webp", // 10 Katakana
+  katakana_total_20: "lanterns.webp", // 20 Katakana
+  katakana_total_30: "lotus.webp", // 30 Katakana
+  katakana_total_40: "maiko.webp", // 40 Katakana
+  katakana_seion_all: "maneki.webp", // Basic Sounds Master (Katakana)
   // Ten-Ten
-  katakana_dakuten_1: "", // First Ten-Ten (Katakana)
-  katakana_dakuten_5: "", // 5 Ten-Ten (Katakana)
-  katakana_dakuten_10: "", // 10 Ten-Ten (Katakana)
-  katakana_dakuten_all: "", // All Ten-Ten (Katakana)
+  katakana_dakuten_1: "mask.webp", // First Ten-Ten (Katakana)
+  katakana_dakuten_5: "matcha.webp", // 5 Ten-Ten (Katakana)
+  katakana_dakuten_10: "momiji.webp", // 10 Ten-Ten (Katakana)
+  katakana_dakuten_all: "ninja.webp", // All Ten-Ten (Katakana)
   // Maru
-  katakana_handakuten_1: "", // First Maru (Katakana)
-  katakana_handakuten_all: "", // All Maru (Katakana)
+  katakana_handakuten_1: "omikuji.webp", // First Maru (Katakana)
+  katakana_handakuten_all: "oni.webp", // All Maru (Katakana)
   // Combined Sounds
-  katakana_yoon_1: "", // First Combined Sound (Katakana)
-  katakana_yoon_all: "", // All Combined Sounds (Katakana)
+  katakana_yoon_1: "onigiri.webp", // First Combined Sound (Katakana)
+  katakana_yoon_all: "osaka.webp", // All Combined Sounds (Katakana)
   // Double Consonants
-  katakana_sokuon_1: "", // First Double Consonant
-  katakana_sokuon_all: "", // All Double Consonants
+  katakana_sokuon_1: "pagoda.webp", // First Double Consonant
+  katakana_sokuon_all: "ramen.webp", // All Double Consonants
   // Double N Sound
-  katakana_n_gemination_all: "", // Double N Sound (Katakana)
+  katakana_n_gemination_all: "sake.webp", // Double N Sound (Katakana)
   // Long Vowels
-  katakana_choonpu_1: "", // First Long Vowel
-  katakana_choonpu_all: "", // All Long Vowels
+  katakana_choonpu_1: "sakura.webp", // First Long Vowel
+  katakana_choonpu_all: "samurai.webp", // All Long Vowels
   // Foreign Sound Combos
-  katakana_extended_1: "", // First Foreign Sound Combo
-  katakana_extended_5: "", // 5 Foreign Sound Combos
-  katakana_extended_all: "", // All Foreign Sound Combos
-  katakana_all: "", // All Katakana
+  katakana_extended_1: "sensu.webp", // First Foreign Sound Combo
+  katakana_extended_5: "skytree.webp", // 5 Foreign Sound Combos
+  katakana_extended_all: "sushi.webp", // All Foreign Sound Combos
+  katakana_all: "tanabata.webp", // All Katakana
 
   // ===== Kana =====
-  kana_all: "", // All Kana
+  kana_all: "tanuki.webp", // All Kana
 
   // ===== Reading Tests =====
   // Hiragana
-  hiragana_test: "", // Hiragana Reading Test
-  hiragana_test_100: "", // Hiragana Reading Test — Perfect Score
+  hiragana_test: "tengu.webp", // Hiragana Reading Test
+  hiragana_test_100: "tsuru.webp", // Hiragana Reading Test — Perfect Score
   // Katakana
-  katakana_test: "", // Katakana Reading Test
-  katakana_test_100: "", // Katakana Reading Test — Perfect Score
+  katakana_test: "wagashi.webp", // Katakana Reading Test
+  katakana_test_100: "kappa.webp", // Katakana Reading Test — Perfect Score
 
   // ===== Kanji =====
   // N5
-  kanji_total_1: "", // First Kanji
-  kanji_total_5: "", // 5 Kanji
-  kanji_total_10: "", // 10 Kanji
-  kanji_total_50: "", // 50 Kanji
-  kanji_n5_all: "", // All N5 Kanji
+  kanji_total_1: "shamisen.webp", // First Kanji
+  kanji_total_5: "koto.webp", // 5 Kanji
+  kanji_total_10: "taiko.webp", // 10 Kanji
+  kanji_total_50: "yumi.webp", // 50 Kanji
+  kanji_n5_all: "nara.webp", // All N5 Kanji
   // N4
   kanji_n4_1: "", // First N4 Kanji
   kanji_total_100: "", // 100 Kanji

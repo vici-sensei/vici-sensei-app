@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCountries } from "@/lib/client-data/countries";
 import { guessCountryFromTimezone } from "@/lib/timezoneCountry";
 import { guessServerRegion, type ServerRegion } from "@/lib/serverRegion";
 import { JLPT_LEVELS, mostAdvancedLevel, type JlptLevel } from "@/lib/srs/constants";
@@ -113,6 +114,10 @@ export default function OnboardingPage() {
   const { user } = useAuth();
   const { data: profile, status: profileStatus } = useUserProfile(user);
   const { data: studySettings, status: studySettingsStatus } = useStudySettings(user);
+  // Shares CountrySelect's own fetch (module-level cache) instead of triggering a second one --
+  // needed here so "Next" can stay disabled until the list has actually loaded (see canAdvance
+  // below), since `country` alone can already be truthy from the timezone guess before that.
+  const { status: countriesStatus } = useCountries();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -336,7 +341,10 @@ export default function OnboardingPage() {
     // The informational StepLevel variant (knowsKana === false) has nothing to pick --
     // its level is already fixed to N5, not chosen.
     (step !== "level" || knowsKana === false || Boolean(level)) &&
-    (step !== "country" || Boolean(country)) &&
+    // Also requires the real list to have loaded -- `country` alone can already be truthy from
+    // the timezone guess (StepCountry.tsx) while offline, before the user has ever seen or
+    // confirmed an actual option in the (still empty/errored) dropdown.
+    (step !== "country" || (Boolean(country) && countriesStatus === "loaded")) &&
     (step !== "profile" || (nameStatus !== "saving" && !avatarSaving)) &&
     (step !== "leaderboard" || anonymous !== null);
 

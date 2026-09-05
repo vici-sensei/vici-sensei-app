@@ -77,7 +77,7 @@ export default function LoginPage() {
       </Suspense>
       <div className="relative w-full max-w-[460px]">
         <Logo size={112} className="mx-auto mb-[clamp(1.75rem,4dvh,4rem)]" />
-        <Badge className="mb-[clamp(0.75rem,2.5dvh,2.5rem)]">Spaced repetition, Anki style</Badge>
+        <Badge className="mb-[clamp(0.75rem,2.5dvh,2.5rem)]">Spaced repetition</Badge>
         <h1 className="mb-[clamp(0.5rem,1.5dvh,1.75rem)] text-[2.6rem] font-extrabold leading-tight tracking-[-0.8px]">
           Learn Japanese
           <br />

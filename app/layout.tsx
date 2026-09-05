@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
 import { ErrorLogging } from "@/app/components/ErrorLogging";
+import { OfflineOverlay } from "@/app/components/shell/OfflineOverlay";
 import { ToastProvider } from "@/app/components/ui/Toast";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import "./globals.css";
@@ -68,6 +69,7 @@ export default function RootLayout({
       <body translate="no" className="notranslate">
         <ServiceWorkerRegistration />
         <ErrorLogging />
+        <OfflineOverlay />
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
         </AuthProvider>

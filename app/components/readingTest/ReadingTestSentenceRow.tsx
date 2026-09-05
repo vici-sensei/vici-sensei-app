@@ -99,6 +99,7 @@ export function ReadingTestSentenceRow({ sentence, kanaRomajiMap, userId, testTy
             placeholder="Type the reading…"
             autoComplete="off"
             autoCorrect="off"
+            autoCapitalize="off"
             spellCheck={false}
             className={`flex-1 select-none no-touch-callout rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors ${ACCENT_FOCUS_BORDER_CLASSES.violet}`}
           />

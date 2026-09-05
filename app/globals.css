@@ -177,6 +177,20 @@ input:disabled ~ span {
   }
 }
 
+/* Full-screen offline overlay (OfflineOverlay.tsx) -- slow opacity/scale breathing, calm rather
+   than alarming since this can sit on screen for as long as the connection stays down. */
+@keyframes vici-wifi-breath {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.58;
+    transform: scale(1.045);
+  }
+}
+
 @keyframes vici-float-fade {
   0% {
     opacity: 0;

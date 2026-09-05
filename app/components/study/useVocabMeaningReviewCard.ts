@@ -7,10 +7,7 @@ import { useAlternateReviewCard } from "@/app/components/study/useAlternateRevie
  * meaning of a homograph word (same word, any reading, different row) without
  * ending the review -- the student gets credit for it, but is then asked for
  * another meaning instead of moving on. This spans different readings, not just
- * different rows of the same reading, because furigana is hidden until reveal
- * (see ReviewCardVocabMeaning) -- the student has no way to tell which reading
- * is being tested, so a cross-reading guess is a fair alternate, not a mistake.
- * See checkVocabMeaningAnswer.
+ * different rows of the same reading. See checkVocabMeaningAnswer.
  */
 export function useVocabMeaningReviewCard(
   card: DueCard,

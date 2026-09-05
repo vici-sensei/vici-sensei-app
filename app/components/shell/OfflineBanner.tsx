@@ -1,26 +1,9 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
-function subscribe(onChange: () => void) {
-  window.addEventListener("online", onChange);
-  window.addEventListener("offline", onChange);
-  return () => {
-    window.removeEventListener("online", onChange);
-    window.removeEventListener("offline", onChange);
-  };
-}
-
-function getSnapshot() {
-  return navigator.onLine;
-}
-
-function getServerSnapshot() {
-  return true;
-}
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 export function OfflineBanner() {
-  const online = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const online = useOnlineStatus();
 
   if (online) return null;
 

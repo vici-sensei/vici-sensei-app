@@ -384,12 +384,6 @@ export interface ReviewRequestBody {
    * client's own session id instead of having submit_review guess it from timing (see
    * supabase/migrations/20260821_submit_review_explicit_session_id.sql). */
   session_id?: number;
-  /** Links this review's review_logs row back to the review that surfaced it -- set only when
-   * this call is rating a sibling meaning/reading the student confirmed while answering a
-   * different card (see resolveConfirmedSiblings in lib/data/reviews.ts and
-   * ReviewCardRateSibling). Lets undo_review cascade: undoing the original review also undoes
-   * whichever sibling review(s) it triggered. Ignored (left null) for an ordinary review. */
-  triggered_by_review_log_id?: number;
 }
 
 export interface SubmitReviewResult {

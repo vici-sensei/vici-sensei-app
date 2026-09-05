@@ -21,16 +21,21 @@ export type QueueItem =
        * reviewKey(card) throughout, since that's what dedup/pool-membership checks compare
        * against. Falls back to `key` when unset. */
       renderKey?: string;
-      /** Set only when this card is a sibling word/reading resolved after a "Vocabulary"/"Word
-       * reading" review confirmed it along the way (see resolveConfirmedSiblings in
-       * lib/data/reviews.ts) -- already known correct, so it renders via ReviewCardRateSibling
-       * (straight to the rating step, no typing) instead of the normal typed review card. Its own
-       * review gets linked back to the review that surfaced it via
-       * review_logs.triggered_by_review_log_id (see useStudyQueue's rateSibling). */
-      triggeredByReviewLogId?: number;
     }
   | { key: string; kind: "new_kanji"; candidate: NewKanjiCandidate }
-  | { key: string; kind: "new_vocab"; candidate: NewVocabCandidate }
+  | {
+      key: string;
+      kind: "new_vocab";
+      candidate: NewVocabCandidate;
+      /** Which interleaved vocab group (see interleaveNewMaterial in useStudyQueue.ts) this
+       * candidate belongs to -- the id of the new-kanji candidate its group is queued right
+       * after, or null when there's no kanji to interleave with (kanji disabled/exhausted, or
+       * this is the trailing overflow group past the last kanji). introduceVocab compares this
+       * instead of scanning the whole queue, so "last tap in THIS group" no longer means "last
+       * new_vocab anywhere today" now that groups are interleaved with kanji instead of appended
+       * as one flat end-of-day block. */
+      batchKanjiId: number | null;
+    }
   | { key: string; kind: "new_hiragana"; candidate: NewHiraganaCandidate }
   | { key: string; kind: "new_katakana"; candidate: NewKatakanaCandidate }
   | { key: string; kind: "new_hiragana_rule"; candidate: NewHiraganaRuleCandidate }

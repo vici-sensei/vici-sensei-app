@@ -19,7 +19,6 @@ import {
   introduceKatakana as introduceKatakanaApi,
   introduceHiraganaRule as introduceHiraganaRuleApi,
   introduceKatakanaRule as introduceKatakanaRuleApi,
-  resolveConfirmedSiblings as resolveConfirmedSiblingsApi,
   startSession as startStudySessionApi,
   submitHiraganaDrillResult as submitHiraganaDrillResultApi,
   submitKatakanaDrillResult as submitKatakanaDrillResultApi,
@@ -38,10 +37,13 @@ import type {
   DueCard,
   JlptLevelUpResult,
   KanaGraduationKind,
+  NewKanjiCandidate,
   NewKanjiIntroWord,
+  NewVocabCandidate,
   Rating,
   ReviewRequestBody,
   StudyQueueResponse,
+  StudySettings,
 } from "@/lib/types";
 import {
   newKanjiKey,
@@ -73,15 +75,71 @@ function sortItemsBySortOrder(items: { sortOrder: number; item: QueueItem }[]): 
   return [...items].sort((a, b) => a.sortOrder - b.sortOrder).map((i) => i.item);
 }
 
-function buildQueue(data: StudyQueueResponse): QueueItem[] {
+// The fixed size of each interleaved vocab group -- see interleaveNewMaterial below. Always the
+// user's real new_vocab_per_day:new_kanji_per_day ratio (today always 6, locked in both
+// directions by sync_new_vocab_per_day_trigger) rather than a hardcoded constant, so this keeps
+// working if that ratio is ever changed at the DB level. 0 means "don't interleave" -- kanji is
+// disabled (new_kanji_per_day = 0), or, defensively, a non-finite ratio -- interleaveNewMaterial
+// falls back to a single trailing group in either case, same as before this existed.
+function vocabGroupSize(settings: StudySettings): number {
+  if (settings.new_kanji_per_day <= 0) return 0;
+  const ratio = Math.round(settings.new_vocab_per_day / settings.new_kanji_per_day);
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : 0;
+}
+
+// Ties each vocab candidate to the new-kanji candidate its group is queued right behind, so a
+// standard-track student gets "1 kanji bundle, then its own N-word vocab group" repeated through
+// the day instead of every kanji first and all of the day's vocabulary only at the very end --
+// answering several brand-new kanji meanings/readings back to back, then a whole day's worth of
+// brand-new words, is too much unfamiliar material in one uninterrupted stretch. groupSize is
+// fixed rather than recomputed from however many candidates are actually left: if the curriculum
+// runs low, the LAST group is simply smaller, instead of spreading the shortfall evenly across
+// every group and making all of them uneven.
+//
+// Deliberately keyed by the preceding kanji candidate's own (immutable) id instead of a plain
+// positional index: a mid-session settings change that unlocks brand-new candidates recomputes
+// this from a shrunken candidate list (already-introduced kanji/words no longer appear in it),
+// which would shift what a plain 0,1,2... counter means between calls -- a stable id can't
+// collide with a group computed from an earlier, larger fetch the way a reset-to-zero counter
+// could (see mergeKeepingCurrent's existingKeys dedup, which is what shields every already-queued
+// item from ever being reassigned a fresh one of these in the first place).
+function interleaveNewMaterial(
+  kanjiCandidates: NewKanjiCandidate[],
+  vocabCandidates: NewVocabCandidate[],
+  groupSize: number
+): QueueItem[] {
+  const items: QueueItem[] = [];
+  let vocabIndex = 0;
+
+  const pushVocabGroup = (count: number, batchKanjiId: number | null) => {
+    for (const candidate of vocabCandidates.slice(vocabIndex, vocabIndex + count)) {
+      items.push({ key: newVocabKey(candidate.id), kind: "new_vocab", candidate, batchKanjiId });
+    }
+    vocabIndex += count;
+  };
+
+  if (kanjiCandidates.length === 0 || groupSize <= 0) {
+    // Nothing to interleave with (kanji disabled/exhausted, or vocab isn't rationed per kanji at
+    // all) -- every candidate lands in one trailing group, same as before this change existed.
+    pushVocabGroup(vocabCandidates.length, null);
+    return items;
+  }
+
+  for (const candidate of kanjiCandidates) {
+    items.push({ key: newKanjiKey(candidate.id), kind: "new_kanji", candidate });
+    pushVocabGroup(groupSize, candidate.id);
+  }
+  // Vocab left over once every kanji candidate has claimed its own group -- e.g. the kanji side
+  // of the curriculum ran out for the day/level before the vocab side did. Nothing left to
+  // interleave with, so it's one trailing group, same as the no-kanji branch above.
+  pushVocabGroup(vocabCandidates.length - vocabIndex, null);
+  return items;
+}
+
+function buildQueue(data: StudyQueueResponse, groupSize: number): QueueItem[] {
   const items: QueueItem[] = [];
   for (const card of data.due_cards) items.push({ key: reviewKey(card), kind: "review", card });
-  for (const candidate of data.new_kanji_to_introduce) {
-    items.push({ key: newKanjiKey(candidate.id), kind: "new_kanji", candidate });
-  }
-  for (const candidate of data.new_vocab_to_introduce) {
-    items.push({ key: newVocabKey(candidate.id), kind: "new_vocab", candidate });
-  }
+  items.push(...interleaveNewMaterial(data.new_kanji_to_introduce, data.new_vocab_to_introduce, groupSize));
 
   const hiraganaEntries: { sortOrder: number; item: QueueItem }[] = [
     ...data.new_hiragana_to_introduce.map((candidate) => ({
@@ -136,9 +194,10 @@ function shuffle<T>(items: T[]): T[] {
 // Reviews are shuffled together -- so hiragana_reading and katakana_reading (and, on the
 // standard track, kanji/vocab reviews) interleave instead of clumping by category. New
 // material keeps the order the DB already returns it in (sort_order/id) instead of being
-// shuffled, and stays grouped one category block at a time in the order buildQueue appended
-// them (new_kanji, new_vocab, new_hiragana, new_katakana) -- e.g. all New hiragana before any
-// New katakana, each internally in gojuon order.
+// shuffled, and stays grouped the way buildQueue/interleaveNewMaterial assembled it -- kanji and
+// vocab alternate one kanji bundle with its own vocab group at a time instead of every kanji
+// candidate before any vocab candidate, then hiragana and katakana each form their own trailing
+// block (e.g. all New hiragana before any New katakana, each internally in gojuon order).
 function reviewsFirst(items: QueueItem[]): QueueItem[] {
   const reviews = shuffle(items.filter((i) => i.kind === "review"));
   const newCards = items.filter((i) => i.kind !== "review");
@@ -176,6 +235,20 @@ function newKanaPackKey(item: QueueItem): string | null {
 // a pack's reading drill actually starts, its cards are drawn straight from
 // hiragana/katakanaDrillPoolRef (see submitDrillAnswer), never through this merge at all, so
 // they're never at risk of being reordered behind a newly-discovered review either.
+//
+// Same exception, mirrored for a new_vocab tap: if `current` is itself one of an interleaved
+// group's "New vocabulary" taps (see interleaveNewMaterial), its own not-yet-tapped siblings
+// (matched by batchKanjiId, restSameVocabGroup) are kept directly behind it too. Without this, a
+// review becoming due mid-group would splice in between two of the group's taps, or right after
+// the group's own kanji bundle finishes and before its first tap -- breaking the "this kanji's
+// bundle, then its own vocab taps, then their batch reveal, nothing else in between" guarantee
+// interleaveNewMaterial was built for. Once the group's own vocab_meaning batch is actually
+// revealed (completeVocabBatch), those review cards are protected by introBundleKey's
+// VOCAB_BATCH_KEY instead (see groupIntroBundles) -- this only needs to cover the stretch
+// introBundleKey can't see, since a new_vocab tap isn't a review and has no status to key off. The
+// kanji bundle's own review cards need no equivalent handling here: by the time this merge can
+// ever run with one of them as `current`, groupIntroBundles' own kanji-id grouping (introBundleKey)
+// already keeps its remaining siblings pinned right behind it, same as always.
 function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueItem[] {
   if (prev.length === 0) return reviewsFirst(additions);
   const [current, ...rest] = prev;
@@ -183,10 +256,14 @@ function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueIt
   const restReviews = rest.filter((i) => i.kind === "review");
   const restNew = rest.filter((i) => i.kind !== "review");
   const restSamePack = currentPackKey == null ? [] : restNew.filter((i) => newKanaPackKey(i) === currentPackKey);
-  const restOtherNew = currentPackKey == null ? restNew : restNew.filter((i) => newKanaPackKey(i) !== currentPackKey);
+  const restSameVocabGroup =
+    current.kind === "new_vocab"
+      ? restNew.filter((i) => i.kind === "new_vocab" && i.batchKanjiId === current.batchKanjiId)
+      : [];
+  const restOtherNew = restNew.filter((i) => !restSamePack.includes(i) && !restSameVocabGroup.includes(i));
   const addReviews = shuffle(additions.filter((i) => i.kind === "review"));
   const addNew = additions.filter((i) => i.kind !== "review");
-  return [current, ...restReviews, ...restSamePack, ...addReviews, ...restOtherNew, ...addNew];
+  return [current, ...restReviews, ...restSamePack, ...restSameVocabGroup, ...addReviews, ...restOtherNew, ...addNew];
 }
 
 // A hiragana_reading/katakana_reading card still in the post-introduction drill (card.drill_mode
@@ -429,17 +506,11 @@ function groupIntroBundles(items: QueueItem[], hasFixedCurrent = true): QueueIte
   return [...head, ...bundles, ...others];
 }
 
-function reviewBody(
-  card: DueCard,
-  rating: Rating,
-  sessionId: number | undefined,
-  triggeredByReviewLogId: number | undefined
-): ReviewRequestBody {
+function reviewBody(card: DueCard, rating: Rating, sessionId: number | undefined): ReviewRequestBody {
   const body: ReviewRequestBody = {
     exercise_type: card.exercise_type,
     rating,
     session_id: sessionId,
-    triggered_by_review_log_id: triggeredByReviewLogId,
   };
   if (card.exercise_type === "kanji_meaning") body.kanji_id = card.kanji_id ?? undefined;
   else if (card.exercise_type === "kanji_reading") body.kanji_word_id = card.kanji_word_id ?? undefined;
@@ -632,7 +703,7 @@ export function useStudyQueue() {
       const data = await getStudyQueue(user.id, settings, (wordsByKanjiId) => {
         setQueue((prev) => patchKanjiWords(prev, wordsByKanjiId));
       });
-      const incoming = buildQueue(data);
+      const incoming = buildQueue(data, vocabGroupSize(settings));
       setNextDueAt(data.next_due_at);
       setNextDueStatus(data.next_due_status);
       setPredictedTotal((t) => Math.max(t, adjustedPredictedTotal(data, attemptedKeysRef.current)));
@@ -751,7 +822,7 @@ export function useStudyQueue() {
           setQueue((prev) => patchKanjiWords(prev, wordsByKanjiId));
         });
         if (cancelledRef.current) return;
-        const items = reviewsFirst(buildQueue(data));
+        const items = reviewsFirst(buildQueue(data, vocabGroupSize(settings)));
         setNextDueAt(data.next_due_at);
         setNextDueStatus(data.next_due_status);
         setUndoDisabled(data.undo_disabled);
@@ -1066,7 +1137,7 @@ export function useStudyQueue() {
   const dismissKanaGraduation = useCallback(() => setKanaGraduationResult(null), []);
 
   const rate = useCallback(
-    (card: DueCard, rating: Rating, confirmedSiblingMeanings?: string[]) => {
+    (card: DueCard, rating: Rating) => {
       // hiragana_reading/katakana_reading cards still in the post-introduction drill
       // (card.drill_mode -- server-computed, see its doc comment in lib/types/study.ts) never go
       // through the normal rating flow below -- see submitDrillAnswer. rating is repurposed as a
@@ -1097,28 +1168,11 @@ export function useStudyQueue() {
       // due_at arrives while the session is still open. A failed submit undoes this below, same
       // as it undoes completedCount.
       attemptedKeysRef.current.add(key);
-
-      // A card with confirmed sibling meanings/readings holds the queue instead of advancing
-      // optimistically: resolving which sibling(s) they map to is its own async round trip after
-      // submit_review, and if the queue had already moved on by the time that lands, the sibling's
-      // rating step would cut in front of whatever the student is looking at by then -- possibly
-      // interrupting an in-progress answer on an unrelated card. Held here (via pendingCardKey,
-      // same "disable, wait for the server, then swap" pattern introduceKanji/introduceKanaCard
-      // use) means the very next thing shown after this card is always either the sibling's rating
-      // step or, if none resolved, whatever was already next -- never something in between getting
-      // bumped mid-answer. Every other card (no confirmed siblings) keeps the old optimistic
-      // instant-advance -- there's nothing to wait for.
-      const holdForSiblings =
-        !!confirmedSiblingMeanings &&
-        confirmedSiblingMeanings.length > 0 &&
-        (card.exercise_type === "vocab_meaning" || card.exercise_type === "kanji_reading");
-
-      if (holdForSiblings) setPendingCardKey(key);
-      else setQueue((prev) => prev.filter((i) => i.key !== key));
+      setQueue((prev) => prev.filter((i) => i.key !== key));
 
       enqueueMutation(async () => {
         try {
-          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating, sessionIdRef.current ?? undefined, undefined));
+          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating, sessionIdRef.current ?? undefined));
           lastReviewLogIdRef.current = reviewLogId;
           // A wrong answer can schedule this card to resurface later in the same session
           // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown) picks
@@ -1128,42 +1182,7 @@ export function useStudyQueue() {
           void refreshQueue();
           checkLevelUp(card.exercise_type);
           checkKanaGraduation(card.exercise_type);
-
-          if (!holdForSiblings) return;
-
-          // A confirmed sibling meaning/reading doesn't get its rating guessed for it (no forced
-          // "Good") -- look up which real sibling card(s) it actually resolves to (server-
-          // verified, see resolve_confirmed_siblings) and let the student rate each one for real,
-          // right after this card, on the same shell (ReviewCardRateSibling). A failed lookup just
-          // means no bonus rating step this time -- nothing already submitted above is affected --
-          // so it falls through to the plain "advance past this card" case either way.
-          const siblings = await resolveConfirmedSiblingsApi({
-            exerciseType: card.exercise_type as "vocab_meaning" | "kanji_reading",
-            kanjiId: card.kanji_id ?? undefined,
-            wordId: card.word_id ?? undefined,
-            kanjiWordId: card.kanji_word_id ?? undefined,
-            confirmedTexts: confirmedSiblingMeanings!,
-          }).catch(() => [] as DueCard[]);
-
-          setPendingCardKey(null);
-          const fresh = siblings.filter((s) => !attemptedKeysRef.current.has(reviewKey(s)));
-          setQueue((prev) => {
-            const withoutOriginal = prev.filter((i) => i.key !== key);
-            if (fresh.length === 0) return withoutOriginal;
-            const freshKeys = new Set(fresh.map((s) => reviewKey(s)));
-            const withoutDupes = withoutOriginal.filter((i) => !freshKeys.has(i.key));
-            return [
-              ...fresh.map((sibling) => ({
-                key: reviewKey(sibling),
-                kind: "review" as const,
-                card: sibling,
-                triggeredByReviewLogId: reviewLogId,
-              })),
-              ...withoutDupes,
-            ];
-          });
         } catch (err) {
-          if (holdForSiblings) setPendingCardKey(null);
           setCompletedCount((c) => Math.max(0, c - 1));
           attemptedKeysRef.current.delete(key);
           setLastReview((prev) => (prev?.card === card ? null : prev));
@@ -1174,14 +1193,7 @@ export function useStudyQueue() {
           // can never end if it was the last card left. Anything else (network blip, 500) is
           // presumed transient and worth retrying.
           const isStale = err instanceof ApiError && (err.status === 400 || err.status === 404);
-          if (holdForSiblings) {
-            // Never left `queue` in the first place (only pendingCardKey held it) -- a stale
-            // card is dropped same as the non-held path; anything else just un-disables it,
-            // already sitting exactly where it was, ready to retry.
-            if (isStale) setQueue((prev) => prev.filter((i) => i.key !== key));
-          } else if (!isStale) {
-            setQueue((prev) => [{ key, kind: "review", card }, ...prev]);
-          }
+          if (!isStale) setQueue((prev) => [{ key, kind: "review", card }, ...prev]);
           showToast(
             isStale
               ? "This card changed elsewhere and was skipped."
@@ -1194,51 +1206,6 @@ export function useStudyQueue() {
       });
     },
     [enqueueMutation, showToast, refreshQueue, submitDrillAnswer, checkLevelUp, checkKanaGraduation]
-  );
-
-  // Rates a sibling card resolved by rate()'s own confirmedSiblingMeanings lookup (see
-  // ReviewCardRateSibling) -- already known correct, so this is just the rating step, submitted
-  // as that sibling's own real review, linked back via triggered_by_review_log_id so undo_review
-  // cascades correctly. Mirrors rate()'s own bookkeeping (completedCount, attemptedKeysRef,
-  // lastReview/lastReviewLogIdRef for Undo, level-up/kana-graduation checks) so a sibling rating
-  // behaves the same as any other completed review for the rest of the session.
-  const rateSibling = useCallback(
-    (item: QueueItem & { kind: "review" }, rating: Rating) => {
-      const card = item.card;
-      hasProcessedAnyRef.current = true;
-      lastReviewLogIdRef.current = null;
-      setLastReview({ card });
-      setCompletedCount((c) => c + 1);
-      setQueue((prev) => prev.filter((i) => i.key !== item.key));
-      attemptedKeysRef.current.add(item.key);
-
-      enqueueMutation(async () => {
-        try {
-          const { reviewLogId } = await submitReviewApi(
-            reviewBody(card, rating, sessionIdRef.current ?? undefined, item.triggeredByReviewLogId)
-          );
-          lastReviewLogIdRef.current = reviewLogId;
-          void refreshQueue();
-          checkLevelUp(card.exercise_type);
-          checkKanaGraduation(card.exercise_type);
-        } catch (err) {
-          setCompletedCount((c) => Math.max(0, c - 1));
-          attemptedKeysRef.current.delete(item.key);
-          setLastReview((prev) => (prev?.card === card ? null : prev));
-          const isStale = err instanceof ApiError && (err.status === 400 || err.status === 404);
-          if (!isStale) setQueue((prev) => [item, ...prev]);
-          showToast(
-            isStale
-              ? "This card changed elsewhere and was skipped."
-              : err instanceof ApiError
-                ? err.message
-                : "Could not submit your answer. Please try again.",
-            "error"
-          );
-        }
-      });
-    },
-    [enqueueMutation, showToast, refreshQueue, checkLevelUp, checkKanaGraduation]
   );
 
   const introduceCard = useCallback(
@@ -1436,20 +1403,26 @@ export function useStudyQueue() {
   );
 
   // introduce_vocabulary handles new_vocab specially only for the LAST "New vocabulary" card
-  // still in the queue -- every earlier tap uses the plain introduceCard path above (optimistic
-  // removal, no special handling), same as this used to behave for every tap before batching.
-  // Once no other new_vocab candidate remains in the queue, this tap is the one that completes
-  // today's whole batch: introduce_vocabulary itself only ever marks the new row pending_batch
-  // (never touches due_at in a way that would surface it early -- see
-  // 20260830_vocab_batch_pending_flag.sql), so this call separately fires completeVocabBatch
+  // still in the queue FROM THIS ITEM'S OWN INTERLEAVED GROUP (batchKanjiId -- see
+  // interleaveNewMaterial) -- every earlier tap in the group uses the plain introduceCard path
+  // above (optimistic removal, no special handling), same as this used to behave for every tap
+  // before batching. Once no other new_vocab candidate sharing this batchKanjiId remains in the
+  // queue, this tap is the one that completes ITS group: introduce_vocabulary itself only ever
+  // marks the new row pending_batch (never touches due_at in a way that would surface it early --
+  // see 20260830_vocab_batch_pending_flag.sql), so this call separately fires completeVocabBatch
   // right after, which atomically releases every still-pending row for this user and hands them
-  // back -- so, like introduceKanji/introduceKanaCard's finishPack, this is held on screen
-  // (button disabled via pendingCardKey) until that fetch actually resolves, then the swap from
-  // the last "New vocabulary" card to the whole shuffled "Vocabulary" batch happens as one
-  // atomic setQueue call.
+  // back. That's safe per-group (not just once a day) precisely because groups are answered in
+  // queue order: by the time a group's last word is tapped, no later group has been introduced
+  // yet, so "every still-pending row" only ever means this group's own words -- so, like
+  // introduceKanji/introduceKanaCard's finishPack, this is held on screen (button disabled via
+  // pendingCardKey) until that fetch actually resolves, then the swap from the last "New
+  // vocabulary" card to that group's whole shuffled "Vocabulary" batch happens as one atomic
+  // setQueue call.
   const introduceVocab = useCallback(
     (item: QueueItem & { kind: "new_vocab" }) => {
-      const isLastInBatch = !queue.some((i) => i.key !== item.key && i.kind === "new_vocab");
+      const isLastInBatch = !queue.some(
+        (i) => i.key !== item.key && i.kind === "new_vocab" && i.batchKanjiId === item.batchKanjiId
+      );
       if (!isLastInBatch) {
         introduceCard(item, introduceVocabularyApi, "word");
         return;
@@ -1596,7 +1569,6 @@ export function useStudyQueue() {
     undoDisabled,
     actions: {
       rate,
-      rateSibling,
       introduceKanji,
       introduceVocab,
       introduceHiragana,
