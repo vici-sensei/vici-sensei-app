@@ -24,7 +24,7 @@ import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
 
 const REVIEWS_STEP = 10;
 const KANA_STEP = 5;
-const KANA_MIN = 15;
+const KANA_MIN = 5;
 const AUTOSAVE_DELAY_MS = 500;
 
 type Snapshot = {
