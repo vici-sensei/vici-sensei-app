@@ -8,7 +8,6 @@ export interface VocabularyRow {
   jlpt_level: string | null;
   is_common_jisho: boolean | null;
   usually_kana: boolean | null;
-  frequency: string | null;
   romaji_reading: string | null;
   furiganas: string[] | null;
   romaji_furiganas: string[] | null;
