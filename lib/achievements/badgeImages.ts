@@ -27,7 +27,7 @@ export const BADGE_IMAGES: Record<string, string> = {
   hiragana_dakuten_all: "geisha.webp", // All Ten-Ten (Hiragana)
   // Maru
   hiragana_handakuten_1: "Inari.webp", // First Maru (Hiragana)
-  hiragana_handakuten_all: "parashiyama.webp", // All Maru (Hiragana)
+  hiragana_handakuten_all: "arashiyama.webp", // All Maru (Hiragana)
   // Combined Sounds
   hiragana_yoon_1: "karate.webp", // First Combined Sound (Hiragana)
   hiragana_yoon_all: "karesansui.webp", // All Combined Sounds (Hiragana)
