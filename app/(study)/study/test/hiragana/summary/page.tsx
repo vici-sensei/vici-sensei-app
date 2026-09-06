@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FaUnlock } from "react-icons/fa6";
 import { celebrate } from "@/lib/confetti";
@@ -10,6 +10,11 @@ import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+import { AchievementEarnedModal } from "@/app/components/study/AchievementEarnedModal";
+import {
+  hasCelebratedReadingTestAchievement,
+  markReadingTestAchievementCelebrated,
+} from "@/lib/study/readingTestAchievementCache";
 
 const TEST_TYPE = "hiragana";
 
@@ -57,6 +62,44 @@ function SummaryContent() {
       void celebrate();
     }
   }, [passed, justFinished]);
+
+  // '<test_type>_test' (any completed pass) and '<test_type>_test_100' (a perfect one) --
+  // reading_test_progress_updates_status (20260925_test_status_feeds_achievements.sql) awards
+  // these permanently the instant every sentence has a result, using the exact same
+  // user_reading_test_progress/test rows this page's own total/correct are derived from, so
+  // `answered >= total` and `passed` here can never disagree with what the DB actually awarded.
+  // There's no server-side "already shown" flag (see readingTestAchievementCache.ts's doc
+  // comment), so each key's own localStorage flag is what keeps this from re-queuing an
+  // already-celebrated achievement on every later revisit of this score screen.
+  const [achievementQueue, setAchievementQueue] = useState<string[]>([]);
+  const achievementsCheckedRef = useRef(false);
+  useEffect(() => {
+    if (achievementsCheckedRef.current || !sentences || !progress) return;
+    achievementsCheckedRef.current = true;
+    if (total === 0 || progress.size < total) return;
+
+    const newlyEarned: string[] = [];
+    const completeKey = `${TEST_TYPE}_test`;
+    if (!hasCelebratedReadingTestAchievement(user.id, completeKey)) {
+      markReadingTestAchievementCelebrated(user.id, completeKey);
+      newlyEarned.push(completeKey);
+    }
+    if (passed) {
+      const perfectKey = `${TEST_TYPE}_test_100`;
+      if (!hasCelebratedReadingTestAchievement(user.id, perfectKey)) {
+        markReadingTestAchievementCelebrated(user.id, perfectKey);
+        newlyEarned.push(perfectKey);
+      }
+    }
+    // The achievement-if-any was already permanently awarded server-side and just marked
+    // celebrated in localStorage above (both genuine external-system side effects, not derived
+    // state) -- letting the queue update alongside them here, in the same effect, is what keeps
+    // "marked celebrated" and "actually shown to the user" from ever drifting apart.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (newlyEarned.length > 0) setAchievementQueue(newlyEarned);
+  }, [sentences, progress, total, passed, user.id]);
+
+  const dismissAchievement = useCallback(() => setAchievementQueue((prev) => prev.slice(1)), []);
 
   const handleRetry = async () => {
     setRetrying(true);
@@ -138,6 +181,7 @@ function SummaryContent() {
           </div>
         )}
       </div>
+      {achievementQueue[0] && <AchievementEarnedModal achievementKey={achievementQueue[0]} onClose={dismissAchievement} />}
     </div>
   );
 }

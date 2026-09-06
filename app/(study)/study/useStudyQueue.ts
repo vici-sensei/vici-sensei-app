@@ -605,6 +605,14 @@ export function useStudyQueue() {
   // Same idea as levelUpResult, but for the kana track's two milestones (see checkKanaGraduation
   // below) -- StudyPage renders KanaGraduationModal whenever this is non-null.
   const [kanaGraduationResult, setKanaGraduationResult] = useState<KanaGraduationKind | null>(null);
+  // achievement_key(s) submit_review reported as newly awarded (see rate() below), oldest first.
+  // StudyPage renders AchievementEarnedModal for achievementQueue[0] whenever the array is
+  // non-empty, and ahead of levelUpResult/kanaGraduationResult -- see StudyPage's render order --
+  // so a review that happens to trigger both an achievement and a level-up/kana-graduation modal
+  // always celebrates the achievement(s) first, one at a time, before the other modal appears.
+  // dismissAchievement shifts the front off; levelUpResult/kanaGraduationResult are untouched by
+  // this queue, so they're already sitting there ready the moment it drains.
+  const [achievementQueue, setAchievementQueue] = useState<string[]>([]);
   // Key of the one card currently held on screen instead of being optimistically removed -- a
   // new_hiragana/new_katakana tap (see introduceKanaCard, held on every tap so the reading pack
   // can swap in atomically with no flash of the next pack's own card), a drill card (see
@@ -1136,6 +1144,8 @@ export function useStudyQueue() {
 
   const dismissKanaGraduation = useCallback(() => setKanaGraduationResult(null), []);
 
+  const dismissAchievement = useCallback(() => setAchievementQueue((prev) => prev.slice(1)), []);
+
   const rate = useCallback(
     (card: DueCard, rating: Rating) => {
       // hiragana_reading/katakana_reading cards still in the post-introduction drill
@@ -1172,7 +1182,9 @@ export function useStudyQueue() {
 
       enqueueMutation(async () => {
         try {
-          const { reviewLogId } = await submitReviewApi(reviewBody(card, rating, sessionIdRef.current ?? undefined));
+          const { reviewLogId, newAchievementKeys } = await submitReviewApi(
+            reviewBody(card, rating, sessionIdRef.current ?? undefined)
+          );
           lastReviewLogIdRef.current = reviewLogId;
           // A wrong answer can schedule this card to resurface later in the same session
           // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown) picks
@@ -1180,6 +1192,9 @@ export function useStudyQueue() {
           // above) keeps this same card from re-entering `queue`/totalKnown when that refetch
           // resolves -- refreshQueue only ever surfaces something else independently due.
           void refreshQueue();
+          if (newAchievementKeys.length > 0) {
+            setAchievementQueue((prev) => [...prev, ...newAchievementKeys]);
+          }
           checkLevelUp(card.exercise_type);
           checkKanaGraduation(card.exercise_type);
         } catch (err) {
@@ -1560,6 +1575,9 @@ export function useStudyQueue() {
     lastReview,
     levelUpResult,
     kanaGraduationResult,
+    // Head of achievementQueue -- see its declaration above for why StudyPage must render this
+    // ahead of levelUpResult/kanaGraduationResult.
+    currentAchievement: achievementQueue[0] ?? null,
     actionPending: undoPending,
     // True when `current` is a held card awaiting a result -- a new_hiragana/new_katakana or
     // new_kanji tap, or a drill card answered when the pool was empty (submitDrillAnswer). The
@@ -1578,6 +1596,7 @@ export function useStudyQueue() {
       undoLast,
       dismissLevelUp,
       dismissKanaGraduation,
+      dismissAchievement,
     },
   };
 }

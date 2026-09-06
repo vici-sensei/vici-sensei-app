@@ -16,6 +16,7 @@ import { NewKanaIntroCard } from "@/app/components/study/NewKanaIntroCard";
 import { NewKanaRuleIntroCard } from "@/app/components/study/NewKanaRuleIntroCard";
 import { JlptLevelUpModal } from "@/app/components/study/JlptLevelUpModal";
 import { KanaGraduationModal } from "@/app/components/study/KanaGraduationModal";
+import { AchievementEarnedModal } from "@/app/components/study/AchievementEarnedModal";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
@@ -66,6 +67,7 @@ export default function StudyPage() {
     lastReview,
     levelUpResult,
     kanaGraduationResult,
+    currentAchievement,
     actionPending,
     cardPending,
     undoDisabled,
@@ -220,8 +222,16 @@ export default function StudyPage() {
           onUndo={handleUndo}
         />
       </div>
-      {levelUpResult && <JlptLevelUpModal result={levelUpResult} onClose={actions.dismissLevelUp} />}
-      {kanaGraduationResult && <KanaGraduationModal kind={kanaGraduationResult} onClose={actions.dismissKanaGraduation} />}
+      {/* Achievement(s) always celebrate first, one at a time, ahead of a level-up/kana-graduation
+          modal the same review might have also triggered -- see currentAchievement's declaration
+          in useStudyQueue.ts. */}
+      {currentAchievement ? (
+        <AchievementEarnedModal achievementKey={currentAchievement} onClose={actions.dismissAchievement} />
+      ) : levelUpResult ? (
+        <JlptLevelUpModal result={levelUpResult} onClose={actions.dismissLevelUp} />
+      ) : kanaGraduationResult ? (
+        <KanaGraduationModal kind={kanaGraduationResult} onClose={actions.dismissKanaGraduation} />
+      ) : null}
     </div>
   );
 }
