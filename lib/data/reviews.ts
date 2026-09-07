@@ -32,12 +32,12 @@ export async function submitReview(supabase: AppSupabaseClient, userId: string, 
   }
 
   // submit_review now returns a one-row table (see 20260901_submit_review_resurfaces_today.sql,
-  // 20261015_submit_review_returns_new_achievements.sql) instead of a bare log id.
-  const row = (data as { review_log_id: number; resurfaces_today: boolean; new_achievement_keys: string[] | null }[])[0];
+  // extended by 20261016_submit_review_returns_new_achievements.sql) instead of a bare log id.
+  const row = (data as { review_log_id: number; resurfaces_today: boolean; newly_unlocked_achievements: string[] | null }[])[0];
   return {
     reviewLogId: row.review_log_id,
     resurfacesToday: row.resurfaces_today,
-    newAchievementKeys: row.new_achievement_keys ?? [],
+    newlyUnlockedAchievements: row.newly_unlocked_achievements ?? [],
   };
 }
 

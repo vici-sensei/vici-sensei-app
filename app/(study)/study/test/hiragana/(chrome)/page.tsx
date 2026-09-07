@@ -45,6 +45,11 @@ export default function HiraganaReadingTestPage() {
   );
   const [scrolledToFirst, setScrolledToFirst] = useState(false);
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
+  // Captured once, on this page's own mount -- passed to the summary page so it can look up
+  // "achievements earned since I started answering this round" without relying on the last
+  // markAnswered() call actually resolving before the redirect below fires (see handleCheck: it's
+  // fire-and-forget, and the redirect is driven by optimistic local state, not by that promise).
+  const attemptStartedAtRef = useRef(new Date().toISOString());
 
   // Distinguishes "just answered the last pending sentence this visit" (worth a trip through the
   // summary's celebration) from "was already fully done before this page even loaded" (a revisit
@@ -76,7 +81,10 @@ export default function HiraganaReadingTestPage() {
       router.replace("/dashboard");
       return;
     }
-    window.location.href = passed ? "/study/test/hiragana/summary?justFinished=1" : "/study/test/hiragana/summary";
+    const since = encodeURIComponent(attemptStartedAtRef.current);
+    window.location.href = passed
+      ? `/study/test/hiragana/summary?justFinished=1&since=${since}`
+      : `/study/test/hiragana/summary?since=${since}`;
   }, [pendingIds, sentences, passed, router]);
 
   // One-time scroll to the first pending sentence, so resuming after a refresh/exit doesn't

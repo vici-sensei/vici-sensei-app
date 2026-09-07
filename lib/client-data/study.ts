@@ -187,11 +187,13 @@ export async function getKatakanaReadingCards(katakanaIds: number[]): Promise<Du
 export async function submitHiraganaDrillResult(hiraganaId: number, correct: boolean): Promise<KanaDrillResult> {
   const supabase = createClient();
   const userId = await requireUserId();
-  return recordHiraganaDrillResult(supabase, userId, hiraganaId, correct);
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return recordHiraganaDrillResult(supabase, userId, hiraganaId, correct, timezone);
 }
 
 export async function submitKatakanaDrillResult(katakanaId: number, correct: boolean): Promise<KanaDrillResult> {
   const supabase = createClient();
   const userId = await requireUserId();
-  return recordKatakanaDrillResult(supabase, userId, katakanaId, correct);
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return recordKatakanaDrillResult(supabase, userId, katakanaId, correct, timezone);
 }

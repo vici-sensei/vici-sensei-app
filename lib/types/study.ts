@@ -395,12 +395,12 @@ export interface SubmitReviewResult {
    * 20260901_submit_review_resurfaces_today.sql. useStudyQueue's rate() uses this to grow the
    * predicted daily total by the one extra attempt this card now needs later today. */
   resurfacesToday: boolean;
-  /** achievement_key(s) newly awarded by this exact review, in no particular order -- usually
-   * empty. Computed server-side from a before/after snapshot of user_achievements taken around
-   * the same update statement that runs the achievement triggers (see
-   * 20261015_submit_review_returns_new_achievements.sql), so this can never miss or double-report
-   * one. useStudyQueue's rate() enqueues these for AchievementEarnedModal. */
-  newAchievementKeys: string[];
+  /** Achievement keys (lib/achievements/registry.tsx) newly earned by this rating, if any --
+   * empty unless this review crossed a mastery threshold. See
+   * 20261016_submit_review_returns_new_achievements.sql (supersedes the identically-shaped but
+   * differently-named new_achievement_keys column from 20261015 -- see that migration's own doc
+   * comment for why). */
+  newlyUnlockedAchievements: string[];
 }
 
 export interface StudySessionStart {

@@ -135,7 +135,7 @@ export function DashboardHero() {
           <p className="mt-2.5 text-sm text-text-muted">Couldn&apos;t refresh your stats — try reloading the page.</p>
         )}
       </div>
-      <div className="flex flex-col items-center gap-3 sm:items-end">
+      <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:items-end">
         <StartStudyButton disabled={allDone} />
         {showHiraganaReadingTestCta && (
           <Link

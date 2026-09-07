@@ -231,7 +231,7 @@ export function BadgesSection({ userId }: { userId: string }) {
         </div>
       </div>
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(4rem,1fr))] gap-3">
           {gridEntries.map(({ entry, earned }) => (
             <div key={entry.achievementKey} className="relative flex items-center justify-center">
               <GridBadgeIcon entry={entry} earned={earned} />

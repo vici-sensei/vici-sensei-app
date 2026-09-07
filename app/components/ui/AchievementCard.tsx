@@ -1,27 +1,98 @@
 "use client";
 
-import { useState, type SyntheticEvent } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { FaXmark } from "react-icons/fa6";
+import { FaLock } from "react-icons/fa6";
 import type { AchievementCatalogEntry } from "@/lib/achievements/registry";
 import { achievementImageSrc } from "@/lib/achievements/badgeImages";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { Modal } from "@/app/components/ui/Modal";
 
-/** How big the enlarged artwork gets in the list view (BadgeArt) -- capped by viewport width so
- * it never overflows a narrow phone screen. */
-const ENLARGED_SIZE_CLASS = "w-72 max-w-[85vw]";
+/** Circle size for a badge's thumbnail -- shared by the list view (BadgeArt) and the grid view
+ * (GridBadgeIcon) so both grow together. 4rem/64px, up from an earlier 2.75rem/44px that read as
+ * too small to tap or even make out on a phone. */
+const CIRCLE_SIZE_CLASS = "h-16 w-16";
 
-function naturalRatio(event: SyntheticEvent<HTMLImageElement>): number {
-  const { naturalWidth, naturalHeight } = event.currentTarget;
-  return naturalHeight > 0 ? naturalWidth / naturalHeight : 1;
+/** Clicking a badge's circle -- in either the list or grid view -- opens this same full-screen
+ * modal with the badge's full artwork, title, and description. A small inline "enlarge in place"
+ * used to exist just for the list view, but a phone-sized card has no room to grow an image into
+ * without cramping everything around it, so both views now go through this instead. `max-w-full`
+ * on the image (plus a `max-h` cap) is what actually keeps it from overflowing a narrow screen --
+ * it's an intrinsic-sized <Image>, not a `fill` one, precisely so those two classes are enough. */
+function BadgeImageModal({
+  entry,
+  earned,
+  src,
+  onClose,
+}: {
+  entry: AchievementCatalogEntry;
+  earned: boolean;
+  src: string;
+  onClose: () => void;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const Icon = entry.icon;
+  const modalTitleId = `badge-modal-title-${entry.achievementKey}`;
+
+  return (
+    <Modal onClose={onClose} labelledBy={modalTitleId} showCloseButton fullScreen>
+      <div className="flex h-full w-full items-center justify-center">
+        {/* The one actual content box -- image + title + description -- sized to fit its own
+         * content (not stretched to the full-screen parent) and marked as a single zone that
+         * stops a click from bubbling up to the dialog's own outside-click-closes handler in
+         * Modal.tsx. Everything outside this box (the empty flex space around it) still closes
+         * the modal, matching what a lightbox is expected to do. */}
+        <div
+          className="flex h-fit flex-col items-center gap-5 text-center"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="relative">
+            {imageFailed ? (
+              <Icon className={`text-8xl ${earned ? "text-accent-gold" : "text-text-muted grayscale"}`} />
+            ) : (
+              <Image
+                src={src}
+                alt=""
+                width={800}
+                height={800}
+                sizes="100vw"
+                className={`max-h-[60vh] w-auto max-w-full object-contain ${earned ? "" : "grayscale"}`}
+                onError={() => setImageFailed(true)}
+              />
+            )}
+            {!earned && (
+              // Sized as a fraction of the image's own box (h-1/2 w-1/2 of this wrapper, which
+              // matches the rendered image exactly), not a fixed rem value -- a fixed size looked
+              // right against a large desktop image but badly overflowed a small one. The SVG's
+              // own default preserveAspectRatio (xMidYMid meet) keeps the glyph itself undistorted
+              // and centered within that box even though the box isn't square. The dark
+              // drop-shadow gives it a halo so it still reads against both light and dark regions
+              // of the artwork, not just one.
+              <div className="pointer-events-none absolute left-1/2 top-1/2 flex h-1/2 w-1/2 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+                <FaLock
+                  aria-hidden="true"
+                  className="h-full w-full text-gray-300/70 drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]"
+                />
+              </div>
+            )}
+          </div>
+          <div className="max-w-[440px] px-4">
+            <h3 id={modalTitleId} className="mx-auto mb-1.5 w-fit cursor-text text-lg font-extrabold text-white">
+              {entry.title}
+            </h3>
+            <p className="cursor-text text-[0.85rem] leading-normal text-text-muted">
+              {earned ? entry.description : entry.lockedDescription}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 interface BadgeArtProps {
   entry: AchievementCatalogEntry;
-  enlarged: boolean;
-  onEnlarge: () => void;
-  onShrink: () => void;
+  earned: boolean;
   borderClass: string;
   bgClass: string;
   textClass: string;
@@ -30,45 +101,18 @@ interface BadgeArtProps {
 /** Shows a badge's artwork if one has been assigned (see lib/achievements/badgeImages.ts),
  * falling back to its react-icons icon otherwise -- either because no filename has been set yet
  * (no image ever attempted, so no doomed network request) or because the assigned file failed to
- * load (same "onError swaps to a fallback" pattern as ProfileMenu.tsx's Avatar).
- *
- * Clicking a loaded image enlarges it in place -- no modal, no overlay -- at its own natural
- * aspect ratio (not the small circle's forced 1:1 crop) with a small border radius instead of
- * rounded-full. AchievementCard/LockedAchievementCard own the `enlarged` boolean and switch their
- * own layout to a column when it's true, so the card just grows to fit the bigger image instead
- * of anything floating above the page.
- *
- * It's one persistent element throughout (never conditionally swapped for a differently-shaped
- * one), with `transition-all` animating its size and `aspect-ratio` animating from a forced 1/1
- * (the small circle) to the image's own ratio -- read once via `onLoad` off the underlying <img>,
- * since neither is known until the file actually loads.
- *
- * `borderRadius` is an inline style, not Tailwind's rounded-full/rounded-lg classes, because
- * Tailwind's rounded-full is a fixed 9999px: transitioning 9999px -> 8px stays visually "fully
- * round" for nearly the whole 300ms (any radius >= half the box's own side still clips to a
- * circle) and only resolves to a rectangle in the last instant, reading as a snap instead of a
- * transition. Explicit numbers scaled to this box (22px = exactly half of the 44px collapsed
- * size, i.e. still a perfect circle, down to 12px) interpolate across the whole duration instead.
- *
- * The image itself lives in its own absolutely-positioned `overflow-hidden` wrapper, a sibling of
- * the close/enlarge button rather than their shared parent -- the button deliberately sits half
- * outside the artwork's own edge (`-right-2 -top-2`), so it can't be on the element that clips to
- * that edge or overflow-hidden would cut it off too. `rounded-[inherit]` keeps that wrapper's own
- * corners following the outer element's animated radius without duplicating the conditional.
- *
- * A close "x" in the corner shrinks it back -- the enlarged image itself isn't clickable to
- * shrink (an invisible full-cover button only exists while collapsed), so an accidental second
- * click on the now much-bigger image doesn't immediately re-collapse it. */
-function BadgeArt({ entry, enlarged, onEnlarge, onShrink, borderClass, bgClass, textClass }: BadgeArtProps) {
+ * load (same "onError swaps to a fallback" pattern as ProfileMenu.tsx's Avatar). Tapping a loaded
+ * image opens BadgeImageModal with the full-size artwork. */
+function BadgeArt({ entry, earned, borderClass, bgClass, textClass }: BadgeArtProps) {
   const [imageFailed, setImageFailed] = useState(false);
-  const [ratio, setRatio] = useState(1);
+  const [modalOpen, setModalOpen] = useState(false);
   const Icon = entry.icon;
   const src = achievementImageSrc(entry.achievementKey);
 
   if (!src || imageFailed) {
     return (
       <span
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border ${borderClass} ${bgClass} text-lg ${textClass}`}
+        className={`flex ${CIRCLE_SIZE_CLASS} shrink-0 items-center justify-center rounded-full border ${borderClass} ${bgClass} text-2xl ${textClass}`}
       >
         <Icon />
       </span>
@@ -76,41 +120,19 @@ function BadgeArt({ entry, enlarged, onEnlarge, onShrink, borderClass, bgClass, 
   }
 
   return (
-    <span
-      className={`relative block shrink-0 border transition-all duration-300 ease-in-out ${borderClass} ${
-        enlarged ? `${ENLARGED_SIZE_CLASS} self-start` : "h-11 w-11"
-      }`}
-      style={{ aspectRatio: enlarged ? ratio : 1, borderRadius: enlarged ? 12 : 22 }}
-    >
-      <span className={`absolute inset-0 overflow-hidden rounded-[inherit] ${bgClass}`}>
-        <Image
-          src={src}
-          alt=""
-          fill
-          sizes={enlarged ? "288px" : "44px"}
-          className={enlarged ? "object-contain" : "object-cover"}
-          onLoad={(event) => setRatio(naturalRatio(event))}
-          onError={() => setImageFailed(true)}
-        />
-      </span>
-      {enlarged ? (
-        <button
-          type="button"
-          onClick={onShrink}
-          aria-label={`Shrink ${entry.title} image`}
-          className="absolute -right-2 -top-2 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/80 text-white hover:bg-black"
-        >
-          <FaXmark className="text-xl" />
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={onEnlarge}
-          aria-label={`Enlarge ${entry.title} image`}
-          className="absolute inset-0 cursor-zoom-in"
-        />
+    <>
+      <button
+        type="button"
+        onClick={() => setModalOpen(true)}
+        aria-label={`View ${entry.title} image`}
+        className={`relative flex ${CIRCLE_SIZE_CLASS} shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-full border ${borderClass} ${bgClass}`}
+      >
+        <Image src={src} alt="" fill sizes="64px" className="object-cover" onError={() => setImageFailed(true)} />
+      </button>
+      {modalOpen && (
+        <BadgeImageModal entry={entry} earned={earned} src={src} onClose={() => setModalOpen(false)} />
       )}
-    </span>
+    </>
   );
 }
 
@@ -118,17 +140,11 @@ function BadgeArt({ entry, enlarged, onEnlarge, onShrink, borderClass, bgClass, 
  * an achievement is a one-time, permanent unlock (see public.user_achievements), so there's no
  * in-progress/complete distinction to show blue for. */
 export function AchievementCard({ entry }: { entry: AchievementCatalogEntry }) {
-  const [enlarged, setEnlarged] = useState(false);
-
   return (
-    <div
-      className={`flex gap-3.5 rounded-xl border border-border-soft bg-white/[0.02] px-4 py-3.5 ${enlarged ? "flex-col" : "items-center"}`}
-    >
+    <div className="flex items-center gap-3.5 rounded-xl border border-border-soft bg-white/[0.02] px-4 py-3.5">
       <BadgeArt
         entry={entry}
-        enlarged={enlarged}
-        onEnlarge={() => setEnlarged(true)}
-        onShrink={() => setEnlarged(false)}
+        earned
         borderClass="border-accent-gold/30"
         bgClass="bg-accent-gold/10"
         textClass="text-accent-gold"
@@ -143,21 +159,16 @@ export function AchievementCard({ entry }: { entry: AchievementCatalogEntry }) {
 
 /** Not-yet-earned entry from ACHIEVEMENT_CATALOG -- same layout as AchievementCard, greyscale and
  * faded so the full trophy case reads as "locked" rather than as an error or an earned badge. The
- * grayscale/opacity filter on this wrapper applies to BadgeArt's image too, not just the icon
- * fallback, so a locked badge's artwork (enlarged or not) automatically desaturates once it
- * exists. */
+ * grayscale/opacity filter on this wrapper applies to BadgeArt's thumbnail image too, not just the
+ * icon fallback, so a locked badge's artwork automatically desaturates once it exists. Its
+ * full-screen modal is rendered through a portal (see Modal's `fullScreen`), so it escapes this
+ * wrapper's filter/opacity instead of rendering washed-out itself. */
 export function LockedAchievementCard({ entry }: { entry: AchievementCatalogEntry }) {
-  const [enlarged, setEnlarged] = useState(false);
-
   return (
-    <div
-      className={`flex gap-3.5 rounded-xl border border-border-soft bg-white/[0.02] px-4 py-3.5 opacity-40 grayscale ${enlarged ? "flex-col" : "items-center"}`}
-    >
+    <div className="flex items-center gap-3.5 rounded-xl border border-border-soft bg-white/[0.02] px-4 py-3.5 opacity-40 grayscale">
       <BadgeArt
         entry={entry}
-        enlarged={enlarged}
-        onEnlarge={() => setEnlarged(true)}
-        onShrink={() => setEnlarged(false)}
+        earned={false}
         borderClass="border-border-soft"
         bgClass="bg-white/[0.02]"
         textClass="text-text-muted"
@@ -172,10 +183,7 @@ export function LockedAchievementCard({ entry }: { entry: AchievementCatalogEntr
 
 /** Circle for the grid view (BadgesSection's grid/list toggle) -- same artwork-with-icon-fallback
  * as BadgeArt, minus the title/description next to it (that view's whole point is a compact,
- * text-free overview). Clicking it opens a Modal with the full image, title, and description
- * instead of BadgeArt's inline grow -- the grid packs cells edge to edge, so there's no room to
- * grow one in place without it fighting its neighbors for space; a modal sidesteps that
- * entirely, and it's the only place in this file that needs the title/description at all. */
+ * text-free overview). Tapping it opens the same BadgeImageModal as the list view. */
 export function GridBadgeIcon({ entry, earned }: { entry: AchievementCatalogEntry; earned: boolean }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -189,14 +197,12 @@ export function GridBadgeIcon({ entry, earned }: { entry: AchievementCatalogEntr
     return (
       <span
         aria-label={entry.title}
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-lg ${toneClasses}`}
+        className={`flex ${CIRCLE_SIZE_CLASS} shrink-0 items-center justify-center rounded-full border text-2xl ${toneClasses}`}
       >
         <Icon />
       </span>
     );
   }
-
-  const modalTitleId = `badge-modal-title-${entry.achievementKey}`;
 
   return (
     <>
@@ -204,36 +210,12 @@ export function GridBadgeIcon({ entry, earned }: { entry: AchievementCatalogEntr
         type="button"
         onClick={() => setModalOpen(true)}
         aria-label={`View ${entry.title}`}
-        className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border text-lg ${toneClasses}`}
+        className={`relative flex ${CIRCLE_SIZE_CLASS} shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border text-2xl ${toneClasses}`}
       >
-        <Image src={src} alt="" fill sizes="44px" className="object-cover" onError={() => setImageFailed(true)} />
+        <Image src={src} alt="" fill sizes="64px" className="object-cover" onError={() => setImageFailed(true)} />
       </button>
       {modalOpen && (
-        <Modal onClose={() => setModalOpen(false)} labelledBy={modalTitleId} showCloseButton>
-          <div className="flex flex-col items-center text-center">
-            <span
-              className={`relative mb-4 block w-full max-h-[60vh] max-w-[220px] overflow-hidden rounded-2xl border ${
-                earned ? "border-accent-gold/30" : "border-border-soft opacity-40 grayscale"
-              }`}
-            >
-              <Image
-                src={src}
-                alt=""
-                width={600}
-                height={600}
-                sizes="220px"
-                className="h-auto w-full rounded-2xl object-contain"
-                onError={() => setImageFailed(true)}
-              />
-            </span>
-            <h3 id={modalTitleId} className="mb-1.5 text-lg font-extrabold text-white">
-              {entry.title}
-            </h3>
-            <p className="text-[0.85rem] leading-normal text-text-muted">
-              {earned ? entry.description : entry.lockedDescription}
-            </p>
-          </div>
-        </Modal>
+        <BadgeImageModal entry={entry} earned={earned} src={src} onClose={() => setModalOpen(false)} />
       )}
     </>
   );
@@ -242,7 +224,7 @@ export function GridBadgeIcon({ entry, earned }: { entry: AchievementCatalogEntr
 export function AchievementCardSkeleton() {
   return (
     <div className="flex items-center gap-3.5 rounded-xl border border-border-soft bg-white/[0.02] px-4 py-3.5">
-      <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+      <Skeleton className={`${CIRCLE_SIZE_CLASS} shrink-0 rounded-full`} />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <Skeleton className="h-3 w-2/3" />
         <Skeleton className="h-2.5 w-1/2" />

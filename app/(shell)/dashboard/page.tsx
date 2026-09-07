@@ -75,13 +75,13 @@ const CONFETTI_PETALS: {
   { top: "52%", left: "2%", size: 7, color: "bg-accent-pink", duration: 8.5, delay: -1.5, driftDuration: 3.4, driftDelay: -3.4 },
 ];
 
-// Purely decorative -- sits behind the card content (see the isolate+overflow-hidden/z-0/z-10
+// Purely decorative -- sits above the card content (see the isolate+overflow-hidden/z-10/z-20
 // split in StreakCard below) so it never needs to fight the shell Header (z-50) or
 // MobileNavMenu (z-45) for stacking: `isolate` on the card gives this whole subtree its own
 // stacking context, so no z-index in here can ever escape above page chrome outside the card.
 function RecordConfetti() {
   return (
-    <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+    <div className="pointer-events-none absolute inset-0 z-20" aria-hidden="true">
       {CONFETTI_PETALS.map((petal, i) => (
         <span
           key={i}
@@ -121,7 +121,7 @@ function StreakCard() {
     <GlassCard
       padding="sm"
       tone={isNewRecord ? "gold" : "default"}
-      // isolate: gives this card its own stacking context, so RecordConfetti's z-0 and the
+      // isolate: gives this card its own stacking context, so RecordConfetti's z-20 and the
       // content wrapper's z-10 below are only ever compared against each other -- never against
       // the shell Header/MobileNavMenu's z-50/z-45 outside the card. overflow-hidden clips the
       // dots to the card's own rounded corners.

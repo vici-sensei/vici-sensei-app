@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FaUnlock } from "react-icons/fa6";
 import { celebrate } from "@/lib/confetti";
@@ -10,13 +10,16 @@ import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
-import { AchievementEarnedModal } from "@/app/components/study/AchievementEarnedModal";
-import {
-  hasCelebratedReadingTestAchievement,
-  markReadingTestAchievementCelebrated,
-} from "@/lib/study/readingTestAchievementCache";
+import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
+import { createClient } from "@/lib/supabase/client";
+import { fetchAchievementsEarnedSince } from "@/lib/data/achievements";
+import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achievements/registry";
 
 const TEST_TYPE = "hiragana";
+// Only these two keys can ever be awarded by finishing this test (reading_test_progress_updates_
+// status trigger, 20260925_test_status_feeds_achievements.sql) -- a small, fixed lookup, not a
+// broad "anything recent" scan.
+const CANDIDATE_ACHIEVEMENT_KEYS = [`${TEST_TYPE}_test`, `${TEST_TYPE}_test_100`];
 
 /** Score screen for the hiragana reading test -- correct/total is always freshly derived from
  * user_reading_test_progress (via useReadingTestProgress), so it can never disagree with what the
@@ -32,6 +35,7 @@ function SummaryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const justFinished = searchParams.get("justFinished") === "1";
+  const since = searchParams.get("since");
   const { user } = useStudyOnboarding();
   const { showToast } = useToast();
   const { data: sentences, status: sentencesStatus, error: sentencesError } = useReadingTestSentences(TEST_TYPE);
@@ -63,43 +67,21 @@ function SummaryContent() {
     }
   }, [passed, justFinished]);
 
-  // '<test_type>_test' (any completed pass) and '<test_type>_test_100' (a perfect one) --
-  // reading_test_progress_updates_status (20260925_test_status_feeds_achievements.sql) awards
-  // these permanently the instant every sentence has a result, using the exact same
-  // user_reading_test_progress/test rows this page's own total/correct are derived from, so
-  // `answered >= total` and `passed` here can never disagree with what the DB actually awarded.
-  // There's no server-side "already shown" flag (see readingTestAchievementCache.ts's doc
-  // comment), so each key's own localStorage flag is what keeps this from re-queuing an
-  // already-celebrated achievement on every later revisit of this score screen.
-  const [achievementQueue, setAchievementQueue] = useState<string[]>([]);
-  const achievementsCheckedRef = useRef(false);
+  // `since` is only present right after the test page's own redirect (both the passed and the
+  // not-passed branch), so this only ever fires once per completed round of answering, never on
+  // a plain revisit (back button, bookmark) of this page.
+  const [newAchievements, setNewAchievements] = useState<AchievementCatalogEntry[]>([]);
+  const checkedAchievementsRef = useRef(false);
   useEffect(() => {
-    if (achievementsCheckedRef.current || !sentences || !progress) return;
-    achievementsCheckedRef.current = true;
-    if (total === 0 || progress.size < total) return;
-
-    const newlyEarned: string[] = [];
-    const completeKey = `${TEST_TYPE}_test`;
-    if (!hasCelebratedReadingTestAchievement(user.id, completeKey)) {
-      markReadingTestAchievementCelebrated(user.id, completeKey);
-      newlyEarned.push(completeKey);
-    }
-    if (passed) {
-      const perfectKey = `${TEST_TYPE}_test_100`;
-      if (!hasCelebratedReadingTestAchievement(user.id, perfectKey)) {
-        markReadingTestAchievementCelebrated(user.id, perfectKey);
-        newlyEarned.push(perfectKey);
-      }
-    }
-    // The achievement-if-any was already permanently awarded server-side and just marked
-    // celebrated in localStorage above (both genuine external-system side effects, not derived
-    // state) -- letting the queue update alongside them here, in the same effect, is what keeps
-    // "marked celebrated" and "actually shown to the user" from ever drifting apart.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (newlyEarned.length > 0) setAchievementQueue(newlyEarned);
-  }, [sentences, progress, total, passed, user.id]);
-
-  const dismissAchievement = useCallback(() => setAchievementQueue((prev) => prev.slice(1)), []);
+    if (!since || checkedAchievementsRef.current) return;
+    checkedAchievementsRef.current = true;
+    fetchAchievementsEarnedSince(createClient(), user.id, CANDIDATE_ACHIEVEMENT_KEYS, since)
+      .then((keys) => {
+        if (keys.length === 0) return;
+        setNewAchievements(ACHIEVEMENT_CATALOG.filter((entry) => keys.includes(entry.achievementKey)));
+      })
+      .catch(() => {});
+  }, [since, user.id]);
 
   const handleRetry = async () => {
     setRetrying(true);
@@ -181,7 +163,9 @@ function SummaryContent() {
           </div>
         )}
       </div>
-      {achievementQueue[0] && <AchievementEarnedModal achievementKey={achievementQueue[0]} onClose={dismissAchievement} />}
+      {newAchievements.length > 0 && (
+        <NewAchievementsModal entries={newAchievements} onClose={() => setNewAchievements([])} />
+      )}
     </div>
   );
 }

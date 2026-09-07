@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
+import { takeNewlyUnlockedAchievements } from "@/lib/study/newAchievements";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { celebrate } from "@/lib/confetti";
 import type { StudySessionEnd } from "@/lib/types";
+import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achievements/registry";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { NextCardEta } from "@/app/(shell)/dashboard/NextCardEta";
+import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -44,6 +47,7 @@ export default function StudySummaryPage() {
   const router = useRouter();
   const { user } = useStudyOnboarding();
   const [summary, setSummary] = useState<StudySessionEnd | null>(null);
+  const [newAchievements, setNewAchievements] = useState<AchievementCatalogEntry[]>([]);
   const hasStarted = useRef(false);
   // No StudyStatsProvider on this route (only (shell) layouts have one) -- fetched directly,
   // same as the leaderboard page does.
@@ -56,6 +60,13 @@ export default function StudySummaryPage() {
     // exactly once regardless of how many times the effect runs.
     if (hasStarted.current) return;
     hasStarted.current = true;
+
+    const unlockedKeys = takeNewlyUnlockedAchievements(user.id);
+    if (unlockedKeys.length > 0) {
+      const entries = ACHIEVEMENT_CATALOG.filter((entry) => unlockedKeys.includes(entry.achievementKey));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNewAchievements(entries);
+    }
 
     const sessionId = getStoredSessionId(user.id);
     if (sessionId == null) {
@@ -119,6 +130,9 @@ export default function StudySummaryPage() {
           Back to Home
         </Button>
       </div>
+      {newAchievements.length > 0 && (
+        <NewAchievementsModal entries={newAchievements} onClose={() => setNewAchievements([])} />
+      )}
     </div>
   );
 }
