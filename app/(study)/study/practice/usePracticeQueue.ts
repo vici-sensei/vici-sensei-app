@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getPracticeDeck, type PracticeKanaCard } from "@/lib/client-data/kanaPractice";
+import {
+  clearPracticeQueueCache,
+  readPracticeQueueCache,
+  writePracticeQueueCache,
+  type CachedPracticeQueue,
+} from "@/lib/study/practiceQueueCache";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import type { DueCard, Rating } from "@/lib/types";
 
@@ -14,6 +20,47 @@ function shuffle<T>(items: T[]): T[] {
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+}
+
+function cardKey(item: { id: number; script: "hiragana" | "katakana" }): string {
+  return `${item.script}-${item.id}`;
+}
+
+/** Merges a freshly-fetched deck with the last cached queue for this user (if any): cards no
+ * longer in the deck (e.g. suspended since) are dropped, and any card in the deck that wasn't
+ * anywhere in the cached queue -- i.e. newly learned since the cache was written -- is shuffled
+ * and appended after the existing order, so a resumed session simply runs longer instead of
+ * reshuffling what's already in progress. Never touches per-card retry state (there isn't any
+ * here, see usePracticeQueue's own doc comment) -- it only decides deck membership and order.
+ * Falls back to a fresh shuffle when there's no cache, or when the cached queue was already
+ * fully consumed and nothing new was learned since. */
+function reconcileQueue(
+  deck: PracticeKanaCard[],
+  cached: CachedPracticeQueue | null
+): { queue: PracticeKanaCard[]; index: number; correct: number } {
+  if (!cached) return { queue: shuffle(deck), index: 0, correct: 0 };
+
+  const deckByKey = new Map(deck.map((item) => [cardKey(item), item]));
+  const cachedKeys = new Set(cached.order.map(cardKey));
+
+  let survivedBeforeIndex = 0;
+  const survivors: PracticeKanaCard[] = [];
+  cached.order.forEach((ref, i) => {
+    const item = deckByKey.get(cardKey(ref));
+    if (!item) return;
+    survivors.push(item);
+    if (i < cached.index) survivedBeforeIndex++;
+  });
+
+  const newItems = deck.filter((item) => !cachedKeys.has(cardKey(item)));
+
+  if (survivedBeforeIndex >= survivors.length && newItems.length === 0) {
+    // Fully consumed already, and nothing new since -- start a fresh pass rather than
+    // reopening a finished queue.
+    return { queue: shuffle(deck), index: 0, correct: 0 };
+  }
+
+  return { queue: [...survivors, ...shuffle(newItems)], index: survivedBeforeIndex, correct: cached.correct };
 }
 
 function toDueCard(item: PracticeKanaCard): DueCard {
@@ -68,7 +115,11 @@ export interface PracticeQueueState {
  * concept of a session, SRS rating, or review log: rate() only updates the in-memory score and
  * advances to the next card, so nothing here can ever affect due dates, mastery, streaks, or
  * leaderboard/achievement stats. Each character is shown exactly once -- reaching the end of the
- * deck flips `status` to "done" so the page can show a summary instead of looping again. */
+ * deck flips `status` to "done" so the page can show a summary instead of looping again.
+ *
+ * Queue order/position/score are mirrored to localStorage (see practiceQueueCache) so a refresh
+ * or reopening the tab resumes instead of reshuffling -- same-browser only, this never syncs
+ * across devices. reconcileQueue folds in any newly-learned characters on read. */
 export function usePracticeQueue(): PracticeQueueState {
   const { user } = useStudyOnboarding();
   const [status, setStatus] = useState<PracticeStatus>("loading");
@@ -86,7 +137,13 @@ export function usePracticeQueue(): PracticeQueueState {
           setStatus("empty");
           return;
         }
-        setQueue(shuffle(deck));
+        const { queue: resolvedQueue, index: resolvedIndex, correct: resolvedCorrect } = reconcileQueue(
+          deck,
+          readPracticeQueueCache(user.id)
+        );
+        setQueue(resolvedQueue);
+        setIndex(resolvedIndex);
+        setCorrect(resolvedCorrect);
         setStatus("ready");
       })
       .catch(() => {
@@ -98,6 +155,23 @@ export function usePracticeQueue(): PracticeQueueState {
       cancelled = true;
     };
   }, [user.id]);
+
+  // Mirrors queue/index/correct to localStorage after every render they change in, including
+  // the very first one (re-writing back what reconcileQueue just resolved is harmless). Clears
+  // the cache once the deck is fully consumed so the next visit starts a fresh pass rather than
+  // reopening a finished one.
+  useEffect(() => {
+    if (status !== "ready" || queue.length === 0) return;
+    if (index >= queue.length) {
+      clearPracticeQueueCache(user.id);
+      return;
+    }
+    writePracticeQueueCache(user.id, {
+      order: queue.map((item) => ({ id: item.id, script: item.script })),
+      index,
+      correct,
+    });
+  }, [status, queue, index, correct, user.id]);
 
   const rate = useCallback((_card: DueCard, rating: Rating) => {
     if (rating >= 2) setCorrect((c) => c + 1);
