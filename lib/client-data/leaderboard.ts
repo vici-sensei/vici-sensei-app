@@ -34,17 +34,20 @@ export function useLeaderboard(user: User | null, metric: LeaderboardMetric, per
   }, [user, metric, period]);
 
   useEffect(() => {
-    if (user) {
-      // Instant paint from a hover/focus/touchstart prefetch of the Leaderboard nav entry
-      // (or a previous visit to this exact metric/period tab) -- purely provisional,
-      // refetch() right below always runs and overwrites it once the real fetch resolves.
-      const cached = readCache<LeaderboardEntry[]>(leaderboardCacheKey(metric, period));
-      if (cached) {
-        setData(cached);
-        setStatus("loaded");
+    function sync() {
+      if (user) {
+        // Instant paint from a hover/focus/touchstart prefetch of the Leaderboard nav entry
+        // (or a previous visit to this exact metric/period tab) -- purely provisional,
+        // refetch() right below always runs and overwrites it once the real fetch resolves.
+        const cached = readCache<LeaderboardEntry[]>(leaderboardCacheKey(metric, period));
+        if (cached) {
+          setData(cached);
+          setStatus("loaded");
+        }
       }
+      void refetch();
     }
-    void refetch();
+    sync();
   }, [refetch, user, metric, period]);
 
   return { data, status, error, refetch };

@@ -23,7 +23,10 @@ export function ServerRegionSettings() {
   useEffect(() => {
     // Falls back to the timezone guess for accounts created before this setting existed
     // (preferred_server_region is null until they explicitly change it here).
-    if (settings) setRegion(settings.preferred_server_region ?? guessServerRegion());
+    function sync() {
+      if (settings) setRegion(settings.preferred_server_region ?? guessServerRegion());
+    }
+    sync();
   }, [settings]);
 
   async function handleChange(next: ServerRegion) {

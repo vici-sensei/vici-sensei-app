@@ -90,7 +90,7 @@ function StepLevelKanaInfo() {
           JLPT levels (N5 to N1) measure how much Japanese you know — N5 is the starting point, N1 is expert.
         </p>
         <p>
-          You're starting at N5. Once you've learned hiragana, katakana, and a few kanji, you'll be able to pick a different level anytime from Settings.
+          You&apos;re starting at N5. Once you&apos;ve learned hiragana, katakana, and a few kanji, you&apos;ll be able to pick a different level anytime from Settings.
         </p>
       </div>
     </>

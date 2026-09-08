@@ -190,11 +190,17 @@ export function StudySettingsForm({
   // avatarUrl, since the alias can also change server-side (the assignment trigger)
   // independent of whatever patch this component itself just sent.
   useEffect(() => {
-    setLeaderboardAlias(initial.leaderboard_alias);
+    function sync() {
+      setLeaderboardAlias(initial.leaderboard_alias);
+    }
+    sync();
   }, [initial.leaderboard_alias]);
 
   useEffect(() => {
-    setStudyTrack(initial.study_track);
+    function sync() {
+      setStudyTrack(initial.study_track);
+    }
+    sync();
   }, [initial.study_track]);
 
   // Clears the "turned on together" cue the instant its toggle turns off or locks (goes
@@ -202,33 +208,51 @@ export function StudySettingsForm({
   // the sole active one and locks. Reacts to live toggle state only, never to `initial`/the
   // database, so a refetch or page reload never resurrects a stale cue.
   useEffect(() => {
-    if (justCrossedPartner === "vocabulary") {
-      const vocabularyLocked = disabled || (studyVocabulary && !studyKanji);
-      if (!studyVocabulary || vocabularyLocked) setJustCrossedPartner(null);
-    } else if (justCrossedPartner === "kanji") {
-      const kanjiLocked = disabled || (studyKanji && !studyVocabulary);
-      if (!studyKanji || kanjiLocked) setJustCrossedPartner(null);
+    function sync() {
+      if (justCrossedPartner === "vocabulary") {
+        const vocabularyLocked = disabled || (studyVocabulary && !studyKanji);
+        if (!studyVocabulary || vocabularyLocked) setJustCrossedPartner(null);
+      } else if (justCrossedPartner === "kanji") {
+        const kanjiLocked = disabled || (studyKanji && !studyVocabulary);
+        if (!studyKanji || kanjiLocked) setJustCrossedPartner(null);
+      }
     }
+    sync();
   }, [justCrossedPartner, studyKanji, studyVocabulary, disabled]);
 
   useEffect(() => {
-    if (studyHiragana && hiraganaJustCrossedOff) setHiraganaJustCrossedOff(false);
+    function sync() {
+      if (studyHiragana && hiraganaJustCrossedOff) setHiraganaJustCrossedOff(false);
+    }
+    sync();
   }, [studyHiragana, hiraganaJustCrossedOff]);
 
   useEffect(() => {
-    if (studyKatakana && katakanaJustCrossedOff) setKatakanaJustCrossedOff(false);
+    function sync() {
+      if (studyKatakana && katakanaJustCrossedOff) setKatakanaJustCrossedOff(false);
+    }
+    sync();
   }, [studyKatakana, katakanaJustCrossedOff]);
 
   useEffect(() => {
-    if (studyKanji && kanjiJustCrossedOff) setKanjiJustCrossedOff(false);
+    function sync() {
+      if (studyKanji && kanjiJustCrossedOff) setKanjiJustCrossedOff(false);
+    }
+    sync();
   }, [studyKanji, kanjiJustCrossedOff]);
 
   useEffect(() => {
-    if (studyVocabulary && vocabularyJustCrossedOff) setVocabularyJustCrossedOff(false);
+    function sync() {
+      if (studyVocabulary && vocabularyJustCrossedOff) setVocabularyJustCrossedOff(false);
+    }
+    sync();
   }, [studyVocabulary, vocabularyJustCrossedOff]);
 
   useEffect(() => {
-    if (!studyKatakana && katakanaAutoEnabled) setKatakanaAutoEnabled(false);
+    function sync() {
+      if (!studyKatakana && katakanaAutoEnabled) setKatakanaAutoEnabled(false);
+    }
+    sync();
   }, [studyKatakana, katakanaAutoEnabled]);
 
   function adjustKanji(delta: number) {

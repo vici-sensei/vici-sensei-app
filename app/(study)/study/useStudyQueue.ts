@@ -59,6 +59,11 @@ import {
 
 const REFRESH_INTERVAL_MS = 45_000;
 
+// Mirrors useTypedReviewCard/useAlternateReviewCard's own FLASH_DELAY_MS -- rate() (below) is
+// now what actually holds the queue swap for this long, since those hooks call it immediately
+// on click instead of delaying the call themselves (see rate()'s own doc comment for why).
+const RATING_PACING_MS = 350;
+
 type Status = "loading" | "ready" | "ending" | "error";
 
 interface LastReview {
@@ -913,7 +918,10 @@ export function useStudyQueue() {
     if (status !== "ready" || !nextDueAt) return;
     const delay = new Date(nextDueAt).getTime() - (Date.now() + clockOffsetMs);
     if (delay <= 0) {
-      void refreshQueue();
+      function refreshNow() {
+        void refreshQueue();
+      }
+      refreshNow();
       return;
     }
     const timeout = setTimeout(() => void refreshQueue(), delay);
@@ -1178,16 +1186,54 @@ export function useStudyQueue() {
       // Invalidated until the submit below actually confirms an id -- guards Undo against
       // firing on a stale id from an earlier review while this one is still in flight.
       lastReviewLogIdRef.current = null;
-      setLastReview({ card });
-      setCompletedCount((c) => c + 1);
       const key = reviewKey(card);
-      // Marked attempted synchronously, before the submit even resolves: this card is done for
-      // the session regardless of the rating (see attemptedKeysRef's declaration) -- totalKnown
-      // never grows for it again, and it can't wander back into `queue` even if its resurface
-      // due_at arrives while the session is still open. A failed submit undoes this below, same
-      // as it undoes completedCount.
+      // Marked attempted synchronously, before the submit even resolves (now possibly well
+      // before `advance` below runs too, since the submit starts immediately): this card is done
+      // for the session regardless of the rating (see attemptedKeysRef's declaration) --
+      // totalKnown never grows for it again, and it can't wander back into `queue` even if its
+      // resurface due_at arrives while the session is still open. Must happen before
+      // enqueueMutation below, not inside `advance` -- refreshQueue() (called from the mutation's
+      // own success handler) can otherwise resolve before `advance` ever runs and misread this
+      // card as a fresh discovery. A failed submit undoes this via applyFailure, same as it
+      // undoes completedCount.
       attemptedKeysRef.current.add(key);
-      setQueue((prev) => prev.filter((i) => i.key !== key));
+
+      // The submit fires right away instead of only once `advance` (below) actually swaps the
+      // queue -- useTypedReviewCard/useAlternateReviewCard used to hold calling this whole
+      // function for RATING_PACING_MS themselves, meaning the request only started once that
+      // delay had already elapsed. Starting it now instead gives a typical round trip a real
+      // chance to finish before RATING_PACING_MS does, so a newly-unlocked achievement can be
+      // folded into the very same update as the queue swap -- see NewAchievementsModal's own
+      // "shown right on top of the next card" comment -- instead of always popping in over an
+      // already-visible next card. `advanced` says which of `advance`/the mutation's own
+      // handlers below is the one that actually has to apply the result: whichever finishes
+      // second is the one still holding it.
+      let advanced = false;
+      let outcome: { kind: "success"; achievements: string[] } | { kind: "error"; err: unknown } | null = null;
+
+      // A 400/404 means the server rejected this specific card -- its progress row was
+      // suspended, reset, or deleted (e.g. from /browse/ in another tab) since it was queued
+      // here. Retrying would fail identically forever, so drop the card instead of re-queuing
+      // it -- otherwise it re-fails every time it comes back up and the session can never end if
+      // it was the last card left. Anything else (network blip, 500) is presumed transient and
+      // worth retrying. Only ever called once `advance` has actually run (directly from the
+      // catch block below if it already had, otherwise from `advance` itself) -- never before,
+      // since undoing an optimistic update that hasn't happened yet would corrupt `queue`.
+      const applyFailure = (err: unknown) => {
+        setCompletedCount((c) => Math.max(0, c - 1));
+        attemptedKeysRef.current.delete(key);
+        setLastReview((prev) => (prev?.card === card ? null : prev));
+        const isStale = err instanceof ApiError && (err.status === 400 || err.status === 404);
+        if (!isStale) setQueue((prev) => [{ key, kind: "review", card }, ...prev]);
+        showToast(
+          isStale
+            ? "This card changed elsewhere and was skipped."
+            : err instanceof ApiError
+              ? err.message
+              : "Could not submit your answer. Please try again.",
+          "error"
+        );
+      };
 
       enqueueMutation(async () => {
         try {
@@ -1195,37 +1241,40 @@ export function useStudyQueue() {
             reviewBody(card, rating, sessionIdRef.current ?? undefined)
           );
           lastReviewLogIdRef.current = reviewLogId;
-          if (newlyUnlockedAchievements.length > 0) setNewAchievements(newlyUnlockedAchievements);
+          if (advanced) {
+            if (newlyUnlockedAchievements.length > 0) setNewAchievements(newlyUnlockedAchievements);
+          } else {
+            outcome = { kind: "success", achievements: newlyUnlockedAchievements };
+          }
           // A wrong answer can schedule this card to resurface later in the same session
           // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown) picks
-          // that up immediately instead of waiting out the 45s poll. attemptedKeysRef (just set
-          // above) keeps this same card from re-entering `queue`/totalKnown when that refetch
-          // resolves -- refreshQueue only ever surfaces something else independently due.
+          // that up immediately instead of waiting out the 45s poll. attemptedKeysRef (set
+          // above, synchronously) keeps this same card from re-entering `queue`/totalKnown when
+          // that refetch resolves -- refreshQueue only ever surfaces something else independently
+          // due.
           void refreshQueue();
           checkLevelUp(card.exercise_type);
           checkKanaGraduation(card.exercise_type);
         } catch (err) {
-          setCompletedCount((c) => Math.max(0, c - 1));
-          attemptedKeysRef.current.delete(key);
-          setLastReview((prev) => (prev?.card === card ? null : prev));
-          // A 400/404 means the server rejected this specific card -- its progress row was
-          // suspended, reset, or deleted (e.g. from /browse/ in another tab) since it was
-          // queued here. Retrying would fail identically forever, so drop the card instead of
-          // re-queuing it -- otherwise it re-fails every time it comes back up and the session
-          // can never end if it was the last card left. Anything else (network blip, 500) is
-          // presumed transient and worth retrying.
-          const isStale = err instanceof ApiError && (err.status === 400 || err.status === 404);
-          if (!isStale) setQueue((prev) => [{ key, kind: "review", card }, ...prev]);
-          showToast(
-            isStale
-              ? "This card changed elsewhere and was skipped."
-              : err instanceof ApiError
-                ? err.message
-                : "Could not submit your answer. Please try again.",
-            "error"
-          );
+          if (advanced) applyFailure(err);
+          else outcome = { kind: "error", err };
         }
       });
+
+      // Same pacing the Continue/rating button already held before calling this function --
+      // kept here (after the submit above has already started) purely so the queue swap lands
+      // together with whatever the submit had already learned by then.
+      setTimeout(() => {
+        advanced = true;
+        setLastReview({ card });
+        setCompletedCount((c) => c + 1);
+        setQueue((prev) => prev.filter((i) => i.key !== key));
+        if (outcome?.kind === "success") {
+          if (outcome.achievements.length > 0) setNewAchievements(outcome.achievements);
+        } else if (outcome?.kind === "error") {
+          applyFailure(outcome.err);
+        }
+      }, RATING_PACING_MS);
     },
     [enqueueMutation, showToast, refreshQueue, submitDrillAnswer, checkLevelUp, checkKanaGraduation]
   );

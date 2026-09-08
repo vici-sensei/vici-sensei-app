@@ -24,7 +24,6 @@ export function useClientClock(intervalMs: number, options?: { offsetMs?: number
     const anchorWallMs = Date.now() + offsetMs;
     const anchorPerfMs = performance.now();
     function tick() {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNow(anchorWallMs + (performance.now() - anchorPerfMs));
     }
     tick();

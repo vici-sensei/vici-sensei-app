@@ -7,7 +7,7 @@ export function ClockSkewNotice({ clockOffsetMs, className = "" }: { clockOffset
   if (Math.abs(clockOffsetMs) <= NOTABLE_SKEW_MS) return null;
   return (
     <span className={`block text-xs text-text-muted/70 ${className}`}>
-      Your clock seems off, so we're using server time. Try syncing your device's clock.
+      Your clock seems off, so we&apos;re using server time. Try syncing your device&apos;s clock.
     </span>
   );
 }

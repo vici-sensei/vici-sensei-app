@@ -193,47 +193,53 @@ export default function OnboardingPage() {
   // Guessed client-side only (Intl reflects the browser's timezone, not the
   // server's) -- runs after mount so it doesn't cause a hydration mismatch.
   useEffect(() => {
-    if (!user) return;
-    // Once a country's actually been picked (and cached), it should never be replaced by the
-    // guess again -- the profile-seed effect below would eventually correct it anyway, but this
-    // avoids even briefly holding the wrong value.
-    if (!countryDraft.read(user.id)) {
-      const guessedCountry = guessCountryFromTimezone();
-      if (guessedCountry) setCountry(guessedCountry);
+    function sync() {
+      if (!user) return;
+      // Once a country's actually been picked (and cached), it should never be replaced by the
+      // guess again -- the profile-seed effect below would eventually correct it anyway, but this
+      // avoids even briefly holding the wrong value.
+      if (!countryDraft.read(user.id)) {
+        const guessedCountry = guessCountryFromTimezone();
+        if (guessedCountry) setCountry(guessedCountry);
+      }
+      // `recommendedRegion` is just display metadata (ordering/badge), not a selection, so it's
+      // always recomputed. `region` is the actual pick -- same guard as country above.
+      const guessedRegion = guessServerRegion();
+      setRecommendedRegion(guessedRegion);
+      if (!regionDraft.read(user.id)) {
+        setRegion(guessedRegion);
+      }
     }
-    // `recommendedRegion` is just display metadata (ordering/badge), not a selection, so it's
-    // always recomputed. `region` is the actual pick -- same guard as country above.
-    const guessedRegion = guessServerRegion();
-    setRecommendedRegion(guessedRegion);
-    if (!regionDraft.read(user.id)) {
-      setRegion(guessedRegion);
-    }
+    sync();
   }, [user]);
 
   // The name/photo (pre-filled from Google on signup) can still be loading when this page
   // mounts -- seed local state from it once, loaded, the same way the guesses above do.
   useEffect(() => {
-    if (profileSeeded || !user) return;
-    if (profileStatus === "loaded" && profile) {
-      // A locally cached draft (typed but not yet confirmed saved before a refresh) wins over
-      // the DB value -- the debounced autosave below picks it back up and re-saves it.
-      const cachedName = displayNameDraft.read(user.id);
-      setDisplayName(cachedName ?? profile.display_name ?? "");
-      setSavedName(profile.display_name ?? "");
-      setAvatarUrl(profile.avatar_url);
-      // Unlike the timezone guess, a saved country means the user actually picked one -- it
-      // should win over the guess, not the other way round. Cache first (it's the freshest, and
-      // avoids waiting on this fetch at all), then the DB value.
-      const cachedCountry = countryDraft.read(user.id);
-      if (cachedCountry) {
-        setCountry(cachedCountry);
-      } else if (profile.country) {
-        setCountry(profile.country);
+    function sync() {
+      if (profileSeeded || !user) return;
+      if (profileStatus === "loaded" && profile) {
+        // A locally cached draft (typed but not yet confirmed saved before a refresh) wins over
+        // the DB value -- the debounced autosave below picks it back up and re-saves it.
+        const cachedName = displayNameDraft.read(user.id);
+        setDisplayName(cachedName ?? profile.display_name ?? "");
+        setSavedName(profile.display_name ?? "");
+        setAvatarUrl(profile.avatar_url);
+        // Unlike the timezone guess, a saved country means the user actually picked one -- it
+        // should win over the guess, not the other way round. Cache first (it's the freshest, and
+        // avoids waiting on this fetch at all), then the DB value.
+        const cachedCountry = countryDraft.read(user.id);
+        if (cachedCountry) {
+          setCountry(cachedCountry);
+        } else if (profile.country) {
+          setCountry(profile.country);
+        }
+        setProfileSeeded(true);
+      } else if (profileStatus === "error") {
+        setProfileSeeded(true);
       }
-      setProfileSeeded(true);
-    } else if (profileStatus === "error") {
-      setProfileSeeded(true);
     }
+    sync();
   }, [profileStatus, profile, profileSeeded, user]);
 
   // Autosaves the name a beat after the user stops typing on Step 4, the same way the old
@@ -246,7 +252,10 @@ export default function OnboardingPage() {
     const trimmed = displayName.trim();
     if (trimmed === savedName || trimmed.length === 0 || trimmed.length > MAX_DISPLAY_NAME_LENGTH) return;
 
-    setNameStatus("saving");
+    function markSaving() {
+      setNameStatus("saving");
+    }
+    markSaving();
     const timeout = setTimeout(async () => {
       try {
         await updateDisplayName(user.id, trimmed);
@@ -265,64 +274,67 @@ export default function OnboardingPage() {
   // wizard from step 1 (or jumping ahead to the furthest step reached) after a refresh. Falls
   // back to step 1 on error rather than blocking the wizard forever on a failed fetch.
   useEffect(() => {
-    if (progressSeeded || !user) return;
-    if (studySettingsStatus === "loaded" && studySettings) {
-      const resumeIndex = Math.min(Math.max(studySettings.onboarding_step, 0), STEPS.length - 1);
-      const resumeFurthest = Math.min(
-        Math.max(studySettings.onboarding_furthest_step, resumeIndex),
-        STEPS.length - 1
-      );
-      setStepIndex(resumeIndex);
-      setMaxStepReached(resumeFurthest);
-      // Same cache-first idea as the level below: a locally cached answer (made but not yet
-      // advanced past) wins over the DB value. Otherwise, only trust study_track as "the
-      // user's actual pick" once they've ever reached past the kana step -- before that it's
-      // just the row's default ('standard'), never chosen.
-      const cachedKnowsKana = knowsKanaDraft.read(user.id);
-      if (cachedKnowsKana !== null) {
-        setKnowsKana(cachedKnowsKana);
-      } else if (resumeFurthest > 0) {
-        setKnowsKana(studySettings.study_track === "standard");
+    function sync() {
+      if (progressSeeded || !user) return;
+      if (studySettingsStatus === "loaded" && studySettings) {
+        const resumeIndex = Math.min(Math.max(studySettings.onboarding_step, 0), STEPS.length - 1);
+        const resumeFurthest = Math.min(
+          Math.max(studySettings.onboarding_furthest_step, resumeIndex),
+          STEPS.length - 1
+        );
+        setStepIndex(resumeIndex);
+        setMaxStepReached(resumeFurthest);
+        // Same cache-first idea as the level below: a locally cached answer (made but not yet
+        // advanced past) wins over the DB value. Otherwise, only trust study_track as "the
+        // user's actual pick" once they've ever reached past the kana step -- before that it's
+        // just the row's default ('standard'), never chosen.
+        const cachedKnowsKana = knowsKanaDraft.read(user.id);
+        if (cachedKnowsKana !== null) {
+          setKnowsKana(cachedKnowsKana);
+        } else if (resumeFurthest > 0) {
+          setKnowsKana(studySettings.study_track === "standard");
+        }
+        // A locally cached pick (made but not yet advanced past, so never sent to the DB) wins
+        // over the DB value. Otherwise, only trust enabled_levels as "the user's actual pick" once
+        // they've ever reached past the level step (index 1, after the kana step) -- before that
+        // it's just the row's default (N5), never chosen. Uses `resumeFurthest`, not
+        // `resumeIndex`, since they may have gone back below step 1 again without that undoing
+        // the earlier real pick. enabled_levels can still be null here despite resumeFurthest > 1
+        // -- going back to Step 1 and re-confirming "Yes" clears it back to "not chosen yet" even
+        // after the level step was already passed once -- so this leaves `level` at null (its
+        // default) rather than passing null into mostAdvancedLevel, which requires a real array.
+        const cachedLevel = levelDraft.read(user.id);
+        if (cachedLevel) {
+          setLevel(cachedLevel);
+        } else if (resumeFurthest > 1 && studySettings.enabled_levels) {
+          setLevel(mostAdvancedLevel(studySettings.enabled_levels));
+        }
+        // Same cache-first idea as the level above. This is null in the DB until the user
+        // actually picks one -- so a saved value here should win over the timezone guess, not the
+        // other way.
+        const cachedRegion = regionDraft.read(user.id);
+        if (cachedRegion) {
+          setRegion(cachedRegion);
+        } else if (studySettings.preferred_server_region) {
+          setRegion(studySettings.preferred_server_region);
+        }
+        // Same cache-first idea as the others. leaderboard_anonymous is nullable specifically so
+        // this DB fallback is trustworthy -- null really does mean "never chosen" now, not just
+        // "defaulted to false", so resuming on a different device/browser (no local cache) still
+        // resolves correctly instead of guessing "with my profile".
+        const cachedAnonymous = anonymousDraft.read(user.id);
+        if (cachedAnonymous !== null) {
+          setAnonymous(cachedAnonymous);
+        } else if (studySettings.leaderboard_anonymous !== null) {
+          setAnonymous(studySettings.leaderboard_anonymous);
+        }
+        setLeaderboardAlias(studySettings.leaderboard_alias);
+        setProgressSeeded(true);
+      } else if (studySettingsStatus === "error") {
+        setProgressSeeded(true);
       }
-      // A locally cached pick (made but not yet advanced past, so never sent to the DB) wins
-      // over the DB value. Otherwise, only trust enabled_levels as "the user's actual pick" once
-      // they've ever reached past the level step (index 1, after the kana step) -- before that
-      // it's just the row's default (N5), never chosen. Uses `resumeFurthest`, not
-      // `resumeIndex`, since they may have gone back below step 1 again without that undoing
-      // the earlier real pick. enabled_levels can still be null here despite resumeFurthest > 1
-      // -- going back to Step 1 and re-confirming "Yes" clears it back to "not chosen yet" even
-      // after the level step was already passed once -- so this leaves `level` at null (its
-      // default) rather than passing null into mostAdvancedLevel, which requires a real array.
-      const cachedLevel = levelDraft.read(user.id);
-      if (cachedLevel) {
-        setLevel(cachedLevel);
-      } else if (resumeFurthest > 1 && studySettings.enabled_levels) {
-        setLevel(mostAdvancedLevel(studySettings.enabled_levels));
-      }
-      // Same cache-first idea as the level above. This is null in the DB until the user
-      // actually picks one -- so a saved value here should win over the timezone guess, not the
-      // other way.
-      const cachedRegion = regionDraft.read(user.id);
-      if (cachedRegion) {
-        setRegion(cachedRegion);
-      } else if (studySettings.preferred_server_region) {
-        setRegion(studySettings.preferred_server_region);
-      }
-      // Same cache-first idea as the others. leaderboard_anonymous is nullable specifically so
-      // this DB fallback is trustworthy -- null really does mean "never chosen" now, not just
-      // "defaulted to false", so resuming on a different device/browser (no local cache) still
-      // resolves correctly instead of guessing "with my profile".
-      const cachedAnonymous = anonymousDraft.read(user.id);
-      if (cachedAnonymous !== null) {
-        setAnonymous(cachedAnonymous);
-      } else if (studySettings.leaderboard_anonymous !== null) {
-        setAnonymous(studySettings.leaderboard_anonymous);
-      }
-      setLeaderboardAlias(studySettings.leaderboard_alias);
-      setProgressSeeded(true);
-    } else if (studySettingsStatus === "error") {
-      setProgressSeeded(true);
     }
+    sync();
   }, [studySettingsStatus, studySettings, progressSeeded, user]);
 
   if (!user) return null;

@@ -34,15 +34,22 @@ export function useTypedReviewCard<TResult extends { correct: boolean }>(
     setResult(null);
   }
 
+  // Drill-mode cards (submitDrillAnswer) keep the delay here, same as always -- they never go
+  // through rate()'s own pacing (RATING_PACING_MS in useStudyQueue.ts), so there'd be no pause
+  // at all without it. Every other card calls onRate right away instead: useStudyQueue's rate()
+  // now owns that pause itself, timed to start after the server submit rather than before it, so
+  // an achievement unlock has a chance to land before the queue actually swaps.
   function handleRate(rating: Rating) {
     setCommitted(true);
-    setTimeout(() => onRate(card, rating), FLASH_DELAY_MS);
+    if (drillMode) setTimeout(() => onRate(card, rating), FLASH_DELAY_MS);
+    else onRate(card, rating);
   }
 
   function handleContinue() {
     setCommitted(true);
     const rating = drillMode && result?.correct ? 2 : 0;
-    setTimeout(() => onRate(card, rating), FLASH_DELAY_MS);
+    if (drillMode) setTimeout(() => onRate(card, rating), FLASH_DELAY_MS);
+    else onRate(card, rating);
   }
 
   useEffect(() => {

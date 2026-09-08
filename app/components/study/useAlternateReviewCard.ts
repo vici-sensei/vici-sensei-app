@@ -1,8 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { DueCard, Rating } from "@/lib/types";
 
-const FLASH_DELAY_MS = 350;
-
 export type AlternateCheckOutcome<TResult> =
   | { kind: "alternate"; alternates: string[] }
   | { kind: "final"; result: TResult; alternates?: string[] };
@@ -59,14 +57,17 @@ export function useAlternateReviewCard<TResult>(
     setConfirmedAlternates([]);
   }
 
+  // Calls onRate right away instead of delaying it here -- useStudyQueue's rate() now owns the
+  // pacing pause itself (RATING_PACING_MS), timed to start after the server submit rather than
+  // before it, so an achievement unlock has a chance to land before the queue actually swaps.
   function handleRate(rating: Rating) {
     setCommitted(true);
-    setTimeout(() => onRate(card, rating, confirmedAlternates), FLASH_DELAY_MS);
+    onRate(card, rating, confirmedAlternates);
   }
 
   function handleContinue() {
     setCommitted(true);
-    setTimeout(() => onRate(card, 0, confirmedAlternates), FLASH_DELAY_MS);
+    onRate(card, 0, confirmedAlternates);
   }
 
   useEffect(() => {

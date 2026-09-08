@@ -16,7 +16,7 @@ import { NextCardCountdown } from "./NextCardCountdown";
 import { CheckoutBanner } from "./CheckoutBanner";
 import { WeekStreak } from "./WeekStreak";
 import { LevelProgressCard } from "./LevelProgressCard";
-import { FaBook, FaFire, FaArrowRight, FaArrowsRotate, FaTrophy } from "react-icons/fa6";
+import { FaBook, FaArrowRight, FaArrowsRotate, FaTrophy } from "react-icons/fa6";
 import type { WeeklyActivityDay } from "@/lib/types";
 
 // mingcute:target-fill (https://icon-sets.iconify.design/mingcute/target-fill) -- react-icons

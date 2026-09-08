@@ -69,7 +69,6 @@ function BrowseListResults<T>({
   offset,
 }: BrowseListPageProps<T> & { search: string; levels: JlptLevel[]; rawLevel: string | null; offset: number }) {
   const { data: result, status } = useList({ search: search || null, levels, limit: PAGE_SIZE, offset });
-  const isInitialLoading = (status === "loading" || !result) && !!renderPlaceholderRow;
 
   const preservedParams = new URLSearchParams();
   if (search) preservedParams.set("search", search);

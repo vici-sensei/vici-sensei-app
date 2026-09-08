@@ -32,7 +32,10 @@ export function useKanjiProgress(user: User | null, kanjiId: number | null) {
   }, [user, kanjiId]);
 
   useEffect(() => {
-    void refetch();
+    function sync() {
+      void refetch();
+    }
+    sync();
   }, [refetch]);
 
   return { data, status, error, refetch, mutate: setData };
@@ -57,7 +60,10 @@ export function useVocabularyProgress(user: User | null, wordId: number | null) 
   }, [user, wordId]);
 
   useEffect(() => {
-    void refetch();
+    function sync() {
+      void refetch();
+    }
+    sync();
   }, [refetch]);
 
   return { data, status, error, refetch, mutate: setData };
@@ -83,16 +89,19 @@ export function useProgressSummary(user: User | null) {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    // Instant paint from a hover/focus prefetch of the Progress nav entry (or the shell's
-    // own previous visit) -- purely provisional, refetch() below always runs right after and
-    // overwrites it once the real fetch resolves.
-    const cached = readCache<ProgressSummaryResponse>(progressSummaryCacheKey(user.id));
-    if (cached) {
-      setData(cached);
-      setStatus("loaded");
+    function sync() {
+      if (!user) return;
+      // Instant paint from a hover/focus prefetch of the Progress nav entry (or the shell's
+      // own previous visit) -- purely provisional, refetch() below always runs right after and
+      // overwrites it once the real fetch resolves.
+      const cached = readCache<ProgressSummaryResponse>(progressSummaryCacheKey(user.id));
+      if (cached) {
+        setData(cached);
+        setStatus("loaded");
+      }
+      void refetch();
     }
-    void refetch();
+    sync();
   }, [user, refetch]);
 
   return { data, status, error, refetch };

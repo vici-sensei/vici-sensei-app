@@ -84,7 +84,10 @@ export function ProfileSettingsForm({
   // already mounted with a stale/empty value — resync instead of trusting the
   // one-time useState initializer, and give a fresh URL a chance to load again.
   useEffect(() => {
-    setAvatarUrl(initial.avatar_url ?? "");
+    function sync() {
+      setAvatarUrl(initial.avatar_url ?? "");
+    }
+    sync();
   }, [initial.avatar_url]);
 
   const [identities, setIdentities] = useState<UserIdentity[]>([]);

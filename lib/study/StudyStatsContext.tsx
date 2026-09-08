@@ -61,10 +61,12 @@ export function StudyStatsProvider({ children }: { children: ReactNode }) {
     // Instant paint from the last known stats (this session's previous mount, or a prior app
     // open) -- purely provisional, refresh() right below always runs and overwrites it once
     // the real fetch resolves.
-    const cached = readCache<StudyStats>(studyStatsCacheKey(user.id));
-    if (cached) setStats(cached);
-
-    void refresh();
+    function primeAndRefresh(userId: string) {
+      const cached = readCache<StudyStats>(studyStatsCacheKey(userId));
+      if (cached) setStats(cached);
+      void refresh();
+    }
+    primeAndRefresh(user.id);
 
     function onVisibilityChange() {
       if (document.visibilityState === "visible") void refresh();

@@ -4,7 +4,7 @@
 // copied into out/ *during* the build. Writing straight into out/ (wrangler.jsonc's
 // assets.directory) sidesteps that chicken-and-egg problem entirely.
 import { createHash } from "node:crypto";
-import { readdirSync, statSync, writeFileSync } from "node:fs";
+import { readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const OUT_DIR = path.resolve(process.cwd(), "out");

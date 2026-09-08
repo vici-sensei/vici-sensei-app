@@ -43,16 +43,19 @@ export function useUserProfile(user: User | null) {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    // Hydrate synchronously from cache the moment we have a user, so a repeat visit paints the
-    // last-known profile immediately instead of sitting on FullScreenLoader -- refetch() below
-    // then revalidates in the background without flipping status back to "loading".
-    const cached = readCache<UserProfile>(profileCacheKey(user.id));
-    if (cached) {
-      setData(cached);
-      setStatus("loaded");
+    function sync() {
+      if (!user) return;
+      // Hydrate synchronously from cache the moment we have a user, so a repeat visit paints the
+      // last-known profile immediately instead of sitting on FullScreenLoader -- refetch() below
+      // then revalidates in the background without flipping status back to "loading".
+      const cached = readCache<UserProfile>(profileCacheKey(user.id));
+      if (cached) {
+        setData(cached);
+        setStatus("loaded");
+      }
+      void refetch();
     }
-    void refetch();
+    sync();
   }, [user, refetch]);
 
   return { data, status, error, refetch };

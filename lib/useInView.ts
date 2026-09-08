@@ -15,7 +15,10 @@ export function useInView<T extends Element>(threshold = 1): [React.RefObject<T 
     if (!node) return;
 
     if (typeof IntersectionObserver === "undefined") {
-      setInView(true);
+      function markInView() {
+        setInView(true);
+      }
+      markInView();
       return;
     }
 
