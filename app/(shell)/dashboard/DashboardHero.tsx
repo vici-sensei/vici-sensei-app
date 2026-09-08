@@ -141,17 +141,17 @@ export function DashboardHero() {
           <p className="mt-2.5 text-sm text-text-muted">Couldn&apos;t refresh your stats — try reloading the page.</p>
         )}
       </div>
-      <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:items-end">
+      <div className="flex flex-wrap items-center justify-center w-full gap-3 sm:items-start sm:justify-start sm:w-fit">
         <StartStudyButton disabled={allDone} />
         {showPracticeButton && (
-          <Link href="/study/practice" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}>
+          <Link href="/study/practice" className={buttonClasses({ variant: "secondary", hover: "hover" })}>
             Practice
           </Link>
         )}
         {showHiraganaReadingTestCta && (
           <Link
             href="/study/test/hiragana"
-            className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
+            className={buttonClasses({ variant: "secondary", hover: "hover" })}
           >
             Take the reading test
           </Link>
@@ -159,7 +159,7 @@ export function DashboardHero() {
         {showKatakanaReadingTestCta && (
           <Link
             href="/study/test/katakana"
-            className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}
+            className={buttonClasses({ variant: "secondary", hover: "hover" })}
           >
             Take the reading test
           </Link>
