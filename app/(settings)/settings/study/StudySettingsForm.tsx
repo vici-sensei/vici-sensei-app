@@ -40,6 +40,7 @@ type Snapshot = {
   studyHiragana: boolean;
   studyKatakana: boolean;
   leaderboardAnonymous: boolean;
+  kanaPracticeEnabled: boolean;
 };
 
 function snapshotFrom(settings: StudySettings): Snapshot {
@@ -56,6 +57,7 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     studyHiragana: settings.study_hiragana,
     studyKatakana: settings.study_katakana,
     leaderboardAnonymous: settings.leaderboard_anonymous ?? false,
+    kanaPracticeEnabled: settings.kana_practice_enabled,
   };
 }
 
@@ -72,7 +74,8 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
     a.studyVocabulary === b.studyVocabulary &&
     a.studyHiragana === b.studyHiragana &&
     a.studyKatakana === b.studyKatakana &&
-    a.leaderboardAnonymous === b.leaderboardAnonymous
+    a.leaderboardAnonymous === b.leaderboardAnonymous &&
+    a.kanaPracticeEnabled === b.kanaPracticeEnabled
   );
 }
 
@@ -103,6 +106,7 @@ export function StudySettingsForm({
   // Coerced to a definite boolean here -- null (onboarding not yet chosen) shouldn't reach this
   // page in practice, since /onboarding gates access before it, but the toggle itself is binary.
   const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous ?? false);
+  const [kanaPracticeEnabled, setKanaPracticeEnabled] = useState(initial.kana_practice_enabled);
   const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(initial.leaderboard_alias);
   // Not part of the autosaved Snapshot below -- only ever changed by handleCrossTrack's own
   // atomic save, never by the periodic autosave.
@@ -391,6 +395,7 @@ export function StudySettingsForm({
     setStudyHiragana(snapshot.studyHiragana);
     setStudyKatakana(snapshot.studyKatakana);
     setLeaderboardAnonymous(snapshot.leaderboardAnonymous);
+    setKanaPracticeEnabled(snapshot.kanaPracticeEnabled);
   }
 
   async function handleReroll() {
@@ -476,6 +481,7 @@ export function StudySettingsForm({
       studyHiragana,
       studyKatakana,
       leaderboardAnonymous,
+      kanaPracticeEnabled,
     };
     if (sameSnapshot(current, saved)) return;
 
@@ -493,6 +499,7 @@ export function StudySettingsForm({
         study_hiragana: current.studyHiragana,
         study_katakana: current.studyKatakana,
         leaderboard_anonymous: current.leaderboardAnonymous,
+        kana_practice_enabled: current.kanaPracticeEnabled,
       };
       try {
         const updated = await updateStudySettings(user.id, body);
@@ -541,6 +548,7 @@ export function StudySettingsForm({
     studyHiragana,
     studyKatakana,
     leaderboardAnonymous,
+    kanaPracticeEnabled,
     saved,
     user,
   ]);
@@ -838,6 +846,21 @@ export function StudySettingsForm({
           </div>
         ) : null}
       </GlassCard>
+
+      {studyTrack === "kana" && (
+        <GlassCard padding="lg" className="mt-5.5">
+          <div className="flex items-center justify-between gap-5 py-1">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Practice mode</div>
+              <div className="text-sm text-text-muted">
+                Once you&apos;re done for the day, show a Practice button on the dashboard to freely go through every
+                hiragana and katakana you&apos;ve learned. Just for fun — it never affects your progress or schedule.
+              </div>
+            </div>
+            <Toggle checked={kanaPracticeEnabled} onChange={() => setKanaPracticeEnabled(!kanaPracticeEnabled)} disabled={disabled} />
+          </div>
+        </GlassCard>
+      )}
     </div>
   );
 }

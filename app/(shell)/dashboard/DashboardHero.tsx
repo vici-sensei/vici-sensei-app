@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { GiPalmTree, GiPartyPopper } from "react-icons/gi";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
+import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import { cardsRemainingToday } from "@/lib/study/stats";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -16,8 +17,13 @@ export function DashboardHero() {
   // `!stats || realAllDone`, so reusing it as the button's disabled state covers the
   // loading case for free.
   const { stats, studyDisabled: allDone, stale, clockOffsetMs, refresh } = useStudyStats();
+  // Only ever exposed on the kana track (see the toggle on /settings/study) -- checking isKana
+  // too means a stale true from a past kana stint can never resurface this button after the
+  // user has since graduated to the standard track.
+  const { data: studySettings } = useStudySettingsContext();
 
   const isKana = stats?.study_track === "kana";
+  const showPracticeButton = Boolean(allDone && isKana && studySettings?.kana_practice_enabled);
   // Only worth showing once there's actually something to do about it -- hiragana done but the
   // reading test not yet 100%'d (see 20260915_reading_test_gates_katakana.sql). Disappears the
   // instant the test is passed, whether the student got there via this button or navigated there
@@ -137,6 +143,11 @@ export function DashboardHero() {
       </div>
       <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:items-end">
         <StartStudyButton disabled={allDone} />
+        {showPracticeButton && (
+          <Link href="/study/practice" className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover" })}>
+            Practice
+          </Link>
+        )}
         {showHiraganaReadingTestCta && (
           <Link
             href="/study/test/hiragana"

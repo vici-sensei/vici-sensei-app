@@ -15,12 +15,18 @@ interface Props {
   disabled: boolean;
   onRate: (card: DueCard, rating: Rating) => void;
   onCancelableChange?: (cancel: (() => void) | null) => void;
+  /** Hides the "N in a row -- need 3" streak dots even in drill mode -- for a caller whose
+   * drill_mode=true card has no real graduation behind it (see app/(study)/study/practice,
+   * which reuses this component purely for its correct/incorrect + Continue presentation, with
+   * no post-introduction drill to actually graduate from). Defaults to false so the real
+   * post-introduction drill on /study is unaffected. */
+  hideDrillStreak?: boolean;
 }
 
 /** Shared by hiragana_reading and katakana_reading -- structurally identical, only the
  * label/accent differ, same reasoning as ReviewCardKanjiReading but without word-level
  * concerns (siblings, furigana): a kana character tests exactly one fixed romaji string. */
-export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChange }: Props) {
+export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChange, hideDrillStreak = false }: Props) {
   const isHiragana = card.exercise_type === "hiragana_reading";
   // Server-computed (get_due_cards/get_hiragana_reading_cards/get_katakana_reading_cards --
   // status = 'learning' and kana_type = 'seion') so this always agrees with useStudyQueue.ts's
@@ -97,7 +103,7 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
                 tokens={[{ raw: "", correct: false, userDiff: result.userDiff, targetDiff: result.targetDiff }]}
               />
             )}
-            {drillMode && streakAfterThisAnswer !== null && (
+            {drillMode && !hideDrillStreak && streakAfterThisAnswer !== null && (
               <div className="flex flex-col items-center gap-1.5">
                 <div className="flex gap-1.5">
                   {[0, 1, 2].map((i) => (

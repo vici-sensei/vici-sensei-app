@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: StudySettings = {
   study_katakana: false,
   new_hiragana_per_day: 15,
   new_katakana_per_day: 15,
+  kana_practice_enabled: false,
   updated_at: "",
   onboarding_completed: true,
   onboarding_step: 0,

@@ -24,6 +24,10 @@ export interface StudySettings {
   study_katakana: boolean;
   new_hiragana_per_day: number;
   new_katakana_per_day: number;
+  /** Kana-track only -- shows a "Practice" button on the dashboard once the user is done for the
+   * day, linking to /study/practice (an unscored, single-pass review of every hiragana/katakana
+   * character they've seen). Purely a display preference; ignored on the standard track. */
+  kana_practice_enabled: boolean;
   /** The exact step the user was on -- updated on every navigation, so a refresh resumes here. */
   onboarding_step: number;
   /** The furthest step ever reached -- only grows, used for the progress bar (which steps are clickable/dimmed). */
@@ -54,4 +58,5 @@ export interface StudySettingsPatch {
   study_katakana?: boolean;
   new_hiragana_per_day?: number;
   new_katakana_per_day?: number;
+  kana_practice_enabled?: boolean;
 }
