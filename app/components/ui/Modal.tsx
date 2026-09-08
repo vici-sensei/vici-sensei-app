@@ -44,6 +44,14 @@ export function Modal({ onClose, labelledBy, showCloseButton, fullScreen, childr
     return () => cancelAnimationFrame(id);
   }, []);
 
+  useEffect(() => {
+    // Blurs whatever input/textarea was focused behind this modal (e.g. the study page's
+    // answer field, which stays focused across cards) so the on-screen keyboard closes instead
+    // of covering the dialog -- most callers open this from a button tap, which already blurs
+    // the previous field, but async triggers like the level-up/graduation modals don't.
+    (document.activeElement as HTMLElement | null)?.blur?.();
+  }, []);
+
   const closeAnimated = useCallback(() => {
     setClosing((already) => {
       if (!already) setTimeout(() => onCloseRef.current(), TRANSITION_MS);
