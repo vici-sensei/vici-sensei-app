@@ -9,6 +9,7 @@ import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { useInView } from "@/lib/useInView";
 import { useCountUp } from "@/lib/useCountUp";
 import { GlassCard } from "@/app/components/ui/GlassCard";
+import { SakuraPetals } from "@/app/components/ui/SakuraPetals";
 import { AnimatedRingStroke, RingTrack } from "@/app/components/ui/AnimatedRing";
 import { DashboardHero } from "./DashboardHero";
 import { NextCardCountdown } from "./NextCardCountdown";
@@ -48,62 +49,6 @@ function placeholderWeekActivity(): WeeklyActivityDay[] {
   return days;
 }
 
-// Scattered across the whole card behind the streak number when a new record just landed.
-// Sakura-ish palette (pink/blush/white), fixed positions/colors/speeds (not randomized) so the
-// layout is stable across re-renders and SSR. `top` is each petal's resting position -- used
-// as-is when motion is reduced (see .vici-confetti-petal in globals.css), and as the starting
-// point the fall animation reads from before overriding it. `delay`/`driftDelay` are negative and
-// roughly proportional to their durations so every petal is already mid-fall and mid-rotation on
-// first paint instead of all starting in sync.
-const CONFETTI_PETALS: {
-  top: string;
-  left: string;
-  size: number;
-  color: string;
-  duration: number;
-  delay: number;
-  driftDuration: number;
-  driftDelay: number;
-}[] = [
-  { top: "10%", left: "8%", size: 9, color: "bg-accent-pink", duration: 11, delay: -2, driftDuration: 4.2, driftDelay: -0.6 },
-  { top: "20%", left: "80%", size: 7, color: "bg-white", duration: 9, delay: -5, driftDuration: 3.6, driftDelay: -2.1 },
-  { top: "68%", left: "16%", size: 8, color: "bg-accent-pink", duration: 12, delay: -1, driftDuration: 5, driftDelay: -1.4 },
-  { top: "78%", left: "88%", size: 10, color: "bg-[#ffd9e6]", duration: 8, delay: -6, driftDuration: 4.6, driftDelay: -3 },
-  { top: "42%", left: "94%", size: 7, color: "bg-accent-pink", duration: 13, delay: -3.5, driftDuration: 3.9, driftDelay: -0.2 },
-  { top: "6%", left: "46%", size: 8, color: "bg-white", duration: 10, delay: -4, driftDuration: 4.8, driftDelay: -1.8 },
-  { top: "86%", left: "52%", size: 9, color: "bg-[#ffd9e6]", duration: 9.5, delay: -7, driftDuration: 4.1, driftDelay: -2.6 },
-  { top: "52%", left: "2%", size: 7, color: "bg-accent-pink", duration: 8.5, delay: -1.5, driftDuration: 3.4, driftDelay: -3.4 },
-];
-
-// Purely decorative -- sits above the card content (see the isolate+overflow-hidden/z-10/z-20
-// split in StreakCard below) so it never needs to fight the shell Header (z-50) or
-// MobileNavMenu (z-45) for stacking: `isolate` on the card gives this whole subtree its own
-// stacking context, so no z-index in here can ever escape above page chrome outside the card.
-function RecordConfetti() {
-  return (
-    <div className="pointer-events-none absolute inset-0 z-20" aria-hidden="true">
-      {CONFETTI_PETALS.map((petal, i) => (
-        <span
-          key={i}
-          className={`vici-confetti-petal absolute ${petal.color}`}
-          style={
-            {
-              top: petal.top,
-              left: petal.left,
-              width: petal.size,
-              height: petal.size * 0.72,
-              "--confetti-fall-duration": `${petal.duration}s`,
-              "--confetti-fall-delay": `${petal.delay}s`,
-              "--confetti-drift-duration": `${petal.driftDuration}s`,
-              "--confetti-drift-delay": `${petal.driftDelay}s`,
-            } as CSSProperties
-          }
-        />
-      ))}
-    </div>
-  );
-}
-
 function StreakCard() {
   // Reuses the same StudyStatsProvider poll the shell layout and DashboardHero already run —
   // no separate fetch here.
@@ -121,13 +66,13 @@ function StreakCard() {
     <GlassCard
       padding="sm"
       tone={isNewRecord ? "gold" : "default"}
-      // isolate: gives this card its own stacking context, so RecordConfetti's z-20 and the
+      // isolate: gives this card its own stacking context, so SakuraPetals's z-20 and the
       // content wrapper's z-10 below are only ever compared against each other -- never against
       // the shell Header/MobileNavMenu's z-50/z-45 outside the card. overflow-hidden clips the
       // dots to the card's own rounded corners.
       className={isNewRecord ? "isolate overflow-hidden" : undefined}
     >
-      {isNewRecord && <RecordConfetti />}
+      {isNewRecord && <SakuraPetals />}
       <div className="relative z-10 flex flex-col gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left justify-center items-center h-full">
         {isNewRecord ? (
           <div className="flex flex-col items-center gap-1">

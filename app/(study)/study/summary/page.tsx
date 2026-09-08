@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
-import { takeNewlyUnlockedAchievements } from "@/lib/study/newAchievements";
+import { createClient } from "@/lib/supabase/client";
+import { acknowledgeAchievements, fetchUnacknowledgedAchievements } from "@/lib/data/achievements";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { celebrate } from "@/lib/confetti";
@@ -61,12 +62,16 @@ export default function StudySummaryPage() {
     if (hasStarted.current) return;
     hasStarted.current = true;
 
-    const unlockedKeys = takeNewlyUnlockedAchievements(user.id);
-    if (unlockedKeys.length > 0) {
-      const entries = ACHIEVEMENT_CATALOG.filter((entry) => unlockedKeys.includes(entry.achievementKey));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setNewAchievements(entries);
-    }
+    fetchUnacknowledgedAchievements(createClient(), user.id)
+      .then((keys) => {
+        if (keys.length === 0) return;
+        const entries = ACHIEVEMENT_CATALOG.filter((entry) => keys.includes(entry.achievementKey));
+        setNewAchievements(entries);
+      })
+      .catch(() => {
+        // Non-critical -- worst case the celebration is missed this visit; the achievement stays
+        // unacknowledged and will still surface next time.
+      });
 
     const sessionId = getStoredSessionId(user.id);
     if (sessionId == null) {
@@ -78,7 +83,6 @@ export default function StudySummaryPage() {
       try {
         const result = await endSession(sessionId);
         clearStoredSessionId(user.id);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSummary(result);
         void celebrate();
       } catch (err) {
@@ -131,7 +135,16 @@ export default function StudySummaryPage() {
         </Button>
       </div>
       {newAchievements.length > 0 && (
-        <NewAchievementsModal entries={newAchievements} onClose={() => setNewAchievements([])} />
+        <NewAchievementsModal
+          entries={newAchievements}
+          onClose={() => {
+            const keys = newAchievements.map((entry) => entry.achievementKey);
+            setNewAchievements([]);
+            void acknowledgeAchievements(createClient(), keys).catch(() => {
+              // Non-critical -- worst case the same achievement is shown again next session.
+            });
+          }}
+        />
       )}
     </div>
   );

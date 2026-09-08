@@ -231,8 +231,9 @@ input:disabled ~ span {
   }
 }
 
-/* Streak card's "new record" background (dashboard/page.tsx's RecordConfetti) -- petals drift
-   down and slowly rotate, like falling sakura, rather than a straight-down snow/confetti fall.
+/* Falling sakura petals (app/components/ui/SakuraPetals.tsx) -- used behind the dashboard's
+   streak-record card and the achievement-unlock modal. Petals drift down and slowly rotate,
+   like falling sakura, rather than a straight-down snow/confetti fall.
    Each petal sets its own --confetti-fall-duration/--confetti-fall-delay (vertical speed, and a
    negative delay so it's already mid-fall on first paint instead of starting bunched at the top)
    and --confetti-drift-duration/--confetti-drift-delay (its own rotate+sway phase) -- these vary

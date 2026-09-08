@@ -24,6 +24,7 @@ import {
   submitKatakanaDrillResult as submitKatakanaDrillResultApi,
   submitReview as submitReviewApi,
   undoReview as undoReviewApi,
+  acknowledgeAchievements as acknowledgeAchievementsApi,
   type KanaPackResult,
 } from "@/lib/client-data/study";
 import { fetchHiraganaMastered, fetchKatakanaMastered, refreshStudySettings } from "@/lib/client-data/studySettings";
@@ -33,7 +34,6 @@ import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/
 import { hasCelebratedMaxLevel, markMaxLevelCelebrated } from "@/lib/study/levelUpCache";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
-import { addNewlyUnlockedAchievements } from "@/lib/study/newAchievements";
 import type {
   DueCard,
   JlptLevelUpResult,
@@ -606,6 +606,14 @@ export function useStudyQueue() {
   // Same idea as levelUpResult, but for the kana track's two milestones (see checkKanaGraduation
   // below) -- StudyPage renders KanaGraduationModal whenever this is non-null.
   const [kanaGraduationResult, setKanaGraduationResult] = useState<KanaGraduationKind | null>(null);
+  // Achievement keys unlocked by the review/drill submit that just resolved (submit_review and
+  // record_hiragana_drill_result/record_katakana_drill_result all report this the same way, see
+  // their newly_unlocked_achievements/newly_unlocked column) -- StudyPage renders
+  // NewAchievementsModal right on top of the next card whenever this is non-empty, so the student
+  // sees the unlock in the moment instead of only in a batch at /study/summary. That page's own
+  // fetchUnacknowledgedAchievements check still runs as a fallback for whatever this modal never
+  // got the chance to show (tab closed mid-session, etc).
+  const [newAchievements, setNewAchievements] = useState<string[]>([]);
   // Key of the one card currently held on screen instead of being optimistically removed -- a
   // new_hiragana/new_katakana tap (see introduceKanaCard, held on every tap so the reading pack
   // can swap in atomically with no flash of the next pack's own card), a drill card (see
@@ -993,7 +1001,7 @@ export function useStudyQueue() {
       enqueueMutation(async () => {
         try {
           const { drillStreak, graduated, newlyUnlockedAchievements } = await apiCall(itemId, correct);
-          if (newlyUnlockedAchievements.length > 0) addNewlyUnlockedAchievements(user.id, newlyUnlockedAchievements);
+          if (newlyUnlockedAchievements.length > 0) setNewAchievements(newlyUnlockedAchievements);
           // Deliberately NOT the same as rate()'s attemptedKeysRef treatment below -- a drill
           // round trip is seconds, not minutes, so unlike a kanji/vocab retry it's realistic to
           // finish the whole drill (3 correct in a row) inside this same session. computePredictedTotal
@@ -1024,7 +1032,7 @@ export function useStudyQueue() {
         }
       });
     },
-    [enqueueMutation, showToast, user.id]
+    [enqueueMutation, showToast]
   );
 
   // Checks whether the review just submitted (kanji_meaning/kanji_reading/vocab_meaning only --
@@ -1138,6 +1146,15 @@ export function useStudyQueue() {
 
   const dismissKanaGraduation = useCallback(() => setKanaGraduationResult(null), []);
 
+  // Fire-and-forget, same reasoning as checkLevelUp above: a failed acknowledge just means this
+  // same achievement's modal can show again (fetchUnacknowledgedAchievements still finds it, either
+  // right on the next unlock or in the /study/summary fallback) -- never worth interrupting the
+  // student over.
+  const dismissNewAchievements = useCallback(() => {
+    if (newAchievements.length > 0) void acknowledgeAchievementsApi(newAchievements).catch(() => {});
+    setNewAchievements([]);
+  }, [newAchievements]);
+
   const rate = useCallback(
     (card: DueCard, rating: Rating) => {
       // hiragana_reading/katakana_reading cards still in the post-introduction drill
@@ -1178,7 +1195,7 @@ export function useStudyQueue() {
             reviewBody(card, rating, sessionIdRef.current ?? undefined)
           );
           lastReviewLogIdRef.current = reviewLogId;
-          if (newlyUnlockedAchievements.length > 0) addNewlyUnlockedAchievements(user.id, newlyUnlockedAchievements);
+          if (newlyUnlockedAchievements.length > 0) setNewAchievements(newlyUnlockedAchievements);
           // A wrong answer can schedule this card to resurface later in the same session
           // (relearning steps) -- refetch so nextDueAt (and the progress-bar countdown) picks
           // that up immediately instead of waiting out the 45s poll. attemptedKeysRef (just set
@@ -1210,7 +1227,7 @@ export function useStudyQueue() {
         }
       });
     },
-    [enqueueMutation, showToast, refreshQueue, submitDrillAnswer, checkLevelUp, checkKanaGraduation, user.id]
+    [enqueueMutation, showToast, refreshQueue, submitDrillAnswer, checkLevelUp, checkKanaGraduation]
   );
 
   const introduceCard = useCallback(
@@ -1565,6 +1582,7 @@ export function useStudyQueue() {
     lastReview,
     levelUpResult,
     kanaGraduationResult,
+    newAchievements,
     actionPending: undoPending,
     // True when `current` is a held card awaiting a result -- a new_hiragana/new_katakana or
     // new_kanji tap, or a drill card answered when the pool was empty (submitDrillAnswer). The
@@ -1583,6 +1601,7 @@ export function useStudyQueue() {
       undoLast,
       dismissLevelUp,
       dismissKanaGraduation,
+      dismissNewAchievements,
     },
   };
 }

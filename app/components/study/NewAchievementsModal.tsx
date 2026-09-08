@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
 import { Modal } from "@/app/components/ui/Modal";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { AchievementCard } from "@/app/components/ui/AchievementCard";
-import { celebrate } from "@/lib/confetti";
+import { SakuraPetals } from "@/app/components/ui/SakuraPetals";
 import type { AchievementCatalogEntry } from "@/lib/achievements/registry";
 import { FaTrophy } from "react-icons/fa6";
 
@@ -14,23 +13,25 @@ interface NewAchievementsModalProps {
   onClose: () => void;
 }
 
-/** Shown once, right after a study session/reading test ends, for whatever achievements got
- * newly unlocked during it (see lib/study/newAchievements.ts and the per-test-type earned-since
- * lookups) -- otherwise the only way to ever see a fresh unlock is to open Settings > Profile >
- * Badges. Visual pattern matches KanaGraduationModal: same non-fullScreen Modal, one-shot confetti
- * on mount (a fresh `entries` list always means a brand new modal instance, never a re-render of
- * the same one), single "Continue" CTA. */
+/** Shown right on top of the next card, the moment a review/drill submit unlocks an achievement
+ * (useStudyQueue's newAchievements/dismissNewAchievements) -- otherwise the only way to ever see a
+ * fresh unlock is to open Settings > Profile > Badges. /study/summary and the reading-test summary
+ * pages render this same component as a fallback, for whatever stayed unacknowledged because this
+ * mid-session moment never got the chance to show it (tab closed mid-session, etc) -- see
+ * lib/data/achievements.ts's fetchUnacknowledgedAchievements/acknowledgeAchievements and the
+ * per-test-type earned-since lookups. Visual pattern matches KanaGraduationModal: same
+ * non-fullScreen Modal, single "Continue" CTA. Falling sakura petals (SakuraPetals, `fullScreen`)
+ * replace a canvas-confetti burst, covering the whole viewport (not just this card) and painting
+ * above it -- see SakuraPetals' own comment for why `position: fixed` reaches past this card's
+ * bounds despite being nested inside it. */
 export function NewAchievementsModal({ entries, onClose }: NewAchievementsModalProps) {
-  useEffect(() => {
-    void celebrate();
-  }, []);
-
   if (entries.length === 0) return null;
 
   const plural = entries.length > 1;
 
   return (
     <Modal onClose={onClose} labelledBy="new-achievements-title">
+      <SakuraPetals fullScreen />
       <div className="text-center">
         <Badge color="gold">
           <span className="inline-flex items-center gap-1.5">
@@ -49,7 +50,7 @@ export function NewAchievementsModal({ entries, onClose }: NewAchievementsModalP
           ))}
         </div>
 
-        <Button className="mt-7 w-full" onClick={onClose}>
+        <Button variant="secondary" size="sm" className="mt-7" onClick={onClose}>
           Continue
         </Button>
       </div>

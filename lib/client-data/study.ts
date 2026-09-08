@@ -21,6 +21,7 @@ import {
 export type { KanaPackResult } from "@/lib/data/introduce";
 import { recordHiraganaDrillResult, recordKatakanaDrillResult, type KanaDrillResult } from "@/lib/data/kanaDrill";
 import { checkJlptLevelUp as checkJlptLevelUpData } from "@/lib/data/jlptLevel";
+import { acknowledgeAchievements as acknowledgeAchievementsData } from "@/lib/data/achievements";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
@@ -111,6 +112,14 @@ export async function getSessionProgress(sessionId: number): Promise<number> {
   const supabase = createClient();
   const userId = await requireUserId();
   return getSessionProgressData(supabase, userId, sessionId);
+}
+
+/** Marks achievement keys as seen right after their unlock modal is dismissed mid-session (see
+ * useStudyQueue's dismissNewAchievements) -- /study/summary's own fetchUnacknowledgedAchievements
+ * check only ever finds something left over if this never got the chance to run. */
+export async function acknowledgeAchievements(keys: string[]): Promise<void> {
+  const supabase = createClient();
+  return acknowledgeAchievementsData(supabase, keys);
 }
 
 async function introduce(kind: IntroduceKind, itemId: number, sessionId?: number): Promise<void> {

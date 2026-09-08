@@ -16,6 +16,8 @@ import { NewKanaIntroCard } from "@/app/components/study/NewKanaIntroCard";
 import { NewKanaRuleIntroCard } from "@/app/components/study/NewKanaRuleIntroCard";
 import { JlptLevelUpModal } from "@/app/components/study/JlptLevelUpModal";
 import { KanaGraduationModal } from "@/app/components/study/KanaGraduationModal";
+import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
+import { ACHIEVEMENT_CATALOG } from "@/lib/achievements/registry";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
@@ -66,6 +68,7 @@ export default function StudyPage() {
     lastReview,
     levelUpResult,
     kanaGraduationResult,
+    newAchievements,
     actionPending,
     cardPending,
     undoDisabled,
@@ -222,6 +225,12 @@ export default function StudyPage() {
       </div>
       {levelUpResult && <JlptLevelUpModal result={levelUpResult} onClose={actions.dismissLevelUp} />}
       {kanaGraduationResult && <KanaGraduationModal kind={kanaGraduationResult} onClose={actions.dismissKanaGraduation} />}
+      {newAchievements.length > 0 && (
+        <NewAchievementsModal
+          entries={ACHIEVEMENT_CATALOG.filter((entry) => newAchievements.includes(entry.achievementKey))}
+          onClose={actions.dismissNewAchievements}
+        />
+      )}
     </div>
   );
 }

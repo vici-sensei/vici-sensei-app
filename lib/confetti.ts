@@ -12,5 +12,9 @@ export async function celebrate() {
     startVelocity: 45,
     origin: { y: 0.6 },
     colors: CONFETTI_COLORS,
+    // canvas-confetti defaults to z-index 100, which sits behind Modal.tsx's z-[200] backdrop --
+    // every caller of celebrate() fires it from inside (or right before) a Modal, so it needs to
+    // render above that, not underneath it.
+    zIndex: 250,
   });
 }
