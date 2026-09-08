@@ -67,13 +67,14 @@ function StreakCard() {
       padding="sm"
       tone={isNewRecord ? "gold" : "default"}
       // isolate: gives this card its own stacking context, so SakuraPetals's z-20 and the
-      // content wrapper's z-10 below are only ever compared against each other -- never against
+      // content wrapper's z-30 below are only ever compared against each other -- never against
       // the shell Header/MobileNavMenu's z-50/z-45 outside the card. overflow-hidden clips the
-      // dots to the card's own rounded corners.
+      // petals to the card's own rounded corners. Content sits above the petals (z-30 > z-20) so
+      // the numbers/icons stay fully in front, matching NewAchievementsModal's petal layering.
       className={isNewRecord ? "isolate overflow-hidden" : undefined}
     >
       {isNewRecord && <SakuraPetals />}
-      <div className="relative z-10 flex flex-col gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left justify-center items-center h-full">
+      <div className="relative z-30 flex flex-col gap-2 sm:gap-6 text-center sm:flex-row sm:flex-wrap sm:text-left justify-center items-center h-full">
         {isNewRecord ? (
           <div className="flex flex-col items-center gap-1">
             <div className="text-4xl font-extrabold leading-none tracking-tight text-accent-gold">{displayedStreak}</div>

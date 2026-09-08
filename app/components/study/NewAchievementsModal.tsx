@@ -20,10 +20,16 @@ interface NewAchievementsModalProps {
  * mid-session moment never got the chance to show it (tab closed mid-session, etc) -- see
  * lib/data/achievements.ts's fetchUnacknowledgedAchievements/acknowledgeAchievements and the
  * per-test-type earned-since lookups. Visual pattern matches KanaGraduationModal: same
- * non-fullScreen Modal, single "Continue" CTA. Falling sakura petals (SakuraPetals, `fullScreen`)
- * replace a canvas-confetti burst, covering the whole viewport (not just this card) and painting
- * above it -- see SakuraPetals' own comment for why `position: fixed` reaches past this card's
- * bounds despite being nested inside it. */
+ * non-fullScreen Modal, single "Continue" CTA. Falling sakura petals (SakuraPetals) replace a
+ * canvas-confetti burst -- confined to Modal's own card (which sets `isolate overflow-hidden` for
+ * exactly this) and layered behind the content below via z-index, so they read as falling behind
+ * it rather than over it. Plain text (the heading) is opaque by nature so z-index alone is enough
+ * there, but Badge/Button/the achievement-card rows all use a translucent Tailwind background
+ * (glassy over a plain card elsewhere in the app) -- sitting a z-index above the petals still lets
+ * petal color bleed through that translucency at full strength, so those three get `#111827/85`
+ * (bg-bg-cards's own RGB, mostly but not fully opaque) forced on with `!` so it wins over their
+ * component's own non-important background utility -- dims the petals passing behind to a faint
+ * hint instead of either full color-bleed or hiding them outright. */
 export function NewAchievementsModal({ entries, onClose }: NewAchievementsModalProps) {
   if (entries.length === 0) return null;
 
@@ -31,9 +37,9 @@ export function NewAchievementsModal({ entries, onClose }: NewAchievementsModalP
 
   return (
     <Modal onClose={onClose} labelledBy="new-achievements-title">
-      <SakuraPetals fullScreen />
-      <div className="text-center">
-        <Badge color="gold">
+      <SakuraPetals />
+      <div className="relative z-30 text-center">
+        <Badge color="gold" className="!bg-[#111827]/85">
           <span className="inline-flex items-center gap-1.5">
             <FaTrophy className="h-3 w-3" />
             {plural ? "Achievements unlocked" : "Achievement unlocked"}
@@ -44,13 +50,13 @@ export function NewAchievementsModal({ entries, onClose }: NewAchievementsModalP
           {plural ? "New badges earned!" : "New badge earned!"}
         </h3>
 
-        <div className="mt-5 flex max-h-[45vh] flex-col gap-2.5 overflow-y-auto text-left">
+        <div className="mt-5 flex max-h-[45vh] flex-col gap-2.5 overflow-y-auto rounded-xl bg-[#111827]/85 text-left">
           {entries.map((entry) => (
             <AchievementCard key={entry.achievementKey} entry={entry} />
           ))}
         </div>
 
-        <Button variant="secondary" size="sm" className="mt-7" onClick={onClose}>
+        <Button variant="secondary" size="sm" className="mt-7 !bg-[#111827]/85" onClick={onClose}>
           Continue
         </Button>
       </div>

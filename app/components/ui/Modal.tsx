@@ -28,7 +28,11 @@ const TRANSITION_MS = 200;
  * transition plays, and only then does the real `onClose` prop fire (removing this component
  * from its parent). A ref holds the latest `onClose` so the delayed setTimeout callback never
  * captures a stale one. The backdrop's own corners are rounded to match the dialog it holds --
- * see the design note this was requested against for why that's deliberate here, not a mistake. */
+ * see the design note this was requested against for why that's deliberate here, not a mistake.
+ * The non-fullScreen card is `isolate overflow-hidden`: some callers (e.g. NewAchievementsModal)
+ * layer SakuraPetals behind their content inside this card, and both clip the petals to the
+ * rounded corners and keep the card's own z-index comparisons (petals vs. content) from ever
+ * being compared against anything outside the card. */
 export function Modal({ onClose, labelledBy, showCloseButton, fullScreen, children }: ModalProps) {
   const [shown, setShown] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -93,7 +97,7 @@ export function Modal({ onClose, labelledBy, showCloseButton, fullScreen, childr
             ? `relative flex h-full w-full flex-col items-center justify-center p-4 transition-all duration-200 ${
                 visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
               }`
-            : `relative w-full max-w-[440px] rounded-2xl border border-border-soft bg-bg-cards p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[10px] transition-all duration-200 ${
+            : `relative isolate w-full max-w-[440px] overflow-hidden rounded-2xl border border-border-soft bg-bg-cards p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[10px] transition-all duration-200 ${
                 visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
               }`
         }
