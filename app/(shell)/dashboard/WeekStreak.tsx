@@ -9,14 +9,6 @@ function weekdayLabel(date: string) {
   return WEEKDAY_FORMATTER.format(new Date(`${date}T00:00:00Z`));
 }
 
-function isSunday(date: string) {
-  return new Date(`${date}T00:00:00Z`).getUTCDay() === 0;
-}
-
-function isSaturday(date: string) {
-  return new Date(`${date}T00:00:00Z`).getUTCDay() === 6;
-}
-
 // Written as complete, literal class strings (not built up at runtime) so Tailwind's
 // content scanner can find and generate them -- it only sees the source text, not the
 // evaluated result of a template expression.
@@ -40,8 +32,6 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
     <div className="flex flex-wrap sm:flex-row items-center justify-center gap-1 border-t border-border-soft sm:border-none pt-2 sm:pt-0 sm:mt-0">
       {activity.map((day, i) => {
         const isToday = i === todayIndex;
-        const sunday = isSunday(day.date);
-        const saturday = isSaturday(day.date);
 
         let flameColor: string;
         let lit: boolean;
@@ -63,7 +53,7 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
         // a glow pulse layers on top of the sway.
         const animationClass = !lit ? "" : milestone ? SWAY_AND_GLOW_CLASS : SWAY_CLASS;
 
-        const labelColor = sunday ? "text-white" : "text-text-muted";
+        const labelColor = isToday ? "text-white" : "text-text-muted";
 
         return (
           <div key={day.date} className="flex flex-col items-center gap-1.5">
@@ -71,7 +61,7 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
               className={`h-8 w-8 ${flameColor} ${animationClass}`}
               style={lit ? { animationDelay: `${i * 0.15}s` } : undefined}
             />
-            <span className={`text-[11px] ${isToday || saturday ? "font-semibold " : ""}${labelColor}`}>
+            <span className={`text-[11px] ${isToday ? "font-semibold " : ""}${labelColor}`}>
               {weekdayLabel(day.date)}
             </span>
           </div>
