@@ -135,3 +135,36 @@ export const HIRAGANA_GOJUON_ROW_LAYOUT: readonly { row: string; count: number }
  * can't silently drift out of sync with everything that stays identical. */
 export const KATAKANA_GOJUON_ROW_LAYOUT: readonly { row: string; count: number }[] =
   HIRAGANA_GOJUON_ROW_LAYOUT.map((entry) => (entry.row === "wa" ? { ...entry, count: 1 } : entry));
+
+/** Base consonant+i kana that combine with a small ゃ/ゅ/ょ to form a yōon digraph (きゃ, しゃ,
+ * ...) -- both hiragana and katakana, since NewKanaRuleIntroCard's example grid is shared across
+ * both scripts. Used by splitYoonCharacter below to break a digraph back into its two components
+ * for display ("き ki + ゃ ya = きゃ kya") -- the combined romaji doesn't reliably decompose by
+ * string-slicing (じゃ -> "ja", not "ji" + "ya"), so each half's own standalone romaji is looked
+ * up here instead. */
+const YOON_BASE_ROMAJI: Record<string, string> = {
+  き: "ki", し: "shi", ち: "chi", に: "ni", ひ: "hi", み: "mi", り: "ri", ぎ: "gi", じ: "ji", び: "bi", ぴ: "pi",
+  キ: "ki", シ: "shi", チ: "chi", ニ: "ni", ヒ: "hi", ミ: "mi", リ: "ri", ギ: "gi", ジ: "ji", ビ: "bi", ピ: "pi",
+};
+
+const YOON_SMALL_ROMAJI: Record<string, string> = {
+  ゃ: "ya", ゅ: "yu", ょ: "yo",
+  ャ: "ya", ュ: "yu", ョ: "yo",
+};
+
+export interface YoonParts {
+  base: string;
+  baseRomaji: string;
+  small: string;
+  smallRomaji: string;
+}
+
+/** Splits a yōon digraph (きゃ, シュ, ...) into its base + small-kana halves with each half's own
+ * romaji, or null if `character` isn't a recognized two-character yōon combo. */
+export function splitYoonCharacter(character: string): YoonParts | null {
+  const [base, small] = Array.from(character);
+  const baseRomaji = base ? YOON_BASE_ROMAJI[base] : undefined;
+  const smallRomaji = small ? YOON_SMALL_ROMAJI[small] : undefined;
+  if (!base || !small || !baseRomaji || !smallRomaji) return null;
+  return { base, baseRomaji, small, smallRomaji };
+}

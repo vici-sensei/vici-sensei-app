@@ -1,13 +1,48 @@
 "use client";
 
 import { useEffect } from "react";
-import type { NewHiraganaRuleCandidate, NewKatakanaRuleCandidate } from "@/lib/types";
+import type { KanaRuleExample, NewHiraganaRuleCandidate, NewKatakanaRuleCandidate } from "@/lib/types";
 import { renderKanaRuleNotes } from "@/lib/study/kanaRuleNotes";
-import { groupByGojuonRow, resolveRuleExampleRowLabel } from "@/lib/srs/gojuon";
+import { groupByGojuonRow, resolveRuleExampleRowLabel, splitYoonCharacter } from "@/lib/srs/gojuon";
 import { Button } from "@/app/components/ui/Button";
 import { StudyCardShell } from "./StudyCardShell";
 import { CardHeading } from "./CardHeading";
 import { useScrollHint } from "./useScrollHint";
+
+/** A yōon example (きゃ, シュ, ...) shown as its two components: "き ki + ゃ ya = きゃ kya" --
+ * wraps onto multiple lines on narrow phone widths (three groups plus two connectors don't fit
+ * one row there) instead of forcing a full column stack, so it still reads left-to-right in
+ * whatever chunks fit. Falls back to the plain character/romaji tile if `example.character` isn't
+ * a recognized two-character digraph. */
+function YoonExampleTile({ example }: { example: KanaRuleExample }) {
+  const parts = splitYoonCharacter(example.character);
+  if (!parts) {
+    return (
+      <div className="flex min-w-[64px] flex-col items-center gap-0.5 rounded-xl border border-border-soft bg-white/[0.03] px-3 py-2">
+        <div className="text-xl text-white">{example.character}</div>
+        <div className="text-[0.75rem] font-semibold text-text-muted">{example.romaji}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-xl border border-border-soft bg-white/[0.03] px-3 py-2">
+      <div className="flex flex-col items-center">
+        <div className="text-xl text-white">{parts.base}</div>
+        <div className="text-[0.7rem] font-semibold text-text-muted">{parts.baseRomaji}</div>
+      </div>
+      <span className="text-sm font-bold text-text-muted">+</span>
+      <div className="flex flex-col items-center">
+        <div className="text-xl text-white">{parts.small}</div>
+        <div className="text-[0.7rem] font-semibold text-text-muted">{parts.smallRomaji}</div>
+      </div>
+      <span className="text-sm font-bold text-text-muted">=</span>
+      <div className="flex flex-col items-center">
+        <div className="text-xl text-white">{example.character}</div>
+        <div className="text-[0.7rem] font-semibold text-white">{example.romaji}</div>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   candidate: NewHiraganaRuleCandidate | NewKatakanaRuleCandidate;
@@ -103,15 +138,19 @@ export function NewKanaRuleIntroCard({ candidate, script, disabled, onConfirm }:
                     {resolveRuleExampleRowLabel(gojuonRow)}
                   </div>
                   <div className="flex flex-wrap justify-center gap-2">
-                    {groupExamples.map((example, i) => (
-                      <div
-                        key={`${example.character}-${i}`}
-                        className="flex min-w-[64px] flex-col items-center gap-0.5 rounded-xl border border-border-soft bg-white/[0.03] px-3 py-2"
-                      >
-                        <div className="text-xl text-white">{example.character}</div>
-                        <div className="text-[0.75rem] font-semibold text-text-muted">{example.romaji}</div>
-                      </div>
-                    ))}
+                    {groupExamples.map((example, i) =>
+                      candidate.kana_type === "yoon" ? (
+                        <YoonExampleTile key={`${example.character}-${i}`} example={example} />
+                      ) : (
+                        <div
+                          key={`${example.character}-${i}`}
+                          className="flex min-w-[64px] flex-col items-center gap-0.5 rounded-xl border border-border-soft bg-white/[0.03] px-3 py-2"
+                        >
+                          <div className="text-xl text-white">{example.character}</div>
+                          <div className="text-[0.75rem] font-semibold text-text-muted">{example.romaji}</div>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               ))}
