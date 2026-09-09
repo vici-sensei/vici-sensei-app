@@ -120,6 +120,11 @@ export interface NewHiraganaCandidate {
   romaji: string;
   gojuon_row: string;
   sort_order: number;
+  /** The pack this character is introduced/completed together with -- see newKanaPackKey in
+   * useStudyQueue.ts and get_new_hiragana_candidates/introduce_hiragana
+   * (20261019_kana_pack_id_column.sql). Independent of gojuon_row, which only drives Browse's
+   * display grouping. */
+  pack_id: number;
 }
 
 export interface NewKatakanaCandidate {
@@ -128,6 +133,8 @@ export interface NewKatakanaCandidate {
   romaji: string;
   gojuon_row: string;
   sort_order: number;
+  /** See NewHiraganaCandidate.pack_id. */
+  pack_id: number;
 }
 
 export interface KanaRuleExample {

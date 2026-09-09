@@ -210,16 +210,19 @@ function reviewsFirst(items: QueueItem[]): QueueItem[] {
   return [...reviews, ...newCards];
 }
 
-// gojuon_row pack key for a new_hiragana/new_katakana item, scoped by kind so a hiragana pack and
-// a katakana pack sharing the same gojuon_row name are never confused (both scripts can have
+// pack_id pack key for a new_hiragana/new_katakana item, scoped by kind so a hiragana pack and a
+// katakana pack sharing the same pack_id number are never confused (both scripts can have
 // candidates queued at once once katakana auto-activates) -- null for anything else. Derived
 // purely from the item's own data, not from any session-tracked ref, so it's safe to use for
 // display-order decisions without reintroducing the cross-session bug pack_pending already fixed
 // (see 20260910_persist_kana_pack_completion.sql) -- this never decides whether a pack is
-// "complete", only how already-known items sort relative to each other in one render.
+// "complete", only how already-known items sort relative to each other in one render. Keyed off
+// pack_id rather than gojuon_row so this always matches the server's own pack grouping, even if
+// pack_id has been hand-edited to merge/split packs independently of gojuon_row (see
+// 20261019_kana_pack_id_column.sql).
 function newKanaPackKey(item: QueueItem): string | null {
-  if (item.kind === "new_hiragana") return `hiragana:${item.candidate.gojuon_row}`;
-  if (item.kind === "new_katakana") return `katakana:${item.candidate.gojuon_row}`;
+  if (item.kind === "new_hiragana") return `hiragana:${item.candidate.pack_id}`;
+  if (item.kind === "new_katakana") return `katakana:${item.candidate.pack_id}`;
   return null;
 }
 
