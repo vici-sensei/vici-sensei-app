@@ -6,7 +6,7 @@
    (same values as vici-sensei-website-v2/src/styles/global.css)
    ============================================================ */
 @theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Noto Sans JP", ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
 
   --color-bg-main: #0b0f19;
   --color-bg-cards: rgba(17, 24, 39, 0.7);

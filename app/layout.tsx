@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Noto_Sans_JP } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
 import { ErrorLogging } from "@/app/components/ErrorLogging";
 import { OfflineOverlay } from "@/app/components/shell/OfflineOverlay";
@@ -10,6 +10,16 @@ import "./globals.css";
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
   subsets: ["latin"],
+});
+
+// Self-hosted so kana/kanji render identically everywhere -- without this, Japanese text falls
+// through to whatever CJK font the OS ships (Yu Gothic on Windows, Hiragino Sans on macOS/iOS,
+// Noto Sans CJK on Android), which is why the same characters looked different per device.
+// "japanese" isn't a preloadable subset for this font, so preload stays off; the glyphs still
+// load on demand via the font's own unicode-range slices.
+const notoSansJP = Noto_Sans_JP({
+  variable: "--font-noto-sans-jp",
+  preload: false,
 });
 
 const title = "Vici Sensei — Kanji Spaced Repetition";
@@ -50,7 +60,7 @@ export default function RootLayout({
     <html
       lang="en"
       translate="no"
-      className={`notranslate ${plusJakartaSans.variable} antialiased`}
+      className={`notranslate ${plusJakartaSans.variable} ${notoSansJP.variable} antialiased`}
     >
       <head>
         {/* Kana/kanji readings break if a browser or extension auto-translates them.
