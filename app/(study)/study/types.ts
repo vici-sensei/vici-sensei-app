@@ -1,5 +1,6 @@
 import type {
   DueCard,
+  NewKanjiBasicsCandidate,
   NewKanjiCandidate,
   NewVocabCandidate,
   NewHiraganaCandidate,
@@ -22,6 +23,7 @@ export type QueueItem =
        * against. Falls back to `key` when unset. */
       renderKey?: string;
     }
+  | { key: string; kind: "new_kanji_basics"; candidate: NewKanjiBasicsCandidate }
   | { key: string; kind: "new_kanji"; candidate: NewKanjiCandidate }
   | {
       key: string;
@@ -47,6 +49,10 @@ export function reviewKey(card: DueCard): string {
 
 export function newKanjiKey(id: number): string {
   return `new_kanji-${id}`;
+}
+
+export function newKanjiBasicsKey(id: number): string {
+  return `new_kanji_basics-${id}`;
 }
 
 export function newVocabKey(id: number): string {

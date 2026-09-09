@@ -8,6 +8,7 @@ import type {
   KanjiRow,
   NewHiraganaCandidate,
   NewHiraganaRuleCandidate,
+  NewKanjiBasicsCandidate,
   NewKanjiIntroWord,
   NewKatakanaCandidate,
   NewKatakanaRuleCandidate,
@@ -189,18 +190,27 @@ function computePredictedTotal(
   hiraganaCandidateCount: number,
   katakanaCandidateCount: number,
   hiraganaRuleCandidateCount: number,
-  katakanaRuleCandidateCount: number
+  katakanaRuleCandidateCount: number,
+  // Not folded into computeTotalCardsToday/TotalCardsTodayInput: unlike every category that
+  // helper already covers, this one is a one-time lesson the dashboard's own cardsRemainingToday
+  // has no reason to forecast (it fires at most 3 times ever, per account) -- adding it there
+  // would mean teaching the dashboard's RPC about it too, for a count that's already gone the
+  // instant a student opens /study. A flat +1 per still-unseen step (read-only, no follow-up
+  // review card, same as a hiragana/katakana rule) is enough here.
+  kanjiBasicsCandidateCount: number
 ): number {
-  return computeTotalCardsToday({
-    dueCount: dueCardCount,
-    kanjiCandidateCount: kanjiCandidates.length,
-    kanjiWordReadingCardsTotal: kanjiCandidates.reduce((sum, c) => sum + c.word_count, 0),
-    vocabCandidateCount,
-    hiraganaCandidateCount,
-    katakanaCandidateCount,
-    hiraganaRuleCandidateCount,
-    katakanaRuleCandidateCount,
-  });
+  return (
+    computeTotalCardsToday({
+      dueCount: dueCardCount,
+      kanjiCandidateCount: kanjiCandidates.length,
+      kanjiWordReadingCardsTotal: kanjiCandidates.reduce((sum, c) => sum + c.word_count, 0),
+      vocabCandidateCount,
+      hiraganaCandidateCount,
+      katakanaCandidateCount,
+      hiraganaRuleCandidateCount,
+      katakanaRuleCandidateCount,
+    }) + kanjiBasicsCandidateCount
+  );
 }
 
 export async function fetchStudyQueue(
@@ -247,6 +257,7 @@ export async function fetchStudyQueue(
 
   const [
     kanjiCandidatesResult,
+    kanjiBasicsCandidatesResult,
     vocabCandidatesResult,
     hiraganaCandidatesResult,
     katakanaCandidatesResult,
@@ -260,6 +271,12 @@ export async function fetchStudyQueue(
           p_limit: kanjiRemaining,
         })
       : Promise.resolve({ data: [] as NewKanjiCandidateRow[], error: null }),
+    // Only worth asking when a "New kanji" candidate could actually follow it right away (same
+    // gate as the fetch above) -- this lesson only ever shows immediately before a student's first
+    // real kanji card, never on its own.
+    kanjiRemaining > 0
+      ? supabase.rpc("get_new_kanji_basics_candidates", { p_user_id: userId })
+      : Promise.resolve({ data: [] as { step: number }[], error: null }),
     vocabRemaining > 0
       ? supabase.rpc("get_new_vocab_candidates", {
           p_user_id: userId,
@@ -287,6 +304,7 @@ export async function fetchStudyQueue(
   ]);
 
   if (kanjiCandidatesResult.error) throw new Error(kanjiCandidatesResult.error.message);
+  if (kanjiBasicsCandidatesResult.error) throw new Error(kanjiBasicsCandidatesResult.error.message);
   if (vocabCandidatesResult.error) throw new Error(vocabCandidatesResult.error.message);
   if (hiraganaCandidatesResult.error) throw new Error(hiraganaCandidatesResult.error.message);
   if (katakanaCandidatesResult.error) throw new Error(katakanaCandidatesResult.error.message);
@@ -308,6 +326,10 @@ export async function fetchStudyQueue(
     ...candidate,
     words: [] as NewKanjiIntroWord[],
   }));
+
+  const newKanjiBasicsToIntroduce: NewKanjiBasicsCandidate[] = ((kanjiBasicsCandidatesResult.data ?? []) as { step: number }[]).map(
+    (row) => ({ id: row.step as 1 | 2 | 3 })
+  );
 
   const dueCards = ((dueCardsResult.data ?? []) as DueCardRow[]).map(toDueCard);
 
@@ -354,6 +376,7 @@ export async function fetchStudyQueue(
 
   return {
     due_cards: dueCards,
+    new_kanji_basics_to_introduce: newKanjiBasicsToIntroduce,
     new_kanji_to_introduce: newKanjiToIntroduce,
     new_vocab_to_introduce: vocabCandidates,
     new_hiragana_to_introduce: hiraganaCandidates,
@@ -370,7 +393,8 @@ export async function fetchStudyQueue(
       hiraganaCandidates.length,
       katakanaCandidates.length,
       hiraganaRuleCandidates.length,
-      katakanaRuleCandidates.length
+      katakanaRuleCandidates.length,
+      newKanjiBasicsToIntroduce.length
     ),
   };
 }

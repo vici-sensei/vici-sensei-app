@@ -125,9 +125,12 @@ function BadgeArt({ entry, earned, borderClass, bgClass, textClass }: BadgeArtPr
         type="button"
         onClick={() => setModalOpen(true)}
         aria-label={`View ${entry.title} image`}
-        className={`relative flex ${CIRCLE_SIZE_CLASS} shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-full border ${borderClass} ${bgClass}`}
+        className={`vici-badge-ring flex ${CIRCLE_SIZE_CLASS} shrink-0 cursor-zoom-in items-center justify-center rounded-full`}
       >
-        <Image src={src} alt="" fill sizes="64px" className="object-cover" onError={() => setImageFailed(true)} />
+        <span className="vici-badge-ring-inner relative block h-full w-full overflow-hidden rounded-full">
+          <Image src={src} alt="" fill sizes="64px" className="object-cover" onError={() => setImageFailed(true)} />
+          {earned && <span className="vici-badge-shine" aria-hidden="true" />}
+        </span>
       </button>
       {modalOpen && (
         <BadgeImageModal entry={entry} earned={earned} src={src} onClose={() => setModalOpen(false)} />
@@ -210,9 +213,12 @@ export function GridBadgeIcon({ entry, earned }: { entry: AchievementCatalogEntr
         type="button"
         onClick={() => setModalOpen(true)}
         aria-label={`View ${entry.title}`}
-        className={`relative flex ${CIRCLE_SIZE_CLASS} shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border text-2xl ${toneClasses}`}
+        className={`vici-badge-ring flex ${CIRCLE_SIZE_CLASS} shrink-0 cursor-pointer items-center justify-center rounded-full ${earned ? "" : "opacity-40 grayscale"}`}
       >
-        <Image src={src} alt="" fill sizes="64px" className="object-cover" onError={() => setImageFailed(true)} />
+        <span className="vici-badge-ring-inner relative block h-full w-full overflow-hidden rounded-full">
+          <Image src={src} alt="" fill sizes="64px" className="object-cover" onError={() => setImageFailed(true)} />
+          {earned && <span className="vici-badge-shine" aria-hidden="true" />}
+        </span>
       </button>
       {modalOpen && (
         <BadgeImageModal entry={entry} earned={earned} src={src} onClose={() => setModalOpen(false)} />

@@ -407,3 +407,70 @@ input:disabled ~ span {
     transform: scale(0.7);
   }
 }
+
+/* ============================================================
+   Achievement badge ring (AchievementCard.tsx's BadgeArt/GridBadgeIcon)
+   -- a thick gold ring with an embossed bevel (outer drop shadow + inset
+   highlight/shadow) around the artwork. Applied to every badge with
+   artwork, earned or locked -- the existing grayscale/opacity-40 filter
+   on a locked badge (its card wrapper in the list view, its own classes
+   in the grid view) desaturates the ring the same way it already does
+   the artwork, turning it a dull pewter instead of gold. The blurred
+   diagonal shine sweep layers on top only when earned, so the "still
+   locked" ones don't look like they're already gleaming.
+   ============================================================ */
+.vici-badge-ring {
+  padding: 5px;
+  background: linear-gradient(145deg, #fff3b0 0%, var(--color-accent-gold) 35%, #c99400 65%, #7a5c00 100%);
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.55),
+    0 2px 3px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.65),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.vici-badge-ring-inner {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(0, 0, 0, 0.45),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.08);
+}
+
+.vici-badge-shine {
+  position: absolute;
+  top: -40%;
+  left: -75%;
+  width: 65%;
+  height: 180%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.18) 30%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.18) 70%,
+    transparent
+  );
+  filter: blur(3px);
+  pointer-events: none;
+  transform: translateX(0) rotate(18deg);
+  animation: vici-badge-shine-sweep 3.6s ease-in-out infinite;
+}
+
+@keyframes vici-badge-shine-sweep {
+  0% {
+    transform: translateX(0) rotate(18deg);
+  }
+  28% {
+    transform: translateX(323%) rotate(18deg);
+  }
+  100% {
+    transform: translateX(323%) rotate(18deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vici-badge-shine {
+    animation: none;
+    transform: translateX(138%) rotate(18deg);
+  }
+}

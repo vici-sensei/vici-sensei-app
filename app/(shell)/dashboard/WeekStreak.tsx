@@ -42,10 +42,12 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
           // `day.active` for today is "reviewed at least one card today" (from
           // get_review_activity), same signal every other day uses -- just kept in its own
           // branch so an inactive today still shows faded red (lit) instead of gray (unlit).
+          // Opaque + a light shade (not a translucent accent-red) so it doesn't muddy against
+          // the dark background.
           flameColor = day.active ? "text-accent-red" : "text-accent-red/35";
           lit = true;
         } else {
-          flameColor = day.active ? "text-accent-red" : "text-text-muted/50";
+          flameColor = day.active ? "text-accent-red" : "text-gray-600";
           lit = day.active;
         }
 
@@ -57,10 +59,7 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
 
         return (
           <div key={day.date} className="flex flex-col items-center gap-1.5">
-            <FaFire
-              className={`h-8 w-8 ${flameColor} ${animationClass}`}
-              style={lit ? { animationDelay: `${i * 0.15}s` } : undefined}
-            />
+            <FaFire className={`h-8 w-8 ${flameColor} ${animationClass}`} />
             <span className={`text-[11px] ${isToday ? "font-semibold " : ""}${labelColor}`}>
               {weekdayLabel(day.date)}
             </span>

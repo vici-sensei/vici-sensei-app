@@ -10,6 +10,7 @@ import { ReviewCardKanjiMeaning } from "@/app/components/study/ReviewCardKanjiMe
 import { ReviewCardKanjiReading } from "@/app/components/study/ReviewCardKanjiReading";
 import { ReviewCardVocabMeaning } from "@/app/components/study/ReviewCardVocabMeaning";
 import { ReviewCardKanaReading } from "@/app/components/study/ReviewCardKanaReading";
+import { NewKanjiBasicsIntroCard } from "@/app/components/study/NewKanjiBasicsIntroCard";
 import { NewKanjiIntroCard } from "@/app/components/study/NewKanjiIntroCard";
 import { NewVocabIntroCard } from "@/app/components/study/NewVocabIntroCard";
 import { NewKanaIntroCard } from "@/app/components/study/NewKanaIntroCard";
@@ -163,6 +164,14 @@ export default function StudyPage() {
               onCancelableChange={undoDisabled ? undefined : handleCancelableChange}
             />
           )}
+        {current.kind === "new_kanji_basics" && (
+          <NewKanjiBasicsIntroCard
+            key={current.key}
+            candidate={current.candidate}
+            disabled={cardPending}
+            onConfirm={() => actions.introduceKanjiBasics(current)}
+          />
+        )}
         {current.kind === "new_kanji" && (
           <NewKanjiIntroCard
             key={current.key}

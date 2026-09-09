@@ -15,13 +15,15 @@ const CAP_OR_DUPLICATE_ERRCODE = "P0002";
 // entirely server-side instead of by client-side bookkeeping (useStudyQueue.ts used to track
 // this itself via refs that reset on every page load, which is exactly what let a pack get split
 // across sessions).
-export type IntroduceKind = "kanji" | "vocabulary" | "hiragana_rule" | "katakana_rule";
+export type IntroduceKind = "kanji" | "vocabulary" | "hiragana_rule" | "katakana_rule" | "kanji_basics";
 
 const INTRODUCE_RPCS: Record<IntroduceKind, { rpc: string; param: string }> = {
   kanji: { rpc: "introduce_kanji", param: "p_kanji_id" },
   vocabulary: { rpc: "introduce_vocabulary", param: "p_word_id" },
   hiragana_rule: { rpc: "introduce_hiragana_rule", param: "p_hiragana_id" },
   katakana_rule: { rpc: "introduce_katakana_rule", param: "p_katakana_id" },
+  // itemId here is the step number (1, 2, or 3) -- see NewKanjiBasicsCandidate.
+  kanji_basics: { rpc: "introduce_kanji_basics", param: "p_step" },
 };
 
 export async function introduceCard(

@@ -133,6 +133,12 @@ export function introduceKanji(kanjiId: number, sessionId?: number): Promise<voi
   return introduce("kanji", kanjiId, sessionId);
 }
 
+/** Marks one step (1, 2, or 3) of the one-time kanji-basics lesson permanently seen -- see
+ * NewKanjiBasicsCandidate. */
+export function introduceKanjiBasics(step: number, sessionId?: number): Promise<void> {
+  return introduce("kanji_basics", step, sessionId);
+}
+
 /** Called right after a "New kanji" card finishes introducing, to fetch that kanji's
  * kanji_meaning + kanji_reading cards for immediate display (see introduce_kanji, which sets
  * due_at = now() on introduce specifically so these are ready right away). */

@@ -14,6 +14,7 @@ import {
   getSessionProgress as getSessionProgressApi,
   getStudyQueue,
   introduceKanji as introduceKanjiApi,
+  introduceKanjiBasics as introduceKanjiBasicsApi,
   introduceVocabulary as introduceVocabularyApi,
   introduceHiragana as introduceHiraganaApi,
   introduceKatakana as introduceKatakanaApi,
@@ -47,6 +48,7 @@ import type {
   StudySettings,
 } from "@/lib/types";
 import {
+  newKanjiBasicsKey,
   newKanjiKey,
   newVocabKey,
   newHiraganaKey,
@@ -145,6 +147,16 @@ function interleaveNewMaterial(
 function buildQueue(data: StudyQueueResponse, groupSize: number): QueueItem[] {
   const items: QueueItem[] = [];
   for (const card of data.due_cards) items.push({ key: reviewKey(card), kind: "review", card });
+  // Always placed right before interleaveNewMaterial's own output below (never fetched at all
+  // unless a "New kanji" candidate exists to follow it -- see fetchStudyQueue), so this lesson's
+  // 3 steps finish exactly once, right before the student's very first real kanji card.
+  items.push(
+    ...data.new_kanji_basics_to_introduce.map((candidate) => ({
+      key: newKanjiBasicsKey(candidate.id),
+      kind: "new_kanji_basics" as const,
+      candidate,
+    }))
+  );
   items.push(...interleaveNewMaterial(data.new_kanji_to_introduce, data.new_vocab_to_introduce, groupSize));
 
   const hiraganaEntries: { sortOrder: number; item: QueueItem }[] = [
@@ -1284,7 +1296,9 @@ export function useStudyQueue() {
 
   const introduceCard = useCallback(
     (
-      item: QueueItem & { kind: "new_kanji" | "new_vocab" | "new_hiragana_rule" | "new_katakana_rule" },
+      item: QueueItem & {
+        kind: "new_kanji" | "new_vocab" | "new_hiragana_rule" | "new_katakana_rule" | "new_kanji_basics";
+      },
       apiCall: (candidateId: number, sessionId?: number) => Promise<void>,
       noun: string
     ) => {
@@ -1570,6 +1584,13 @@ export function useStudyQueue() {
     [introduceCard]
   );
 
+  // Same plain optimistic-removal path as the rule cards above -- introduce_kanji_basics just
+  // marks one step permanently seen, no follow-up card of its own.
+  const introduceKanjiBasics = useCallback(
+    (item: QueueItem & { kind: "new_kanji_basics" }) => introduceCard(item, introduceKanjiBasicsApi, "lesson"),
+    [introduceCard]
+  );
+
   const undoLast = useCallback(() => {
     if (!lastReview || undoDisabled) return;
     const toUndo = lastReview;
@@ -1645,6 +1666,7 @@ export function useStudyQueue() {
     actions: {
       rate,
       introduceKanji,
+      introduceKanjiBasics,
       introduceVocab,
       introduceHiragana,
       introduceKatakana,

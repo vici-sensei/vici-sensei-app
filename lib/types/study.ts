@@ -103,6 +103,18 @@ export interface NewKanjiCandidate {
   words: NewKanjiIntroWord[];
 }
 
+/** One of the 3 fixed steps of the one-time "what is kanji / what is furigana / what are JLPT
+ * levels" lesson shown once, right before a standard-track N5 student's very first "New kanji"
+ * card -- see user_kanji_basics_progress / get_new_kanji_basics_candidates
+ * (20261022_kanji_basics_intro.sql). `id` doubles as the step number (1, 2, or 3) so this fits the
+ * same newXKey/introduceCard plumbing every other one-shot intro candidate (new_vocab,
+ * new_hiragana_rule, ...) already uses -- there's no reference-content table behind this (every
+ * step's copy, including step 2's furigana example, is fixed in NewKanjiBasicsIntroCard.tsx
+ * itself), so the RPC only ever decides which step ids remain unseen. */
+export interface NewKanjiBasicsCandidate {
+  id: 1 | 2 | 3;
+}
+
 export interface NewVocabCandidate {
   id: number;
   word: string;
@@ -243,6 +255,11 @@ export interface KanaRuleLabel {
 
 export interface StudyQueueResponse {
   due_cards: DueCard[];
+  /** The one-time kanji-basics lesson's not-yet-seen steps (0-3, always in step order) -- see
+   * NewKanjiBasicsCandidate. Only ever non-empty right when new_kanji_to_introduce also is (both
+   * are gated the same way, and buildQueue always places these immediately before it), so the
+   * lesson finishes right before the student's first real "New kanji" card. */
+  new_kanji_basics_to_introduce: NewKanjiBasicsCandidate[];
   new_kanji_to_introduce: NewKanjiCandidate[];
   new_vocab_to_introduce: NewVocabCandidate[];
   new_hiragana_to_introduce: NewHiraganaCandidate[];
