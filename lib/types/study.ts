@@ -125,6 +125,14 @@ export interface NewHiraganaCandidate {
    * (20261019_kana_pack_id_column.sql). Independent of gojuon_row, which only drives Browse's
    * display grouping. */
   pack_id: number;
+  /** hiragana.kana_type -- 'seion' | 'dakuten' | 'handakuten' (character candidates never include
+   * yoon/sokuon/... rows). Drives NewKanaIntroCard's "か ka → が ga" base pairing below. */
+  kana_type: string;
+  /** The seion character/romaji this dakuten/handakuten candidate is derived from (e.g. か/ka for
+   * が), same position within its row -- see get_new_hiragana_candidates
+   * (20261021_new_kana_candidates_base_pair.sql). Always null for seion candidates. */
+  base_character: string | null;
+  base_romaji: string | null;
 }
 
 export interface NewKatakanaCandidate {
@@ -135,6 +143,11 @@ export interface NewKatakanaCandidate {
   sort_order: number;
   /** See NewHiraganaCandidate.pack_id. */
   pack_id: number;
+  /** See NewHiraganaCandidate.kana_type. */
+  kana_type: string;
+  /** See NewHiraganaCandidate.base_character/base_romaji. */
+  base_character: string | null;
+  base_romaji: string | null;
 }
 
 export interface KanaRuleExample {

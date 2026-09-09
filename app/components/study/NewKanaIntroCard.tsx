@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { FaArrowRight } from "react-icons/fa6";
 import type { NewHiraganaCandidate, NewKatakanaCandidate } from "@/lib/types";
 import { Button } from "@/app/components/ui/Button";
 import { StudyCardShell } from "./StudyCardShell";
@@ -26,10 +27,34 @@ export function NewKanaIntroCard({ candidate, script, disabled, onConfirm }: Pro
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [disabled, onConfirm]);
 
+  // Dakuten/handakuten characters (が, ぱ, ...) are shown paired with the seion base they're
+  // derived from (か, は, ...) so the card reads "か ka → が ga" instead of just "が ga" -- see
+  // NewHiraganaCandidate.base_character (20261021_new_kana_candidates_base_pair.sql).
+  const showBasePair =
+    (candidate.kana_type === "dakuten" || candidate.kana_type === "handakuten") &&
+    candidate.base_character !== null &&
+    candidate.base_romaji !== null;
+
   return (
     <StudyCardShell label={script === "hiragana" ? "New hiragana" : "New katakana"} accent="gold">
-      <div className="mb-2 text-4xl leading-none">{candidate.character}</div>
-      <div className="text-[1.3rem] font-bold text-white">{candidate.romaji}</div>
+      {showBasePair ? (
+        <div className="mb-2 flex items-center justify-center gap-4">
+          <div>
+            <div className="mb-2 text-4xl leading-none">{candidate.base_character}</div>
+            <div className="text-[1.3rem] font-bold text-white">{candidate.base_romaji}</div>
+          </div>
+          <FaArrowRight className="h-6 w-6 shrink-0 text-text-muted" aria-hidden />
+          <div>
+            <div className="mb-2 text-4xl leading-none">{candidate.character}</div>
+            <div className="text-[1.3rem] font-bold text-white">{candidate.romaji}</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mb-2 text-4xl leading-none">{candidate.character}</div>
+          <div className="text-[1.3rem] font-bold text-white">{candidate.romaji}</div>
+        </>
+      )}
 
       <div className="mt-8.5">
         <Button className="min-w-[min(220px,100%)]" disabled={disabled} onClick={onConfirm}>
