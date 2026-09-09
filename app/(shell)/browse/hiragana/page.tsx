@@ -21,7 +21,7 @@ function HiraganaListing() {
 
 export default function BrowseHiraganaPage() {
   return (
-    <Suspense fallback={<BrowseKanaListSkeleton />}>
+    <Suspense fallback={<BrowseKanaListSkeleton script="hiragana" />}>
       <HiraganaListing />
     </Suspense>
   );

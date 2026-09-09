@@ -21,7 +21,7 @@ function KatakanaListing() {
 
 export default function BrowseKatakanaPage() {
   return (
-    <Suspense fallback={<BrowseKanaListSkeleton />}>
+    <Suspense fallback={<BrowseKanaListSkeleton script="katakana" />}>
       <KatakanaListing />
     </Suspense>
   );

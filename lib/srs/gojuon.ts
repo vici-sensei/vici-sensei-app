@@ -75,12 +75,11 @@ export const SOUND_RULE_ROW_LABELS: Record<string, string> = {
 };
 
 /** Row order + character count per gojuon row for the *main grid only* -- seion/dakuten/
- * handakuten, identical for hiragana and katakana (same 71 characters, same grouping, just a
- * different script) -- see 20260822_kana_tables.sql. This subset really is closed and will never
- * gain or lose a row, so Browse's loading skeleton can mirror its exact shape instead of a
- * generic/arbitrary placeholder grid. Yōon used to be listed here too, but moved to the "Sound
- * Rules & Combinations" section (see GOJUON_ROW_LABELS above), so the skeleton no longer needs to
- * account for it. */
+ * handakuten -- see 20260822_kana_tables.sql. This subset really is closed and will never gain or
+ * lose a row, so Browse's loading skeleton can mirror its exact shape instead of a generic/
+ * arbitrary placeholder grid. Yōon used to be listed here too, but moved to the "Sound Rules &
+ * Combinations" section (see GOJUON_ROW_LABELS above), so the skeleton no longer needs to account
+ * for it. */
 /** Resolves a gojuon_row to its display label across every source that defines one -- checked in
  * this order: SOUND_RULE_ROW_LABELS (yōon/sokuon/n_gemination's subsection groups),
  * EXTENDED_KATAKANA_ROW_LABELS (extended katakana's family groups), GOJUON_ROW_LABELS (the main
@@ -110,7 +109,7 @@ export function groupByGojuonRow<T extends { gojuon_row: string }>(rows: T[]): [
   return Array.from(byRow.entries());
 }
 
-export const GOJUON_ROW_LAYOUT: readonly { row: string; count: number }[] = [
+export const HIRAGANA_GOJUON_ROW_LAYOUT: readonly { row: string; count: number }[] = [
   { row: "a", count: 5 },
   { row: "ka", count: 5 },
   { row: "sa", count: 5 },
@@ -128,3 +127,11 @@ export const GOJUON_ROW_LAYOUT: readonly { row: string; count: number }[] = [
   { row: "ba", count: 5 },
   { row: "pa", count: 5 },
 ];
+
+/** Katakana's main grid matches hiragana's row-for-row, with one exception: katakana has no ヲ
+ * (dropped from public.katakana -- unlike hiragana's を, a mandatory grammar particle, katakana's
+ * ヲ is essentially unused in modern Japanese), so its wa-row is ワ alone. Derived from
+ * HIRAGANA_GOJUON_ROW_LAYOUT instead of a second hand-copied array so the one real difference
+ * can't silently drift out of sync with everything that stays identical. */
+export const KATAKANA_GOJUON_ROW_LAYOUT: readonly { row: string; count: number }[] =
+  HIRAGANA_GOJUON_ROW_LAYOUT.map((entry) => (entry.row === "wa" ? { ...entry, count: 1 } : entry));

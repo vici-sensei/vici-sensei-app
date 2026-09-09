@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { GOJUON_ROW_LABELS, GOJUON_ROW_LAYOUT, groupByGojuonRow, resolveRuleExampleRowLabel } from "@/lib/srs/gojuon";
+import {
+  GOJUON_ROW_LABELS,
+  HIRAGANA_GOJUON_ROW_LAYOUT,
+  KATAKANA_GOJUON_ROW_LAYOUT,
+  groupByGojuonRow,
+  resolveRuleExampleRowLabel,
+} from "@/lib/srs/gojuon";
 import { BrowseTabs } from "./BrowseTabs";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { scrollWindowToTopOnFocus } from "@/lib/scrollFocus";
@@ -286,7 +292,7 @@ export function BrowseKanaListPage({ active, placeholder, accentClass, data, sta
       </div>
 
       {isInitialLoading ? (
-        <BrowseKanaListSkeleton />
+        <BrowseKanaListSkeleton script={active} />
       ) : status === "error" && !data ? (
         <div className="px-5 py-15 text-center text-text-muted">
           <h3 className="mb-2 text-[1.15rem] text-white">Couldn&apos;t load the list</h3>
@@ -386,17 +392,19 @@ function KanaSkeletonSection({ title, layout }: { title?: ReactNode; layout: rea
 /** Mirrors the main grid exactly -- same gojuon-row groups (split into seion/Dakuten/Handakuten,
  * same as GojuonRowSection above), same card count per row, same card shell -- so only the
  * character/romaji text is a placeholder instead of the whole card. Safe to hardcode: seion/
- * dakuten/handakuten is a fixed, closed set, and GOJUON_ROW_LAYOUT's order (a..n, then ga/za/da/ba,
- * then pa) matches that split exactly (see GOJUON_ROW_LAYOUT). Deliberately doesn't try to mirror
- * Sound Rules/Extended Katakana -- they pop in once data loads instead. The Dakuten/Handakuten
- * titles are hardcoded here too (unlike the real GojuonRowSection calls, which look them up via
- * sectionTitle) -- this is rendered as the Suspense fallback, before any fetch (including
- * kana_rule_labels) has resolved, so there's no labels prop to read from yet. Keep these in sync
- * with public.kana_rule_labels by hand if either changes. */
-export function BrowseKanaListSkeleton() {
+ * dakuten/handakuten is a fixed, closed set, and {HIRAGANA,KATAKANA}_GOJUON_ROW_LAYOUT's order
+ * (a..n, then ga/za/da/ba, then pa) matches that split exactly. `script` picks which one --
+ * katakana's wa-row is one card shorter than hiragana's (no ヲ, see KATAKANA_GOJUON_ROW_LAYOUT).
+ * Deliberately doesn't try to mirror Sound Rules/Extended Katakana -- they pop in once data loads
+ * instead. The Dakuten/Handakuten titles are hardcoded here too (unlike the real GojuonRowSection
+ * calls, which look them up via sectionTitle) -- this is rendered as the Suspense fallback, before
+ * any fetch (including kana_rule_labels) has resolved, so there's no labels prop to read from yet.
+ * Keep these in sync with public.kana_rule_labels by hand if either changes. */
+export function BrowseKanaListSkeleton({ script }: { script: "hiragana" | "katakana" }) {
+  const layout = script === "hiragana" ? HIRAGANA_GOJUON_ROW_LAYOUT : KATAKANA_GOJUON_ROW_LAYOUT;
   return (
     <div className="flex flex-col gap-8">
-      <KanaSkeletonSection layout={GOJUON_ROW_LAYOUT.slice(0, 11)} />
+      <KanaSkeletonSection layout={layout.slice(0, 11)} />
       <KanaSkeletonSection
         title={
           <>
@@ -404,7 +412,7 @@ export function BrowseKanaListSkeleton() {
             <TechnicalTerm term="Dakuten" />
           </>
         }
-        layout={GOJUON_ROW_LAYOUT.slice(11, 15)}
+        layout={layout.slice(11, 15)}
       />
       <KanaSkeletonSection
         title={
@@ -413,7 +421,7 @@ export function BrowseKanaListSkeleton() {
             <TechnicalTerm term="Handakuten" />
           </>
         }
-        layout={GOJUON_ROW_LAYOUT.slice(15)}
+        layout={layout.slice(15)}
       />
     </div>
   );
