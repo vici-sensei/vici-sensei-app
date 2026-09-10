@@ -80,7 +80,7 @@ export default function PracticePage() {
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(0_210_255/0.08)_0%,transparent_55%)]">
-        <div className="relative w-full max-w-[420px] flex flex-col items-center justify-between text-center gap-2 h-full">
+        <div className="relative w-full max-w-[420px] flex flex-col items-center justify-between text-center gap-8 h-full">
           <h1 className="text-2xl font-extrabold leading-[1.2] tracking-[-0.8px]">
             You went through every character.
           </h1>
