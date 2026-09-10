@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePracticeQueue } from "./usePracticeQueue";
 import { useViewportHeight } from "@/lib/useViewportHeight";
+import { celebrate } from "@/lib/confetti";
 import { ReviewCardKanaReading } from "@/app/components/study/ReviewCardKanaReading";
 import { QueueProgressBar } from "@/app/components/study/QueueProgressBar";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
@@ -11,10 +12,11 @@ import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FaArrowRotateRight } from "react-icons/fa6";
 
-function StatBox({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
+function StatBox({ value, label, accent }: { value: string; label: string; accent?: "blue" | "gold" }) {
+  const accentClass = accent === "gold" ? "text-accent-gold" : accent === "blue" ? "text-accent-blue" : "";
   return (
     <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-      <div className={`mb-1 text-xl font-extrabold ${accent ? "text-accent-blue" : ""}`}>{value}</div>
+      <div className={`mb-1 text-xl font-extrabold ${accentClass}`}>{value}</div>
       <div className="text-sm font-semibold text-text-muted">{label}</div>
     </div>
   );
@@ -42,6 +44,11 @@ export default function PracticePage() {
   const router = useRouter();
   useViewportHeight();
   const { status, error, current, correct, completed, total, wrongAnswers, activeMs, actions } = usePracticeQueue();
+  const isPerfect = status === "done" && total > 0 && correct === total;
+
+  useEffect(() => {
+    if (isPerfect) void celebrate();
+  }, [isPerfect]);
 
   if (status === "loading") return <FullScreenLoader />;
 
@@ -78,15 +85,23 @@ export default function PracticePage() {
 
   if (status === "done") {
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const bgGlow = isPerfect
+      ? "before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.12)_0%,transparent_55%)]"
+      : "before:bg-[radial-gradient(circle_at_50%_15%,rgb(0_210_255/0.08)_0%,transparent_55%)]";
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(0_210_255/0.08)_0%,transparent_55%)]">
-        <div className="relative w-full max-w-[420px] flex flex-col items-center justify-between text-center gap-8 h-full">
-          <h1 className="text-2xl font-extrabold leading-[1.2] tracking-[-0.8px]">
-            You went through every character.
-          </h1>
+      <div
+        className={`relative flex h-screen items-center justify-center overflow-hidden overflow-y-auto p-4 before:pointer-events-none before:absolute before:inset-0 ${bgGlow}`}
+      >
+        <div className="relative w-full max-w-[420px] flex flex-col items-center justify-evenly text-center gap-4 h-full">
+          <div className="flex flex-col items-center gap-2">
+            <Badge color={isPerfect ? "gold" : "blue"}>{isPerfect ? "Perfect!" : "Session complete"}</Badge>
+            <h1 className="text-2xl font-extrabold leading-[1.2] tracking-[-0.8px]">
+              {isPerfect ? "Perfect score! You went through every character." : "You went through every character!"}
+            </h1>
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <StatBox value={`${correct}/${total}`} label="Correct" />
-            <StatBox value={`${accuracy}%`} label="Accuracy" accent />
+            <StatBox value={`${accuracy}%`} label="Accuracy" accent={isPerfect ? "gold" : "blue"} />
             <StatBox value={formatDuration(activeMs)} label="Time" />
           </div>
           {wrongAnswers.length > 0 && (
