@@ -8,9 +8,21 @@ const IDEOGRAPHIC_SPACE = "　";
  * or one doubled-consonant/gemination group) rather than a whole example word -- excludes
  * rendaku/particle_reading/historical, whose entry_kind='example' rows are full words (てがみ,
  * わたしは, こゝろ, ...) that would wrongly swallow unrelated substrings during the greedy match
- * below. A Set().has() check (not a switch/===) so this doesn't fight BrowseKanaEntry's
- * kana_type union, which doesn't list those three DB-only values. */
-const ATOMIC_KANA_TYPES = new Set(["seion", "dakuten", "handakuten", "yoon", "sokuon", "n_gemination"]);
+ * below. Every other BrowseKanaEntry["kana_type"] value is included, including choonpu (ケー ->
+ * kee) and extended (ディ -> di, ヴァ -> va) -- both are just as atomic as yoon/sokuon and were
+ * previously missing here by omission, which silently blanked the post-check romaji hint for any
+ * katakana word containing a long vowel or an extended-katakana combo (most of them). A
+ * Set().has() check (not a switch/===) so this doesn't fight BrowseKanaEntry's kana_type union. */
+const ATOMIC_KANA_TYPES = new Set([
+  "seion",
+  "dakuten",
+  "handakuten",
+  "yoon",
+  "sokuon",
+  "choonpu",
+  "extended",
+  "n_gemination",
+]);
 
 /** Builds the character -> romaji lookup used by buildFullRomajiFuriganas, from the same
  * kana reference rows Browse renders (useHiraganaList/useKatakanaList, whichever matches the
@@ -37,51 +49,104 @@ export function buildKanaRomajiMap(entries: BrowseKanaEntry[]): Map<string, stri
  * `particleFuriganas`, when given, wins over the table lookup wherever it's set (は/を/へ read as
  * a grammatical particle sound differently than their normal kana reading) -- は/を/へ never
  * start a yoon/sokuon combo in this data, so overriding per-character here never splits a group.
+ *
+ * Two sound units are synthesized instead of looked up, since Browse's kana tables don't carry
+ * literal rows for either (removed from public.hiragana/public.katakana on purpose -- see
+ * 20260829_drop_sokuon_yoon_examples.sql and 20260829_drop_hiragana_choonpu_section.sql -- so
+ * re-adding rows here would bring back Browse sections that were deliberately dropped):
+ *  - Sokuon (っ/ッ) immediately followed by a yoon digraph (two kana, e.g. しょ) that IS in the
+ *    table: doubles the digraph's first consonant, the same rule the table already encodes for
+ *    sokuon + a single kana (っし -> sshi doubles the "s" in "shi"). A small ゃ/ゅ/ょ never stands
+ *    on its own, so whenever it directly follows a sokuon + kana pair, that pair can only be a
+ *    yoon digraph being doubled -- never sokuon + a bare kana with the yoon trailing separately.
+ *  - Chōonpu (ー) with no literal "<kana>ー" entry: it always just repeats the vowel of the mora
+ *    before it, so its romaji is read off the vowel most recently assigned. These positions are
+ *    also returned separately as `choonpuHints`, parallel to `particleFuriganas` -- ー doesn't
+ *    occur in standard hiragana at all, so a hiragana word using it genuinely needs the reading
+ *    spelled out, same as は/を/へ. It's on the caller (ReadingTestSentenceRow) to decide whether
+ *    to actually merge `choonpuHints` into its always-shown/blue hint treatment -- katakana uses
+ *    ー constantly, so hinting every occurrence there would give away a good chunk of that test.
  */
 export function buildFullRomajiFuriganas(
   kana: string,
   kanaRomajiMap: Map<string, string>,
   particleFuriganas: (string | null)[] | null
-): string[] {
+): { furiganas: string[]; choonpuHints: (string | null)[] } {
   const chars = Array.from(kana);
   const result: string[] = new Array(chars.length).fill("");
+  const choonpuHints: (string | null)[] = new Array(chars.length).fill(null);
+  let lastRomaji: string | null = null;
+
+  const assignGroup = (start: number, length: number, romaji: string) => {
+    result[start] = romaji;
+    for (let j = start + 1; j < start + length; j++) result[j] = "-";
+    lastRomaji = romaji;
+  };
 
   let i = 0;
   while (i < chars.length) {
     const particleOverride = particleFuriganas?.[i];
     if (particleOverride) {
       result[i] = particleOverride;
+      lastRomaji = particleOverride;
       i += 1;
       continue;
     }
 
-    const groupLength = [3, 2].find((len) => i + len <= chars.length && kanaRomajiMap.has(chars.slice(i, i + len).join("")));
-    if (groupLength) {
-      result[i] = kanaRomajiMap.get(chars.slice(i, i + groupLength).join(""))!;
-      for (let j = i + 1; j < i + groupLength; j++) result[j] = "-";
-      i += groupLength;
+    const literal3 = i + 3 <= chars.length ? chars.slice(i, i + 3).join("") : null;
+    if (literal3 && kanaRomajiMap.has(literal3)) {
+      assignGroup(i, 3, kanaRomajiMap.get(literal3)!);
+      i += 3;
       continue;
     }
 
-    result[i] = kanaRomajiMap.get(chars[i]) ?? "";
+    if ((chars[i] === "っ" || chars[i] === "ッ") && i + 3 <= chars.length) {
+      const digraphRomaji = kanaRomajiMap.get(chars.slice(i + 1, i + 3).join(""));
+      if (digraphRomaji) {
+        assignGroup(i, 3, digraphRomaji[0] + digraphRomaji);
+        i += 3;
+        continue;
+      }
+    }
+
+    const literal2 = i + 2 <= chars.length ? chars.slice(i, i + 2).join("") : null;
+    if (literal2 && kanaRomajiMap.has(literal2)) {
+      assignGroup(i, 2, kanaRomajiMap.get(literal2)!);
+      i += 2;
+      continue;
+    }
+
+    if (chars[i] === "ー" && lastRomaji) {
+      const vowel = lastRomaji[lastRomaji.length - 1];
+      result[i] = vowel;
+      choonpuHints[i] = vowel;
+      lastRomaji = vowel;
+      i += 1;
+      continue;
+    }
+
+    const single = kanaRomajiMap.get(chars[i]) ?? "";
+    result[i] = single;
+    if (single) lastRomaji = single;
     i += 1;
   }
 
-  return result;
+  return { furiganas: result, choonpuHints };
 }
 
 const DEFAULT_FURIGANA_CLASS = "text-base font-normal text-text-muted";
-// Particle-reading hints (は/を/へ) are visible before the user answers, unlike the rest of the
-// romaji reading -- kept in this faded blue both before and after checking, so the user can always
-// tell which readings were given upfront from the ones they had to work out.
-const PARTICLE_FURIGANA_CLASS = "text-base font-normal text-accent-blue/70";
+// Always-shown hints (は/を/へ particle readings, and hiragana's chōonpu vowel-extension hints --
+// see buildFullRomajiFuriganas's choonpuHints) are visible before the user answers, unlike the
+// rest of the romaji reading -- kept in this faded blue both before and after checking, so the
+// user can always tell which readings were given upfront from the ones they had to work out.
+const HINT_FURIGANA_CLASS = "text-base font-normal text-accent-blue/70";
 
 /** Renders one "　"-delimited grouping's ruby/rt pairs, coloring a segment's furigana blue when it
- * came from `particleFuriganas` (given, not computed) rather than the reading-lookup table. Each
- * particle override is exactly one character (は/を/へ never start a yoon/sokuon combo), so a
- * segment is "particle" whenever its own start index carries a particle override -- never split
- * across a multi-character segment. */
-function renderFuriganaGroup(text: string, furiganas: string[] | null, particleFuriganas: (string | null)[] | null, keyPrefix: string): ReactNode {
+ * came from `hintFuriganas` (given, not computed) rather than the reading-lookup table. Each
+ * hinted position is exactly one character (は/を/へ never start a yoon/sokuon combo, and ー is
+ * never grouped with a following character), so a segment is "hinted" whenever its own start
+ * index carries a hint override -- never split across a multi-character segment. */
+function renderFuriganaGroup(text: string, furiganas: string[] | null, hintFuriganas: (string | null)[] | null, keyPrefix: string): ReactNode {
   const segments = buildFuriganaSegments(text, furiganas ?? undefined);
   const lastFuriganaIndex = segments.reduce((acc, s, idx) => (s.furigana ? idx : acc), -1);
   let pos = 0;
@@ -89,7 +154,7 @@ function renderFuriganaGroup(text: string, furiganas: string[] | null, particleF
     const segStart = pos;
     pos += segment.text.length;
     if (!segment.furigana) return <span key={`${keyPrefix}-${i}`}>{segment.text}</span>;
-    const furiganaClassName = particleFuriganas?.[segStart] ? PARTICLE_FURIGANA_CLASS : DEFAULT_FURIGANA_CLASS;
+    const furiganaClassName = hintFuriganas?.[segStart] ? HINT_FURIGANA_CLASS : DEFAULT_FURIGANA_CLASS;
     return (
       <ruby key={`${keyPrefix}-${i}`} className={i === lastFuriganaIndex ? "" : "mr-1"}>
         {segment.text}
@@ -117,7 +182,7 @@ function renderFuriganaGroup(text: string, furiganas: string[] | null, particleF
 export function renderReadingTestSentence(
   kana: string,
   furiganas: (string | null)[] | string[] | null,
-  particleFuriganas: (string | null)[] | null = null
+  hintFuriganas: (string | null)[] | null = null
 ): ReactNode[] {
   const chars = Array.from(kana);
   const alignedFuriganas = furiganas && furiganas.length === chars.length ? (furiganas as string[]) : null;
@@ -131,7 +196,7 @@ export function renderReadingTestSentence(
         {renderFuriganaGroup(
           chars.slice(start, end).join(""),
           alignedFuriganas?.slice(start, end) ?? null,
-          particleFuriganas?.slice(start, end) ?? null,
+          hintFuriganas?.slice(start, end) ?? null,
           `g${start}`
         )}
       </span>

@@ -62,17 +62,33 @@ export function ReadingTestSentenceRow({ sentence, kanaRomajiMap, userId, testTy
     event.preventDefault();
   };
 
-  // Before answering: only the particle-reading hints (は/を/へ), same as always. Once answered
-  // (right or wrong), swap in the full mora-by-mora romaji reading so the user can see how every
-  // grouping of hiragana was actually read -- not shown earlier since it would give the answer away.
+  const build = useMemo(
+    () => (kanaRomajiMap ? buildFullRomajiFuriganas(sentence.question, kanaRomajiMap, sentence.particle_furiganas) : null),
+    [kanaRomajiMap, sentence.question, sentence.particle_furiganas]
+  );
+
+  // Which positions get the always-shown/blue hint treatment: は/を/へ particle overrides, same as
+  // always, plus -- hiragana test only -- build.choonpuHints. Chōonpu (ー) doesn't occur in
+  // standard hiragana at all, so a hiragana word using it genuinely needs the reading spelled out,
+  // same category as a particle exception. Katakana uses ー constantly, so hinting every
+  // occurrence there would give away a good chunk of that test -- left post-check-only there.
+  const hintFuriganas = useMemo(() => {
+    if (testType !== "hiragana" || !build || !build.choonpuHints.some(Boolean)) return sentence.particle_furiganas;
+    const base = sentence.particle_furiganas ?? new Array(build.choonpuHints.length).fill(null);
+    return base.map((v, i) => v ?? build.choonpuHints[i]);
+  }, [testType, build, sentence.particle_furiganas]);
+
+  // Before answering: only the hint furiganas above. Once answered (right or wrong), swap in the
+  // full mora-by-mora romaji reading so the user can see how every grouping was actually read --
+  // not shown earlier since it would give the answer away.
   const furiganas = useMemo(
     () =>
-      result && kanaRomajiMap
-        ? buildFullRomajiFuriganas(sentence.question, kanaRomajiMap, sentence.particle_furiganas)
-        : sentence.particle_furiganas
-          ? sentence.particle_furiganas.map((r) => r ?? "")
+      result && build
+        ? build.furiganas
+        : hintFuriganas
+          ? hintFuriganas.map((r) => r ?? "")
           : null,
-    [result, kanaRomajiMap, sentence.question, sentence.particle_furiganas]
+    [result, build, hintFuriganas]
   );
 
   return (
@@ -82,7 +98,7 @@ export function ReadingTestSentenceRow({ sentence, kanaRomajiMap, userId, testTy
         onCopy={result ? undefined : (e) => e.preventDefault()}
         onContextMenu={result ? undefined : (e) => e.preventDefault()}
       >
-        {renderReadingTestSentence(sentence.question, furiganas, sentence.particle_furiganas)}
+        {renderReadingTestSentence(sentence.question, furiganas, hintFuriganas)}
       </p>
       {result && <p className="text-[0.9rem] italic text-text-muted">{sentence.english}</p>}
       {!result && (

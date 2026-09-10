@@ -132,9 +132,8 @@ export default function HiraganaReadingTestPage() {
             see it.
           </p>
           <p>
-            Because of a grammar rule you&apos;ll learn later on, one word is
-            read differently than usual — that&apos;s why you&apos;ll find its
-            correct reading written above it, as a little hint.
+            A couple of words are trickier than they look, so
+            you&apos;ll find their reading written above them as a hint.
           </p>
         </div>
         <div className="flex flex-col gap-8">
