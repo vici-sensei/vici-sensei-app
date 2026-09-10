@@ -86,6 +86,12 @@ export interface DueCard {
    * every drillable example go straight to normal Hard/Good/Easy grading, same as
    * kanji_meaning/vocab_meaning) -- see 20260906_selective_examples_and_seion_only_drill.sql. */
   status: ProgressStatus;
+  /** True iff this hiragana_reading/katakana_reading card's underlying hiragana/katakana row has
+   * study_enabled = false -- a rare/historical character the user was never formally introduced
+   * to via /study, only ever surfaced as bonus content on /study/practice once every
+   * study_enabled character has been mastered (see usePracticeQueue's own doc comment). Undefined
+   * for every card from every other source, which is equivalent to false. */
+  is_bonus?: boolean;
 }
 
 export interface NewKanjiCandidate {

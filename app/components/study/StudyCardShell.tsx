@@ -11,6 +11,10 @@ interface Props {
   accent: CardAccent;
   size?: keyof typeof SIZE_CLASSES;
   cornerBadge?: ReactNode;
+  /** Shrinks the gap below the label (mb-6 -> mb-2) -- for a cornerBadge that renders in-flow
+   * above the label (e.g. ReviewCardKanaReading's "Bonus" tag) instead of absolutely
+   * positioned, so the badge+label+prompt stack doesn't end up with extra dead space. */
+  compactLabel?: boolean;
   /** "column" turns direct children into a flex column so one of them (given
    * min-height + overflow-y-auto) can shrink to fit while the rest stay full size --
    * used by cards with an unbounded-length section (e.g. the new-kanji word list). */
@@ -19,7 +23,7 @@ interface Props {
 }
 
 /** Shared outer shell (border, background, sizing) + label for every card shown on /study. */
-export function StudyCardShell({ label, accent, size = "sm", cornerBadge, layout = "flow", children }: Props) {
+export function StudyCardShell({ label, accent, size = "sm", cornerBadge, compactLabel = false, layout = "flow", children }: Props) {
   return (
     <div
       className={`relative w-full ${SIZE_CLASSES[size]} max-h-full overflow-y-auto rounded-3xl border border-border-soft bg-bg-cards px-4 py-4 text-center backdrop-blur-[10px] ${
@@ -27,7 +31,9 @@ export function StudyCardShell({ label, accent, size = "sm", cornerBadge, layout
       }`}
     >
       {cornerBadge}
-      <div className={`mb-6 shrink-0 text-xs font-extrabold uppercase tracking-[1.5px] ${ACCENT_TEXT_CLASSES[accent]}`}>
+      <div
+        className={`${compactLabel ? "mb-3" : "mb-6"} shrink-0 text-xs font-extrabold uppercase tracking-[1.5px] ${ACCENT_TEXT_CLASSES[accent]}`}
+      >
         {label}
       </div>
       {children}

@@ -20,9 +20,11 @@ function StatBox({ value, label, accent }: { value: string; label: string; accen
 }
 
 /** Free-practice mode: a single, shuffled pass through every hiragana/katakana character the
- * user has already been introduced to, with no effect on SRS state or review history (see
- * usePracticeQueue's own doc comment) -- unlike /study, there is no Undo (nothing is ever
- * recorded to undo) and no session to end, just a summary once the deck runs out. */
+ * user has already been introduced to -- plus, once a script is fully mastered, its
+ * study_enabled = false bonus characters (badged "Bonus" by ReviewCardKanaReading) -- with no
+ * effect on SRS state or review history (see usePracticeQueue's own doc comment). Unlike /study,
+ * there is no Undo (nothing is ever recorded to undo) and no session to end, just a summary once
+ * the deck runs out. */
 export default function PracticePage() {
   const router = useRouter();
   useViewportHeight();

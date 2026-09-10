@@ -28,12 +28,13 @@ function cardKey(item: { id: number; script: "hiragana" | "katakana" }): string 
 
 /** Merges a freshly-fetched deck with the last cached queue for this user (if any): cards no
  * longer in the deck (e.g. suspended since) are dropped, and any card in the deck that wasn't
- * anywhere in the cached queue -- i.e. newly learned since the cache was written -- is shuffled
- * and appended after the existing order, so a resumed session simply runs longer instead of
- * reshuffling what's already in progress. Never touches per-card retry state (there isn't any
- * here, see usePracticeQueue's own doc comment) -- it only decides deck membership and order.
- * Falls back to a fresh shuffle when there's no cache, or when the cached queue was already
- * fully consumed and nothing new was learned since. */
+ * anywhere in the cached queue -- newly learned since the cache was written, or a bonus
+ * character that just unlocked (see getPracticeDeck) -- is shuffled and appended after the
+ * existing order, so a resumed session simply runs longer instead of reshuffling what's already
+ * in progress. Never touches per-card retry state (there isn't any here, see usePracticeQueue's
+ * own doc comment) -- it only decides deck membership and order. Falls back to a fresh shuffle
+ * when there's no cache, or when the cached queue was already fully consumed and nothing new was
+ * learned/unlocked since. */
 function reconcileQueue(
   deck: PracticeKanaCard[],
   cached: CachedPracticeQueue | null
@@ -94,6 +95,7 @@ function toDueCard(item: PracticeKanaCard): DueCard {
     drill_mode: true,
     rating_previews: { again: "", hard: "", good: "", easy: "" },
     status: "review",
+    is_bonus: item.bonus,
   };
 }
 
@@ -111,9 +113,11 @@ export interface PracticeQueueState {
 
 /** Drives /study/practice: a single shuffled pass through every hiragana_reading/
  * katakana_reading character the user has ever been introduced to (see fetchSeenHiragana/
- * fetchSeenKatakana) -- fetched once, then never touches the network again. Deliberately has no
- * concept of a session, SRS rating, or review log: rate() only updates the in-memory score and
- * advances to the next card, so nothing here can ever affect due dates, mastery, streaks, or
+ * fetchSeenKatakana), plus -- once a script is fully mastered -- its study_enabled = false bonus
+ * characters (see getPracticeDeck), marked via DueCard.is_bonus so ReviewCardKanaReading can
+ * flag them. Fetched once, then never touches the network again. Deliberately has no concept of
+ * a session, SRS rating, or review log: rate() only updates the in-memory score and advances to
+ * the next card, so nothing here can ever affect due dates, mastery, streaks, or
  * leaderboard/achievement stats. Each character is shown exactly once -- reaching the end of the
  * deck flips `status` to "done" so the page can show a summary instead of looping again.
  *

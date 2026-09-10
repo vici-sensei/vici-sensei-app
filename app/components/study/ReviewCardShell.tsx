@@ -27,6 +27,11 @@ interface Props {
   // answer shows the Continue button instead of the Hard/Good/Easy grid -- useTypedReviewCard's
   // handleContinue rates it 2 once pressed.
   hideRatingOnCorrect?: boolean;
+  // Passed straight through to StudyCardShell -- e.g. ReviewCardKanaReading's "Bonus" badge for
+  // card.is_bonus.
+  cornerBadge?: ReactNode;
+  // Passed straight through to StudyCardShell -- see its own doc comment.
+  compactLabel?: boolean;
 }
 
 export function ReviewCardShell({
@@ -44,6 +49,8 @@ export function ReviewCardShell({
   onRate,
   onContinue,
   hideRatingOnCorrect,
+  cornerBadge,
+  compactLabel,
 }: Props) {
   const showContinue = revealed && (!correct || hideRatingOnCorrect);
 
@@ -60,7 +67,7 @@ export function ReviewCardShell({
   }, [showContinue, disabled, onContinue]);
 
   return (
-    <StudyCardShell label={label} accent={accent}>
+    <StudyCardShell label={label} accent={accent} cornerBadge={cornerBadge} compactLabel={compactLabel}>
       {prompt}
 
       <div className="mt-1 text-[1.1rem] font-medium text-text-muted">{subtitle}</div>

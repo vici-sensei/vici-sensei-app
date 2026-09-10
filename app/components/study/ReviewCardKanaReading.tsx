@@ -54,6 +54,14 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
     <ReviewCardShell
       label={isHiragana ? "Hiragana reading" : "Katakana reading"}
       accent={isHiragana ? "violet" : "orange"}
+      cornerBadge={
+        card.is_bonus && (
+          <span className="mb-1.5 inline-flex items-center rounded-md border border-accent-gold/30 bg-accent-gold/10 px-1.5 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.5px] text-accent-gold">
+            Bonus
+          </span>
+        )
+      }
+      compactLabel={card.is_bonus}
       prompt={
         <CardHeading furigana={revealed && !result?.correct} masked={!revealed}>
           {revealed && !result?.correct ? (
