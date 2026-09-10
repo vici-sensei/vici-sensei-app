@@ -14,8 +14,8 @@ import { FaArrowRotateRight } from "react-icons/fa6";
 function StatBox({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
   return (
     <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-      <div className={`mb-1 text-[1.5rem] font-extrabold ${accent ? "text-accent-blue" : ""}`}>{value}</div>
-      <div className="text-[0.78rem] font-semibold text-text-muted">{label}</div>
+      <div className={`mb-1 text-xl font-extrabold ${accent ? "text-accent-blue" : ""}`}>{value}</div>
+      <div className="text-sm font-semibold text-text-muted">{label}</div>
     </div>
   );
 }
@@ -80,43 +80,41 @@ export default function PracticePage() {
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(0_210_255/0.08)_0%,transparent_55%)]">
-        <div className="relative w-full max-w-[420px] text-center">
-          <Badge color="blue">Practice complete</Badge>
-          <h1 className="mb-2 mt-4.5 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
+        <div className="relative w-full max-w-[420px] flex flex-col items-center justify-between text-center gap-2 h-full">
+          <h1 className="text-2xl font-extrabold leading-[1.2] tracking-[-0.8px]">
             You went through every character.
           </h1>
-          <div className="my-8.5 grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <StatBox value={`${correct}/${total}`} label="Correct" />
             <StatBox value={`${accuracy}%`} label="Accuracy" accent />
             <StatBox value={formatDuration(activeMs)} label="Time" />
           </div>
           {wrongAnswers.length > 0 && (
-            <div className="mb-8.5 max-h-64 overflow-y-auto rounded-2xl border border-border-soft bg-bg-cards p-4 text-left backdrop-blur-[10px]">
-              <div className="mb-3 text-[0.78rem] font-semibold uppercase tracking-[0.5px] text-text-muted">
+            <div className="min-h-32 overflow-y-auto rounded-2xl border border-border-soft bg-bg-cards p-4 text-left backdrop-blur-[10px] w-fit mx-auto">
+              <div className="mb-3 text-[0.78rem] font-semibold uppercase tracking-[0.5px] text-text-muted text-center">
                 Missed ({wrongAnswers.length})
               </div>
-              <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-2 text-[0.9rem]">
-                <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Kana</div>
-                <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Correct</div>
-                <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">You wrote</div>
+              <div className="grid grid-cols-[1fr_1fr_1fr] gap-x-1 gap-y-2 text-[0.9rem] justify-center items-center">
+                <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Kana</div>
+                <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Correct</div>
+                <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">You wrote</div>
                 {wrongAnswers.map((item) => (
                   <Fragment key={`${item.script}-${item.id}`}>
-                    <div className="text-left font-bold text-white">{item.character}</div>
-                    <div className="text-left text-accent-green">{item.romaji}</div>
-                    <div className="text-left text-accent-red">{item.userAnswer || "—"}</div>
+                    <div className="text-center font-bold text-white">{item.character}</div>
+                    <div className="text-center text-accent-green">{item.romaji}</div>
+                    <div className="text-center text-accent-red">{item.userAnswer || "—"}</div>
                   </Fragment>
                 ))}
               </div>
             </div>
           )}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             {wrongAnswers.length > 0 && (
               <Button variant="secondary" onClick={actions.retryMistakes}>
-                <FaArrowRotateRight className="h-3.5 w-3.5" />
-                Retry mistakes ({wrongAnswers.length})
+                Retry
               </Button>
             )}
-            <Button onClick={() => router.push("/dashboard")}>Back to Home</Button>
+            <Button onClick={() => router.push("/dashboard")}>Home</Button>
           </div>
         </div>
       </div>
