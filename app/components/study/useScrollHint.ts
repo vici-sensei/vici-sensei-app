@@ -40,8 +40,13 @@ function animateScrollTop(
  * whether the student has scrolled it to the bottom (so a caller can gate "Next" on it), shows a
  * bottom fade while there's more to see, nudges the scroll position once to hint it's
  * scrollable, and lets ArrowUp/ArrowDown scroll it while it overflows.
+ *
+ * `skipNudge` (default false) skips that one-time nudge -- it animates to an absolute scrollTop
+ * (14, then back to 0), so left on for a box a caller has just programmatically scrolled to a
+ * restored, non-zero position (e.g. NewKanaRuleIntroCard's RuleExamplesBox re-mounting after
+ * "Back" then "Next"), it would silently clobber that restored position back to the top.
  */
-export function useScrollHint<T extends HTMLElement>() {
+export function useScrollHint<T extends HTMLElement>(skipNudge = false) {
   const ref = useRef<T>(null);
   const [showFade, setShowFade] = useState(false);
   const [isScrollable, setIsScrollable] = useState(false);
@@ -85,19 +90,21 @@ export function useScrollHint<T extends HTMLElement>() {
     el.addEventListener("wheel", markUserScrolled, { passive: true });
     el.addEventListener("touchstart", markUserScrolled, { passive: true });
 
-    const nudgeTimeout = window.setTimeout(() => {
-      if (cancelled || userScrolled || el.scrollHeight - el.clientHeight <= 1) return;
-      animateScrollTop(
-        el,
-        NUDGE_DISTANCE,
-        NUDGE_DURATION,
-        () => cancelled || userScrolled,
-        () => {
-          if (cancelled || userScrolled) return;
-          animateScrollTop(el, 0, NUDGE_DURATION, () => cancelled);
-        },
-      );
-    }, NUDGE_DELAY);
+    const nudgeTimeout = skipNudge
+      ? undefined
+      : window.setTimeout(() => {
+          if (cancelled || userScrolled || el.scrollHeight - el.clientHeight <= 1) return;
+          animateScrollTop(
+            el,
+            NUDGE_DISTANCE,
+            NUDGE_DURATION,
+            () => cancelled || userScrolled,
+            () => {
+              if (cancelled || userScrolled) return;
+              animateScrollTop(el, 0, NUDGE_DURATION, () => cancelled);
+            },
+          );
+        }, NUDGE_DELAY);
 
     return () => {
       cancelled = true;
@@ -105,9 +112,9 @@ export function useScrollHint<T extends HTMLElement>() {
       el.removeEventListener("scroll", updateFade);
       el.removeEventListener("wheel", markUserScrolled);
       el.removeEventListener("touchstart", markUserScrolled);
-      window.clearTimeout(nudgeTimeout);
+      if (nudgeTimeout !== undefined) window.clearTimeout(nudgeTimeout);
     };
-  }, []);
+  }, [skipNudge]);
 
   return { ref, showFade, isScrollable, hasScrolledToBottom };
 }

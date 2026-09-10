@@ -57,7 +57,7 @@ export function NewKanaIntroCard({ candidate, script, disabled, onConfirm }: Pro
       )}
 
       <div className="mt-8.5">
-        <Button className="min-w-[min(220px,100%)]" disabled={disabled} onClick={onConfirm}>
+        <Button className="w-fit" disabled={disabled} onClick={onConfirm}>
           Next
         </Button>
       </div>

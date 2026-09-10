@@ -149,14 +149,16 @@ function buildQueue(data: StudyQueueResponse, groupSize: number): QueueItem[] {
   for (const card of data.due_cards) items.push({ key: reviewKey(card), kind: "review", card });
   // Always placed right before interleaveNewMaterial's own output below (never fetched at all
   // unless a "New kanji" candidate exists to follow it -- see fetchStudyQueue), so this lesson's
-  // 3 steps finish exactly once, right before the student's very first real kanji card.
-  items.push(
-    ...data.new_kanji_basics_to_introduce.map((candidate) => ({
-      key: newKanjiBasicsKey(candidate.id),
+  // 3 steps finish exactly once, right before the student's very first real kanji card. One queue
+  // item bundling every not-yet-seen step -- NewKanjiBasicsIntroCard steps through them locally
+  // (Back/Next), rather than one queue item per step.
+  if (data.new_kanji_basics_to_introduce.length > 0) {
+    items.push({
+      key: newKanjiBasicsKey(data.new_kanji_basics_to_introduce.map((c) => c.id)),
       kind: "new_kanji_basics" as const,
-      candidate,
-    }))
-  );
+      candidates: data.new_kanji_basics_to_introduce,
+    });
+  }
   items.push(...interleaveNewMaterial(data.new_kanji_to_introduce, data.new_vocab_to_introduce, groupSize));
 
   const hiraganaEntries: { sortOrder: number; item: QueueItem }[] = [
@@ -1297,7 +1299,7 @@ export function useStudyQueue() {
   const introduceCard = useCallback(
     (
       item: QueueItem & {
-        kind: "new_kanji" | "new_vocab" | "new_hiragana_rule" | "new_katakana_rule" | "new_kanji_basics";
+        kind: "new_kanji" | "new_vocab" | "new_hiragana_rule" | "new_katakana_rule";
       },
       apiCall: (candidateId: number, sessionId?: number) => Promise<void>,
       noun: string
@@ -1584,11 +1586,34 @@ export function useStudyQueue() {
     [introduceCard]
   );
 
-  // Same plain optimistic-removal path as the rule cards above -- introduce_kanji_basics just
-  // marks one step permanently seen, no follow-up card of its own.
+  // introduce_kanji_basics marks one step permanently seen -- unlike introduceCard's other
+  // callers, a "new_kanji_basics" queue item bundles every remaining step (see buildQueue), and
+  // NewKanjiBasicsIntroCard steps through them locally (Back/Next) without leaving `queue`. So
+  // this fires the RPC for whichever step just advanced past on every step (keeping
+  // completedCount moving in step with the card's own "Step X of 3"), but only removes the queue
+  // item -- letting the next real card take over -- once the lesson's fixed final step (3) is the
+  // one confirmed. Re-confirming an already-seen step (stepping Back then Next again) is safe:
+  // introduce_kanji_basics 409s on a duplicate, which the catch below already treats as a no-op,
+  // same as introduceCard's own 409 handling.
   const introduceKanjiBasics = useCallback(
-    (item: QueueItem & { kind: "new_kanji_basics" }) => introduceCard(item, introduceKanjiBasicsApi, "lesson"),
-    [introduceCard]
+    (item: QueueItem & { kind: "new_kanji_basics" }, stepId: number) => {
+      const isLastStep = stepId === 3;
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      if (isLastStep) setQueue((prev) => prev.filter((i) => i.key !== item.key));
+
+      enqueueMutation(async () => {
+        try {
+          await introduceKanjiBasicsApi(stepId, sessionIdRef.current ?? undefined);
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 409) return; // already introduced elsewhere — not a failure
+          setCompletedCount((c) => Math.max(0, c - 1));
+          if (isLastStep) setQueue((prev) => [item, ...prev]);
+          showToast(err instanceof ApiError ? err.message : "Could not introduce this lesson. Please try again.", "error");
+        }
+      });
+    },
+    [enqueueMutation, showToast]
   );
 
   const undoLast = useCallback(() => {

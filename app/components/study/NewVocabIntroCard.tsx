@@ -44,7 +44,7 @@ export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
       </div>
 
       <div className="mt-8.5">
-        <Button className="min-w-[min(220px,100%)]" disabled={disabled} onClick={onConfirm}>
+        <Button className="w-fit" disabled={disabled} onClick={onConfirm}>
           Next
         </Button>
       </div>

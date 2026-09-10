@@ -167,9 +167,9 @@ export default function StudyPage() {
         {current.kind === "new_kanji_basics" && (
           <NewKanjiBasicsIntroCard
             key={current.key}
-            candidate={current.candidate}
+            candidates={current.candidates}
             disabled={cardPending}
-            onConfirm={() => actions.introduceKanjiBasics(current)}
+            onConfirm={(stepId) => actions.introduceKanjiBasics(current, stepId)}
           />
         )}
         {current.kind === "new_kanji" && (

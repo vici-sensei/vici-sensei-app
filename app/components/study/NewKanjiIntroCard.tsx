@@ -83,7 +83,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
         </div>
       )}
       <div className="mt-4 shrink-0">
-        <Button className="min-w-[min(220px,100%)]" disabled={nextDisabled} onClick={onConfirm}>
+        <Button className="w-fit" disabled={nextDisabled} onClick={onConfirm}>
           Next
         </Button>
       </div>

@@ -53,6 +53,7 @@ export function ReviewCardShell({
   compactLabel,
 }: Props) {
   const showContinue = revealed && (!correct || hideRatingOnCorrect);
+  const showRatingGrid = revealed && correct && !hideRatingOnCorrect;
 
   useEffect(() => {
     if (!showContinue || disabled) return;
@@ -65,6 +66,26 @@ export function ReviewCardShell({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showContinue, disabled, onContinue]);
+
+  // Hard/Good/Easy grid (Again is hidden here) mirrors its on-screen button order to 1/2/3, for
+  // physical-keyboard devices.
+  useEffect(() => {
+    if (!showRatingGrid || disabled) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "1") {
+        event.preventDefault();
+        onRate(1);
+      } else if (event.key === "2") {
+        event.preventDefault();
+        onRate(2);
+      } else if (event.key === "3") {
+        event.preventDefault();
+        onRate(3);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showRatingGrid, disabled, onRate]);
 
   return (
     <StudyCardShell label={label} accent={accent} cornerBadge={cornerBadge} compactLabel={compactLabel}>

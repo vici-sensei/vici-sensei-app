@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { KanaRuleExample, NewHiraganaRuleCandidate, NewKatakanaRuleCandidate } from "@/lib/types";
 import { renderKanaRuleNotes } from "@/lib/study/kanaRuleNotes";
 import { groupByGojuonRow, resolveRuleExampleRowLabel, splitYoonCharacter } from "@/lib/srs/gojuon";
@@ -44,6 +44,117 @@ function YoonExampleTile({ example }: { example: KanaRuleExample }) {
   );
 }
 
+/** Step 1's rule-text box -- its own component (rather than a branch inline in
+ * NewKanaRuleIntroCard) so switching steps unmounts/remounts it, giving it a fresh useScrollHint
+ * instance each time instead of reusing one whose ResizeObserver was set up while this box didn't
+ * exist yet (mounting only on the active step, rather than always-mounted-but-hidden, sidesteps
+ * ResizeObserver's unreliable firing when a display:none box becomes visible again). Reports its
+ * own scroll-gating state up via onGatingChange since Next's disabled state lives one level up. */
+function RuleNotesBox({ notes, onGatingChange }: { notes: string; onGatingChange: (disabled: boolean) => void }) {
+  const { ref, showFade, isScrollable, hasScrolledToBottom } = useScrollHint<HTMLDivElement>();
+
+  useEffect(() => {
+    onGatingChange(isScrollable && !hasScrolledToBottom);
+  }, [isScrollable, hasScrolledToBottom, onGatingChange]);
+
+  return (
+    <div className="relative mt-2 min-h-[96px] max-h-fit">
+      <div ref={ref} className="max-h-full overflow-y-auto text-left">
+        <p className="text-[0.9rem] leading-relaxed text-text-muted whitespace-pre-line">{renderKanaRuleNotes(notes)}</p>
+      </div>
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#111827] to-transparent transition-opacity duration-400 ease-out ${
+          showFade ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+}
+
+/** Step 2's example-grid box -- same "own component, fresh per step" reasoning as RuleNotesBox
+ * above. Since it fully unmounts on leaving step 2 (see NewKanaRuleIntroCard), each fresh mount's
+ * own useScrollHint starts from scratch -- scrollTop back at 0 and hasScrolledToBottom back at
+ * false -- so both round-trip through refs the parent holds across the unmount:
+ * initialScrollTop/onScrollTopChange put the student back where they left off, and
+ * initialEverScrolledToBottom/onEverScrolledToBottomChange keep "Next" enabled once they've
+ * reached the bottom at least once, even if they then scrolled back up before hitting "Back". */
+function RuleExamplesBox({
+  examples,
+  kanaType,
+  onGatingChange,
+  initialScrollTop,
+  onScrollTopChange,
+  initialEverScrolledToBottom,
+  onEverScrolledToBottomChange,
+}: {
+  examples: KanaRuleExample[];
+  kanaType: string;
+  onGatingChange: (disabled: boolean) => void;
+  initialScrollTop: number;
+  onScrollTopChange: (top: number) => void;
+  initialEverScrolledToBottom: boolean;
+  onEverScrolledToBottomChange: () => void;
+}) {
+  const { ref, showFade, isScrollable, hasScrolledToBottom } = useScrollHint<HTMLDivElement>(initialScrollTop > 0);
+  const everScrolledToBottom = hasScrolledToBottom || initialEverScrolledToBottom;
+
+  useEffect(() => {
+    onGatingChange(isScrollable && !everScrolledToBottom);
+  }, [isScrollable, everScrolledToBottom, onGatingChange]);
+
+  useEffect(() => {
+    if (hasScrolledToBottom) onEverScrolledToBottomChange();
+  }, [hasScrolledToBottom, onEverScrolledToBottomChange]);
+
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = initialScrollTop;
+    // Restore once, right after mount -- not meant to react to initialScrollTop changing again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="relative mt-4 min-h-[130px] max-h-fit">
+      <div
+        ref={ref}
+        onScroll={(event) => onScrollTopChange(event.currentTarget.scrollTop)}
+        className="h-full max-h-full overflow-y-auto rounded-xl border border-border-soft bg-white/[0.03] p-3"
+      >
+        <div className="flex flex-col gap-3">
+          {groupByGojuonRow(examples).map(([gojuonRow, groupExamples]) => (
+            <div key={gojuonRow}>
+              <div className="mb-1.5 text-center text-[0.7rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">
+                {resolveRuleExampleRowLabel(gojuonRow)}
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {groupExamples.map((example, i) =>
+                  kanaType === "yoon" ? (
+                    <YoonExampleTile key={`${example.character}-${i}`} example={example} />
+                  ) : (
+                    <div
+                      key={`${example.character}-${i}`}
+                      className="flex min-w-[64px] flex-col items-center gap-0.5 rounded-xl border border-border-soft bg-white/[0.03] px-3 py-2"
+                    >
+                      <div className="text-xl text-white">{example.character}</div>
+                      <div className="text-[0.75rem] font-semibold text-text-muted">{example.romaji}</div>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-x-0 bottom-0 h-16 rounded-b-xl bg-gradient-to-t from-[#111827] to-transparent transition-opacity duration-400 ease-out ${
+          showFade ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+}
+
 interface Props {
   candidate: NewHiraganaRuleCandidate | NewKatakanaRuleCandidate;
   /** Which set this candidate is from -- drives the card label only. */
@@ -60,43 +171,58 @@ interface Props {
  * resolveRuleExampleRowLabel, lib/srs/gojuon.ts), fed by the `gojuon_row` each example carries
  * (20260906_kana_rule_examples_gojuon_row.sql).
  *
- * The notes text and the example grid are each their own bounded, independently-scrollable box
- * (useScrollHint, shared with NewKanjiIntroCard's word list) -- "Next" stays disabled until
- * whichever of them overflows has been scrolled all the way down. A rule with no notes/no
- * examples (seion/dakuten/handakuten strip examples down to 0 -- see
- * 20260905_kana_rule_examples_only.sql) never renders that box, so it can't contribute to the
- * gating. */
+ * A rule with examples (sokuon/yoon/n_gemination/choonpu/extended) splits into a local 2-step
+ * flow -- Step 1 the rule text (RuleNotesBox), Step 2 the example grid (RuleExamplesBox) -- so the
+ * two boxes never have to share one card's height, with a "Back" button to return to Step 1. Back
+ * only moves locally within this card (never re-touches the server) and is disabled on Step 1,
+ * since there's nothing before it to go back to. A rule with no examples (seion/dakuten/handakuten
+ * strip examples down to 0 -- see 20260905_kana_rule_examples_only.sql) keeps the original
+ * single-step layout instead, with no Step counter and no Back button. */
 export function NewKanaRuleIntroCard({ candidate, script, disabled, onConfirm }: Props) {
   const examples = candidate.examples;
-  const {
-    ref: notesRef,
-    showFade: notesShowFade,
-    isScrollable: notesScrollable,
-    hasScrolledToBottom: notesScrolledToBottom,
-  } = useScrollHint<HTMLDivElement>();
-  const {
-    ref: examplesRef,
-    showFade: examplesShowFade,
-    isScrollable: examplesScrollable,
-    hasScrolledToBottom: examplesScrolledToBottom,
-  } = useScrollHint<HTMLDivElement>();
-  const nextDisabled =
-    disabled || (notesScrollable && !notesScrolledToBottom) || (examplesScrollable && !examplesScrolledToBottom);
+  const hasExamples = examples.length > 0;
+  const [step, setStep] = useState<1 | 2>(1);
+  const [gateDisabled, setGateDisabled] = useState(false);
+  const nextDisabled = disabled || gateDisabled;
+  // Survive RuleExamplesBox unmounting on "Back" -- see its own doc comment.
+  const examplesScrollTopRef = useRef(0);
+  const examplesEverScrolledToBottomRef = useRef(false);
+
+  const goBack = () => {
+    if (step === 1) return;
+    setGateDisabled(true);
+    setStep(1);
+  };
+
+  const goNext = () => {
+    if (hasExamples && step === 1) {
+      setGateDisabled(true);
+      setStep(2);
+    } else {
+      onConfirm();
+    }
+  };
 
   useEffect(() => {
     if (nextDisabled) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Enter") {
         event.preventDefault();
-        onConfirm();
+        goNext();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nextDisabled, onConfirm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextDisabled, hasExamples, step]);
 
   return (
-    <StudyCardShell label={`New ${script} rule`} accent="gold" size="lg" layout="column">
+    <StudyCardShell
+      label={hasExamples ? `New ${script} rule · Step ${step} of 2` : `New ${script} rule`}
+      accent="gold"
+      size="lg"
+      layout="column"
+    >
       <div className="shrink-0">
         <CardHeading>{candidate.character}</CardHeading>
         {candidate.label && (
@@ -109,67 +235,42 @@ export function NewKanaRuleIntroCard({ candidate, script, disabled, onConfirm }:
         )}
       </div>
 
-      {candidate.notes && (
-        <div className="relative mt-2 min-h-[60px]">
-          <div ref={notesRef} className="max-h-full overflow-y-auto text-left">
-            <p className="text-[0.9rem] leading-relaxed text-text-muted whitespace-pre-line">
-              {renderKanaRuleNotes(candidate.notes)}
-            </p>
-          </div>
-          <div
-            aria-hidden
-            className={`pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#111827] to-transparent transition-opacity duration-400 ease-out ${
-              notesShowFade ? "opacity-100" : "opacity-0"
-            }`}
-          />
-        </div>
+      {candidate.notes && (!hasExamples || step === 1) && (
+        <RuleNotesBox notes={candidate.notes} onGatingChange={setGateDisabled} />
       )}
 
-      {examples.length > 0 && (
-        <div className="relative mt-4 min-h-[130px]">
-          <div
-            ref={examplesRef}
-            className="h-full max-h-full overflow-y-auto rounded-xl border border-border-soft bg-white/[0.03] p-3"
-          >
-            <div className="flex flex-col gap-3">
-              {groupByGojuonRow(examples).map(([gojuonRow, groupExamples]) => (
-                <div key={gojuonRow}>
-                  <div className="mb-1.5 text-center text-[0.7rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">
-                    {resolveRuleExampleRowLabel(gojuonRow)}
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {groupExamples.map((example, i) =>
-                      candidate.kana_type === "yoon" ? (
-                        <YoonExampleTile key={`${example.character}-${i}`} example={example} />
-                      ) : (
-                        <div
-                          key={`${example.character}-${i}`}
-                          className="flex min-w-[64px] flex-col items-center gap-0.5 rounded-xl border border-border-soft bg-white/[0.03] px-3 py-2"
-                        >
-                          <div className="text-xl text-white">{example.character}</div>
-                          <div className="text-[0.75rem] font-semibold text-text-muted">{example.romaji}</div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div
-            aria-hidden
-            className={`pointer-events-none absolute inset-x-0 bottom-0 h-16 rounded-b-xl bg-gradient-to-t from-[#111827] to-transparent transition-opacity duration-400 ease-out ${
-              examplesShowFade ? "opacity-100" : "opacity-0"
-            }`}
-          />
-        </div>
+      {hasExamples && step === 2 && (
+        <RuleExamplesBox
+          examples={examples}
+          kanaType={candidate.kana_type}
+          onGatingChange={setGateDisabled}
+          initialScrollTop={examplesScrollTopRef.current}
+          onScrollTopChange={(top) => {
+            examplesScrollTopRef.current = top;
+          }}
+          initialEverScrolledToBottom={examplesEverScrolledToBottomRef.current}
+          onEverScrolledToBottomChange={() => {
+            examplesEverScrolledToBottomRef.current = true;
+          }}
+        />
       )}
 
-      <div className="mt-4 shrink-0">
-        <Button className="min-w-[min(220px,100%)]" disabled={nextDisabled} onClick={onConfirm}>
-          Next
-        </Button>
-      </div>
+      {hasExamples ? (
+        <div className="mt-4 flex shrink-0 justify-center gap-3">
+          <Button variant="secondary" disabled={step === 1} onClick={goBack}>
+            Back
+          </Button>
+          <Button className="w-fit" disabled={nextDisabled} onClick={goNext}>
+            Next
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-4 shrink-0">
+          <Button className="w-fit" disabled={nextDisabled} onClick={onConfirm}>
+            Next
+          </Button>
+        </div>
+      )}
     </StudyCardShell>
   );
 }

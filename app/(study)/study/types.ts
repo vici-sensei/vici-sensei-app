@@ -23,7 +23,14 @@ export type QueueItem =
        * against. Falls back to `key` when unset. */
       renderKey?: string;
     }
-  | { key: string; kind: "new_kanji_basics"; candidate: NewKanjiBasicsCandidate }
+  | {
+      key: string;
+      kind: "new_kanji_basics";
+      /** Every not-yet-seen step (1-3, ascending) as of this fetch -- NewKanjiBasicsIntroCard
+       * steps through them locally (Back/Next), so the whole lesson is one queue item instead of
+       * one per step (see newKanjiBasicsKey below). */
+      candidates: NewKanjiBasicsCandidate[];
+    }
   | { key: string; kind: "new_kanji"; candidate: NewKanjiCandidate }
   | {
       key: string;
@@ -51,8 +58,8 @@ export function newKanjiKey(id: number): string {
   return `new_kanji-${id}`;
 }
 
-export function newKanjiBasicsKey(id: number): string {
-  return `new_kanji_basics-${id}`;
+export function newKanjiBasicsKey(ids: number[]): string {
+  return `new_kanji_basics-${ids.join(",")}`;
 }
 
 export function newVocabKey(id: number): string {
