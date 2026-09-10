@@ -56,7 +56,7 @@ function LeaderboardAvatar({
   const [failed, setFailed] = useState(false);
   const showAvatar = Boolean(avatarUrl) && !failed;
   return (
-    <div className="relative h-10 w-10 mr-1.5 shrink-0">
+    <div className="relative h-10 w-10 shrink-0">
       <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[0.85rem] font-extrabold text-white">
         {showAvatar ? (
           <Image
@@ -80,7 +80,7 @@ function RankBadge({ rank }: { rank: number }) {
   if (rank <= 3) {
     return (
       <div
-        className="flex w-5 shrink-0 items-center justify-center text-xl"
+        className="flex w-5 shrink-0 items-center justify-center text-xl h-fit"
         style={{ color: MEDAL_COLORS[rank] }}
       >
         <FaMedal />
@@ -97,7 +97,7 @@ function RankBadge({ rank }: { rank: number }) {
 function ScoreBadge({ metric, value, unit }: { metric: LeaderboardMetric; value: string; unit: string }) {
   return (
     <span
-      className="inline-flex shrink-0 flex-col items-center gap-0.5 rounded-2xl px-3.5 py-1.5"
+      className="inline-flex shrink-0 flex-col items-center gap-0.5 rounded-2xl"
       style={{ backgroundColor: `${METRIC_COLORS[metric]}1f`, color: METRIC_COLORS[metric] }}
     >
       <b className="text-[0.95rem] font-extrabold leading-none tabular-nums">{value}</b>
@@ -145,25 +145,24 @@ function LeaderboardRow({
   return (
     <div>
       <div
-        className={`grid grid-cols-[1fr_auto] items-center gap-4 rounded-xl border p-3 ${
+        className={`grid grid-cols-[1fr_auto] items-center gap-4 rounded-xl border p-2 ${
           isViewer ? "border-accent-red bg-accent-red/10" : "border-transparent bg-white/[0.025]"
         }`}
       >
-        <div className="flex items-start gap-x-3.5">
-          <div className="flex flex-wrap items-center gap-3.5">
-            <RankBadge rank={entry.rank} />
-            <LeaderboardAvatar avatarUrl={entry.avatar_url} isPremium={entry.is_premium} />
-            {entry.country ? (
-              <div
-                aria-label={entry.country}
-                className={`fi fi-${entry.country.toLowerCase()} shrink-0 rounded-[2px] ring-1 ring-white/10`}
-              />
-            ) : null}
-          </div>
-          <p className="min-w-24 flex-1 text-[0.92rem] font-bold leading-10 text-white">
+        <div className="flex flex-row gap-2 items-center">
+          <RankBadge rank={entry.rank} />
+          <LeaderboardAvatar avatarUrl={entry.avatar_url} isPremium={entry.is_premium} />
+          {entry.country ? (
+            <div
+              aria-label={entry.country}
+              className={`fi fi-${entry.country.toLowerCase()} shrink-0 rounded-[2px] ring-1 ring-white/10 h-fit`}
+            />
+          ) : null}
+          
+          <p className="text-sm font-bold leading-none text-white">
             {entry.display_name?.trim() || "Anonymous user"}
             {isViewer && viewerAnonymous ? (
-              <span className="ml-2 mb-1 inline-flex items-center gap-1 align-middle text-xs font-semibold text-accent-blue/70">
+              <span className="text-xs font-semibold text-accent-blue/70 ml-1">
                 (you)
               </span>
             ) : null}
