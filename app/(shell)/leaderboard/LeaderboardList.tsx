@@ -33,16 +33,34 @@ const METRIC_UNITS: Record<LeaderboardMetric, string> = {
   xp: "XP",
 };
 
+// Scores above 999 are compacted (1.2K, 3M, ...) so a long streak or XP total never
+// stretches the badge wider than the row can afford.
+const compactScoreFormatter = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+// Intl's compact notation has no suffix beyond "T" (trillion), so past this it starts
+// spelling the multiplier out in full ("1,000,000,000T") instead of staying compact --
+// capping here keeps the badge from blowing out on a runaway or corrupted score.
+const MAX_DISPLAY_SCORE = 999_000_000_000_000;
+
+function formatScoreValue(score: number): string {
+  if (score > MAX_DISPLAY_SCORE) return "999T+";
+  return score > 999 ? compactScoreFormatter.format(score) : String(score);
+}
+
 function formatScoreParts(metric: LeaderboardMetric, score: number): { value: string; unit: string } {
+  const value = formatScoreValue(score);
   switch (metric) {
     case "reviews":
-      return { value: String(score), unit: score === 1 ? "review" : "reviews" };
+      return { value, unit: score === 1 ? "review" : "reviews" };
     case "new_cards":
-      return { value: String(score), unit: score === 1 ? "new card" : "new cards" };
+      return { value, unit: score === 1 ? "new card" : "new cards" };
     case "streak":
-      return { value: String(score), unit: score === 1 ? "day" : "days" };
+      return { value, unit: score === 1 ? "day" : "days" };
     case "xp":
-      return { value: String(score), unit: "XP" };
+      return { value, unit: "XP" };
   }
 }
 
@@ -145,11 +163,11 @@ function LeaderboardRow({
   return (
     <div>
       <div
-        className={`grid grid-cols-[1fr_auto] items-center gap-4 rounded-xl border p-2 ${
+        className={`grid grid-cols-[1fr_auto] items-center gap-2 rounded-xl border p-2 ${
           isViewer ? "border-accent-red bg-accent-red/10" : "border-transparent bg-white/[0.025]"
         }`}
       >
-        <div className="flex flex-row gap-2 items-center">
+        <div className="flex min-w-0 flex-row items-center gap-2">
           <RankBadge rank={entry.rank} />
           <LeaderboardAvatar avatarUrl={entry.avatar_url} isPremium={entry.is_premium} />
           {entry.country ? (
@@ -158,8 +176,8 @@ function LeaderboardRow({
               className={`fi fi-${entry.country.toLowerCase()} shrink-0 rounded-[2px] ring-1 ring-white/10 h-fit`}
             />
           ) : null}
-          
-          <p className="text-sm font-bold leading-none text-white">
+
+          <p className="min-w-[1ch] flex-1 break-words text-sm font-bold leading-tight text-white">
             {entry.display_name?.trim() || "Anonymous user"}
             {isViewer && viewerAnonymous ? (
               <span className="text-xs font-semibold text-accent-blue/70 ml-1">
