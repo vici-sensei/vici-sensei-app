@@ -11,6 +11,13 @@ import { buttonClasses } from "@/app/components/ui/Button";
 import { StartStudyButton } from "./StartStudyButton";
 import { NextCardEta } from "./NextCardEta";
 
+// Hollow gold outline (same border+transparent-fill pattern as buttonClasses' secondary/danger
+// variant) rather than a solid fill -- gold text on a gold-tinted transparent background reads
+// clearly without needing a fill color at all, and matches the "unlock" gold used elsewhere for
+// kana milestones (KanaGraduationModal's badge, the reminder line below).
+const READING_TEST_CTA_CLASSES =
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-accent-gold/30 bg-black/30 px-8 py-[15px] text-base font-bold text-center text-accent-gold backdrop-blur-[10px] transition-[border-color,background-color] duration-200 ease-out hover:border-accent-gold/40 hover:bg-accent-gold/[0.08]";
+
 export function DashboardHero() {
   // Shared with the nav's Study link (see StudyStatsProvider in the shell layout) so both
   // reflect the same live count instead of drifting apart. studyDisabled is already
@@ -32,6 +39,15 @@ export function DashboardHero() {
   // Same idea, for katakana -- gates study_track flipping to 'standard' instead of study_katakana
   // turning on (see 20260920_reading_test_gates_standard.sql).
   const showKatakanaReadingTestCta = Boolean(isKana && stats?.katakana_mastered && !stats?.katakana_reading_test_passed);
+  // Drives both the "explore the dictionary" suppression and the reminder line below --
+  // whichever reading test CTA is showing, the dictionary nudge no longer applies (there's a
+  // single obvious next step) and the reminder explains what that step unlocks.
+  const showReadingTestCta = showHiraganaReadingTestCta || showKatakanaReadingTestCta;
+  const readingTestReminder = showHiraganaReadingTestCta
+    ? "Pass the reading test to unlock katakana!"
+    : showKatakanaReadingTestCta
+      ? "Pass the reading test to unlock kanji and vocabulary!"
+      : null;
   // Gated on each study_* flag -- e.g. study_katakana stays false until every hiragana has
   // graduated to review, so an unstudied category must read as 0 remaining, not a phantom
   // full day's limit (see cardsRemainingToday in lib/study/stats.ts for the same fix).
@@ -112,11 +128,17 @@ export function DashboardHero() {
             <p className="text-base leading-[1.6] text-text-muted">
               {moreComingToday && stats.next_due_at ? (
                 <>
-                  Explore the dictionary in the meantime.
-                  <br />
+                  {!showReadingTestCta && (
+                    <>
+                      Explore the dictionary in the meantime.
+                      <br />
+                    </>
+                  )}
                   Your next card is ready{" "}
                   <NextCardEta dueAt={stats.next_due_at} clockOffsetMs={clockOffsetMs} onElapsed={refresh} />
                 </>
+              ) : showReadingTestCta ? (
+                "Come back tomorrow for your next reviews."
               ) : (
                 "Come back tomorrow for your next reviews, or explore the dictionary in the meantime."
               )}
@@ -137,31 +159,28 @@ export function DashboardHero() {
             )}
           </>
         )}
+        {readingTestReminder && (
+          <p className="mt-2.5 text-sm font-semibold text-accent-gold">{readingTestReminder}</p>
+        )}
         {stale && (
           <p className="mt-2.5 text-sm text-text-muted">Couldn&apos;t refresh your stats — try reloading the page.</p>
         )}
       </div>
       <div className="flex flex-wrap items-center justify-center w-full gap-3 sm:items-start sm:justify-start sm:w-fit">
-        <StartStudyButton disabled={allDone} />
-        {showPracticeButton && (
-          <Link href="/study/practice" className={buttonClasses({ variant: "secondary", hover: "hover" })}>
-            Practice
-          </Link>
-        )}
         {showHiraganaReadingTestCta && (
-          <Link
-            href="/study/test/hiragana"
-            className={buttonClasses({ variant: "secondary", hover: "hover" })}
-          >
+          <Link href="/study/test/hiragana" className={READING_TEST_CTA_CLASSES}>
             Take the reading test
           </Link>
         )}
         {showKatakanaReadingTestCta && (
-          <Link
-            href="/study/test/katakana"
-            className={buttonClasses({ variant: "secondary", hover: "hover" })}
-          >
+          <Link href="/study/test/katakana" className={READING_TEST_CTA_CLASSES}>
             Take the reading test
+          </Link>
+        )}
+        <StartStudyButton disabled={allDone} />
+        {showPracticeButton && (
+          <Link href="/study/practice" className={buttonClasses({ variant: "secondary", hover: "hover" })}>
+            Practice
           </Link>
         )}
       </div>
