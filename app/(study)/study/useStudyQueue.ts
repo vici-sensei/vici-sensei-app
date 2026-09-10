@@ -1299,7 +1299,7 @@ export function useStudyQueue() {
   const introduceCard = useCallback(
     (
       item: QueueItem & {
-        kind: "new_kanji" | "new_vocab" | "new_hiragana_rule" | "new_katakana_rule";
+        kind: "new_kanji" | "new_vocab";
       },
       apiCall: (candidateId: number, sessionId?: number) => Promise<void>,
       noun: string
@@ -1572,18 +1572,70 @@ export function useStudyQueue() {
     [introduceKanaCard]
   );
 
-  // Rule cards (new_hiragana_rule/new_katakana_rule) use the plain introduceCard path, not
-  // introduceKanaCard's pack/drill hand-off above -- there's no gojuon pack to complete and no
-  // follow-up reading card, introduce_hiragana_rule/introduce_katakana_rule just mark the rule
-  // permanently seen (20260904_kana_rule_cards.sql), so a simple optimistic removal is enough.
+  // Rule cards (new_hiragana_rule/new_katakana_rule) atomically introduce their own kana_type's
+  // example pack right alongside the rule (see 20261024_atomic_rule_example_handoff.sql) --
+  // sokuon/yoon/n_gemination/choonpu/extended all have one, seion/dakuten/handakuten don't (empty
+  // ids array, falls through to a plain removal below). Held on screen (pendingCardKey) until the
+  // reading cards actually land, then swapped in as one atomic setQueue call -- same pattern as
+  // introduceKanji/introduceKanaCard's finishPack above, and for the same reason: without this,
+  // a later kana_type's rule (already queued from an earlier fetch, e.g. sokuon_rule right behind
+  // yoon_rule) could become `current` before this kana_type's own reading cards ever arrive.
+  const introduceKanaRule = useCallback(
+    (
+      item: QueueItem & { kind: "new_hiragana_rule" | "new_katakana_rule" },
+      apiCall: (candidateId: number, sessionId?: number) => Promise<number[]>,
+      fetchReadingCards: (ids: number[]) => Promise<DueCard[]>,
+      noun: string
+    ) => {
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      setPendingCardKey(item.key);
+
+      enqueueMutation(async () => {
+        let ids: number[];
+        try {
+          ids = await apiCall(item.candidate.id, sessionIdRef.current ?? undefined);
+        } catch (err) {
+          setPendingCardKey(null);
+          if (err instanceof ApiError && err.status === 409) {
+            // Already introduced elsewhere -- done from the DB's point of view, so it can finally
+            // leave `queue`; whatever it would have handed off gets picked up by the normal
+            // due-cards fetch instead.
+            setQueue((prev) => prev.filter((i) => i.key !== item.key));
+            return;
+          }
+          setCompletedCount((c) => Math.max(0, c - 1));
+          showToast(err instanceof ApiError ? err.message : `Could not introduce this ${noun}. Please try again.`, "error");
+          return;
+        }
+
+        const cards = ids.length > 0 ? await fetchReadingCards(ids).catch(() => [] as DueCard[]) : [];
+        setPendingCardKey(null);
+
+        setQueue((prev) => {
+          const withoutItem = prev.filter((i) => i.key !== item.key);
+          if (cards.length === 0) return withoutItem;
+          const existingKeys = new Set(withoutItem.map((i) => i.key));
+          const block = cards
+            .filter((card) => !existingKeys.has(reviewKey(card)))
+            .map((card) => ({ key: reviewKey(card), kind: "review" as const, card }));
+          return [...block, ...withoutItem];
+        });
+      });
+    },
+    [enqueueMutation, showToast]
+  );
+
   const introduceHiraganaRule = useCallback(
-    (item: QueueItem & { kind: "new_hiragana_rule" }) => introduceCard(item, introduceHiraganaRuleApi, "hiragana rule"),
-    [introduceCard]
+    (item: QueueItem & { kind: "new_hiragana_rule" }) =>
+      introduceKanaRule(item, introduceHiraganaRuleApi, getHiraganaReadingCards, "hiragana rule"),
+    [introduceKanaRule]
   );
 
   const introduceKatakanaRule = useCallback(
-    (item: QueueItem & { kind: "new_katakana_rule" }) => introduceCard(item, introduceKatakanaRuleApi, "katakana rule"),
-    [introduceCard]
+    (item: QueueItem & { kind: "new_katakana_rule" }) =>
+      introduceKanaRule(item, introduceKatakanaRuleApi, getKatakanaReadingCards, "katakana rule"),
+    [introduceKanaRule]
   );
 
   // introduce_kanji_basics marks one step permanently seen -- unlike introduceCard's other

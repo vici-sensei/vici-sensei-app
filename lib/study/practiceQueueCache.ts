@@ -9,6 +9,10 @@ export interface CachedPracticeQueue {
   order: PracticeQueueCardRef[];
   index: number;
   correct: number;
+  /** Cards rated incorrect so far this pass, in the order they were answered -- so refreshing
+   * mid-deck doesn't lose the list of misses the summary shows at the end. Optional so caches
+   * written before this field existed still validate. */
+  wrong?: PracticeQueueCardRef[];
 }
 
 function cacheKey(userId: string): string {
@@ -28,7 +32,8 @@ function isValidCache(value: unknown): value is CachedPracticeQueue {
     Array.isArray(cached.order) &&
     cached.order.every(isCardRef) &&
     typeof cached.index === "number" &&
-    typeof cached.correct === "number"
+    typeof cached.correct === "number" &&
+    (cached.wrong === undefined || (Array.isArray(cached.wrong) && cached.wrong.every(isCardRef)))
   );
 }
 

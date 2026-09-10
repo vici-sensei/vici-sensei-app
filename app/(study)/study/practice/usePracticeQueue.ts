@@ -7,6 +7,7 @@ import {
   readPracticeQueueCache,
   writePracticeQueueCache,
   type CachedPracticeQueue,
+  type PracticeQueueCardRef,
 } from "@/lib/study/practiceQueueCache";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import type { DueCard, Rating } from "@/lib/types";
@@ -38,8 +39,8 @@ function cardKey(item: { id: number; script: "hiragana" | "katakana" }): string 
 function reconcileQueue(
   deck: PracticeKanaCard[],
   cached: CachedPracticeQueue | null
-): { queue: PracticeKanaCard[]; index: number; correct: number } {
-  if (!cached) return { queue: shuffle(deck), index: 0, correct: 0 };
+): { queue: PracticeKanaCard[]; index: number; correct: number; wrong: PracticeQueueCardRef[] } {
+  if (!cached) return { queue: shuffle(deck), index: 0, correct: 0, wrong: [] };
 
   const deckByKey = new Map(deck.map((item) => [cardKey(item), item]));
   const cachedKeys = new Set(cached.order.map(cardKey));
@@ -58,10 +59,15 @@ function reconcileQueue(
   if (survivedBeforeIndex >= survivors.length && newItems.length === 0) {
     // Fully consumed already, and nothing new since -- start a fresh pass rather than
     // reopening a finished queue.
-    return { queue: shuffle(deck), index: 0, correct: 0 };
+    return { queue: shuffle(deck), index: 0, correct: 0, wrong: [] };
   }
 
-  return { queue: [...survivors, ...shuffle(newItems)], index: survivedBeforeIndex, correct: cached.correct };
+  return {
+    queue: [...survivors, ...shuffle(newItems)],
+    index: survivedBeforeIndex,
+    correct: cached.correct,
+    wrong: cached.wrong ?? [],
+  };
 }
 
 function toDueCard(item: PracticeKanaCard): DueCard {
@@ -106,6 +112,9 @@ export interface PracticeQueueState {
   correct: number;
   completed: number;
   total: number;
+  /** Cards rated incorrect so far this pass, in the order they were answered -- shown as a list
+   * on the "done" summary once the deck runs out. */
+  wrongAnswers: PracticeKanaCard[];
   actions: {
     rate: (card: DueCard, rating: Rating) => void;
   };
@@ -131,6 +140,7 @@ export function usePracticeQueue(): PracticeQueueState {
   const [queue, setQueue] = useState<PracticeKanaCard[]>([]);
   const [index, setIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
+  const [wrongRefs, setWrongRefs] = useState<PracticeQueueCardRef[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,13 +151,16 @@ export function usePracticeQueue(): PracticeQueueState {
           setStatus("empty");
           return;
         }
-        const { queue: resolvedQueue, index: resolvedIndex, correct: resolvedCorrect } = reconcileQueue(
-          deck,
-          readPracticeQueueCache(user.id)
-        );
+        const {
+          queue: resolvedQueue,
+          index: resolvedIndex,
+          correct: resolvedCorrect,
+          wrong: resolvedWrong,
+        } = reconcileQueue(deck, readPracticeQueueCache(user.id));
         setQueue(resolvedQueue);
         setIndex(resolvedIndex);
         setCorrect(resolvedCorrect);
+        setWrongRefs(resolvedWrong);
         setStatus("ready");
       })
       .catch(() => {
@@ -174,11 +187,17 @@ export function usePracticeQueue(): PracticeQueueState {
       order: queue.map((item) => ({ id: item.id, script: item.script })),
       index,
       correct,
+      wrong: wrongRefs,
     });
-  }, [status, queue, index, correct, user.id]);
+  }, [status, queue, index, correct, wrongRefs, user.id]);
 
-  const rate = useCallback((_card: DueCard, rating: Rating) => {
-    if (rating >= 2) setCorrect((c) => c + 1);
+  const rate = useCallback((card: DueCard, rating: Rating) => {
+    if (rating >= 2) {
+      setCorrect((c) => c + 1);
+    } else {
+      const script = card.exercise_type === "hiragana_reading" ? "hiragana" : "katakana";
+      setWrongRefs((refs) => [...refs, { id: card.progress_id, script }]);
+    }
     setIndex((i) => i + 1);
   }, []);
 
@@ -187,6 +206,9 @@ export function usePracticeQueue(): PracticeQueueState {
   // Purely a derived view for callers -- `status` itself stays "ready" internally, queue/index
   // are the real source of truth for whether the deck is finished.
   const effectiveStatus: PracticeStatus = status === "ready" && queue.length > 0 && index >= queue.length ? "done" : status;
+  const wrongAnswers = wrongRefs
+    .map((ref) => queue.find((item) => item.id === ref.id && item.script === ref.script))
+    .filter((item): item is PracticeKanaCard => item !== undefined);
 
   return {
     status: effectiveStatus,
@@ -195,6 +217,7 @@ export function usePracticeQueue(): PracticeQueueState {
     correct,
     completed: Math.min(index, queue.length),
     total: queue.length,
+    wrongAnswers,
     actions: { rate },
   };
 }

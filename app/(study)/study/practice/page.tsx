@@ -28,7 +28,7 @@ function StatBox({ value, label, accent }: { value: string; label: string; accen
 export default function PracticePage() {
   const router = useRouter();
   useViewportHeight();
-  const { status, error, current, correct, completed, total, actions } = usePracticeQueue();
+  const { status, error, current, correct, completed, total, wrongAnswers, actions } = usePracticeQueue();
 
   if (status === "loading") return <FullScreenLoader />;
 
@@ -76,6 +76,21 @@ export default function PracticePage() {
             <StatBox value={`${correct}/${total}`} label="Correct" />
             <StatBox value={`${accuracy}%`} label="Accuracy" accent />
           </div>
+          {wrongAnswers.length > 0 && (
+            <div className="mb-8.5 max-h-64 overflow-y-auto rounded-2xl border border-border-soft bg-bg-cards p-4 text-left backdrop-blur-[10px]">
+              <div className="mb-3 text-[0.78rem] font-semibold uppercase tracking-[0.5px] text-text-muted">
+                Missed ({wrongAnswers.length})
+              </div>
+              <ul className="flex flex-col gap-2">
+                {wrongAnswers.map((item) => (
+                  <li key={`${item.script}-${item.id}`} className="flex items-center justify-between text-[0.95rem]">
+                    <span className="font-bold text-white">{item.character}</span>
+                    <span className="text-text-muted">{item.romaji}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <Button onClick={() => router.push("/dashboard")}>Back to Home</Button>
         </div>
       </div>

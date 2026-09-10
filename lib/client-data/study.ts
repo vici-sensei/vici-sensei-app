@@ -15,6 +15,8 @@ import {
   introduceCard as introduceCardData,
   introduceHiraganaCharacter as introduceHiraganaCharacterData,
   introduceKatakanaCharacter as introduceKatakanaCharacterData,
+  introduceHiraganaRule as introduceHiraganaRuleData,
+  introduceKatakanaRule as introduceKatakanaRuleData,
   type IntroduceKind,
   type KanaPackResult,
 } from "@/lib/data/introduce";
@@ -176,12 +178,18 @@ export async function introduceKatakana(katakanaId: number, sessionId?: number):
   return introduceKatakanaCharacterData(supabase, userId, katakanaId, timezone, sessionId);
 }
 
-export function introduceHiraganaRule(hiraganaId: number, sessionId?: number): Promise<void> {
-  return introduce("hiragana_rule", hiraganaId, sessionId);
+export async function introduceHiraganaRule(hiraganaId: number, sessionId?: number): Promise<number[]> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return introduceHiraganaRuleData(supabase, userId, hiraganaId, timezone, sessionId);
 }
 
-export function introduceKatakanaRule(katakanaId: number, sessionId?: number): Promise<void> {
-  return introduce("katakana_rule", katakanaId, sessionId);
+export async function introduceKatakanaRule(katakanaId: number, sessionId?: number): Promise<number[]> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return introduceKatakanaRuleData(supabase, userId, katakanaId, timezone, sessionId);
 }
 
 /** Called right after a whole "New Hiragana" gojuon pack finishes introducing, to fetch

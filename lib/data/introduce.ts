@@ -14,14 +14,17 @@ const CAP_OR_DUPLICATE_ERRCODE = "P0002";
 // gojuon_row pack just completed -- and, if so, every character id in it -- is now decided
 // entirely server-side instead of by client-side bookkeeping (useStudyQueue.ts used to track
 // this itself via refs that reset on every page load, which is exactly what let a pack get split
-// across sessions).
-export type IntroduceKind = "kanji" | "vocabulary" | "hiragana_rule" | "katakana_rule" | "kanji_basics";
+// across sessions). hiragana_rule/katakana_rule are handled by introduceHiraganaRule/
+// introduceKatakanaRule below for the same reason as of
+// supabase/migrations/20261024_atomic_rule_example_handoff.sql: introduce_hiragana_rule/
+// introduce_katakana_rule no longer return void either, since answering a rule now atomically
+// introduces that kana_type's own example pack (sokuon/yoon/n_gemination/choonpu/extended) too,
+// instead of leaving that to a separate, later poll.
+export type IntroduceKind = "kanji" | "vocabulary" | "kanji_basics";
 
 const INTRODUCE_RPCS: Record<IntroduceKind, { rpc: string; param: string }> = {
   kanji: { rpc: "introduce_kanji", param: "p_kanji_id" },
   vocabulary: { rpc: "introduce_vocabulary", param: "p_word_id" },
-  hiragana_rule: { rpc: "introduce_hiragana_rule", param: "p_hiragana_id" },
-  katakana_rule: { rpc: "introduce_katakana_rule", param: "p_katakana_id" },
   // itemId here is the step number (1, 2, or 3) -- see NewKanjiBasicsCandidate.
   kanji_basics: { rpc: "introduce_kanji_basics", param: "p_step" },
 };
@@ -92,4 +95,47 @@ export async function introduceKatakanaCharacter(
   if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
   const row = (data as { pack_completed: boolean; katakana_ids: number[] | null }[])[0];
   return { packCompleted: row?.pack_completed ?? false, ids: row?.katakana_ids ?? null };
+}
+
+// Answering a rule card atomically introduces that kana_type's own example pack too (whatever
+// fits today's remaining cap -- see 20261024_atomic_rule_example_handoff.sql), returning its ids
+// so useStudyQueue can splice the reading cards in immediately, contiguous with the rule, the
+// same way introduceHiraganaCharacter/introduceKatakanaCharacter above hand off a just-completed
+// gojuon pack. Empty for rule kana_types with no example pack (seion/dakuten/handakuten).
+export async function introduceHiraganaRule(
+  supabase: AppSupabaseClient,
+  userId: string,
+  hiraganaId: number,
+  timezone: string,
+  sessionId?: number
+): Promise<number[]> {
+  const { data, error } = await supabase.rpc("introduce_hiragana_rule", {
+    p_user_id: userId,
+    p_hiragana_id: hiraganaId,
+    p_timezone: timezone,
+    p_session_id: sessionId ?? null,
+  });
+
+  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
+  const row = (data as { hiragana_ids: number[] | null }[])[0];
+  return row?.hiragana_ids ?? [];
+}
+
+export async function introduceKatakanaRule(
+  supabase: AppSupabaseClient,
+  userId: string,
+  katakanaId: number,
+  timezone: string,
+  sessionId?: number
+): Promise<number[]> {
+  const { data, error } = await supabase.rpc("introduce_katakana_rule", {
+    p_user_id: userId,
+    p_katakana_id: katakanaId,
+    p_timezone: timezone,
+    p_session_id: sessionId ?? null,
+  });
+
+  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
+  const row = (data as { katakana_ids: number[] | null }[])[0];
+  return row?.katakana_ids ?? [];
 }
