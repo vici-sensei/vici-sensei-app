@@ -7,15 +7,18 @@ import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
 import { createClient } from "@/lib/supabase/client";
 import { acknowledgeAchievements, fetchUnacknowledgedAchievements } from "@/lib/data/achievements";
+import { fetchHiraganaMastered, fetchKatakanaMastered, refreshStudySettings } from "@/lib/client-data/studySettings";
+import { clearKanaGraduationWatch, isKanaGraduationWatched } from "@/lib/study/kanaGraduationWatch";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { celebrate } from "@/lib/confetti";
-import type { StudySessionEnd } from "@/lib/types";
+import type { KanaGraduationKind, StudySessionEnd } from "@/lib/types";
 import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achievements/registry";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { NextCardEta } from "@/app/(shell)/dashboard/NextCardEta";
 import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
+import { KanaGraduationModal } from "@/app/components/study/KanaGraduationModal";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -49,6 +52,7 @@ export default function StudySummaryPage() {
   const { user } = useStudyOnboarding();
   const [summary, setSummary] = useState<StudySessionEnd | null>(null);
   const [newAchievements, setNewAchievements] = useState<AchievementCatalogEntry[]>([]);
+  const [kanaGraduationResult, setKanaGraduationResult] = useState<KanaGraduationKind | null>(null);
   const hasStarted = useRef(false);
   // No StudyStatsProvider on this route (only (shell) layouts have one) -- fetched directly,
   // same as the leaderboard page does.
@@ -72,6 +76,44 @@ export default function StudySummaryPage() {
         // Non-critical -- worst case the celebration is missed this visit; the achievement stays
         // unacknowledged and will still surface next time.
       });
+
+    // Fallback for useStudyQueue's "just mastered hiragana/katakana" (or "finished all of kana")
+    // celebration -- see kanaGraduationWatch.ts. If the qualifying review was the LAST card of the
+    // session, the session ends (and navigates here) before that hook's async mastery check
+    // resolves, and /study's own skeleton gate means the modal couldn't have rendered there even
+    // if it had resolved in time. Each kind left "watched" (this session started short of its
+    // milestone) gets one authoritative re-check here instead.
+    if (isKanaGraduationWatched(user.id, "hiragana_complete")) {
+      fetchHiraganaMastered(user.id)
+        .then((mastered) => {
+          clearKanaGraduationWatch(user.id, "hiragana_complete");
+          if (mastered) setKanaGraduationResult("hiragana_complete");
+        })
+        .catch(() => {
+          // Non-critical -- worst case the celebration is missed this visit; the dashboard's own
+          // "Take the reading test" CTA still surfaces the same next step.
+        });
+    }
+    if (isKanaGraduationWatched(user.id, "katakana_mastered")) {
+      fetchKatakanaMastered(user.id)
+        .then((mastered) => {
+          clearKanaGraduationWatch(user.id, "katakana_mastered");
+          if (mastered) setKanaGraduationResult("katakana_mastered");
+        })
+        .catch(() => {
+          // Non-critical -- same reasoning as above.
+        });
+    }
+    if (isKanaGraduationWatched(user.id, "katakana_complete")) {
+      refreshStudySettings(user.id)
+        .then((fresh) => {
+          clearKanaGraduationWatch(user.id, "katakana_complete");
+          if (fresh.study_track === "standard") setKanaGraduationResult("katakana_complete");
+        })
+        .catch(() => {
+          // Non-critical -- same reasoning as above.
+        });
+    }
 
     const sessionId = getStoredSessionId(user.id);
     if (sessionId == null) {
@@ -145,6 +187,9 @@ export default function StudySummaryPage() {
             });
           }}
         />
+      )}
+      {kanaGraduationResult && (
+        <KanaGraduationModal kind={kanaGraduationResult} onClose={() => setKanaGraduationResult(null)} />
       )}
     </div>
   );

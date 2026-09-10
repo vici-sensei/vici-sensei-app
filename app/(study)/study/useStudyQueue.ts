@@ -35,6 +35,7 @@ import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/
 import { hasCelebratedMaxLevel, markMaxLevelCelebrated } from "@/lib/study/levelUpCache";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
+import { clearKanaGraduationWatch, markKanaGraduationWatch } from "@/lib/study/kanaGraduationWatch";
 import type {
   DueCard,
   JlptLevelUpResult,
@@ -565,6 +566,10 @@ export function useStudyQueue() {
     fetchHiraganaMastered(user.id)
       .then((mastered) => {
         hiraganaMasteredRef.current = mastered;
+        // Baseline for /study/summary's fallback (see kanaGraduationWatch.ts) -- only worth
+        // watching when this session actually starts short of the milestone.
+        if (mastered) clearKanaGraduationWatch(user.id, "hiragana_complete");
+        else markKanaGraduationWatch(user.id, "hiragana_complete");
       })
       .catch(() => {
         // Leaves it at false -- worst case, a student whose hiragana was already mastered before
@@ -579,10 +584,22 @@ export function useStudyQueue() {
     fetchKatakanaMastered(user.id)
       .then((mastered) => {
         katakanaMasteredRef.current = mastered;
+        if (mastered) clearKanaGraduationWatch(user.id, "katakana_mastered");
+        else markKanaGraduationWatch(user.id, "katakana_mastered");
       })
       .catch(() => {
         // Leaves it at false -- same reasoning as hiraganaMasteredRef above.
       });
+  }, [user.id]);
+  // Baseline for the "full kana curriculum done" modal (study_track flipping to 'standard') --
+  // same watch mechanism as the two ref-based checks above, mirrored here since this transition
+  // is detected via settingsRef instead of a masteredRef (see checkKanaGraduation below). Reads
+  // settingsRef.current (already seeded with this mount's initial `settings` before this effect
+  // ever runs) rather than `settings` directly, since the point is capturing where the session
+  // STARTED -- deliberately not re-run when settings changes mid-session.
+  useEffect(() => {
+    if (settingsRef.current.study_track === "kana") markKanaGraduationWatch(user.id, "katakana_complete");
+    else clearKanaGraduationWatch(user.id, "katakana_complete");
   }, [user.id]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -1127,6 +1144,8 @@ export function useStudyQueue() {
         .then((fresh) => {
           if (fresh.study_track === "standard") {
             setKanaGraduationResult("katakana_complete");
+            // Shown live -- /study/summary's fallback no longer needs to catch this one.
+            clearKanaGraduationWatch(user.id, "katakana_complete");
           }
         })
         .catch(() => {
@@ -1143,6 +1162,7 @@ export function useStudyQueue() {
             if (masteredNow && !hiraganaMasteredRef.current) {
               hiraganaMasteredRef.current = true;
               setKanaGraduationResult("hiragana_complete");
+              clearKanaGraduationWatch(user.id, "hiragana_complete");
             }
           })
           .catch(() => {
@@ -1159,6 +1179,7 @@ export function useStudyQueue() {
             if (masteredNow && !katakanaMasteredRef.current) {
               katakanaMasteredRef.current = true;
               setKanaGraduationResult("katakana_mastered");
+              clearKanaGraduationWatch(user.id, "katakana_mastered");
             }
           })
           .catch(() => {
