@@ -42,7 +42,7 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
           // `day.active` for today is "reviewed at least one card today" (from
           // get_review_activity), same signal every other day uses -- just kept in its own
           // branch so an inactive today still shows the erased shade (lit) instead of gray (unlit).
-          flameColor = day.active ? "text-accent-red" : "text-[#f3e4a1]";
+          flameColor = day.active ? "text-accent-red" : "text-[#632738]";
           lit = true;
         } else {
           flameColor = day.active ? "text-accent-red" : "text-gray-600";
