@@ -13,9 +13,19 @@
  * or a flat 2 (the New card itself + its one future review card) for vocab/hiragana/katakana, each
  * of which has exactly one future review card per candidate (get_kanji_intro_cards,
  * complete_vocab_batch, get_hiragana/katakana_reading_cards all confirm this 1:1 relationship) --
- * see 20260831_predicted_daily_total.sql for why this is knowable before any of it exists. A
- * hiragana/katakana rule candidate counts as a flat 1 instead -- read-only, never produces a
- * follow-up review card (introduce_hiragana_rule/introduce_katakana_rule, 20260904_kana_rule_cards.sql). */
+ * see 20260831_predicted_daily_total.sql for why this is knowable before any of it exists.
+ *
+ * hiragana/katakana rule cards work differently: each is a flat 1 (read-only, no review card of
+ * its own), but as of 20261024_atomic_rule_example_handoff.sql, a rule for a kana_type with an
+ * example pack (sokuon/yoon/n_gemination/choonpu/extended) atomically produces that whole pack's
+ * worth of hiragana_reading/katakana_reading cards too -- each of THOSE is also a flat 1 (unlike a
+ * character candidate's flat 2, an example row never gets its own separate intro tap). So
+ * hiraganaRuleForecastCount/katakanaRuleForecastCount aren't "how many rule candidates are
+ * eligible to show right now" (get_new_hiragana_rule_candidates is deliberately strict about
+ * that, showing only the next kana_type in line) -- they're a forecast from
+ * get_hiragana_rule_forecast/get_katakana_rule_forecast: the total rule-card + example-card count
+ * across every not-yet-introduced kana_type that will fit in today's remaining budget, including
+ * ones not eligible to show yet because an earlier kana_type's pack hasn't landed. */
 export interface TotalCardsTodayInput {
   dueCount: number;
   kanjiCandidateCount: number;
@@ -25,8 +35,8 @@ export interface TotalCardsTodayInput {
   vocabCandidateCount: number;
   hiraganaCandidateCount: number;
   katakanaCandidateCount: number;
-  hiraganaRuleCandidateCount: number;
-  katakanaRuleCandidateCount: number;
+  hiraganaRuleForecastCount: number;
+  katakanaRuleForecastCount: number;
 }
 
 export function computeTotalCardsToday(input: TotalCardsTodayInput): number {
@@ -37,7 +47,7 @@ export function computeTotalCardsToday(input: TotalCardsTodayInput): number {
     input.vocabCandidateCount * 2 +
     input.hiraganaCandidateCount * 2 +
     input.katakanaCandidateCount * 2 +
-    input.hiraganaRuleCandidateCount +
-    input.katakanaRuleCandidateCount
+    input.hiraganaRuleForecastCount +
+    input.katakanaRuleForecastCount
   );
 }

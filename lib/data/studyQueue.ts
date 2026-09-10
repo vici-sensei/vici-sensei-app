@@ -189,8 +189,8 @@ function computePredictedTotal(
   vocabCandidateCount: number,
   hiraganaCandidateCount: number,
   katakanaCandidateCount: number,
-  hiraganaRuleCandidateCount: number,
-  katakanaRuleCandidateCount: number,
+  hiraganaRuleForecastCount: number,
+  katakanaRuleForecastCount: number,
   // Not folded into computeTotalCardsToday/TotalCardsTodayInput: unlike every category that
   // helper already covers, this one is a one-time lesson the dashboard's own cardsRemainingToday
   // has no reason to forecast (it fires at most 3 times ever, per account) -- adding it there
@@ -207,8 +207,8 @@ function computePredictedTotal(
       vocabCandidateCount,
       hiraganaCandidateCount,
       katakanaCandidateCount,
-      hiraganaRuleCandidateCount,
-      katakanaRuleCandidateCount,
+      hiraganaRuleForecastCount,
+      katakanaRuleForecastCount,
     }) + kanjiBasicsCandidateCount
   );
 }
@@ -263,6 +263,8 @@ export async function fetchStudyQueue(
     katakanaCandidatesResult,
     hiraganaRuleCandidatesResult,
     katakanaRuleCandidatesResult,
+    hiraganaRuleForecastResult,
+    katakanaRuleForecastResult,
   ] = await Promise.all([
     kanjiRemaining > 0
       ? supabase.rpc("get_new_kanji_candidates", {
@@ -301,6 +303,17 @@ export async function fetchStudyQueue(
     settings.study_katakana
       ? supabase.rpc("get_new_katakana_rule_candidates", { p_user_id: userId, p_limit: katakanaRemaining })
       : Promise.resolve({ data: [] as NewKatakanaRuleCandidate[], error: null }),
+    // Separate from the strict candidates above -- this forecasts every not-yet-introduced rule
+    // kana_type (rule card + its example pack's reading cards) that will fit in today's budget,
+    // INCLUDING ones not eligible to show yet because an earlier kana_type's pack hasn't landed.
+    // Only used to size predicted_total below, never to decide what actually gets queued (see
+    // 20261025_forecast_rule_example_counts.sql for why the two can't share one query anymore).
+    settings.study_hiragana
+      ? supabase.rpc("get_hiragana_rule_forecast", { p_user_id: userId, p_limit: hiraganaRemaining }).single()
+      : Promise.resolve({ data: { rule_count: 0, example_count: 0 }, error: null }),
+    settings.study_katakana
+      ? supabase.rpc("get_katakana_rule_forecast", { p_user_id: userId, p_limit: katakanaRemaining }).single()
+      : Promise.resolve({ data: { rule_count: 0, example_count: 0 }, error: null }),
   ]);
 
   if (kanjiCandidatesResult.error) throw new Error(kanjiCandidatesResult.error.message);
@@ -310,6 +323,8 @@ export async function fetchStudyQueue(
   if (katakanaCandidatesResult.error) throw new Error(katakanaCandidatesResult.error.message);
   if (hiraganaRuleCandidatesResult.error) throw new Error(hiraganaRuleCandidatesResult.error.message);
   if (katakanaRuleCandidatesResult.error) throw new Error(katakanaRuleCandidatesResult.error.message);
+  if (hiraganaRuleForecastResult.error) throw new Error(hiraganaRuleForecastResult.error.message);
+  if (katakanaRuleForecastResult.error) throw new Error(katakanaRuleForecastResult.error.message);
 
   const kanjiCandidateRows = (kanjiCandidatesResult.data ?? []) as NewKanjiCandidateRow[];
   if (kanjiCandidateRows.length > 0 && onKanjiWordsReady) {
@@ -351,6 +366,8 @@ export async function fetchStudyQueue(
   const katakanaRows = (katakanaCandidatesResult.data ?? []) as NewKatakanaCandidateRow[];
   const hiraganaRuleCandidates = (hiraganaRuleCandidatesResult.data ?? []) as NewHiraganaRuleCandidate[];
   const katakanaRuleCandidates = (katakanaRuleCandidatesResult.data ?? []) as NewKatakanaRuleCandidate[];
+  const hiraganaRuleForecast = hiraganaRuleForecastResult.data as { rule_count: number; example_count: number };
+  const katakanaRuleForecast = katakanaRuleForecastResult.data as { rule_count: number; example_count: number };
 
   // Split each script's candidates by entry_kind: 'character' rows still become new_hiragana/
   // new_katakana intro cards (unchanged), 'example' rows are batch-introduced silently and their
@@ -392,8 +409,8 @@ export async function fetchStudyQueue(
       vocabCandidates.length,
       hiraganaCandidates.length,
       katakanaCandidates.length,
-      hiraganaRuleCandidates.length,
-      katakanaRuleCandidates.length,
+      hiraganaRuleForecast.rule_count + hiraganaRuleForecast.example_count,
+      katakanaRuleForecast.rule_count + katakanaRuleForecast.example_count,
       newKanjiBasicsToIntroduce.length
     ),
   };

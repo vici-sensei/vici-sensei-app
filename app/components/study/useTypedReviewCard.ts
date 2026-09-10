@@ -6,7 +6,12 @@ const FLASH_DELAY_MS = 350;
 export function useTypedReviewCard<TResult extends { correct: boolean }>(
   card: DueCard,
   disabled: boolean,
-  onRate: (card: DueCard, rating: Rating) => void,
+  // userAnswer is the trimmed text the user actually typed, passed through on every rate --
+  // ReviewCardKanaReading's caller (app/(study)/study/practice) reads it off a wrong rating to
+  // show what the user wrote next to the correct answer in its "done" summary. Optional because
+  // every other caller's onRate type only declares (card, rating) and simply ignores the extra
+  // argument.
+  onRate: (card: DueCard, rating: Rating, userAnswer?: string) => void,
   checkAnswer: (answer: string) => TResult,
   // Reports a function that cancels the current Check while it's still un-rated (so the
   // page-level Undo pill can offer "undo my Check" instead of "undo my last submitted
@@ -41,15 +46,15 @@ export function useTypedReviewCard<TResult extends { correct: boolean }>(
   // an achievement unlock has a chance to land before the queue actually swaps.
   function handleRate(rating: Rating) {
     setCommitted(true);
-    if (drillMode) setTimeout(() => onRate(card, rating), FLASH_DELAY_MS);
-    else onRate(card, rating);
+    if (drillMode) setTimeout(() => onRate(card, rating, answer.trim()), FLASH_DELAY_MS);
+    else onRate(card, rating, answer.trim());
   }
 
   function handleContinue() {
     setCommitted(true);
     const rating = drillMode && result?.correct ? 2 : 0;
-    if (drillMode) setTimeout(() => onRate(card, rating), FLASH_DELAY_MS);
-    else onRate(card, rating);
+    if (drillMode) setTimeout(() => onRate(card, rating, answer.trim()), FLASH_DELAY_MS);
+    else onRate(card, rating, answer.trim());
   }
 
   useEffect(() => {

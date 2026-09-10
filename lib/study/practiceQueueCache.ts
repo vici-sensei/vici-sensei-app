@@ -5,6 +5,12 @@ export interface PracticeQueueCardRef {
   script: "hiragana" | "katakana";
 }
 
+export interface PracticeWrongCardRef extends PracticeQueueCardRef {
+  /** What the user actually typed for this card, so the "done" summary can show it next to the
+   * correct answer. Optional/defaulted to "" for caches written before this field existed. */
+  userAnswer?: string;
+}
+
 export interface CachedPracticeQueue {
   order: PracticeQueueCardRef[];
   index: number;
@@ -12,7 +18,12 @@ export interface CachedPracticeQueue {
   /** Cards rated incorrect so far this pass, in the order they were answered -- so refreshing
    * mid-deck doesn't lose the list of misses the summary shows at the end. Optional so caches
    * written before this field existed still validate. */
-  wrong?: PracticeQueueCardRef[];
+  wrong?: PracticeWrongCardRef[];
+  /** Milliseconds of screen-on time spent on /study/practice so far this pass (see
+   * usePracticeQueue's timer effect) -- excludes time the tab was hidden/backgrounded, so a
+   * refresh resumes the running total instead of losing it. Optional for the same reason as
+   * `wrong`. */
+  activeMs?: number;
 }
 
 function cacheKey(userId: string): string {
@@ -25,6 +36,12 @@ function isCardRef(value: unknown): value is PracticeQueueCardRef {
   return typeof ref.id === "number" && (ref.script === "hiragana" || ref.script === "katakana");
 }
 
+function isWrongRef(value: unknown): value is PracticeWrongCardRef {
+  if (!isCardRef(value)) return false;
+  const userAnswer = (value as unknown as Record<string, unknown>).userAnswer;
+  return userAnswer === undefined || typeof userAnswer === "string";
+}
+
 function isValidCache(value: unknown): value is CachedPracticeQueue {
   if (!value || typeof value !== "object") return false;
   const cached = value as Record<string, unknown>;
@@ -33,7 +50,8 @@ function isValidCache(value: unknown): value is CachedPracticeQueue {
     cached.order.every(isCardRef) &&
     typeof cached.index === "number" &&
     typeof cached.correct === "number" &&
-    (cached.wrong === undefined || (Array.isArray(cached.wrong) && cached.wrong.every(isCardRef)))
+    (cached.wrong === undefined || (Array.isArray(cached.wrong) && cached.wrong.every(isWrongRef))) &&
+    (cached.activeMs === undefined || typeof cached.activeMs === "number")
   );
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { usePracticeQueue } from "./usePracticeQueue";
 import { useViewportHeight } from "@/lib/useViewportHeight";
@@ -13,10 +14,22 @@ import { FaArrowRotateRight } from "react-icons/fa6";
 function StatBox({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
   return (
     <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-      <div className={`mb-1 text-[1.7rem] font-extrabold ${accent ? "text-accent-blue" : ""}`}>{value}</div>
+      <div className={`mb-1 text-[1.5rem] font-extrabold ${accent ? "text-accent-blue" : ""}`}>{value}</div>
       <div className="text-[0.78rem] font-semibold text-text-muted">{label}</div>
     </div>
   );
+}
+
+/** Formats screen-on practice time as m:ss, or h:mm:ss past an hour -- see usePracticeQueue's
+ * activeMs, which already excludes screen-off/backgrounded and off-route time. */
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const paddedSeconds = String(seconds).padStart(2, "0");
+  if (hours > 0) return `${hours}:${String(minutes).padStart(2, "0")}:${paddedSeconds}`;
+  return `${minutes}:${paddedSeconds}`;
 }
 
 /** Free-practice mode: a single, shuffled pass through every hiragana/katakana character the
@@ -28,7 +41,7 @@ function StatBox({ value, label, accent }: { value: string; label: string; accen
 export default function PracticePage() {
   const router = useRouter();
   useViewportHeight();
-  const { status, error, current, correct, completed, total, wrongAnswers, actions } = usePracticeQueue();
+  const { status, error, current, correct, completed, total, wrongAnswers, activeMs, actions } = usePracticeQueue();
 
   if (status === "loading") return <FullScreenLoader />;
 
@@ -72,26 +85,39 @@ export default function PracticePage() {
           <h1 className="mb-2 mt-4.5 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
             You went through every character.
           </h1>
-          <div className="my-8.5 grid grid-cols-2 gap-3.5">
+          <div className="my-8.5 grid grid-cols-3 gap-3">
             <StatBox value={`${correct}/${total}`} label="Correct" />
             <StatBox value={`${accuracy}%`} label="Accuracy" accent />
+            <StatBox value={formatDuration(activeMs)} label="Time" />
           </div>
           {wrongAnswers.length > 0 && (
             <div className="mb-8.5 max-h-64 overflow-y-auto rounded-2xl border border-border-soft bg-bg-cards p-4 text-left backdrop-blur-[10px]">
               <div className="mb-3 text-[0.78rem] font-semibold uppercase tracking-[0.5px] text-text-muted">
                 Missed ({wrongAnswers.length})
               </div>
-              <ul className="flex flex-col gap-2">
+              <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-2 text-[0.9rem]">
+                <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Kana</div>
+                <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Correct</div>
+                <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">You wrote</div>
                 {wrongAnswers.map((item) => (
-                  <li key={`${item.script}-${item.id}`} className="flex items-center justify-between text-[0.95rem]">
-                    <span className="font-bold text-white">{item.character}</span>
-                    <span className="text-text-muted">{item.romaji}</span>
-                  </li>
+                  <Fragment key={`${item.script}-${item.id}`}>
+                    <div className="text-left font-bold text-white">{item.character}</div>
+                    <div className="text-left text-accent-green">{item.romaji}</div>
+                    <div className="text-left text-accent-red">{item.userAnswer || "—"}</div>
+                  </Fragment>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
-          <Button onClick={() => router.push("/dashboard")}>Back to Home</Button>
+          <div className="flex flex-col gap-3">
+            {wrongAnswers.length > 0 && (
+              <Button variant="secondary" onClick={actions.retryMistakes}>
+                <FaArrowRotateRight className="h-3.5 w-3.5" />
+                Retry mistakes ({wrongAnswers.length})
+              </Button>
+            )}
+            <Button onClick={() => router.push("/dashboard")}>Back to Home</Button>
+          </div>
         </div>
       </div>
     );

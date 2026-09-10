@@ -46,6 +46,11 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* Backs up viewport's userScalable:false (app/layout.tsx) by suppressing double-tap-to-zoom
+     and pinch-zoom gestures that start on page content in browsers that honor touch-action.
+     Neither this nor userScalable stops iOS Safari's own accessibility pinch-zoom -- Apple has
+     ignored both on purpose since iOS 10. */
+  touch-action: manipulation;
 }
 
 body {
@@ -188,6 +193,34 @@ input:disabled ~ span {
   50% {
     opacity: 0.58;
     transform: scale(1.045);
+  }
+}
+
+/* Full-screen orientation overlay (OrientationOverlay.tsx) -- hidden by default, shown only on
+   a touch device (coarse pointer) actually held in landscape, so a landscape desktop monitor
+   with a mouse never triggers it. Deliberately plain display toggling (no Tailwind `flex`
+   utility on the element) so this is the only thing deciding visibility. */
+.vici-orientation-overlay {
+  display: none;
+}
+
+@media (orientation: landscape) and (pointer: coarse) {
+  .vici-orientation-overlay {
+    display: flex;
+  }
+}
+
+@keyframes vici-rotate-phone {
+  0%,
+  15% {
+    transform: rotate(0deg);
+  }
+  50%,
+  65% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
   }
 }
 

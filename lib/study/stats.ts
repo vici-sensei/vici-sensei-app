@@ -18,10 +18,11 @@ export function cardsRemainingToday(stats: StudyStats): number {
   // pool would otherwise inflate this arbitrarily far past what /study could ever actually serve.
   //
   // Delegates the actual arithmetic to computeTotalCardsToday, shared with computePredictedTotal
-  // in lib/data/studyQueue.ts -- the dashboard's stat here has no hiragana/katakana *rule*
-  // candidate counts available (fetchStudyStats doesn't fetch those, unlike a live /study queue
-  // fetch), so those two inputs are always 0: a rare open rule card just won't be counted here
-  // until it's actually fetched by /study, same as before this was consolidated.
+  // in lib/data/studyQueue.ts -- the dashboard's stat here has no hiragana/katakana rule forecast
+  // available (fetchStudyStats doesn't call get_hiragana_rule_forecast/get_katakana_rule_forecast,
+  // unlike a live /study queue fetch), so those two inputs are always 0: an open rule (and
+  // whatever example pack comes with it) just won't be counted here until /study itself fetches
+  // it, same as before this was consolidated.
   if (stats.study_track === "kana") {
     return computeTotalCardsToday({
       dueCount: stats.due_today,
@@ -30,8 +31,8 @@ export function cardsRemainingToday(stats: StudyStats): number {
       vocabCandidateCount: 0,
       hiraganaCandidateCount: stats.study_hiragana ? stats.new_hiragana_available : 0,
       katakanaCandidateCount: stats.study_katakana ? stats.new_katakana_available : 0,
-      hiraganaRuleCandidateCount: 0,
-      katakanaRuleCandidateCount: 0,
+      hiraganaRuleForecastCount: 0,
+      katakanaRuleForecastCount: 0,
     });
   }
   return computeTotalCardsToday({
@@ -41,7 +42,7 @@ export function cardsRemainingToday(stats: StudyStats): number {
     vocabCandidateCount: stats.study_vocabulary ? stats.new_vocab_available : 0,
     hiraganaCandidateCount: 0,
     katakanaCandidateCount: 0,
-    hiraganaRuleCandidateCount: 0,
-    katakanaRuleCandidateCount: 0,
+    hiraganaRuleForecastCount: 0,
+    katakanaRuleForecastCount: 0,
   });
 }

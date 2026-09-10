@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Noto_Sans_JP } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
 import { ErrorLogging } from "@/app/components/ErrorLogging";
 import { OfflineOverlay } from "@/app/components/shell/OfflineOverlay";
+import { OrientationOverlay } from "@/app/components/shell/OrientationOverlay";
 import { ToastProvider } from "@/app/components/ui/Toast";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import "./globals.css";
@@ -49,6 +50,12 @@ export const viewport: Viewport = {
   // "cover" lets fullscreen UI (e.g. CountrySelect's mobile picker) read env(safe-area-inset-*)
   // for the iPhone notch/Dynamic Island and home indicator -- without it those resolve to 0.
   viewportFit: "cover",
+  // Blocks pinch-to-zoom on touch devices. Note: iOS Safari has ignored this on purpose since
+  // iOS 10 (it always allows its own accessibility pinch-zoom regardless of this tag) -- Android
+  // Chrome and other Chromium browsers do respect it. touch-action in globals.css backs this up
+  // for double-tap zoom.
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -80,6 +87,7 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <ErrorLogging />
         <OfflineOverlay />
+        <OrientationOverlay />
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
         </AuthProvider>
