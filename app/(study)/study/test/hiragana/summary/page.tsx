@@ -12,7 +12,7 @@ import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
 import { createClient } from "@/lib/supabase/client";
-import { fetchAchievementsEarnedSince } from "@/lib/data/achievements";
+import { acknowledgeAchievements, fetchUnacknowledgedAchievements } from "@/lib/data/achievements";
 import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achievements/registry";
 
 const TEST_TYPE = "hiragana";
@@ -35,7 +35,6 @@ function SummaryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const justFinished = searchParams.get("justFinished") === "1";
-  const since = searchParams.get("since");
   const { user } = useStudyOnboarding();
   const { showToast } = useToast();
   const { data: sentences, status: sentencesStatus, error: sentencesError } = useReadingTestSentences(TEST_TYPE);
@@ -67,21 +66,26 @@ function SummaryContent() {
     }
   }, [passed, justFinished]);
 
-  // `since` is only present right after the test page's own redirect (both the passed and the
-  // not-passed branch), so this only ever fires once per completed round of answering, never on
-  // a plain revisit (back button, bookmark) of this page.
+  // Checks for whatever's still unacknowledged rather than "earned since the test page's
+  // redirect" -- that redirect fires off an optimistic local-state change, before the fire-and-
+  // forget markAnswered() for the last sentence is guaranteed to have reached the server (see the
+  // matching note on the test page's own redirect effect), so a same-instant "earned since X"
+  // query could run before the award_achievement trigger has actually fired and miss it. This
+  // matches /study/summary's own fallback (fetchUnacknowledgedAchievements/acknowledgeAchievements)
+  // -- same "don't lose the celebration to a race, and don't lose it forever if it's missed" fix.
   const [newAchievements, setNewAchievements] = useState<AchievementCatalogEntry[]>([]);
   const checkedAchievementsRef = useRef(false);
   useEffect(() => {
-    if (!since || checkedAchievementsRef.current) return;
+    if (checkedAchievementsRef.current) return;
     checkedAchievementsRef.current = true;
-    fetchAchievementsEarnedSince(createClient(), user.id, CANDIDATE_ACHIEVEMENT_KEYS, since)
+    fetchUnacknowledgedAchievements(createClient(), user.id)
       .then((keys) => {
-        if (keys.length === 0) return;
-        setNewAchievements(ACHIEVEMENT_CATALOG.filter((entry) => keys.includes(entry.achievementKey)));
+        const relevant = keys.filter((key) => CANDIDATE_ACHIEVEMENT_KEYS.includes(key));
+        if (relevant.length === 0) return;
+        setNewAchievements(ACHIEVEMENT_CATALOG.filter((entry) => relevant.includes(entry.achievementKey)));
       })
       .catch(() => {});
-  }, [since, user.id]);
+  }, [user.id]);
 
   const handleRetry = async () => {
     setRetrying(true);
@@ -164,7 +168,16 @@ function SummaryContent() {
         )}
       </div>
       {newAchievements.length > 0 && (
-        <NewAchievementsModal entries={newAchievements} onClose={() => setNewAchievements([])} />
+        <NewAchievementsModal
+          entries={newAchievements}
+          onClose={() => {
+            const keys = newAchievements.map((entry) => entry.achievementKey);
+            setNewAchievements([]);
+            void acknowledgeAchievements(createClient(), keys).catch(() => {
+              // Non-critical -- worst case the same achievement is shown again next visit.
+            });
+          }}
+        />
       )}
     </div>
   );

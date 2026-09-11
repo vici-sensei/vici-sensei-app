@@ -2,7 +2,8 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useReadingTestSentences, useReadingTestProgress } from "@/lib/client-data/readingTest";
+import { FaArrowRotateRight } from "react-icons/fa6";
+import { useReadingTestSentences, useReadingTestProgress, useReadingTestAttempt } from "@/lib/client-data/readingTest";
 import { useKatakanaList } from "@/lib/client-data/kana";
 import { buildKanaRomajiMap } from "@/lib/study/readingTestFurigana";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
@@ -27,6 +28,7 @@ export default function KatakanaReadingTestPage() {
     error: progressError,
     markAnswered,
   } = useReadingTestProgress(user.id, TEST_TYPE);
+  const { attempt } = useReadingTestAttempt(user.id, TEST_TYPE);
   // Reuses Browse's katakana reference table (character -> romaji, incl. yoon/sokuon/n-gemination
   // combos) to build the full post-answer romaji reading -- built once here, not per row, since
   // every ReadingTestSentenceRow shares the same lookup.
@@ -43,13 +45,21 @@ export default function KatakanaReadingTestPage() {
     () => (sentences && progress ? sentences.filter((s) => !progress.has(s.id)).map((s) => s.id) : null),
     [sentences, progress]
   );
+  // The words pending on this page's first mount, captured only when this is a retry pass
+  // (attempt > 1 -- see fetchReadingTestAttempt) -- exactly the ones "Retry the ones I got wrong"
+  // just reopened. Frozen once both are available rather than recomputed live, so a word doesn't
+  // jump out of the retry section the moment it gets answered again.
+  const [retryGroupIds, setRetryGroupIds] = useState<Set<number> | null>(null);
+  useEffect(() => {
+    if (retryGroupIds !== null || !pendingIds || attempt === null) return;
+    // Freezing an id set derived from two independently-async sources (progress, attempt) the
+    // first render both are ready; can't be a plain useMemo since it must NOT recompute once
+    // either source moves on.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRetryGroupIds(attempt > 1 ? new Set(pendingIds) : new Set());
+  }, [pendingIds, attempt, retryGroupIds]);
   const [scrolledToFirst, setScrolledToFirst] = useState(false);
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
-  // Captured once, on this page's own mount -- passed to the summary page so it can look up
-  // "achievements earned since I started answering this round" without relying on the last
-  // markAnswered() call actually resolving before the redirect below fires (see handleCheck: it's
-  // fire-and-forget, and the redirect is driven by optimistic local state, not by that promise).
-  const attemptStartedAtRef = useRef(new Date().toISOString());
 
   // Distinguishes "just answered the last pending word this visit" (worth a trip through the
   // summary's celebration) from "was already fully done before this page even loaded" (a revisit
@@ -81,10 +91,9 @@ export default function KatakanaReadingTestPage() {
       router.replace("/dashboard");
       return;
     }
-    const since = encodeURIComponent(attemptStartedAtRef.current);
     window.location.href = passed
-      ? `/study/test/katakana/summary?justFinished=1&since=${since}`
-      : `/study/test/katakana/summary?since=${since}`;
+      ? "/study/test/katakana/summary?justFinished=1"
+      : "/study/test/katakana/summary";
   }, [pendingIds, sentences, passed, router]);
 
   // One-time scroll to the first pending word, so resuming after a refresh/exit doesn't
@@ -120,6 +129,12 @@ export default function KatakanaReadingTestPage() {
     );
   }
 
+  // On a retry pass, pull the reopened (previously wrong) words down to their own section at the
+  // bottom instead of leaving them interleaved among the already-correct, locked ones.
+  const retrying = retryGroupIds ? sentences.filter((s) => retryGroupIds.has(s.id)) : [];
+  const rest = retrying.length > 0 ? sentences.filter((s) => !retryGroupIds!.has(s.id)) : sentences;
+  const orderedSentences = retrying.length > 0 ? [...rest, ...retrying] : sentences;
+
   return (
     <div className="min-h-screen px-4 py-10">
       <div className="mx-auto w-full max-w-[640px]">
@@ -133,26 +148,35 @@ export default function KatakanaReadingTestPage() {
           </p>
         </div>
         <div className="flex flex-col gap-8">
-          {sentences.map((sentence, index) => (
-            <Fragment key={sentence.id}>
-              {index > 0 && <hr className="border-t border-border-soft" />}
-              <div
-                ref={(el) => {
-                  if (el) rowRefs.current.set(sentence.id, el);
-                  else rowRefs.current.delete(sentence.id);
-                }}
-              >
-                <ReadingTestSentenceRow
-                  sentence={sentence}
-                  kanaRomajiMap={kanaRomajiMap}
-                  userId={user.id}
-                  testType={TEST_TYPE}
-                  persisted={progress.get(sentence.id) ?? null}
-                  onCheck={handleCheck}
-                />
-              </div>
-            </Fragment>
-          ))}
+          {orderedSentences.map((sentence, index) => {
+            const isFirstRetry = rest.length > 0 && index === rest.length;
+            return (
+              <Fragment key={sentence.id}>
+                {index > 0 && !isFirstRetry && <hr className="border-t border-border-soft" />}
+                {isFirstRetry && (
+                  <div className="flex items-center gap-2 border-t border-border-soft pt-8 text-xs font-semibold uppercase tracking-[0.6px] text-text-muted/70">
+                    <FaArrowRotateRight className="h-3 w-3" />
+                    Questions to retry
+                  </div>
+                )}
+                <div
+                  ref={(el) => {
+                    if (el) rowRefs.current.set(sentence.id, el);
+                    else rowRefs.current.delete(sentence.id);
+                  }}
+                >
+                  <ReadingTestSentenceRow
+                    sentence={sentence}
+                    kanaRomajiMap={kanaRomajiMap}
+                    userId={user.id}
+                    testType={TEST_TYPE}
+                    persisted={progress.get(sentence.id) ?? null}
+                    onCheck={handleCheck}
+                  />
+                </div>
+              </Fragment>
+            );
+          })}
         </div>
       </div>
     </div>
