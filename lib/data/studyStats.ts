@@ -1,5 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
-import type { KanaRuleProgress, LevelProgressCategory, StudyStats, TodayActivityCounts } from "@/lib/types";
+import type { KanaRuleProgress, LevelProgressCategory, ReadingTestCtaState, StudyStats, TodayActivityCounts } from "@/lib/types";
 import { getNextDue } from "@/lib/srs/nextDue";
 import { mostAdvancedLevel } from "@/lib/srs/constants";
 
@@ -41,6 +41,8 @@ export async function fetchStudyStats(
     levelProgressResult,
     hiraganaReadingTestPassedResult,
     katakanaReadingTestPassedResult,
+    hiraganaReadingTestStateResult,
+    katakanaReadingTestStateResult,
   ] = await Promise.all([
     supabase.rpc("get_today_activity_counts", { p_user_id: userId, p_timezone: timezone ?? "UTC" }).single(),
     getNextDue(supabase, userId, timezone),
@@ -63,6 +65,13 @@ export async function fetchStudyStats(
     isKana
       ? supabase.rpc("reading_test_passed", { p_user_id: userId, p_test_type: "katakana" })
       : Promise.resolve({ data: false, error: null }),
+    // Which of the four CTA states this test is in -- see reading_test_cta_state (20261105_reading_test_cta_state.sql).
+    isKana
+      ? supabase.rpc("reading_test_cta_state", { p_user_id: userId, p_test_type: "hiragana" })
+      : Promise.resolve({ data: "not_started" as ReadingTestCtaState, error: null }),
+    isKana
+      ? supabase.rpc("reading_test_cta_state", { p_user_id: userId, p_test_type: "katakana" })
+      : Promise.resolve({ data: "not_started" as ReadingTestCtaState, error: null }),
   ]);
 
   if (activityCounts.error) throw new Error(activityCounts.error.message);
@@ -74,6 +83,8 @@ export async function fetchStudyStats(
   if (levelProgressResult.error) throw new Error(levelProgressResult.error.message);
   if (hiraganaReadingTestPassedResult.error) throw new Error(hiraganaReadingTestPassedResult.error.message);
   if (katakanaReadingTestPassedResult.error) throw new Error(katakanaReadingTestPassedResult.error.message);
+  if (hiraganaReadingTestStateResult.error) throw new Error(hiraganaReadingTestStateResult.error.message);
+  if (katakanaReadingTestStateResult.error) throw new Error(katakanaReadingTestStateResult.error.message);
 
   const newKanjiPerDay = settingsResult.data?.new_kanji_per_day ?? DEFAULT_NEW_KANJI_PER_DAY;
   const newVocabPerDay = settingsResult.data?.new_vocab_per_day ?? DEFAULT_NEW_VOCAB_PER_DAY;
@@ -200,8 +211,10 @@ export async function fetchStudyStats(
     next_due_status: nextDueStatus,
     hiragana_mastered: hiraganaMastered,
     hiragana_reading_test_passed: Boolean(hiraganaReadingTestPassedResult.data),
+    hiragana_reading_test_state: (hiraganaReadingTestStateResult.data as ReadingTestCtaState) ?? "not_started",
     katakana_mastered: katakanaMastered,
     katakana_reading_test_passed: Boolean(katakanaReadingTestPassedResult.data),
+    katakana_reading_test_state: (katakanaReadingTestStateResult.data as ReadingTestCtaState) ?? "not_started",
     level_progress: level
       ? {
           level,

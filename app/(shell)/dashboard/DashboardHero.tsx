@@ -10,6 +10,7 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { buttonClasses } from "@/app/components/ui/Button";
 import { StartStudyButton } from "./StartStudyButton";
 import { NextCardEta } from "./NextCardEta";
+import type { ReadingTestCtaState } from "@/lib/types";
 
 // Hollow gold outline (same border+transparent-fill pattern as buttonClasses' secondary/danger
 // variant) rather than a solid fill -- gold text on a gold-tinted transparent background reads
@@ -17,6 +18,28 @@ import { NextCardEta } from "./NextCardEta";
 // kana milestones (KanaGraduationModal's badge, the reminder line below).
 const READING_TEST_CTA_CLASSES =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-accent-gold/30 bg-black/30 px-8 py-[15px] text-base font-bold text-center text-accent-gold backdrop-blur-[10px] transition-[border-color,background-color] duration-200 ease-out hover:border-accent-gold/40 hover:bg-accent-gold/[0.08]";
+
+// Button + reminder copy for each of reading_test_cta_state's four states (see
+// 20261105_reading_test_cta_state.sql) -- `unlocks` is what passing the test unlocks ("katakana"
+// for the hiragana test, "kanji and vocabulary" for the katakana test).
+function readingTestCtaCopy(state: ReadingTestCtaState, unlocks: string): { button: string; reminder: string } {
+  switch (state) {
+    case "not_started":
+      return { button: "Take the reading test", reminder: `Pass the reading test to unlock ${unlocks}!` };
+    case "in_progress":
+      return {
+        button: "Continue the reading test",
+        reminder: `Keep going — finish the reading test to unlock ${unlocks}!`,
+      };
+    case "retry_pending":
+      return {
+        button: "Retry the words you missed",
+        reminder: `So close — retry the words you missed to unlock ${unlocks}!`,
+      };
+    case "retry_in_progress":
+      return { button: "Continue your retry", reminder: `Almost there — finish retrying to unlock ${unlocks}!` };
+  }
+}
 
 export function DashboardHero() {
   // Shared with the nav's Study link (see StudyStatsProvider in the shell layout) so both
@@ -43,11 +66,15 @@ export function DashboardHero() {
   // whichever reading test CTA is showing, the dictionary nudge no longer applies (there's a
   // single obvious next step) and the reminder explains what that step unlocks.
   const showReadingTestCta = showHiraganaReadingTestCta || showKatakanaReadingTestCta;
-  const readingTestReminder = showHiraganaReadingTestCta
-    ? "Pass the reading test to unlock katakana!"
-    : showKatakanaReadingTestCta
-      ? "Pass the reading test to unlock kanji and vocabulary!"
-      : null;
+  // Which of the four CTA states (not started / mid first pass / ready to retry / mid retry) each
+  // test is in -- only meaningful while its CTA is showing, so left null otherwise.
+  const hiraganaReadingTestCta = showHiraganaReadingTestCta
+    ? readingTestCtaCopy(stats?.hiragana_reading_test_state ?? "not_started", "katakana")
+    : null;
+  const katakanaReadingTestCta = showKatakanaReadingTestCta
+    ? readingTestCtaCopy(stats?.katakana_reading_test_state ?? "not_started", "kanji and vocabulary")
+    : null;
+  const readingTestReminder = hiraganaReadingTestCta?.reminder ?? katakanaReadingTestCta?.reminder ?? null;
   // Gated on each study_* flag -- e.g. study_katakana stays false until every hiragana has
   // graduated to review, so an unstudied category must read as 0 remaining, not a phantom
   // full day's limit (see cardsRemainingToday in lib/study/stats.ts for the same fix).
@@ -167,14 +194,14 @@ export function DashboardHero() {
         )}
       </div>
       <div className="flex flex-wrap items-center justify-center w-full gap-3 sm:items-start sm:justify-start sm:w-fit">
-        {showHiraganaReadingTestCta && (
+        {hiraganaReadingTestCta && (
           <Link href="/study/test/hiragana" className={READING_TEST_CTA_CLASSES}>
-            Take the reading test
+            {hiraganaReadingTestCta.button}
           </Link>
         )}
-        {showKatakanaReadingTestCta && (
+        {katakanaReadingTestCta && (
           <Link href="/study/test/katakana" className={READING_TEST_CTA_CLASSES}>
-            Take the reading test
+            {katakanaReadingTestCta.button}
           </Link>
         )}
         <StartStudyButton disabled={allDone} />

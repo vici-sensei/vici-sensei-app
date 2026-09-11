@@ -1,9 +1,9 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FaArrowRotateRight } from "react-icons/fa6";
-import { useReadingTestSentences, useReadingTestProgress, useReadingTestAttempt } from "@/lib/client-data/readingTest";
+import { FaCheck, FaXmark } from "react-icons/fa6";
+import { useReadingTestSentences, useReadingTestProgress } from "@/lib/client-data/readingTest";
 import { useHiraganaList } from "@/lib/client-data/kana";
 import { buildKanaRomajiMap } from "@/lib/study/readingTestFurigana";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
@@ -13,10 +13,20 @@ import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 
 const TEST_TYPE = "hiragana";
 
-/** Hiragana reading test -- fixed text, one attempt per sentence. Both outcomes are persisted
- * (see user_reading_test_progress's doc comment), so a sentence stays locked across a
- * refresh/reopen once answered, right or wrong -- only the summary page's "Retry the ones I got
- * wrong" reopens a wrong one. Once every sentence has a result, redirects to the score screen. */
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/** Hiragana reading test -- fixed text, one attempt per sentence, shown one at a time. Both
+ * outcomes are persisted (see user_reading_test_progress's doc comment), so a sentence stays
+ * locked across a refresh/reopen once answered, right or wrong -- only the summary page's "Retry
+ * the ones I got wrong" reopens a wrong one. Once every sentence in this pass has a result,
+ * advancing past the last one redirects to the score screen. */
 export default function HiraganaReadingTestPage() {
   const router = useRouter();
   const { user } = useStudyOnboarding();
@@ -28,7 +38,6 @@ export default function HiraganaReadingTestPage() {
     error: progressError,
     markAnswered,
   } = useReadingTestProgress(user.id, TEST_TYPE);
-  const { attempt } = useReadingTestAttempt(user.id, TEST_TYPE);
   // Reuses Browse's hiragana reference table (character -> romaji, incl. yoon/sokuon/n-gemination
   // combos) to build the full post-answer romaji reading -- built once here, not per row, since
   // every ReadingTestSentenceRow shares the same lookup.
@@ -45,66 +54,47 @@ export default function HiraganaReadingTestPage() {
     () => (sentences && progress ? sentences.filter((s) => !progress.has(s.id)).map((s) => s.id) : null),
     [sentences, progress]
   );
-  // The sentences pending on this page's first mount, captured only when this is a retry pass
-  // (attempt > 1 -- see fetchReadingTestAttempt) -- exactly the ones "Retry the ones I got wrong"
-  // just reopened. Frozen once both are available rather than recomputed live, so a sentence
-  // doesn't jump out of the retry section the moment it gets answered again.
-  const [retryGroupIds, setRetryGroupIds] = useState<Set<number> | null>(null);
-  useEffect(() => {
-    if (retryGroupIds !== null || !pendingIds || attempt === null) return;
-    // Freezing an id set derived from two independently-async sources (progress, attempt) the
-    // first render both are ready; can't be a plain useMemo since it must NOT recompute once
-    // either source moves on.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRetryGroupIds(attempt > 1 ? new Set(pendingIds) : new Set());
-  }, [pendingIds, attempt, retryGroupIds]);
-  const [scrolledToFirst, setScrolledToFirst] = useState(false);
-  const rowRefs = useRef(new Map<number, HTMLDivElement>());
 
-  // Distinguishes "just answered the last pending sentence this visit" (worth a trip through the
-  // summary's celebration) from "was already fully done before this page even loaded" (a revisit
-  // of a 100%'d test, which should skip straight past both the test and its summary -- see below).
-  const initialPendingCountRef = useRef<number | null>(null);
+  // This pass's queue -- frozen the moment pendingIds is first available, so it's exactly "every
+  // sentence still open when I arrived" (everything, on a first attempt; just the reopened wrong
+  // ones, on a retry) and doesn't shift as answers come in. Walked one at a time via currentIndex
+  // below; the progress bar and correct/wrong counts are scoped to this frozen set too, so a
+  // retry shows its own small progress instead of the whole test's. Shuffled on every freeze (not
+  // just once) so both a first attempt and each retry get a fresh order -- otherwise a student
+  // needing several retries would see the same remaining words in the same relative order every
+  // time and could learn the position instead of the reading.
+  const [passQueueIds, setPassQueueIds] = useState<number[] | null>(null);
   useEffect(() => {
-    if (pendingIds && initialPendingCountRef.current === null) {
-      initialPendingCountRef.current = pendingIds.length;
-    }
-  }, [pendingIds]);
+    if (passQueueIds !== null || !pendingIds) return;
+    // Freezing this pass's queue the first render it's available; can't be a plain useMemo since
+    // it must NOT recompute once answers start coming in.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPassQueueIds(shuffle(pendingIds));
+  }, [pendingIds, passQueueIds]);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const passed = sentences != null && progress != null && sentences.length > 0 && [...progress.values()].filter((a) => a.correct).length >= sentences.length;
 
-  // Covers both "already 100% on load" and "just answered the last pending sentence" -- either
-  // way, nothing left pending means this pass is done. A 100% pass that was ALREADY done before
-  // this page loaded (revisiting a finished test) skips the summary entirely and goes straight to
-  // the dashboard, since there's nothing new to celebrate and the test is meant to stay locked
-  // once passed.
+  // Nothing was pending when this page loaded -- either this pass was already fully answered
+  // before this visit (revisiting a locked/finished pass) or there are no sentences at all.
+  // Either way there's no question to show, so redirect immediately: straight to the dashboard if
+  // that prior pass had already reached 100% (nothing new to celebrate, stays locked), to the
+  // summary otherwise.
   //
-  // A hard navigation (not router.push) on arrival at the summary -- this app's client-side
-  // router can reuse that page's already-mounted instance when revisiting it (e.g. the retry
-  // loop bounces test -> summary -> test -> summary within the same session), which would skip
-  // useReadingTestProgress's fetch and show the score from before this pass. A full navigation
-  // guarantees a fresh mount, so the score/attempt count on screen can never be stale.
+  // A hard navigation (not router.push) -- this app's client-side router can reuse the summary
+  // page's already-mounted instance when revisiting it (e.g. the retry loop bounces test ->
+  // summary -> test -> summary within the same session), which would skip useReadingTestProgress's
+  // fetch and show the score from before this pass. A full navigation guarantees a fresh mount, so
+  // the score/attempt count on screen can never be stale.
   useEffect(() => {
-    if (!pendingIds || !sentences || initialPendingCountRef.current === null) return;
-    if (sentences.length === 0 || pendingIds.length > 0) return;
-    if (passed && initialPendingCountRef.current === 0) {
+    if (!passQueueIds || passQueueIds.length > 0) return;
+    if (passed) {
       router.replace("/dashboard");
       return;
     }
-    window.location.href = passed
-      ? "/study/test/hiragana/summary?justFinished=1"
-      : "/study/test/hiragana/summary";
-  }, [pendingIds, sentences, passed, router]);
-
-  // One-time scroll to the first pending sentence, so resuming after a refresh/exit doesn't
-  // require scrolling back down through everything already answered.
-  useEffect(() => {
-    if (scrolledToFirst || !pendingIds || pendingIds.length === 0) return;
-    const el = rowRefs.current.get(pendingIds[0]);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "instant", block: "center" });
-    setScrolledToFirst(true);
-  }, [pendingIds, scrolledToFirst]);
+    window.location.href = "/study/test/hiragana/summary";
+  }, [passQueueIds, passed, router]);
 
   const handleCheck = (sentenceId: number, correct: boolean, userAnswer: string) => {
     markAnswered(sentenceId, correct, userAnswer).catch(() => {
@@ -112,7 +102,23 @@ export default function HiraganaReadingTestPage() {
     });
   };
 
-  if (sentencesStatus === "loading" || progressStatus === "loading" || !pendingIds) {
+  // Advances to the next question in this pass, or -- once every question in it has a result --
+  // does the same hard navigation to the summary the redirect effect above does, except this one
+  // only fires from the student's own Next click on the LAST question, so they always get to see
+  // that question's result before the page changes.
+  const handleNext = () => {
+    if (!passQueueIds) return;
+    const next = currentIndex + 1;
+    if (next < passQueueIds.length) {
+      setCurrentIndex(next);
+      return;
+    }
+    window.location.href = passed
+      ? "/study/test/hiragana/summary?justFinished=1"
+      : "/study/test/hiragana/summary";
+  };
+
+  if (sentencesStatus === "loading" || progressStatus === "loading" || !passQueueIds) {
     return <FullScreenLoader />;
   }
 
@@ -129,15 +135,46 @@ export default function HiraganaReadingTestPage() {
     );
   }
 
-  // On a retry pass, pull the reopened (previously wrong) sentences down to their own section at
-  // the bottom instead of leaving them interleaved among the already-correct, locked ones.
-  const retrying = retryGroupIds ? sentences.filter((s) => retryGroupIds.has(s.id)) : [];
-  const rest = retrying.length > 0 ? sentences.filter((s) => !retryGroupIds!.has(s.id)) : sentences;
-  const orderedSentences = retrying.length > 0 ? [...rest, ...retrying] : sentences;
+  const currentSentence = sentences.find((s) => s.id === passQueueIds[currentIndex]) ?? null;
+
+  if (!currentSentence) {
+    // Just answered the last question in this pass -- the redirect effect above is about to
+    // navigate away.
+    return <FullScreenLoader />;
+  }
+
+  const answeredCount = passQueueIds.filter((id) => progress.has(id)).length;
+  const correctCount = passQueueIds.filter((id) => progress.get(id)?.correct).length;
+  const wrongCount = answeredCount - correctCount;
+  const percent = Math.round((answeredCount / passQueueIds.length) * 100);
 
   return (
     <div className="min-h-screen px-4 py-10">
       <div className="mx-auto w-full max-w-[640px]">
+        <div className="mb-8">
+          <div className="mb-2 flex items-center justify-between text-[0.85rem] font-bold tabular-nums text-text-muted">
+            <span>
+              {answeredCount} / {passQueueIds.length}
+            </span>
+            <span className="flex items-center gap-3">
+              <span className="flex items-center gap-1 text-accent-green">
+                <FaCheck className="h-3 w-3" />
+                {correctCount}
+              </span>
+              <span className="flex items-center gap-1 text-accent-red">
+                <FaXmark className="h-3 w-3" />
+                {wrongCount}
+              </span>
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div
+              className="h-full rounded-full bg-accent-blue transition-[width] duration-400 ease-linear"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+        </div>
+
         <h1 className="mb-2 text-[1.6rem] font-extrabold leading-[1.25] text-white">
           Let&apos;s read some words
         </h1>
@@ -151,37 +188,16 @@ export default function HiraganaReadingTestPage() {
             you&apos;ll find their reading written above them as a hint.
           </p>
         </div>
-        <div className="flex flex-col gap-8">
-          {orderedSentences.map((sentence, index) => {
-            const isFirstRetry = rest.length > 0 && index === rest.length;
-            return (
-              <Fragment key={sentence.id}>
-                {index > 0 && !isFirstRetry && <hr className="border-t border-border-soft" />}
-                {isFirstRetry && (
-                  <div className="flex items-center gap-2 border-t border-border-soft pt-8 text-xs font-semibold uppercase tracking-[0.6px] text-text-muted/70">
-                    <FaArrowRotateRight className="h-3 w-3" />
-                    Questions to retry
-                  </div>
-                )}
-                <div
-                  ref={(el) => {
-                    if (el) rowRefs.current.set(sentence.id, el);
-                    else rowRefs.current.delete(sentence.id);
-                  }}
-                >
-                  <ReadingTestSentenceRow
-                    sentence={sentence}
-                    kanaRomajiMap={kanaRomajiMap}
-                    userId={user.id}
-                    testType={TEST_TYPE}
-                    persisted={progress.get(sentence.id) ?? null}
-                    onCheck={handleCheck}
-                  />
-                </div>
-              </Fragment>
-            );
-          })}
-        </div>
+
+        <ReadingTestSentenceRow
+          key={currentSentence.id}
+          sentence={currentSentence}
+          kanaRomajiMap={kanaRomajiMap}
+          userId={user.id}
+          testType={TEST_TYPE}
+          onCheck={handleCheck}
+          onNext={handleNext}
+        />
       </div>
     </div>
   );

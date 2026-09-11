@@ -403,6 +403,11 @@ export interface StudyStats {
    * Passing this (alongside hiragana_mastered) is what the katakana-gating DB triggers require
    * before study_katakana can turn on. */
   hiragana_reading_test_passed: boolean;
+  /** Which of the four CTA states the hiragana reading test is in right now
+   * (public.reading_test_cta_state RPC, see 20261105_reading_test_cta_state.sql) -- only fetched
+   * on the kana track, "not_started" otherwise. Lets DashboardHero pick the right verb ("Take" /
+   * "Continue" / "Retry" / "Continue your retry") instead of a plain attempted-or-not flag. */
+  hiragana_reading_test_state: ReadingTestCtaState;
   /** Same as hiragana_mastered, but for katakana_reading -- drives the equivalent CTA for the
    * katakana reading test. */
   katakana_mastered: boolean;
@@ -410,7 +415,17 @@ export interface StudyStats {
    * (alongside hiragana_mastered/katakana_mastered) is what
    * 20260920_reading_test_gates_standard.sql requires before study_track can flip to 'standard'. */
   katakana_reading_test_passed: boolean;
+  /** Same as hiragana_reading_test_state, but for test_type='katakana'. */
+  katakana_reading_test_state: ReadingTestCtaState;
 }
+
+/** The four states reading_test_cta_state can return:
+ *  - not_started: no progress row exists yet -- test never opened.
+ *  - in_progress: mid the first pass -- some but not all sentences answered, never retried.
+ *  - retry_pending: current pass finished with some wrong (or a retry finished and still has some
+ *    wrong) -- nothing answered yet in the next retry pass.
+ *  - retry_in_progress: mid a retry pass -- some but not all of the reopened sentences re-answered. */
+export type ReadingTestCtaState = "not_started" | "in_progress" | "retry_pending" | "retry_in_progress";
 
 export type Rating = 0 | 1 | 2 | 3;
 
