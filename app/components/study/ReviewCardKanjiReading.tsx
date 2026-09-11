@@ -76,6 +76,9 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
                 <span>{card.kana_reading}</span>
               </div>
             )}
+            {result.correct && card.word_meanings && card.word_meanings.length > 0 && (
+              <p className="text-center text-sm italic text-text-muted">{card.word_meanings.join(", ")}</p>
+            )}
             {!result.correct && (
               <TokenDiffList
                 tokens={[{ raw: "", correct: false, userDiff: result.userDiff, targetDiff: result.targetDiff }]}
