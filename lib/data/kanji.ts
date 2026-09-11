@@ -5,7 +5,7 @@ import { fetchSearchableList, type SearchableListParams } from "@/lib/data/searc
 
 export type KanjiListParams = SearchableListParams;
 
-/** Assumes levels have already been validated against JLPT_LEVELS by the caller. */
+/** Assumes levels have already been validated against BROWSE_LEVELS by the caller. */
 export async function fetchKanjiList(params: KanjiListParams): Promise<KanjiListResponse> {
   return fetchSearchableList<KanjiRow & { total_count: number }>(createClient(), "search_kanji", params);
 }

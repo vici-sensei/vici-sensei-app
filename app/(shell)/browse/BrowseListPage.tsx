@@ -3,8 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
-import { readStoredLevels } from "@/lib/browse/levelsStorage";
+import { BROWSE_LEVELS, readStoredLevels, type BrowseLevel } from "@/lib/browse/levelsStorage";
 import { readStoredSearch } from "@/lib/browse/searchStorage";
 import { createHoverIntent } from "@/lib/browse/hoverIntent";
 import { BrowseTabs } from "./BrowseTabs";
@@ -17,10 +16,10 @@ import type { AsyncStatus } from "@/lib/types";
 const PAGE_SIZE = 50;
 const PLACEHOLDER_ROW_COUNT = 6;
 
-function parseLevels(raw: string | null, fallback: JlptLevel[]): JlptLevel[] {
+function parseLevels(raw: string | null, fallback: BrowseLevel[]): BrowseLevel[] {
   if (raw === null) return fallback;
   if (raw === "") return [];
-  return raw.split(",").filter((l): l is JlptLevel => (JLPT_LEVELS as readonly string[]).includes(l));
+  return raw.split(",").filter((l): l is BrowseLevel => (BROWSE_LEVELS as readonly string[]).includes(l));
 }
 
 export function ListSkeleton() {
@@ -39,7 +38,7 @@ interface BrowseListPageProps<T> {
   searchPlaceholder: string;
   useList: (params: {
     search: string | null;
-    levels: JlptLevel[];
+    levels: BrowseLevel[];
     limit: number;
     offset: number;
   }) => { data: { data: T[]; count: number } | null; status: AsyncStatus };
@@ -67,7 +66,7 @@ function BrowseListResults<T>({
   levels,
   rawLevel,
   offset,
-}: BrowseListPageProps<T> & { search: string; levels: JlptLevel[]; rawLevel: string | null; offset: number }) {
+}: BrowseListPageProps<T> & { search: string; levels: BrowseLevel[]; rawLevel: string | null; offset: number }) {
   const { data: result, status } = useList({ search: search || null, levels, limit: PAGE_SIZE, offset });
 
   const preservedParams = new URLSearchParams();

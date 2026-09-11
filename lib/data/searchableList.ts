@@ -19,7 +19,7 @@ export interface SearchableListResponse<T> {
 
 /** Shared by fetchKanjiList/fetchVocabularyList: bounds limit/offset, calls a paginated search RPC
  * (search_kanji/search_vocabulary) that returns each row plus a `total_count` column, and strips
- * that column back off. Assumes levels have already been validated against JLPT_LEVELS by the caller. */
+ * that column back off. Assumes levels have already been validated against BROWSE_LEVELS by the caller. */
 export async function fetchSearchableList<T extends { total_count: number }>(
   supabase: AppSupabaseClient,
   rpcName: string,

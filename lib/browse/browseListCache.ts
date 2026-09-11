@@ -1,15 +1,15 @@
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import type { KanjiListResponse, VocabularyListResponse } from "@/lib/types";
-import type { JlptLevel } from "@/lib/srs/constants";
+import type { BrowseLevel } from "@/lib/browse/levelsStorage";
 
 // Only the default (no-filter) view gets prefetched/cached -- keying by the level set alone
 // is enough since search is always empty and offset always 0 for that view. A different level
 // set is simply a different key, so a stale entry never masquerades as the current default.
 function createListCache<T>(name: string) {
-  const key = (levels: JlptLevel[]) => `cache:${name}-list:${levels.join(",")}`;
+  const key = (levels: BrowseLevel[]) => `cache:${name}-list:${levels.join(",")}`;
   return {
-    read: (levels: JlptLevel[]) => readCache<T>(key(levels)),
-    write: (levels: JlptLevel[], data: T) => writeCache(key(levels), data),
+    read: (levels: BrowseLevel[]) => readCache<T>(key(levels)),
+    write: (levels: BrowseLevel[], data: T) => writeCache(key(levels), data),
   };
 }
 

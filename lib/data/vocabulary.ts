@@ -4,7 +4,7 @@ import { fetchSearchableList, type SearchableListParams } from "@/lib/data/searc
 
 export type VocabularyListParams = SearchableListParams;
 
-/** Assumes levels have already been validated against JLPT_LEVELS by the caller. */
+/** Assumes levels have already been validated against BROWSE_LEVELS by the caller. */
 export async function fetchVocabularyList(params: VocabularyListParams): Promise<VocabularyListResponse> {
   return fetchSearchableList<VocabularyRow & { total_count: number }>(createClient(), "search_vocabulary", params);
 }

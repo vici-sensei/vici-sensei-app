@@ -2,15 +2,14 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { JLPT_LEVELS, type JlptLevel } from "@/lib/srs/constants";
 import { scrollWindowToTopOnFocus } from "@/lib/scrollFocus";
-import { writeStoredLevels } from "@/lib/browse/levelsStorage";
+import { BROWSE_LEVELS, writeStoredLevels, type BrowseLevel } from "@/lib/browse/levelsStorage";
 import { writeStoredSearch } from "@/lib/browse/searchStorage";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 
 interface Props {
   initialSearch: string;
-  initialLevels: JlptLevel[];
+  initialLevels: BrowseLevel[];
   basePath: string;
   placeholder: string;
 }
@@ -20,10 +19,10 @@ const DEBOUNCE_MS = 350;
 export function BrowseControls({ initialSearch, initialLevels, basePath, placeholder }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
-  const [levels, setLevels] = useState<JlptLevel[]>(initialLevels);
+  const [levels, setLevels] = useState<BrowseLevel[]>(initialLevels);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function pushUrl(nextSearch: string, nextLevels: JlptLevel[]) {
+  function pushUrl(nextSearch: string, nextLevels: BrowseLevel[]) {
     const params = new URLSearchParams();
     if (nextSearch) params.set("search", nextSearch);
     // Set explicitly (even empty) so "user cleared every level" is distinguishable
@@ -41,7 +40,7 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
     debounceRef.current = setTimeout(() => pushUrl(value, levels), DEBOUNCE_MS);
   }
 
-  function toggleLevel(level: JlptLevel) {
+  function toggleLevel(level: BrowseLevel) {
     // At least one level must stay selected.
     if (levels.includes(level) && levels.length === 1) return;
     const next = levels.includes(level) ? levels.filter((l) => l !== level) : [...levels, level];
@@ -66,7 +65,7 @@ export function BrowseControls({ initialSearch, initialLevels, basePath, placeho
         </div>
       </div>
       <div className="mb-4.5 flex flex-wrap justify-center gap-2 md:justify-start">
-        {JLPT_LEVELS.map((level) => {
+        {BROWSE_LEVELS.map((level) => {
           const active = levels.includes(level);
           return (
             <button

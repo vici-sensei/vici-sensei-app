@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createKeyedPrefetcher, createPrefetcher } from "@/lib/client-data/createPrefetcher";
-import { readStoredLevels } from "@/lib/browse/levelsStorage";
+import { readStoredLevels, type BrowseLevel } from "@/lib/browse/levelsStorage";
 import { getErrorMessage } from "@/lib/api/client";
 import type { AsyncStatus } from "@/lib/types";
-import type { JlptLevel } from "@/lib/srs/constants";
 
 interface ListParams {
   search?: string | null;
@@ -17,8 +16,8 @@ interface ListParams {
 interface ListDetailHooksConfig<ListResponse, Params extends ListParams, Detail> {
   fetchList: (params: Params) => Promise<ListResponse>;
   fetchDetail: (id: number) => Promise<Detail | null>;
-  readListCache: (levels: JlptLevel[]) => ListResponse | null;
-  writeListCache: (levels: JlptLevel[], data: ListResponse) => void;
+  readListCache: (levels: BrowseLevel[]) => ListResponse | null;
+  writeListCache: (levels: BrowseLevel[], data: ListResponse) => void;
   readDetailCache: (id: number) => Detail | null;
   writeDetailCache: (id: number, data: Detail) => void;
   listErrorFallback: string;
@@ -59,7 +58,7 @@ export function createListDetailHooks<ListResponse, Params extends ListParams, D
         const result = await fetchList(params);
         setData(result);
         setStatus("loaded");
-        if (isDefaultView) writeListCache(levels as JlptLevel[], result);
+        if (isDefaultView) writeListCache(levels as BrowseLevel[], result);
       } catch (err) {
         setError(getErrorMessage(err, listErrorFallback));
         setStatus("error");
@@ -73,7 +72,7 @@ export function createListDetailHooks<ListResponse, Params extends ListParams, D
       // purely provisional, refetch() right below always runs and overwrites it once the real
       // fetch resolves.
       if (isDefaultView) {
-        const cached = readListCache(levels as JlptLevel[]);
+        const cached = readListCache(levels as BrowseLevel[]);
         if (cached) {
           setData(cached);
           setStatus("loaded");
