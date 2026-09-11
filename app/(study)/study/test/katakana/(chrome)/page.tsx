@@ -10,6 +10,7 @@ import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useToast } from "@/app/components/ui/Toast";
 import { ReadingTestSentenceRow } from "@/app/components/readingTest/ReadingTestSentenceRow";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+import { Button } from "@/app/components/ui/Button";
 
 const TEST_TYPE = "katakana";
 
@@ -73,6 +74,10 @@ export default function KatakanaReadingTestPage() {
   }, [pendingIds, passQueueIds]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  // Gates the progress bar/question behind an explicit "Start" tap -- until then, this pass's
+  // queue is already loading/frozen in the background, but the student only sees the intro
+  // copy and the Start button, not the bar or the first word.
+  const [started, setStarted] = useState(false);
 
   const passed = sentences != null && progress != null && sentences.length > 0 && [...progress.values()].filter((a) => a.correct).length >= sentences.length;
 
@@ -148,6 +153,25 @@ export default function KatakanaReadingTestPage() {
   const wrongCount = answeredCount - correctCount;
   const percent = Math.round((answeredCount / passQueueIds.length) * 100);
 
+  if (!started) {
+    return (
+      <div className="min-h-screen px-4 py-10">
+        <div className="mx-auto w-full max-w-[640px]">
+          <h1 className="mb-2 text-[1.6rem] font-extrabold leading-[1.25] text-white">
+            Let&apos;s read some words
+          </h1>
+          <div className="mb-7 text-[0.9rem] leading-[1.6] text-text-muted">
+            <p className="">
+              Type the romaji reading for each word below, then press Check to
+              see it.
+            </p>
+          </div>
+          <Button onClick={() => setStarted(true)}>Start</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen px-4 py-10">
       <div className="mx-auto w-full max-w-[640px]">
@@ -173,16 +197,6 @@ export default function KatakanaReadingTestPage() {
               style={{ width: `${percent}%` }}
             />
           </div>
-        </div>
-
-        <h1 className="mb-2 text-[1.6rem] font-extrabold leading-[1.25] text-white">
-          Let&apos;s read some words
-        </h1>
-        <div className="mb-7 text-[0.9rem] leading-[1.6] text-text-muted">
-          <p className="">
-            Type the romaji reading for each word below, then press Check to
-            see it.
-          </p>
         </div>
 
         <ReadingTestSentenceRow
