@@ -103,9 +103,9 @@ export function ReadingTestSentenceRow({ sentence, kanaRomajiMap, userId, testTy
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 my-auto">
       <p
-        className={`text-[1.3rem] leading-relaxed text-white ${result ? "" : "select-none no-touch-callout"}`}
+        className={`text-center text-[1.3rem] leading-relaxed text-white ${result ? "" : "select-none no-touch-callout"}`}
         onCopy={result ? undefined : (e) => e.preventDefault()}
         onContextMenu={result ? undefined : (e) => e.preventDefault()}
       >

@@ -8,6 +8,7 @@ import {
   useReadingTestProgress,
 } from "@/lib/client-data/readingTest";
 import { buildKanaRomajiMap } from "@/lib/study/readingTestFurigana";
+import { getReadingTestStarted, markReadingTestStarted } from "@/lib/study/readingTestStarted";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useToast } from "@/app/components/ui/Toast";
 import { useViewportHeight } from "@/lib/useViewportHeight";
@@ -94,8 +95,13 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   // Gates the progress bar/question behind an explicit "Start" tap -- until then, this pass's
   // queue is already loading/frozen in the background, but the student only sees the intro
-  // copy and the Start button, not the bar or the first word.
-  const [started, setStarted] = useState(false);
+  // copy and the Start button, not the bar or the first word. Initialized from sessionStorage
+  // (per user+test) so a refresh right after tapping Start doesn't bounce back to the intro --
+  // see readingTestStarted's doc comment for why that's sessionStorage and not localStorage, and
+  // for how a DIFFERENT device/tab is covered instead (below, via `alreadyAnswered`).
+  const [started, setStarted] = useState(() =>
+    getReadingTestStarted(user.id, testType),
+  );
 
   const passed =
     sentences != null &&
@@ -200,7 +206,13 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
   const wrongCount = answeredCount - correctCount;
   const percent = Math.round((answeredCount / passQueueIds.length) * 100);
 
-  if (!started) {
+  // Cross-device/tab counterpart to the sessionStorage flag above: `progress` is fetched fresh
+  // from the DB on every mount, so if it already has ANY row for this test -- from this pass or a
+  // prior one, on this device or another -- the student has already gotten past Start before, even
+  // though sessionStorage on THIS device/tab wouldn't know that.
+  const alreadyAnswered = progress.size > 0;
+
+  if (!started && !alreadyAnswered) {
     return (
       <div
         className="overflow-y-auto p-8"
@@ -226,7 +238,14 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
             </div>
           </div>
           <div className="mx-auto">
-            <Button onClick={() => setStarted(true)}>Start</Button>
+            <Button
+              onClick={() => {
+                setStarted(true);
+                markReadingTestStarted(user.id, testType);
+              }}
+            >
+              Start
+            </Button>
           </div>
         </div>
       </div>
@@ -235,32 +254,34 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
 
   return (
     <div
-      className="overflow-y-auto px-4 py-8"
+      className="overflow-y-auto p-8"
       style={{ height: "var(--app-height, 100dvh)" }}
     >
-      <div className="mx-auto w-full max-w-[640px]">
-        <ReadingTestCloseButton />
-        <div className="mb-8">
-          <div className="mb-2 flex items-center justify-between text-[0.85rem] font-bold tabular-nums text-text-muted">
-            <span>
-              {answeredCount} / {passQueueIds.length}
-            </span>
-            <span className="flex items-center gap-3">
-              <span className="flex items-center gap-1 text-accent-green">
-                <FaCheck className="h-3 w-3" />
-                {correctCount}
+      <div className="mx-auto w-full max-w-[640px] h-full flex flex-col gap-4">
+        <div className="flex flex-row w-full gap-8 items-center">
+          <ReadingTestCloseButton />
+          <div className="w-full flex flex-col gap-1">
+            <div className="flex items-center justify-between text-[0.85rem] font-bold tabular-nums text-text-muted leading-none">
+              <span>
+                {answeredCount} / {passQueueIds.length}
               </span>
-              <span className="flex items-center gap-1 text-accent-red">
-                <FaXmark className="h-3 w-3" />
-                {wrongCount}
+              <span className="flex items-center gap-3">
+                <span className="flex items-center gap-1 text-accent-green">
+                  <FaCheck className="h-3 w-3" />
+                  {correctCount}
+                </span>
+                <span className="flex items-center gap-1 text-accent-red">
+                  <FaXmark className="h-3 w-3" />
+                  {wrongCount}
+                </span>
               </span>
-            </span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
-            <div
-              className="h-full rounded-full bg-accent-blue transition-[width] duration-400 ease-linear"
-              style={{ width: `${percent}%` }}
-            />
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full rounded-full bg-accent-blue transition-[width] duration-400 ease-linear"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
           </div>
         </div>
 
