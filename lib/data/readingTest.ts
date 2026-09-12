@@ -65,6 +65,124 @@ export async function submitReadingTestAnswer(
   if (error) throw new Error(error.message);
 }
 
+export interface ReadingTestSession {
+  started: boolean;
+  queueOrder: number[] | null;
+  queuePosition: number;
+  draftSentenceId: number | null;
+  draftAnswer: string;
+}
+
+const EMPTY_SESSION: ReadingTestSession = {
+  started: false,
+  queueOrder: null,
+  queuePosition: 0,
+  draftSentenceId: null,
+  draftAnswer: "",
+};
+
+/** This pass's resume state -- see user_reading_test_attempts' doc comment
+ * (20261106_reading_test_resume_state.sql) for what each field means. No row yet (a user who's
+ * never reached this test's attempts table at all) reads back as EMPTY_SESSION, same meaning as a
+ * fresh row would have. */
+export async function fetchReadingTestSession(
+  supabase: AppSupabaseClient,
+  userId: string,
+  testType: string
+): Promise<ReadingTestSession> {
+  const { data, error } = await supabase
+    .from("user_reading_test_attempts")
+    .select("started, queue_order, queue_position, draft_sentence_id, draft_answer")
+    .eq("user_id", userId)
+    .eq("test_type", testType)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return EMPTY_SESSION;
+  return {
+    started: data.started,
+    queueOrder: data.queue_order,
+    queuePosition: data.queue_position,
+    draftSentenceId: data.draft_sentence_id,
+    draftAnswer: data.draft_answer,
+  };
+}
+
+/** Persists having gotten past the Start screen -- replaces the old per-tab sessionStorage flag so
+ * a different device/tab can skip the intro too, even before this test's first answer is in. Once
+ * true, stays true forever (a retry never resets it -- see reading_test_retry_wrong). */
+export async function markReadingTestStarted(supabase: AppSupabaseClient, userId: string, testType: string): Promise<void> {
+  const { error } = await supabase
+    .from("user_reading_test_attempts")
+    .upsert({ user_id: userId, test_type: testType, started: true }, { onConflict: "user_id,test_type" });
+  if (error) throw new Error(error.message);
+}
+
+/** Atomically fetches-or-creates this pass's frozen queue (see public.reading_test_ensure_queue) --
+ * `queue` is only used the first time, if no queue is set yet; otherwise the existing one wins, so
+ * two devices racing to freeze the same pass can't stomp on each other's shuffle order. */
+export async function ensureReadingTestQueue(
+  supabase: AppSupabaseClient,
+  userId: string,
+  testType: string,
+  queue: number[]
+): Promise<number[]> {
+  const { data, error } = await supabase.rpc("reading_test_ensure_queue", {
+    p_user_id: userId,
+    p_test_type: testType,
+    p_queue: queue,
+  });
+  if (error) throw new Error(error.message);
+  return data ?? queue;
+}
+
+/** How far into this pass's queue the student has advanced -- only bumped by Next (see
+ * ReadingTestPage's handleNext), never by Check, so a refresh between the two still shows the
+ * just-answered result screen instead of skipping past it. */
+export async function advanceReadingTestQueue(
+  supabase: AppSupabaseClient,
+  userId: string,
+  testType: string,
+  position: number
+): Promise<void> {
+  const { error } = await supabase
+    .from("user_reading_test_attempts")
+    .upsert({ user_id: userId, test_type: testType, queue_position: position }, { onConflict: "user_id,test_type" });
+  if (error) throw new Error(error.message);
+}
+
+/** Mirrors the current question's not-yet-Checked input server-side (debounced by the caller) so
+ * it survives a refresh/device switch, same as an already-Checked answer already does. */
+export async function saveReadingTestDraft(
+  supabase: AppSupabaseClient,
+  userId: string,
+  testType: string,
+  sentenceId: number,
+  answer: string
+): Promise<void> {
+  const { error } = await supabase.from("user_reading_test_attempts").upsert(
+    {
+      user_id: userId,
+      test_type: testType,
+      draft_sentence_id: sentenceId,
+      draft_answer: answer,
+      draft_updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,test_type" }
+  );
+  if (error) throw new Error(error.message);
+}
+
+/** Fired the moment Check produces a result, same as the old localStorage clearDraft -- the typed
+ * text just got persisted as a real answer (see submitReadingTestAnswer), so the draft copy of it
+ * is stale. */
+export async function clearReadingTestDraft(supabase: AppSupabaseClient, userId: string, testType: string): Promise<void> {
+  const { error } = await supabase.from("user_reading_test_attempts").upsert(
+    { user_id: userId, test_type: testType, draft_sentence_id: null, draft_answer: "", draft_updated_at: null },
+    { onConflict: "user_id,test_type" }
+  );
+  if (error) throw new Error(error.message);
+}
+
 /** "Retry the ones I got wrong" (the summary page): reopens every wrong row for this test as
  * pending again (correct ones are untouched and stay locked) and bumps the attempt counter --
  * see public.reading_test_retry_wrong, which does both atomically so a refresh mid-retry can't

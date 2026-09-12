@@ -3,13 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  advanceReadingTestQueue,
+  clearReadingTestDraft,
+  ensureReadingTestQueue,
   fetchReadingTestAttempt,
   fetchReadingTestPassed,
   fetchReadingTestProgress,
   fetchReadingTestSentences,
+  fetchReadingTestSession,
+  markReadingTestStarted,
   resetWrongAnswers,
+  saveReadingTestDraft,
   submitReadingTestAnswer,
   type ReadingTestAnswer,
+  type ReadingTestSession,
 } from "@/lib/data/readingTest";
 import { getErrorMessage } from "@/lib/api/client";
 import type { AsyncStatus, ReadingTestSentence } from "@/lib/types";
@@ -107,6 +114,78 @@ export function useReadingTestProgress(
 
 export async function fetchReadingTestPassedStatus(userId: string, testType: string): Promise<boolean> {
   return fetchReadingTestPassed(createClient(), userId, testType);
+}
+
+/** This pass's resume state -- see user_reading_test_attempts' doc comment
+ * (20261106_reading_test_resume_state.sql). All four mutators return the underlying persist
+ * promise, same as useReadingTestProgress's markAnswered/retryWrong, so a caller can surface a
+ * failure without this hook needing to know about UI; each also updates local state optimistically
+ * first so the current tab doesn't wait on the round-trip. */
+export function useReadingTestSession(
+  userId: string,
+  testType: string
+): {
+  session: ReadingTestSession | null;
+  status: AsyncStatus;
+  error: string | null;
+  markStarted: () => Promise<void>;
+  ensureQueue: (queue: number[]) => Promise<number[]>;
+  advance: (position: number) => Promise<void>;
+  saveDraft: (sentenceId: number, answer: string) => Promise<void>;
+  clearDraft: () => Promise<void>;
+} {
+  const [session, setSession] = useState<ReadingTestSession | null>(null);
+  const [status, setStatus] = useState<AsyncStatus>("loading");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchReadingTestSession(createClient(), userId, testType)
+      .then((data) => {
+        if (cancelled) return;
+        setSession(data);
+        setStatus("loaded");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(getErrorMessage(err, "Failed to load."));
+        setStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, testType]);
+
+  const markStarted = useCallback(() => {
+    setSession((prev) => (prev ? { ...prev, started: true } : prev));
+    return markReadingTestStarted(createClient(), userId, testType);
+  }, [userId, testType]);
+
+  const ensureQueue = useCallback(
+    async (queue: number[]) => {
+      const authoritative = await ensureReadingTestQueue(createClient(), userId, testType, queue);
+      setSession((prev) => (prev ? { ...prev, queueOrder: authoritative } : prev));
+      return authoritative;
+    },
+    [userId, testType]
+  );
+
+  const advance = useCallback(
+    (position: number) => {
+      setSession((prev) => (prev ? { ...prev, queuePosition: position } : prev));
+      return advanceReadingTestQueue(createClient(), userId, testType, position);
+    },
+    [userId, testType]
+  );
+
+  const saveDraft = useCallback(
+    (sentenceId: number, answer: string) => saveReadingTestDraft(createClient(), userId, testType, sentenceId, answer),
+    [userId, testType]
+  );
+
+  const clearDraft = useCallback(() => clearReadingTestDraft(createClient(), userId, testType), [userId, testType]);
+
+  return { session, status, error, markStarted, ensureQueue, advance, saveDraft, clearDraft };
 }
 
 /** Which attempt of this test the user is currently on (see fetchReadingTestAttempt) -- fetched

@@ -6,13 +6,15 @@ import { FaCheck, FaXmark } from "react-icons/fa6";
 import {
   useReadingTestSentences,
   useReadingTestProgress,
+  useReadingTestSession,
 } from "@/lib/client-data/readingTest";
 import { buildKanaRomajiMap } from "@/lib/study/readingTestFurigana";
-import { getReadingTestStarted, markReadingTestStarted } from "@/lib/study/readingTestStarted";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useToast } from "@/app/components/ui/Toast";
 import { useViewportHeight } from "@/lib/useViewportHeight";
+import { useKeyboardOpen } from "@/lib/useKeyboardOpen";
 import { ReadingTestSentenceRow } from "@/app/components/readingTest/ReadingTestSentenceRow";
+import { ReadingTestAnswerForm } from "@/app/components/readingTest/ReadingTestAnswerForm";
 import { ReadingTestCloseButton } from "@/app/components/readingTest/ReadingTestCloseButton";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Button } from "@/app/components/ui/Button";
@@ -46,6 +48,8 @@ interface Props {
 export function ReadingTestPage({ testType, kanaEntries }: Props) {
   const router = useRouter();
   useViewportHeight();
+  const keyboardOpen = useKeyboardOpen();
+  const [answerSlot, setAnswerSlot] = useState<HTMLDivElement | null>(null);
   const { user } = useStudyOnboarding();
   const { showToast } = useToast();
   const {
@@ -59,6 +63,16 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
     error: progressError,
     markAnswered,
   } = useReadingTestProgress(user.id, testType);
+  const {
+    session,
+    status: sessionStatus,
+    error: sessionError,
+    markStarted,
+    ensureQueue,
+    advance,
+    saveDraft,
+    clearDraft,
+  } = useReadingTestSession(user.id, testType);
   const kanaRomajiMap = useMemo(
     () => (kanaEntries ? buildKanaRomajiMap(kanaEntries) : null),
     [kanaEntries],
@@ -75,33 +89,55 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
     [sentences, progress],
   );
 
-  // This pass's queue -- frozen the moment pendingIds is first available, so it's exactly "every
-  // sentence still open when I arrived" (everything, on a first attempt; just the reopened wrong
-  // ones, on a retry) and doesn't shift as answers come in. Walked one at a time via currentIndex
-  // below; the progress bar and correct/wrong counts are scoped to this frozen set too, so a
-  // retry shows its own small progress instead of the whole test's. Shuffled on every freeze (not
-  // just once) so both a first attempt and each retry get a fresh order -- otherwise a student
-  // needing several retries would see the same remaining words in the same relative order every
-  // time and could learn the position instead of the reading.
+  // This pass's queue -- frozen the moment pendingIds and the server session are both available,
+  // so it's exactly "every sentence still open when I arrived" (everything, on a first attempt;
+  // just the reopened wrong ones, on a retry) and doesn't shift as answers come in. Walked one at
+  // a time via currentIndex below; the progress bar and correct/wrong counts are scoped to this
+  // frozen set too, so a retry shows its own small progress instead of the whole test's. If the
+  // session already has a queue (this device resuming, or another device having frozen it first),
+  // that order wins -- otherwise a fresh shuffle is proposed via ensureQueue, which atomically
+  // defers to whichever device's shuffle lands first (see reading_test_ensure_queue). Shuffled
+  // fresh on every retry (queue_order is cleared server-side, see reading_test_retry_wrong) so a
+  // student needing several retries doesn't see the same remaining words in the same relative
+  // order every time and learn the position instead of the reading.
   const [passQueueIds, setPassQueueIds] = useState<number[] | null>(null);
   useEffect(() => {
-    if (passQueueIds !== null || !pendingIds) return;
-    // Freezing this pass's queue the first render it's available; can't be a plain useMemo since
-    // it must NOT recompute once answers start coming in.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPassQueueIds(shuffle(pendingIds));
-  }, [pendingIds, passQueueIds]);
+    if (passQueueIds !== null || !pendingIds || !session) return;
+    if (session.queueOrder) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPassQueueIds(session.queueOrder);
+      return;
+    }
+    if (pendingIds.length === 0) {
+      setPassQueueIds([]);
+      return;
+    }
+    ensureQueue(shuffle(pendingIds)).then(setPassQueueIds);
+  }, [pendingIds, session, passQueueIds, ensureQueue]);
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Which question this pass is on -- seeded once from the server's queue_position (only bumped
+  // by Next, never by Check, so resuming mid-result-screen lands back on the same question rather
+  // than skipping past it) and then walked locally by handleNext, which also persists the new
+  // value so another device/tab picks up from here too.
+  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  useEffect(() => {
+    if (currentIndex !== null || !session || !passQueueIds) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentIndex(Math.min(session.queuePosition, Math.max(passQueueIds.length - 1, 0)));
+  }, [session, passQueueIds, currentIndex]);
+
   // Gates the progress bar/question behind an explicit "Start" tap -- until then, this pass's
-  // queue is already loading/frozen in the background, but the student only sees the intro
-  // copy and the Start button, not the bar or the first word. Initialized from sessionStorage
-  // (per user+test) so a refresh right after tapping Start doesn't bounce back to the intro --
-  // see readingTestStarted's doc comment for why that's sessionStorage and not localStorage, and
-  // for how a DIFFERENT device/tab is covered instead (below, via `alreadyAnswered`).
-  const [started, setStarted] = useState(() =>
-    getReadingTestStarted(user.id, testType),
-  );
+  // queue is already loading/frozen in the background, but the student only sees the intro copy
+  // and the Start button, not the bar or the first word. Seeded from the server session (see
+  // markReadingTestStarted) so a DIFFERENT device/tab skips the intro too, even before this test's
+  // first answer is in -- `alreadyAnswered` below still covers a session fetched before that first
+  // Start finished persisting.
+  const [started, setStarted] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (started !== null || !session) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStarted(session.started);
+  }, [session, started]);
 
   const passed =
     sentences != null &&
@@ -147,10 +183,11 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
   // only fires from the student's own Next click on the LAST question, so they always get to see
   // that question's result before the page changes.
   const handleNext = () => {
-    if (!passQueueIds) return;
+    if (!passQueueIds || currentIndex === null) return;
     const next = currentIndex + 1;
     if (next < passQueueIds.length) {
       setCurrentIndex(next);
+      advance(next).catch(() => {});
       return;
     }
     window.location.href = passed
@@ -161,7 +198,10 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
   if (
     sentencesStatus === "loading" ||
     progressStatus === "loading" ||
-    !passQueueIds
+    sessionStatus === "loading" ||
+    !passQueueIds ||
+    currentIndex === null ||
+    started === null
   ) {
     return <FullScreenLoader />;
   }
@@ -170,7 +210,9 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
     sentencesStatus === "error" ||
     !sentences ||
     progressStatus === "error" ||
-    !progress
+    !progress ||
+    sessionStatus === "error" ||
+    !session
   ) {
     return (
       <div
@@ -183,7 +225,7 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
             Couldn&apos;t load the reading test
           </h1>
           <p className="text-[0.9rem] leading-[1.6] text-text-muted">
-            {sentencesError ?? progressError ?? "Please try again."}
+            {sentencesError ?? progressError ?? sessionError ?? "Please try again."}
           </p>
         </div>
       </div>
@@ -206,10 +248,9 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
   const wrongCount = answeredCount - correctCount;
   const percent = Math.round((answeredCount / passQueueIds.length) * 100);
 
-  // Cross-device/tab counterpart to the sessionStorage flag above: `progress` is fetched fresh
-  // from the DB on every mount, so if it already has ANY row for this test -- from this pass or a
-  // prior one, on this device or another -- the student has already gotten past Start before, even
-  // though sessionStorage on THIS device/tab wouldn't know that.
+  // Belt-and-suspenders alongside `started`: covers the rare case of a session fetched before this
+  // test's very first Start click finished persisting (e.g. two tabs opened at nearly the same
+  // moment) -- any progress row at all still proves the intro was already passed.
   const alreadyAnswered = progress.size > 0;
 
   if (!started && !alreadyAnswered) {
@@ -241,7 +282,7 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
             <Button
               onClick={() => {
                 setStarted(true);
-                markReadingTestStarted(user.id, testType);
+                markStarted().catch(() => {});
               }}
             >
               Start
@@ -252,12 +293,33 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
     );
   }
 
+  // The romaji input + Check button, or null once this question already has a result. The Check
+  // button always renders here (near the page's own Next button); the input is a single portaled
+  // node that ReadingTestAnswerForm relocates between the row's original spot and next to this
+  // button as the on-screen keyboard opens/closes -- see that component's doc comment for why.
+  const answerForm = !progress.has(currentSentence.id) ? (
+    <ReadingTestAnswerForm
+      key={`answer-${currentSentence.id}`}
+      sentence={currentSentence}
+      initialDraft={session.draftSentenceId === currentSentence.id ? session.draftAnswer : ""}
+      onCheck={handleCheck}
+      onDraftChange={(sentenceId, value) => {
+        saveDraft(sentenceId, value).catch(() => {});
+      }}
+      onDraftClear={() => {
+        clearDraft().catch(() => {});
+      }}
+      topSlot={answerSlot}
+      keyboardOpen={keyboardOpen}
+    />
+  ) : null;
+
   return (
     <div
       className="overflow-y-auto p-8"
       style={{ height: "var(--app-height, 100dvh)" }}
     >
-      <div className="mx-auto w-full max-w-[640px] h-full flex flex-col gap-4">
+      <div className="mx-auto w-full max-w-[640px] h-full flex flex-col gap-4 items-center">
         <div className="flex flex-row w-full gap-8 items-center">
           <ReadingTestCloseButton />
           <div className="w-full flex flex-col gap-1">
@@ -286,14 +348,27 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
         </div>
 
         <ReadingTestSentenceRow
-          key={currentSentence.id}
+          key={`row-${currentSentence.id}`}
           sentence={currentSentence}
           kanaRomajiMap={kanaRomajiMap}
-          userId={user.id}
           testType={testType}
-          onCheck={handleCheck}
+          initialAnswer={progress.get(currentSentence.id) ?? null}
           onNext={handleNext}
+          onAnswerSlotReady={setAnswerSlot}
         />
+        {progress.has(currentSentence.id) ? (
+          <button
+            key={`next-${currentSentence.id}`}
+            type="button"
+            onClick={handleNext}
+            autoFocus
+            className="w-fit cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white transition-colors hover:border-white/20 hover:bg-white/[0.07]"
+          >
+            Next
+          </button>
+        ) : (
+          answerForm
+        )}
       </div>
     </div>
   );
