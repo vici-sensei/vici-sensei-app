@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ACHIEVEMENT_CATALOG } from "@/lib/achievements/registry";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import type { ProgressStatusCounts, ProgressSummaryResponse, StudentReviewLogEntry } from "@/lib/types";
+import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Badge } from "@/app/components/ui/Badge";
@@ -100,6 +101,13 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   if (studentStatus === "loaded" && !student) {
     return (
       <div>
+        <Breadcrumbs
+          items={[
+            { label: "Teacher", href: "/admin/students" },
+            { label: "Students", href: "/admin/students" },
+            { label: "Not found" },
+          ]}
+        />
         <p className="text-text-muted">Student not found.</p>
         <Link href="/admin/students" className="text-accent-red hover:underline">
           Back to list
@@ -114,9 +122,13 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/admin/students" className="mb-3 inline-block text-sm text-text-muted hover:text-white">
-          ← All students
-        </Link>
+        <Breadcrumbs
+          items={[
+            { label: "Teacher", href: "/admin/students" },
+            { label: "Students", href: "/admin/students" },
+            { label: student?.display_name || student?.email || "…" },
+          ]}
+        />
         <h1 className="text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
           {student?.display_name || student?.email || <Skeleton className="h-9 w-48" />}
         </h1>
@@ -374,6 +386,12 @@ function AdminStudentDetailFromQuery() {
   if (!studentId) {
     return (
       <div>
+        <Breadcrumbs
+          items={[
+            { label: "Teacher", href: "/admin/students" },
+            { label: "Students", href: "/admin/students" },
+          ]}
+        />
         <p className="text-text-muted">No student selected.</p>
         <Link href="/admin/students" className="text-accent-red hover:underline">
           Back to list

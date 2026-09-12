@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import { useStudentRoster } from "@/lib/client-data/adminStudents";
+import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -35,6 +36,7 @@ export default function AdminStudentsPage() {
 
   return (
     <div>
+      <Breadcrumbs items={[{ label: "Teacher", href: "/admin/students" }, { label: "Students" }]} />
       <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Students</h1>
       <p className="mb-5 text-base leading-[1.6] text-text-muted text-center md:text-left">
         Your students&apos; progress and activity.
