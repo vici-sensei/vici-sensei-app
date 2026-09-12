@@ -56,6 +56,15 @@ export const viewport: Viewport = {
   // for double-tap zoom.
   maximumScale: 1,
   userScalable: false,
+  // Without this, the on-screen keyboard only shrinks the *visual* viewport -- the layout
+  // viewport (what html/body/position:fixed size against) stays at full screen height, so the
+  // browser makes the whole document scrollable to pan a focused input above the keyboard, even
+  // on pages like /study and /study/test/* that size themselves to `--app-height` (see
+  // useViewportHeight.ts) specifically to avoid that. "resizes-content" makes supporting browsers
+  // actually shrink the layout viewport itself, so html/body never grow past what's visible in
+  // the first place. Ignored by browsers that don't support it yet -- pure progressive
+  // enhancement, keep the `--app-height` plumbing as the fallback.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
