@@ -8,3 +8,4 @@ export * from "./settings";
 export * from "./user";
 export * from "./leaderboard";
 export * from "./country";
+export * from "./admin";

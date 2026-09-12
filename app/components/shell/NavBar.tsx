@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { useIsAdmin } from "@/lib/auth/useIsAdmin";
 import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import { prefetchFirstDueCard } from "@/lib/client-data/study";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
@@ -35,10 +36,11 @@ export function NavBar() {
   const pathname = usePathname();
   const { studyDisabled } = useStudyStats();
   const { user } = useAuth();
+  const isAdmin = useIsAdmin(user) === "admin";
   const { data: studySettings } = useStudySettingsContext();
   const isKana = studySettings?.study_track === "kana";
 
-  const items = NAV_ITEMS.map((item) => {
+  const items = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => {
     // Kana-track users have nothing to browse under kanji -- send Explore to Hiragana instead
     // (mirrors BrowseTabs, which hides the Kanji/Vocabulary tabs for the same users).
     const href = item.href === "/browse/kanji" && isKana ? "/browse/hiragana" : item.href;

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaShieldHalved, FaSliders } from "react-icons/fa6";
+import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaShieldHalved, FaSliders, FaUserShield } from "react-icons/fa6";
 
 export interface SubNavItem {
   href: string;
@@ -16,6 +16,9 @@ export interface NavItem {
   danger?: boolean;
   // Desktop sidebar only (see NavItem/NavBar) -- the mobile full-screen menu ignores these.
   subItems?: SubNavItem[];
+  // Filtered out by NavBar for non-admins -- admin status isn't known statically like the
+  // rest of this list, so it's checked at render time rather than baked in here.
+  adminOnly?: boolean;
 }
 
 // Single source of truth for both the desktop sidebar and the mobile full-screen menu --
@@ -76,5 +79,12 @@ export const NAV_ITEMS: NavItem[] = [
         icon: <FaShieldHalved />,
       },
     ],
+  },
+  {
+    href: "/admin",
+    label: "Admin",
+    isActive: (p) => p.startsWith("/admin"),
+    icon: <FaUserShield />,
+    adminOnly: true,
   },
 ];
