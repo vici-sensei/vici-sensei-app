@@ -131,7 +131,7 @@ export function ReadingTestSentenceRow({
       {result && (
         <>
           {result.correct ? (
-            <div className="flex items-center gap-2.5 rounded-lg border border-accent-green/20 bg-accent-green/[0.05] px-4 py-3">
+            <div className="w-full flex items-center gap-2.5 rounded-lg border border-accent-green/20 bg-accent-green/[0.05] px-4 py-3">
               <FaCheck className="shrink-0 text-accent-green" />
               <span className="text-[0.95rem] text-white">
                 {sentence.romaji}

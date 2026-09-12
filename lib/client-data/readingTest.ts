@@ -130,7 +130,7 @@ export function useReadingTestSession(
   error: string | null;
   markStarted: () => Promise<void>;
   ensureQueue: (queue: number[]) => Promise<number[]>;
-  advance: (position: number) => Promise<void>;
+  advance: (position: number) => Promise<number>;
   saveDraft: (sentenceId: number, answer: string) => Promise<void>;
   clearDraft: () => Promise<void>;
 } {
@@ -171,9 +171,11 @@ export function useReadingTestSession(
   );
 
   const advance = useCallback(
-    (position: number) => {
+    async (position: number) => {
       setSession((prev) => (prev ? { ...prev, queuePosition: position } : prev));
-      return advanceReadingTestQueue(createClient(), userId, testType, position);
+      const authoritative = await advanceReadingTestQueue(createClient(), userId, testType, position);
+      setSession((prev) => (prev ? { ...prev, queuePosition: authoritative } : prev));
+      return authoritative;
     },
     [userId, testType]
   );

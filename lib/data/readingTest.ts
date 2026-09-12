@@ -137,17 +137,22 @@ export async function ensureReadingTestQueue(
 
 /** How far into this pass's queue the student has advanced -- only bumped by Next (see
  * ReadingTestPage's handleNext), never by Check, so a refresh between the two still shows the
- * just-answered result screen instead of skipping past it. */
+ * just-answered result screen instead of skipping past it. Goes through reading_test_advance_queue
+ * (not a plain upsert) so a stale write from a slower/behind device can never regress a position
+ * another device already advanced past -- the stored value can only move forward. */
 export async function advanceReadingTestQueue(
   supabase: AppSupabaseClient,
   userId: string,
   testType: string,
   position: number
-): Promise<void> {
-  const { error } = await supabase
-    .from("user_reading_test_attempts")
-    .upsert({ user_id: userId, test_type: testType, queue_position: position }, { onConflict: "user_id,test_type" });
+): Promise<number> {
+  const { data, error } = await supabase.rpc("reading_test_advance_queue", {
+    p_user_id: userId,
+    p_test_type: testType,
+    p_position: position,
+  });
   if (error) throw new Error(error.message);
+  return data ?? position;
 }
 
 /** Mirrors the current question's not-yet-Checked input server-side (debounced by the caller) so
