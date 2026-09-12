@@ -386,7 +386,16 @@ input:disabled ~ span {
    ============================================================ */
 .ripple-field {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Not `inset: 0` -- that sizes against the layout viewport, which iOS/Android leave at full
+     screen height while the on-screen keyboard is up (only the visual viewport shrinks). A fixed
+     element sized past the visible area makes the whole page register as scrollable by that
+     difference, even though every page that mounts this (see useViewportHeight.ts) already keeps
+     its own content correctly shrunk to `--app-height`. Matching that same variable here keeps
+     this decorative layer from being the one thing on the page that doesn't shrink with it. */
+  height: var(--app-height, 100dvh);
   overflow: hidden;
   pointer-events: none;
 }
