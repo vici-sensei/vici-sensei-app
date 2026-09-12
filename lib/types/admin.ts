@@ -53,6 +53,17 @@ export interface StudentAchievement {
   earned_at: string;
 }
 
+/** Row shape of get_admin_dashboard_stats() (see 20261113_admin_dashboard_stats_rpc.sql). */
+export interface AdminDashboardStats {
+  total_students: number;
+  new_students_7d: number;
+  active_today: number;
+  active_7d: number;
+  reviews_today: number;
+  new_leads_7d: number;
+  leads_uncontacted: number;
+}
+
 export interface StudentDetail {
   id: string;
   display_name: string | null;

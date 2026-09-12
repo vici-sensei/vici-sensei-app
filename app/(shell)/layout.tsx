@@ -56,7 +56,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
             <Header user={profile} />
             <div className="flex w-full flex-1">
               <NavBar />
-              <main className="flex-1 p-5">
+              <main className="min-w-0 flex-1 p-5">
                 <OfflineBanner />
                 {children}
               </main>

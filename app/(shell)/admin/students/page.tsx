@@ -36,7 +36,7 @@ export default function AdminStudentsPage() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: "Teacher", href: "/admin/students" }, { label: "Students" }]} />
+      <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Students" }]} />
       <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Students</h1>
       <p className="mb-5 text-base leading-[1.6] text-text-muted text-center md:text-left">
         Your students&apos; progress and activity.

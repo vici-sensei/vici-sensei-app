@@ -103,7 +103,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
       <div>
         <Breadcrumbs
           items={[
-            { label: "Teacher", href: "/admin/students" },
+            { label: "Teacher", href: "/admin" },
             { label: "Students", href: "/admin/students" },
             { label: "Not found" },
           ]}
@@ -124,7 +124,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
       <div>
         <Breadcrumbs
           items={[
-            { label: "Teacher", href: "/admin/students" },
+            { label: "Teacher", href: "/admin" },
             { label: "Students", href: "/admin/students" },
             { label: student?.display_name || student?.email || "…" },
           ]}
@@ -142,7 +142,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 md:grid-cols-6">
             <div>
               <div className="text-xs text-text-muted">Email</div>
-              <div className="font-semibold">{student.email}</div>
+              <div className="font-semibold break-all">{student.email}</div>
             </div>
             <div>
               <div className="text-xs text-text-muted">Joined</div>
@@ -204,8 +204,8 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
           ) : (
             <>
               <ActivityHeatmap days={dailyActivity ?? []} />
-              <div className="mt-5 max-h-96 overflow-y-auto">
-                <table className="w-full break-words text-left text-sm">
+              <div className="mt-5 max-h-96 overflow-x-auto overflow-y-auto">
+                <table className="w-full min-w-100 break-words text-left text-sm">
                   <thead>
                     <tr className="border-b border-border-soft text-text-muted">
                       <th className="w-6 px-2 py-2" />
@@ -388,7 +388,7 @@ function AdminStudentDetailFromQuery() {
       <div>
         <Breadcrumbs
           items={[
-            { label: "Teacher", href: "/admin/students" },
+            { label: "Teacher", href: "/admin" },
             { label: "Students", href: "/admin/students" },
           ]}
         />

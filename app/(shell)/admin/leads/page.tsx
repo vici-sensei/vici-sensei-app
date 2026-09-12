@@ -27,7 +27,7 @@ export default function AdminLeadsPage() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: "Teacher", href: "/admin/students" }, { label: "Leads" }]} />
+      <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Leads" }]} />
       <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Leads</h1>
       <p className="mb-7.5 text-base leading-[1.6] text-text-muted text-center md:text-left">
         Free lesson leads collected from the public signup form.
