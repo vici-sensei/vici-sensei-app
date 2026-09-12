@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaShieldHalved, FaSliders, FaUserShield } from "react-icons/fa6";
+import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaShieldHalved, FaSliders, FaChalkboardUser, FaUserGraduate, FaInbox } from "react-icons/fa6";
 
 export interface SubNavItem {
   href: string;
@@ -81,10 +81,24 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    href: "/admin",
-    label: "Admin",
+    href: "/admin/students",
+    label: "Teacher",
     isActive: (p) => p.startsWith("/admin"),
-    icon: <FaUserShield />,
+    icon: <FaChalkboardUser />,
     adminOnly: true,
+    subItems: [
+      {
+        href: "/admin/students",
+        label: "Elevi",
+        isActive: (p) => p.startsWith("/admin/students"),
+        icon: <FaUserGraduate />,
+      },
+      {
+        href: "/admin/leads",
+        label: "Leads",
+        isActive: (p) => p.startsWith("/admin/leads"),
+        icon: <FaInbox />,
+      },
+    ],
   },
 ];
