@@ -89,7 +89,7 @@ export const NAV_ITEMS: NavItem[] = [
     subItems: [
       {
         href: "/admin/students",
-        label: "Elevi",
+        label: "Students",
         isActive: (p) => p.startsWith("/admin/students"),
         icon: <FaUserGraduate />,
       },

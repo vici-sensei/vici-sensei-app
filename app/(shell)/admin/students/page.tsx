@@ -13,7 +13,7 @@ import type { StudentRosterRow } from "@/lib/types";
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
 function formatLastActive(date: string | null): string {
-  if (!date) return "Niciodată";
+  if (!date) return "Never";
   return dateFormatter.format(new Date(date));
 }
 
@@ -35,16 +35,16 @@ export default function AdminStudentsPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Elevi</h1>
+      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Students</h1>
       <p className="mb-5 text-base leading-[1.6] text-text-muted text-center md:text-left">
-        Progresul și activitatea elevilor tăi.
+        Your students&apos; progress and activity.
       </p>
 
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Caută după nume sau email..."
+        placeholder="Search by name or email..."
         className="mb-5 w-full max-w-sm rounded-xl border border-border-soft bg-bg-cards px-4 py-2.5 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
       />
 
@@ -52,11 +52,11 @@ export default function AdminStudentsPage() {
         <table className="w-full min-w-150 break-words text-left text-sm">
           <thead>
             <tr className="border-b border-border-soft text-text-muted">
-              <th className="px-3 py-2.5 font-semibold">Nume</th>
-              <th className="px-3 py-2.5 font-semibold">Ultima activitate</th>
+              <th className="px-3 py-2.5 font-semibold">Name</th>
+              <th className="px-3 py-2.5 font-semibold">Last active</th>
               <th className="px-3 py-2.5 font-semibold">Streak</th>
-              <th className="px-3 py-2.5 font-semibold">Review-uri</th>
-              <th className="px-3 py-2.5 font-semibold">Înscris</th>
+              <th className="px-3 py-2.5 font-semibold">Reviews</th>
+              <th className="px-3 py-2.5 font-semibold">Joined</th>
             </tr>
           </thead>
           <tbody>
@@ -71,14 +71,14 @@ export default function AdminStudentsPage() {
             {status === "error" && (
               <tr>
                 <td className="px-3 py-6 text-center text-text-muted" colSpan={5}>
-                  Nu am putut încărca lista de elevi.
+                  Failed to load student list.
                 </td>
               </tr>
             )}
             {status === "loaded" && filtered.length === 0 && (
               <tr>
                 <td className="px-3 py-6 text-center text-text-muted" colSpan={5}>
-                  {students?.length === 0 ? "Niciun elev încă." : "Niciun rezultat."}
+                  {students?.length === 0 ? "No students yet." : "No results."}
                 </td>
               </tr>
             )}

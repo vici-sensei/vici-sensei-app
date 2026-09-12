@@ -100,9 +100,9 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   if (studentStatus === "loaded" && !student) {
     return (
       <div>
-        <p className="text-text-muted">Elevul nu a fost găsit.</p>
+        <p className="text-text-muted">Student not found.</p>
         <Link href="/admin/students" className="text-accent-red hover:underline">
-          Înapoi la listă
+          Back to list
         </Link>
       </div>
     );
@@ -115,7 +115,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
     <div className="flex flex-col gap-6">
       <div>
         <Link href="/admin/students" className="mb-3 inline-block text-sm text-text-muted hover:text-white">
-          ← Toți elevii
+          ← All students
         </Link>
         <h1 className="text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
           {student?.display_name || student?.email || <Skeleton className="h-9 w-48" />}
@@ -133,50 +133,50 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
               <div className="font-semibold">{student.email}</div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Înscris</div>
+              <div className="text-xs text-text-muted">Joined</div>
               <div className="font-semibold">{dateFormatter.format(new Date(student.created_at))}</div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Streak curent</div>
-              <div className="font-semibold">{student.current_streak} zile</div>
+              <div className="text-xs text-text-muted">Current streak</div>
+              <div className="font-semibold">{student.current_streak} days</div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Cel mai lung streak</div>
-              <div className="font-semibold">{student.longest_streak} zile</div>
+              <div className="text-xs text-text-muted">Longest streak</div>
+              <div className="font-semibold">{student.longest_streak} days</div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Ultima activitate</div>
+              <div className="text-xs text-text-muted">Last active</div>
               <div className="font-semibold">
-                {student.last_active_date ? dateFormatter.format(new Date(student.last_active_date)) : "Niciodată"}
+                {student.last_active_date ? dateFormatter.format(new Date(student.last_active_date)) : "Never"}
               </div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Acuratețe (30 zile)</div>
+              <div className="text-xs text-text-muted">Accuracy (30 days)</div>
               <div className="font-semibold">
                 {student.retention_rate == null ? "—" : `${Math.round(student.retention_rate * 100)}%`}
               </div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Traseu de studiu</div>
+              <div className="text-xs text-text-muted">Study track</div>
               <div className="font-semibold capitalize">{student.study_track ?? "—"}</div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Niveluri JLPT</div>
+              <div className="text-xs text-text-muted">JLPT levels</div>
               <div className="font-semibold">{student.enabled_levels.join(", ") || "—"}</div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Ținte zilnice</div>
+              <div className="text-xs text-text-muted">Daily targets</div>
               <div className="font-semibold">
                 {student.study_track === "kana"
-                  ? `${student.new_hiragana_per_day ?? 0}H / ${student.new_katakana_per_day ?? 0}K noi`
-                  : `${student.new_kanji_per_day ?? 0}漢 / ${student.new_vocab_per_day ?? 0}語 noi`}
+                  ? `${student.new_hiragana_per_day ?? 0}H / ${student.new_katakana_per_day ?? 0}K new`
+                  : `${student.new_kanji_per_day ?? 0}漢 / ${student.new_vocab_per_day ?? 0}語 new`}
                 {" · "}
-                {student.max_reviews_per_day ?? 0} review-uri max
+                {student.max_reviews_per_day ?? 0} max reviews
               </div>
             </div>
             {student.pending_deletion_at && (
               <div className="col-span-full">
-                <Badge color="red">Cont în curs de ștergere</Badge>
+                <Badge color="red">Account pending deletion</Badge>
               </div>
             )}
           </div>
@@ -185,7 +185,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
 
       {/* Daily activity */}
       <section>
-        <h2 className="mb-3 text-lg font-bold">Activitate zilnică</h2>
+        <h2 className="mb-3 text-lg font-bold">Daily activity</h2>
         <GlassCard>
           {activityStatus === "loading" ? (
             <Skeleton className="h-24 w-full" />
@@ -197,9 +197,9 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
                   <thead>
                     <tr className="border-b border-border-soft text-text-muted">
                       <th className="w-6 px-2 py-2" />
-                      <th className="px-2 py-2 font-semibold">Data</th>
-                      <th className="px-2 py-2 font-semibold">Review-uri</th>
-                      <th className="px-2 py-2 font-semibold">Elemente noi</th>
+                      <th className="px-2 py-2 font-semibold">Date</th>
+                      <th className="px-2 py-2 font-semibold">Reviews</th>
+                      <th className="px-2 py-2 font-semibold">New items</th>
                       <th className="px-2 py-2 font-semibold">XP</th>
                     </tr>
                   </thead>
@@ -207,7 +207,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
                     {daysWithActivity.length === 0 && (
                       <tr>
                         <td className="px-2 py-4 text-center text-text-muted" colSpan={5}>
-                          Nicio activitate încă.
+                          No activity yet.
                         </td>
                       </tr>
                     )}
@@ -233,7 +233,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
                               ) : (
                                 <div className="flex flex-wrap gap-2">
                                   {(dayEntries[day.day] ?? []).length === 0 ? (
-                                    <span className="text-sm text-text-muted">Fără detalii de review pentru această zi.</span>
+                                    <span className="text-sm text-text-muted">No review details for this day.</span>
                                   ) : (
                                     (dayEntries[day.day] ?? []).map((entry) => (
                                       <span
@@ -270,14 +270,14 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
 
       {/* Knowledge */}
       <section>
-        <h2 className="mb-3 text-lg font-bold">Ce știe</h2>
+        <h2 className="mb-3 text-lg font-bold">What they know</h2>
         {!knowledge ? (
           <GlassCard>
             <Skeleton className="h-20 w-full" />
           </GlassCard>
         ) : knowledgeBlocks.length === 0 ? (
           <GlassCard>
-            <p className="text-text-muted">Niciun progres încă.</p>
+            <p className="text-text-muted">No progress yet.</p>
           </GlassCard>
         ) : (
           <div className="flex flex-col gap-3">
@@ -313,12 +313,12 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
 
       {/* Tests */}
       <section>
-        <h2 className="mb-3 text-lg font-bold">Teste</h2>
+        <h2 className="mb-3 text-lg font-bold">Tests</h2>
         <GlassCard padding="sm">
           {testStatus === "loading" ? (
             <Skeleton className="h-16 w-full" />
           ) : (testResults ?? []).length === 0 ? (
-            <p className="p-2 text-text-muted">Niciun test susținut încă.</p>
+            <p className="p-2 text-text-muted">No tests taken yet.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {(testResults ?? []).map((result) => (
@@ -328,7 +328,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
                 >
                   <div>
                     <span className="font-semibold capitalize">{result.test_type}</span>
-                    <span className="ml-2 text-sm text-text-muted">încercarea #{result.attempt_number}</span>
+                    <span className="ml-2 text-sm text-text-muted">attempt #{result.attempt_number}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-text-muted">{dateFormatter.format(new Date(result.earned_at))}</span>
@@ -346,7 +346,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
       {/* Achievements */}
       {achievements && achievements.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-bold">Realizări</h2>
+          <h2 className="mb-3 text-lg font-bold">Achievements</h2>
           <div className="flex flex-wrap gap-2">
             {achievements.map((a) => {
               const entry = ACHIEVEMENT_CATALOG.find((c) => c.achievementKey === a.achievement_key);
@@ -374,9 +374,9 @@ function AdminStudentDetailFromQuery() {
   if (!studentId) {
     return (
       <div>
-        <p className="text-text-muted">Niciun elev selectat.</p>
+        <p className="text-text-muted">No student selected.</p>
         <Link href="/admin/students" className="text-accent-red hover:underline">
-          Înapoi la listă
+          Back to list
         </Link>
       </div>
     );
