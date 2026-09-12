@@ -316,11 +316,11 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
 
   return (
     <div
-      className="overflow-y-auto p-8"
+      className="overflow-hidden p-8"
       style={{ height: "var(--app-height, 100dvh)" }}
     >
-      <div className="mx-auto w-full max-w-[640px] h-full flex flex-col gap-4 items-center">
-        <div className="flex flex-row w-full gap-8 items-center">
+      <div className="mx-auto w-full max-w-[640px] h-full flex flex-col gap-4 items-center overflow-hidden">
+        <div className="shrink-0 flex flex-row w-full gap-8 items-center">
           <ReadingTestCloseButton />
           <div className="w-full flex flex-col gap-1">
             <div className="flex items-center justify-between text-[0.85rem] font-bold tabular-nums text-text-muted leading-none">
@@ -347,28 +347,39 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
           </div>
         </div>
 
-        <ReadingTestSentenceRow
-          key={`row-${currentSentence.id}`}
-          sentence={currentSentence}
-          kanaRomajiMap={kanaRomajiMap}
-          testType={testType}
-          initialAnswer={progress.get(currentSentence.id) ?? null}
-          onNext={handleNext}
-          onAnswerSlotReady={setAnswerSlot}
-        />
-        {progress.has(currentSentence.id) ? (
-          <button
-            key={`next-${currentSentence.id}`}
-            type="button"
-            onClick={handleNext}
-            autoFocus
-            className="w-fit cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white transition-colors hover:border-white/20 hover:bg-white/[0.07]"
-          >
-            Next
-          </button>
-        ) : (
-          answerForm
-        )}
+        {/* The only scrollable region -- min-h-0 lets it shrink below its content's natural
+            height instead of pushing the header/footer off-screen, and its own overflow-y-auto
+            keeps any overflow an internal scrollbar here rather than a whole-page one. Just as
+            important for the on-screen keyboard: since this is the sole scrollable ancestor,
+            the browser's native "scroll focused input into view" can only ever act on this
+            region, never on the header or the Check/Next row below it. */}
+        <div className="min-h-0 flex-1 w-full overflow-y-auto flex flex-col items-center">
+          <ReadingTestSentenceRow
+            key={`row-${currentSentence.id}`}
+            sentence={currentSentence}
+            kanaRomajiMap={kanaRomajiMap}
+            testType={testType}
+            initialAnswer={progress.get(currentSentence.id) ?? null}
+            onNext={handleNext}
+            onAnswerSlotReady={setAnswerSlot}
+          />
+        </div>
+
+        <div className="shrink-0">
+          {progress.has(currentSentence.id) ? (
+            <button
+              key={`next-${currentSentence.id}`}
+              type="button"
+              onClick={handleNext}
+              autoFocus
+              className="w-fit cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white transition-colors hover:border-white/20 hover:bg-white/[0.07]"
+            >
+              Next
+            </button>
+          ) : (
+            answerForm
+          )}
+        </div>
       </div>
     </div>
   );
