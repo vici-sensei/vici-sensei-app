@@ -19,25 +19,44 @@ import type { ReadingTestCtaState } from "@/lib/types";
 const READING_TEST_CTA_CLASSES =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-accent-gold/30 bg-black/30 px-8 py-[15px] text-base font-bold text-center text-accent-gold backdrop-blur-[10px] transition-[border-color,background-color] duration-200 ease-out hover:border-accent-gold/40 hover:bg-accent-gold/[0.08]";
 
-// Button + reminder copy for each of reading_test_cta_state's four states (see
+// Button + reminder copy + link target for each of reading_test_cta_state's four states (see
 // 20261105_reading_test_cta_state.sql) -- `unlocks` is what passing the test unlocks ("katakana"
-// for the hiragana test, "kanji and vocabulary" for the katakana test).
-function readingTestCtaCopy(state: ReadingTestCtaState, unlocks: string): { button: string; reminder: string } {
+// for the hiragana test, "kanji and vocabulary" for the katakana test). `href` points at the test
+// page itself for not_started/in_progress/retry_in_progress -- each has a live (possibly
+// mid-pass) queue on the server that the test page just resumes -- but at the summary page for
+// retry_pending: that pass's queue is the just-finished full attempt, frozen at its last question,
+// and the only place with a button that actually calls retryWrong() (see SummaryContent's
+// handleRetry) to reopen the missed sentences and clear it. Linking retry_pending straight to the
+// test page instead would land back on that stale queue's last question -- already answered, from
+// the pass that just finished -- rather than a fresh retry of the missed words.
+function readingTestCtaCopy(
+  state: ReadingTestCtaState,
+  unlocks: string,
+  testType: "hiragana" | "katakana"
+): { button: string; reminder: string; href: string } {
+  const testHref = `/study/test/${testType}`;
+  const summaryHref = `${testHref}/summary`;
   switch (state) {
     case "not_started":
-      return { button: "Take the reading test", reminder: `Pass the reading test to unlock ${unlocks}!` };
+      return { button: "Take the reading test", reminder: `Pass the reading test to unlock ${unlocks}!`, href: testHref };
     case "in_progress":
       return {
         button: "Continue the reading test",
         reminder: `Keep going — finish the reading test to unlock ${unlocks}!`,
+        href: testHref,
       };
     case "retry_pending":
       return {
         button: "Retry the words you missed",
         reminder: `So close — retry the words you missed to unlock ${unlocks}!`,
+        href: summaryHref,
       };
     case "retry_in_progress":
-      return { button: "Continue your retry", reminder: `Almost there — finish retrying to unlock ${unlocks}!` };
+      return {
+        button: "Continue your retry",
+        reminder: `Almost there — finish retrying to unlock ${unlocks}!`,
+        href: testHref,
+      };
   }
 }
 
@@ -69,10 +88,10 @@ export function DashboardHero() {
   // Which of the four CTA states (not started / mid first pass / ready to retry / mid retry) each
   // test is in -- only meaningful while its CTA is showing, so left null otherwise.
   const hiraganaReadingTestCta = showHiraganaReadingTestCta
-    ? readingTestCtaCopy(stats?.hiragana_reading_test_state ?? "not_started", "katakana")
+    ? readingTestCtaCopy(stats?.hiragana_reading_test_state ?? "not_started", "katakana", "hiragana")
     : null;
   const katakanaReadingTestCta = showKatakanaReadingTestCta
-    ? readingTestCtaCopy(stats?.katakana_reading_test_state ?? "not_started", "kanji and vocabulary")
+    ? readingTestCtaCopy(stats?.katakana_reading_test_state ?? "not_started", "kanji and vocabulary", "katakana")
     : null;
   const readingTestReminder = hiraganaReadingTestCta?.reminder ?? katakanaReadingTestCta?.reminder ?? null;
   // Gated on each study_* flag -- e.g. study_katakana stays false until every hiragana has
@@ -195,12 +214,12 @@ export function DashboardHero() {
       </div>
       <div className="flex flex-wrap items-center justify-center w-full gap-3 sm:items-start sm:justify-start sm:w-fit">
         {hiraganaReadingTestCta && (
-          <Link href="/study/test/hiragana" className={READING_TEST_CTA_CLASSES}>
+          <Link href={hiraganaReadingTestCta.href} className={READING_TEST_CTA_CLASSES}>
             {hiraganaReadingTestCta.button}
           </Link>
         )}
         {katakanaReadingTestCta && (
-          <Link href="/study/test/katakana" className={READING_TEST_CTA_CLASSES}>
+          <Link href={katakanaReadingTestCta.href} className={READING_TEST_CTA_CLASSES}>
             {katakanaReadingTestCta.button}
           </Link>
         )}
