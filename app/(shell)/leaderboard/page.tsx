@@ -47,7 +47,7 @@ export default function LeaderboardPage() {
         </>
       )}
       {metric === "xp" ? (
-        <p className="mb-5.5 text-sm text-text-muted">Earn 10 XP for every correct review, 2 XP even if you miss one, and 25 XP for each new card you start.</p>
+        <p className="mb-5.5 text-sm text-text-muted">Earn 10 XP for every correct review, 2 XP even if you miss one, 25 XP for each new card you start, and 25 XP for every correct reading test answer.</p>
       ) : null}
       <LeaderboardList
         entries={data}
