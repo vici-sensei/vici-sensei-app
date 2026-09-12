@@ -92,9 +92,14 @@ export function useReadingTestProgress(
   }, [userId, testType]);
 
   const markAnswered = useCallback(
-    (sentenceId: number, correct: boolean, userAnswer: string) => {
+    async (sentenceId: number, correct: boolean, userAnswer: string) => {
       setProgress((prev) => new Map(prev).set(sentenceId, { correct, userAnswer }));
-      return submitReadingTestAnswer(createClient(), userId, testType, sentenceId, correct, userAnswer);
+      // The server may return a different (correct, userAnswer) than what was just submitted here --
+      // another device's Check for this same sentence landed first (see
+      // reading_test_submit_answer) -- so this device's optimistic guess above must be reconciled
+      // to whichever result is now actually stored, not left showing its own.
+      const authoritative = await submitReadingTestAnswer(createClient(), userId, testType, sentenceId, correct, userAnswer);
+      setProgress((prev) => new Map(prev).set(sentenceId, authoritative));
     },
     [userId, testType]
   );

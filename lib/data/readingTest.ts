@@ -40,9 +40,13 @@ export async function fetchReadingTestProgress(
   );
 }
 
-/** Persists one Check result, right or wrong. Upserts so answering the same sentence twice
- * (shouldn't happen through the UI, which locks a sentence the instant it has any result, but is
- * harmless either way) just refreshes the row instead of erroring on the unique constraint. */
+/** Persists one Check result, right or wrong -- first write wins across devices. Goes through
+ * reading_test_submit_answer (not a plain upsert) so a second device Checking the same sentence
+ * (e.g. it fetched progress before another device's Check landed, so the sentence still looked
+ * pending there) can never overwrite the result that's already stored -- same "no do-over" property
+ * a real test has. The returned row is whichever attempt actually landed first, which may differ
+ * from what THIS call just tried to write; the caller must treat it as authoritative rather than
+ * assuming its own (correct, userAnswer) took effect. */
 export async function submitReadingTestAnswer(
   supabase: AppSupabaseClient,
   userId: string,
@@ -50,19 +54,19 @@ export async function submitReadingTestAnswer(
   sentenceId: number,
   correct: boolean,
   userAnswer: string
-): Promise<void> {
-  const { error } = await supabase.from("user_reading_test_progress").upsert(
-    {
-      user_id: userId,
-      test_type: testType,
-      sentence_id: sentenceId,
-      correct,
-      user_answer: userAnswer,
-      attempted_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,sentence_id" }
-  );
+): Promise<ReadingTestAnswer> {
+  const { data, error } = await supabase
+    .rpc("reading_test_submit_answer", {
+      p_user_id: userId,
+      p_test_type: testType,
+      p_sentence_id: sentenceId,
+      p_correct: correct,
+      p_user_answer: userAnswer,
+    })
+    .single();
   if (error) throw new Error(error.message);
+  const row = data as { correct: boolean; user_answer: string };
+  return { correct: row.correct, userAnswer: row.user_answer };
 }
 
 export interface ReadingTestSession {

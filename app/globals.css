@@ -260,7 +260,7 @@ input:disabled ~ span {
     filter: drop-shadow(0 0 1px currentColor) brightness(1);
   }
   50% {
-    filter: drop-shadow(0 0 9px currentColor) brightness(1.4);
+    filter: drop-shadow(0 0 4px currentColor) brightness(1.15);
   }
 }
 

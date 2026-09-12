@@ -145,7 +145,7 @@ export function ReadingTestAnswerForm({
         <button
           type="submit"
           disabled={!answer.trim()}
-          className="shrink-0 cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white transition-colors enabled:hover:border-white/20 enabled:hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
+          className="shrink-0 cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white outline-none transition-colors enabled:hover:border-white/20 enabled:hover:bg-white/[0.07] enabled:focus-visible:border-white/20 disabled:cursor-not-allowed disabled:opacity-45"
         >
           Check
         </button>

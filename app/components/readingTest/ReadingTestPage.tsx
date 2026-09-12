@@ -372,7 +372,7 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
               type="button"
               onClick={handleNext}
               autoFocus
-              className="w-fit cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white transition-colors hover:border-white/20 hover:bg-white/[0.07]"
+              className="w-fit cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white outline-none transition-colors hover:border-white/20 hover:bg-white/[0.07] focus-visible:border-white/20"
             >
               Next
             </button>

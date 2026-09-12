@@ -14,7 +14,7 @@ function weekdayLabel(date: string) {
 // evaluated result of a template expression.
 const SWAY_CLASS = "origin-bottom animate-[vici-flame-sway_0.6s_ease-in-out_infinite_alternate]";
 const SWAY_AND_GLOW_CLASS =
-  "origin-bottom animate-[vici-flame-sway_0.6s_ease-in-out_infinite_alternate,vici-flame-glow_1s_ease-in-out_infinite]";
+  "origin-bottom animate-[vici-flame-sway_0.6s_ease-in-out_infinite_alternate,vici-flame-glow_3s_ease-in-out_infinite]";
 
 interface WeekStreakProps {
   /** Raw per-day activity for the last 7 days, oldest first, ending today. */

@@ -2,31 +2,30 @@
 
 import { useEffect } from "react";
 
-const VIEWPORT_EVENTS = ["resize", "scroll"] as const;
-
 // Keeps a `--app-height` custom property in sync with the visual viewport, which
 // shrinks live when the on-screen keyboard opens — unlike `100vh`/`window.innerHeight`,
 // which stay pinned to the full screen height on iOS Safari while the keyboard is up.
 // Consumers fall back to `100dvh` via the CSS var() default before this effect runs.
-// `position: fixed` positions relative to the *layout* viewport, so `--app-height` must be
-// the visual viewport's bottom edge in layout-viewport coordinates -- offsetTop + height, not
-// height alone. Without offsetTop, the value is wrong as soon as the browser scrolls the
-// visual viewport to bring a focused input above the keyboard (offsetTop > 0), and it goes
-// stale on every later scroll too: scrolling only changes offsetTop, which this would ignore.
+// Every consumer sizes a normal (statically positioned, top-of-document) element, not a
+// `position: fixed` one -- so this must be just the visible height (`viewport.height`).
+// Adding `offsetTop` (the visual viewport's pan distance, which is what a *fixed* element
+// pinned to the layout viewport would need to compensate for) would only be correct for a
+// fixed element; on a static one it inflates the height by however much the browser has
+// panned to bring a focused input above the keyboard, making the page taller/scrollable
+// instead of shrinking it to fit above the keyboard -- the opposite of the point here.
 export function useViewportHeight() {
   useEffect(() => {
     const viewport = window.visualViewport;
 
     function update() {
       const height = viewport?.height ?? window.innerHeight;
-      const offsetTop = viewport?.offsetTop ?? 0;
-      document.documentElement.style.setProperty("--app-height", `${offsetTop + height}px`);
+      document.documentElement.style.setProperty("--app-height", `${height}px`);
     }
 
     update();
-    VIEWPORT_EVENTS.forEach((event) => viewport?.addEventListener(event, update));
+    viewport?.addEventListener("resize", update);
     return () => {
-      VIEWPORT_EVENTS.forEach((event) => viewport?.removeEventListener(event, update));
+      viewport?.removeEventListener("resize", update);
     };
   }, []);
 }
