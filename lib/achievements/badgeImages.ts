@@ -23,7 +23,7 @@ export const BADGE_IMAGES: Record<string, string> = {
   // Ten-Ten
   hiragana_dakuten_1: "dragon.webp", // First Ten-Ten (Hiragana)
   hiragana_dakuten_5: "ema.webp", // 5 Ten-Ten (Hiragana)
-  hiragana_dakuten_10: "fujin.webp", // 10 Ten-Ten (Hiragana)
+  hiragana_dakuten_10: "fuji.webp", // 10 Ten-Ten (Hiragana)
   hiragana_dakuten_all: "geisha.webp", // All Ten-Ten (Hiragana)
   // Maru
   hiragana_handakuten_1: "Inari.webp", // First Maru (Hiragana)
@@ -88,39 +88,39 @@ export const BADGE_IMAGES: Record<string, string> = {
   kanji_total_50: "yumi.webp", // 50 Kanji
   kanji_n5_all: "nara.webp", // All N5 Kanji
   // N4
-  kanji_n4_1: "", // First N4 Kanji
-  kanji_total_100: "", // 100 Kanji
-  kanji_n4_all: "", // All N4 Kanji
+  kanji_n4_1: "ashikaga.webp", // First N4 Kanji
+  kanji_total_100: "bento.webp", // 100 Kanji
+  kanji_n4_all: "furin.webp", // All N4 Kanji
   // N3
-  kanji_n3_1: "", // First N3 Kanji
-  kanji_total_500: "", // 500 Kanji
-  kanji_n3_all: "", // All N3 Kanji
+  kanji_n3_1: "geta.webp", // First N3 Kanji
+  kanji_total_500: "gyouza.webp", // 500 Kanji
+  kanji_n3_all: "kanzashi.webp", // All N3 Kanji
   // N2
-  kanji_n2_1: "", // First N2 Kanji
-  kanji_n2_all: "", // All N2 Kanji
+  kanji_n2_1: "kintsugi.webp", // First N2 Kanji
+  kanji_n2_all: "shuriken.webp", // All N2 Kanji
   // N1
-  kanji_n1_1: "", // First N1 Kanji
-  kanji_total_1000: "", // 1000 Kanji
-  kanji_total_1500: "", // 1500 Kanji
-  kanji_total_2000: "", // 2000 Kanji
-  kanji_n1_all: "", // All N1 Kanji
+  kanji_n1_1: "temari.webp", // First N1 Kanji
+  kanji_total_1000: "wagasa.webp", // 1000 Kanji
+  kanji_total_1500: "teru.webp", // 1500 Kanji
+  kanji_total_2000: "origami.webp", // 2000 Kanji
+  kanji_n1_all: "onsen.webp", // All N1 Kanji
 
   // ===== Vocabulary =====
   // N5
-  word_total_1: "", // First Word
-  word_total_5: "", // 5 Words
-  word_total_10: "", // 10 Words
-  word_total_50: "", // 50 Words
-  word_total_100: "", // 100 Words
-  word_total_500: "", // 500 Words
-  word_n5_all: "", // All N5 Words
+  word_total_1: "shinkansen.webp", // First Word
+  word_total_5: "dotonbori.webp", // 5 Words
+  word_total_10: "mecha.webp", // 10 Words
+  word_total_50: "usagi.webp", // 50 Words
+  word_total_100: "kokeshi.webp", // 100 Words
+  word_total_500: "kawagoe.webp", // 500 Words
+  word_n5_all: "akihabara.webp", // All N5 Words
   // N4
-  word_n4_1: "", // First N4 Word
-  word_total_1000: "", // 1000 Words
-  word_n4_all: "", // All N4 Words
+  word_n4_1: "itsukushima.webp", // First N4 Word
+  word_total_1000: "namba.webp", // 1000 Words
+  word_n4_all: "tokyo_tower.webp", // All N4 Words
   // N3
-  word_n3_1: "", // First N3 Word
-  word_total_1500: "", // 1500 Words
+  word_n3_1: "shibuya.webp", // First N3 Word
+  word_total_1500: "owakudani.webp", // 1500 Words
   word_total_2000: "", // 2000 Words
   word_n3_all: "", // All N3 Words
   // N2
@@ -128,7 +128,7 @@ export const BADGE_IMAGES: Record<string, string> = {
   word_n2_all: "", // All N2 Words
   // N1
   word_n1_1: "", // First N1 Word
-  word_n1_all: "", // All N1 Words
+  word_n1_all: "yen.webp", // All N1 Words
 
   // ===== JLPT Levels =====
   n5_completed: "", // N5 Completed
