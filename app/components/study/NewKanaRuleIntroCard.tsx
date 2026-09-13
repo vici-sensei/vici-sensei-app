@@ -171,19 +171,28 @@ interface Props {
  * resolveRuleExampleRowLabel, lib/srs/gojuon.ts), fed by the `gojuon_row` each example carries
  * (20260906_kana_rule_examples_gojuon_row.sql).
  *
- * A rule with examples (sokuon/yoon/n_gemination/choonpu/extended) splits into a local 2-step
- * flow -- Step 1 the rule text (RuleNotesBox), Step 2 the example grid (RuleExamplesBox) -- so the
- * two boxes never have to share one card's height, with a "Back" button to return to Step 1. Back
- * only moves locally within this card (never re-touches the server) and is disabled on Step 1,
- * since there's nothing before it to go back to. A rule with no examples (seion/dakuten/handakuten
- * strip examples down to 0 -- see 20260905_kana_rule_examples_only.sql) keeps the original
- * single-step layout instead, with no Step counter and no Back button. */
+ * The rule text itself pages one blank-line-separated paragraph at a time (`notes.split` on a
+ * blank line -- the same convention renderKanaRuleNotes' whitespace-pre-line already relies on),
+ * so a longer rule (like the seion intro's "what is hiragana/katakana" -- three paragraphs) reads
+ * as several short screens instead of one tall scrolling block. A rule with examples (sokuon/
+ * yoon/n_gemination/choonpu/extended) appends one more step -- the example grid (RuleExamplesBox)
+ * -- after every notes paragraph. Every step gets a "Back" button, disabled on the first step
+ * since there's nothing before it to go back to; Back only moves locally within this card and
+ * never re-touches the server. A rule whose notes are a single paragraph and has no examples
+ * (dakuten/handakuten) collapses to one step, with no Step counter and no Back button, same as
+ * before this paragraph-paging was added. */
 export function NewKanaRuleIntroCard({ candidate, script, disabled, onConfirm }: Props) {
   const examples = candidate.examples;
   const hasExamples = examples.length > 0;
-  const [step, setStep] = useState<1 | 2>(1);
+  // Split on a blank line -- the same paragraph convention the notes column already uses (see
+  // 20260829_rule_notes_paragraphs_and_bold.sql) -- so a multi-paragraph rule pages one paragraph
+  // per step instead of cramming them all into one scrolling box.
+  const notesParagraphs = candidate.notes ? candidate.notes.split(/\n\s*\n/) : [];
+  const totalSteps = notesParagraphs.length + (hasExamples ? 1 : 0);
+  const [step, setStep] = useState(1);
   const [gateDisabled, setGateDisabled] = useState(false);
   const nextDisabled = disabled || gateDisabled;
+  const isExamplesStep = hasExamples && step === totalSteps;
   // Survive RuleExamplesBox unmounting on "Back" -- see its own doc comment.
   const examplesScrollTopRef = useRef(0);
   const examplesEverScrolledToBottomRef = useRef(false);
@@ -191,13 +200,13 @@ export function NewKanaRuleIntroCard({ candidate, script, disabled, onConfirm }:
   const goBack = () => {
     if (step === 1) return;
     setGateDisabled(true);
-    setStep(1);
+    setStep((s) => s - 1);
   };
 
   const goNext = () => {
-    if (hasExamples && step === 1) {
+    if (step < totalSteps) {
       setGateDisabled(true);
-      setStep(2);
+      setStep((s) => s + 1);
     } else {
       onConfirm();
     }
@@ -214,11 +223,11 @@ export function NewKanaRuleIntroCard({ candidate, script, disabled, onConfirm }:
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextDisabled, hasExamples, step]);
+  }, [nextDisabled, step, totalSteps]);
 
   return (
     <StudyCardShell
-      label={hasExamples ? `New ${script} rule · Step ${step} of 2` : `New ${script} rule`}
+      label={totalSteps > 1 ? `New ${script} rule · Step ${step} of ${totalSteps}` : `New ${script} rule`}
       accent="gold"
       size="lg"
       layout="column"
@@ -235,11 +244,11 @@ export function NewKanaRuleIntroCard({ candidate, script, disabled, onConfirm }:
         )}
       </div>
 
-      {candidate.notes && (!hasExamples || step === 1) && (
-        <RuleNotesBox notes={candidate.notes} onGatingChange={setGateDisabled} />
+      {!isExamplesStep && notesParagraphs.length > 0 && (
+        <RuleNotesBox key={step} notes={notesParagraphs[step - 1]} onGatingChange={setGateDisabled} />
       )}
 
-      {hasExamples && step === 2 && (
+      {isExamplesStep && (
         <RuleExamplesBox
           examples={examples}
           kanaType={candidate.kana_type}
@@ -255,7 +264,7 @@ export function NewKanaRuleIntroCard({ candidate, script, disabled, onConfirm }:
         />
       )}
 
-      {hasExamples ? (
+      {totalSteps > 1 ? (
         <div className="mt-4 flex shrink-0 justify-center gap-3">
           <Button variant="secondary" disabled={step === 1} onClick={goBack}>
             Back

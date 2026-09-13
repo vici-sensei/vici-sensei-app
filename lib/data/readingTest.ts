@@ -17,6 +17,15 @@ export async function fetchReadingTestSentences(
 export interface ReadingTestAnswer {
   correct: boolean;
   userAnswer: string;
+  /** When this result was actually written (user_reading_test_progress.attempted_at) -- lets a
+   * caller tell a fresh-this-retry answer apart from one left over from an earlier attempt (a
+   * correct row is never rewritten, so its timestamp always predates a later retry) by comparing
+   * against user_reading_test_attempts.updated_at (see fetchReadingTestAttempt). Synthesized
+   * client-side (not the real server value) in markAnswered's optimistic/authoritative writes
+   * below, since reading_test_submit_answer doesn't return it -- harmless there, since the only
+   * place that actually reads this field (the summary page) always re-fetches this map fresh from
+   * the server rather than reusing the test page's local state. */
+  attemptedAt: string;
 }
 
 /** Every sentence this user has already attempted for this test, right or wrong -- a sentence
@@ -31,12 +40,15 @@ export async function fetchReadingTestProgress(
 ): Promise<Map<number, ReadingTestAnswer>> {
   const { data, error } = await supabase
     .from("user_reading_test_progress")
-    .select("sentence_id, correct, user_answer")
+    .select("sentence_id, correct, user_answer, attempted_at")
     .eq("user_id", userId)
     .eq("test_type", testType);
   if (error) throw new Error(error.message);
   return new Map(
-    (data ?? []).map((row) => [row.sentence_id as number, { correct: row.correct, userAnswer: row.user_answer }])
+    (data ?? []).map((row) => [
+      row.sentence_id as number,
+      { correct: row.correct, userAnswer: row.user_answer, attemptedAt: row.attempted_at },
+    ])
   );
 }
 
@@ -66,7 +78,7 @@ export async function submitReadingTestAnswer(
     .single();
   if (error) throw new Error(error.message);
   const row = data as { correct: boolean; user_answer: string };
-  return { correct: row.correct, userAnswer: row.user_answer };
+  return { correct: row.correct, userAnswer: row.user_answer, attemptedAt: new Date().toISOString() };
 }
 
 export interface ReadingTestSession {
@@ -204,20 +216,36 @@ export async function resetWrongAnswers(supabase: AppSupabaseClient, userId: str
   if (error) throw new Error(error.message);
 }
 
-/** Which attempt of this test the user is currently on -- 1 until their first retry, then
- * however many times they've reopened their wrong answers (see reading_test_retry_wrong). Same
- * number public.reading_test_progress_updates_badge stamps onto their badge for this test. */
+export interface ReadingTestAttemptInfo {
+  /** 1 until their first retry, then however many times they've reopened their wrong answers
+   * (see reading_test_retry_wrong). Same number public.reading_test_progress_updates_badge
+   * stamps onto their badge for this test. */
+  attempt: number;
+  /** When the current attempt began -- user_reading_test_attempts.updated_at, which only ever
+   * moves on a retry (reading_test_retry_wrong sets it atomically with the bump above; every
+   * other writer to this row -- markReadingTestStarted, saveReadingTestDraft, clearReadingTestDraft
+   * -- upserts without touching it). null only for a user who's never even started this test.
+   * Lets the summary page tell "answered just now, in this retry" apart from "left over from an
+   * earlier attempt" by comparing against a progress row's attemptedAt (see ReadingTestAnswer). */
+  attemptStartedAt: string | null;
+}
+
+/** Reads straight from the table (same RLS as a direct upsert would use, see
+ * fetchReadingTestSession above) rather than through reading_test_current_attempt, since that RPC
+ * only ever surfaced attempt_number and this also needs updated_at. */
 export async function fetchReadingTestAttempt(
   supabase: AppSupabaseClient,
   userId: string,
   testType: string
-): Promise<number> {
-  const { data, error } = await supabase.rpc("reading_test_current_attempt", {
-    p_user_id: userId,
-    p_test_type: testType,
-  });
+): Promise<ReadingTestAttemptInfo> {
+  const { data, error } = await supabase
+    .from("user_reading_test_attempts")
+    .select("attempt_number, updated_at")
+    .eq("user_id", userId)
+    .eq("test_type", testType)
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  return data ?? 1;
+  return { attempt: data?.attempt_number ?? 1, attemptStartedAt: data?.updated_at ?? null };
 }
 
 /** Whether the user has 100%'d this test -- see public.reading_test_passed

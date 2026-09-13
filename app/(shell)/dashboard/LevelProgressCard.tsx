@@ -268,20 +268,20 @@ export function LevelProgressCard() {
   if (isKana) {
     return (
       <div className="flex flex-col gap-5">
-        {stats?.study_hiragana && (
-          <KanaProgressCard
-            centerLabel="あ"
-            rings={HIRAGANA_RULE_RINGS}
-            rules={progress?.hiragana_rules}
-            ariaLabel="Hiragana progress details"
-          />
-        )}
         {stats?.study_katakana && (
           <KanaProgressCard
             centerLabel="ア"
             rings={KATAKANA_RULE_RINGS}
             rules={progress?.katakana_rules}
             ariaLabel="Katakana progress details"
+          />
+        )}
+        {stats?.study_hiragana && (
+          <KanaProgressCard
+            centerLabel="あ"
+            rings={HIRAGANA_RULE_RINGS}
+            rules={progress?.hiragana_rules}
+            ariaLabel="Hiragana progress details"
           />
         )}
       </div>

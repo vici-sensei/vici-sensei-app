@@ -44,13 +44,28 @@ function SummaryContent() {
     error: progressError,
     retryWrong,
   } = useReadingTestProgress(user.id, TEST_TYPE);
-  const { attempt } = useReadingTestAttempt(user.id, TEST_TYPE);
+  const { attempt, attemptStartedAt } = useReadingTestAttempt(user.id, TEST_TYPE);
   const [retrying, setRetrying] = useState(false);
 
   const total = sentences?.length ?? 0;
   const correct = progress ? [...progress.values()].filter((a) => a.correct).length : 0;
   const passed = total > 0 && correct >= total;
-  const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  // On a retry (attempt > 1), correct/total above cover the whole test's history -- including
+  // sentences answered right back on attempt 1, which are locked and never re-asked (see
+  // resetWrongAnswers). Showing those alongside a handful of just-reopened sentences would read
+  // as "you got 18/20" when really only 2 were even asked this time. Once retrying, show this
+  // retry's own tally instead: every progress row stamped after this attempt started (a locked
+  // correct answer's attemptedAt always predates that, since it's never rewritten -- see
+  // ReadingTestAnswer/fetchReadingTestAttempt) is a fresh answer from this retry's reopened set.
+  const isRetry = attempt !== null && attempt > 1;
+  const retryAnswers =
+    isRetry && progress && attemptStartedAt
+      ? [...progress.values()].filter((a) => new Date(a.attemptedAt) >= new Date(attemptStartedAt))
+      : [];
+  const displayCorrect = isRetry ? retryAnswers.filter((a) => a.correct).length : correct;
+  const displayTotal = isRetry ? retryAnswers.length : total;
+  const percent = displayTotal > 0 ? Math.round((displayCorrect / displayTotal) * 100) : 0;
 
   useEffect(() => {
     if (passed && !justFinished) {
@@ -142,15 +157,10 @@ function SummaryContent() {
         </p>
         <div className="mb-8.5 rounded-2xl border border-border-soft bg-bg-cards px-6 py-8 backdrop-blur-[10px]">
           <div className="text-[2.4rem] font-extrabold leading-none tracking-tight">
-            {correct}
-            <span className="text-[1.3rem] text-text-muted">/{total}</span>
+            {displayCorrect}
+            <span className="text-[1.3rem] text-text-muted">/{displayTotal}</span>
           </div>
           <div className="mt-1.5 text-sm font-semibold text-text-muted">{percent}% correct</div>
-          {attempt != null && (
-            <div className="mt-1 text-xs font-semibold uppercase tracking-[0.6px] text-text-muted/70">
-              Attempt #{attempt}
-            </div>
-          )}
         </div>
         {passed ? (
           <Button className="w-full" onClick={() => router.push("/dashboard")}>

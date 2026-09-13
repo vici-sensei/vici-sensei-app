@@ -153,7 +153,7 @@ export function AchievementCard({ entry }: { entry: AchievementCatalogEntry }) {
         textClass="text-accent-gold"
       />
       <div className="min-w-0">
-        <div className="truncate text-[0.9rem] font-bold text-white">{entry.title}</div>
+        <div className="text-[0.9rem] font-bold text-white">{entry.title}</div>
         <div className="mt-0.5 text-[0.8rem] text-text-muted">{entry.description}</div>
       </div>
     </div>
@@ -177,7 +177,7 @@ export function LockedAchievementCard({ entry }: { entry: AchievementCatalogEntr
         textClass="text-text-muted"
       />
       <div className="min-w-0">
-        <div className="truncate text-[0.9rem] font-bold text-white">{entry.title}</div>
+        <div className="text-[0.9rem] font-bold text-white">{entry.title}</div>
         <div className="mt-0.5 text-[0.8rem] text-text-muted">{entry.lockedDescription}</div>
       </div>
     </div>

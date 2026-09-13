@@ -364,12 +364,25 @@ export default function DashboardPage() {
   // Assume enabled while stats haven't loaded yet, so the card doesn't flash in once they do --
   // once loaded, hide it if the user has turned that category off (at least one of the current
   // track's pair always stays on, so this never hides both).
-  const showPrimary = stats ? (isKana ? stats.study_hiragana : stats.study_kanji) : true;
-  const showSecondary = stats ? (isKana ? stats.study_katakana : stats.study_vocabulary) : true;
+  const showKatakanaCard = stats ? stats.study_katakana : true;
+  // Also hides once there's nothing left to introduce today AND nothing was introduced today --
+  // unlike new_hiragana_limit - new_hiragana_today, new_hiragana_available already accounts for
+  // there simply not being enough not-yet-seen hiragana left (see fetchStudyStats), so this never
+  // hides the card while there's still real work to show for it.
+  const showHiraganaCard = stats
+    ? stats.study_hiragana && !(stats.new_hiragana_available === 0 && stats.new_hiragana_today === 0)
+    : true;
+  const showKanjiCard = stats ? stats.study_kanji : true;
+  const showVocabCard = stats ? stats.study_vocabulary : true;
 
   const statCards: React.ReactNode[] = [];
-  if (showPrimary) statCards.push(isKana ? <NewHiraganaCard key="primary" /> : <NewKanjiCard key="primary" />);
-  if (showSecondary) statCards.push(isKana ? <NewKatakanaCard key="secondary" /> : <NewVocabCard key="secondary" />);
+  if (isKana) {
+    if (showKatakanaCard) statCards.push(<NewKatakanaCard key="primary" />);
+    if (showHiraganaCard) statCards.push(<NewHiraganaCard key="secondary" />);
+  } else {
+    if (showKanjiCard) statCards.push(<NewKanjiCard key="primary" />);
+    if (showVocabCard) statCards.push(<NewVocabCard key="secondary" />);
+  }
   statCards.push(<ReviewsTodayCard key="reviews" />);
   statCards.push(<AccuracyCard key="accuracy" />);
 

@@ -93,7 +93,7 @@ export function useReadingTestProgress(
 
   const markAnswered = useCallback(
     async (sentenceId: number, correct: boolean, userAnswer: string) => {
-      setProgress((prev) => new Map(prev).set(sentenceId, { correct, userAnswer }));
+      setProgress((prev) => new Map(prev).set(sentenceId, { correct, userAnswer, attemptedAt: new Date().toISOString() }));
       // The server may return a different (correct, userAnswer) than what was just submitted here --
       // another device's Check for this same sentence landed first (see
       // reading_test_submit_answer) -- so this device's optimistic guess above must be reconciled
@@ -195,14 +195,15 @@ export function useReadingTestSession(
   return { session, status, error, markStarted, ensureQueue, advance, saveDraft, clearDraft };
 }
 
-/** Which attempt of this test the user is currently on (see fetchReadingTestAttempt) -- fetched
- * once per mount, since the only thing that changes it (retryWrong above) lives on a different
- * page than the summary screen that displays it. */
+/** Which attempt of this test the user is currently on, and when it started (see
+ * fetchReadingTestAttempt) -- fetched once per mount, since the only thing that changes it
+ * (retryWrong above) lives on a different page than the summary screen that displays it. */
 export function useReadingTestAttempt(
   userId: string,
   testType: string
-): { attempt: number | null; status: AsyncStatus; error: string | null } {
+): { attempt: number | null; attemptStartedAt: string | null; status: AsyncStatus; error: string | null } {
   const [attempt, setAttempt] = useState<number | null>(null);
+  const [attemptStartedAt, setAttemptStartedAt] = useState<string | null>(null);
   const [status, setStatus] = useState<AsyncStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 
@@ -211,7 +212,8 @@ export function useReadingTestAttempt(
     fetchReadingTestAttempt(createClient(), userId, testType)
       .then((value) => {
         if (cancelled) return;
-        setAttempt(value);
+        setAttempt(value.attempt);
+        setAttemptStartedAt(value.attemptStartedAt);
         setStatus("loaded");
       })
       .catch((err) => {
@@ -224,5 +226,5 @@ export function useReadingTestAttempt(
     };
   }, [userId, testType]);
 
-  return { attempt, status, error };
+  return { attempt, attemptStartedAt, status, error };
 }
