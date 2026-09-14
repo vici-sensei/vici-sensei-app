@@ -6,11 +6,50 @@ import { usePracticeQueue } from "./usePracticeQueue";
 import { useViewportHeight } from "@/lib/useViewportHeight";
 import { celebrate } from "@/lib/confetti";
 import { ReviewCardKanaReading } from "@/app/components/study/ReviewCardKanaReading";
+import { ReviewCardKanjiMeaning } from "@/app/components/study/ReviewCardKanjiMeaning";
+import { ReviewCardKanjiReading } from "@/app/components/study/ReviewCardKanjiReading";
+import { ReviewCardVocabMeaning } from "@/app/components/study/ReviewCardVocabMeaning";
+import { PracticeCategoryPicker } from "@/app/components/study/PracticeCategoryPicker";
 import { QueueProgressBar } from "@/app/components/study/QueueProgressBar";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FaArrowRotateRight } from "react-icons/fa6";
+import type { DueCard, Rating } from "@/lib/types";
+import type { PracticeMissedCard } from "@/lib/study/practicePool";
+import { practiceCardKey } from "@/lib/study/practicePool";
+
+/** Dispatches to the right review card for whatever exercise_type toDueCard built (see
+ * usePracticeQueue.ts) -- every one of them is forced into drill_mode there, so this always
+ * renders the simplified correct/incorrect + Continue presentation regardless of kind. */
+function PracticeCard({ card, onRate }: { card: DueCard; onRate: (card: DueCard, rating: Rating) => void }) {
+  switch (card.exercise_type) {
+    case "hiragana_reading":
+    case "katakana_reading":
+      return <ReviewCardKanaReading card={card} disabled={false} onRate={onRate} hideDrillStreak />;
+    case "kanji_meaning":
+      return <ReviewCardKanjiMeaning card={card} disabled={false} onRate={onRate} />;
+    case "kanji_reading":
+      return <ReviewCardKanjiReading card={card} disabled={false} onRate={onRate} />;
+    case "vocab_meaning":
+      return <ReviewCardVocabMeaning card={card} disabled={false} onRate={onRate} />;
+  }
+}
+
+/** What the "done" summary's missed-cards table shows for one card, regardless of kind. */
+function missedRowContent(item: PracticeMissedCard): { prompt: string; correct: string } {
+  switch (item.kind) {
+    case "hiragana":
+    case "katakana":
+      return { prompt: item.character, correct: item.romaji };
+    case "kanji_meaning":
+      return { prompt: item.kanjiChar, correct: item.meanings.join(", ") };
+    case "kanji_reading":
+      return { prompt: item.word, correct: item.kanaReading ?? item.romajiReading ?? "" };
+    case "vocab_meaning":
+      return { prompt: item.word, correct: item.meanings.join(", ") };
+  }
+}
 
 function StatBox({ value, label, accent }: { value: string; label: string; accent?: "blue" | "gold" }) {
   const accentClass = accent === "gold" ? "text-accent-gold" : accent === "blue" ? "text-accent-blue" : "";
@@ -34,21 +73,36 @@ function formatDuration(ms: number): string {
   return `${minutes}:${paddedSeconds}`;
 }
 
-/** Free-practice mode: a single, shuffled pass through every hiragana/katakana character the
- * user has already been introduced to -- plus, once a script is fully mastered, its
- * study_enabled = false bonus characters (badged "Bonus" by ReviewCardKanaReading) -- with no
- * effect on SRS state or review history (see usePracticeQueue's own doc comment). Unlike /study,
- * there is no Undo (nothing is ever recorded to undo) and no session to end, just a summary once
- * the deck runs out. */
+/** Free-practice mode: lets the user pick which categories (hiragana/katakana/kanji/vocabulary)
+ * to practice, then a single shuffled pass through every card of those kinds they've already
+ * been introduced to -- plus, once both kana scripts are fully mastered, their study_enabled =
+ * false bonus characters (badged "Bonus" by ReviewCardKanaReading) -- with no effect on SRS
+ * state or review history (see usePracticeQueue's own doc comment). Unlike /study, there is no
+ * Undo (nothing is ever recorded to undo) and no session to end, just a summary once the deck
+ * runs out -- which (see usePracticeQueue) survives a refresh indefinitely until the user
+ * explicitly retries or starts a new practice. */
 export default function PracticePage() {
   const router = useRouter();
   useViewportHeight();
-  const { status, error, current, correct, completed, total, wrongAnswers, activeMs, actions } = usePracticeQueue();
+  const { status, error, current, correct, completed, total, wrongAnswers, activeMs, availableCategories, initialCategories, actions } =
+    usePracticeQueue();
   const isPerfect = status === "done" && total > 0 && correct === total;
 
   useEffect(() => {
     if (isPerfect) void celebrate();
   }, [isPerfect]);
+
+  if (status === "setup") {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-6 py-[60px]">
+        <PracticeCategoryPicker
+          availableCategories={availableCategories}
+          initialCategories={initialCategories}
+          onStart={actions.startPractice}
+        />
+      </div>
+    );
+  }
 
   if (status === "loading") return <FullScreenLoader />;
 
@@ -73,11 +127,17 @@ export default function PracticePage() {
         <div className="w-full max-w-[380px]">
           <h1 className="mb-2 text-lg font-bold text-white">Nothing to practice yet</h1>
           <p className="mb-6 text-[0.9rem] leading-[1.6] text-text-muted">
-            Learn a few hiragana or katakana characters first — they&apos;ll show up here once you have.
+            You haven&apos;t been introduced to anything in the categories you picked yet — try a different combination, or come back once
+            you&apos;ve learned a bit more.
           </p>
-          <Button variant="secondary" size="sm" onClick={() => router.push("/dashboard")}>
-            Back to dashboard
-          </Button>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button variant="secondary" size="sm" onClick={actions.goToSetup}>
+              Change categories
+            </Button>
+            <Button size="sm" onClick={() => router.push("/dashboard")}>
+              Back to dashboard
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -96,7 +156,7 @@ export default function PracticePage() {
           <div className="flex flex-col items-center gap-2">
             <Badge color={isPerfect ? "gold" : "blue"}>{isPerfect ? "Perfect!" : "Session complete"}</Badge>
             <h1 className="text-2xl font-extrabold leading-[1.2] tracking-[-0.8px]">
-              {isPerfect ? "Perfect score! You went through every character." : "You went through every character!"}
+              {isPerfect ? "Perfect score! You went through every card." : "You went through every card!"}
             </h1>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -110,25 +170,31 @@ export default function PracticePage() {
                 Missed ({wrongAnswers.length})
               </div>
               <div className="grid grid-cols-[1fr_1fr_1fr] gap-x-1 gap-y-2 text-[0.9rem] justify-center items-center">
-                <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Kana</div>
+                <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Card</div>
                 <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Correct</div>
                 <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">You wrote</div>
-                {wrongAnswers.map((item) => (
-                  <Fragment key={`${item.script}-${item.id}`}>
-                    <div className="text-center font-bold text-white">{item.character}</div>
-                    <div className="text-center text-accent-green">{item.romaji}</div>
-                    <div className="text-center text-accent-red">{item.userAnswer || "—"}</div>
-                  </Fragment>
-                ))}
+                {wrongAnswers.map((item) => {
+                  const { prompt, correct: correctAnswer } = missedRowContent(item);
+                  return (
+                    <Fragment key={practiceCardKey(item)}>
+                      <div className="text-center font-bold text-white">{prompt}</div>
+                      <div className="text-center text-accent-green">{correctAnswer}</div>
+                      <div className="text-center text-accent-red">{item.userAnswer || "—"}</div>
+                    </Fragment>
+                  );
+                })}
               </div>
             </div>
           )}
           <div className="flex flex-wrap justify-center gap-3">
             {wrongAnswers.length > 0 && (
               <Button variant="secondary" onClick={actions.retryMistakes}>
-                Retry
+                Retry missed cards
               </Button>
             )}
+            <Button variant="secondary" onClick={actions.goToSetup}>
+              New practice
+            </Button>
             <Button onClick={() => router.push("/dashboard")}>Home</Button>
           </div>
         </div>
@@ -144,7 +210,7 @@ export default function PracticePage() {
         <QueueProgressBar completed={completed} total={total} nextDueAt={null} clockOffsetMs={0} onExit={() => router.push("/dashboard")} />
       </div>
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4">
-        <ReviewCardKanaReading key={current.key} card={current.card} disabled={false} onRate={actions.rate} hideDrillStreak />
+        <PracticeCard key={current.key} card={current.card} onRate={actions.rate} />
       </div>
       <div className="shrink-0 px-4 py-2" />
     </div>

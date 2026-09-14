@@ -20,7 +20,7 @@ interface Props {
 
 export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableChange }: Props) {
   const { answer, setAnswer, result, revealed, confirmedAlternates, handleCheck, handleRate, handleContinue } =
-    useVocabMeaningReviewCard(card, disabled, onRate, onCancelableChange);
+    useVocabMeaningReviewCard(card, disabled, onRate, onCancelableChange, card.drill_mode);
 
   const askingForAnother = confirmedAlternates.length > 0 && !revealed;
 
@@ -51,6 +51,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
       ratingPreviews={card.rating_previews}
       onRate={handleRate}
       onContinue={handleContinue}
+      hideRatingOnCorrect={card.drill_mode}
       answerForm={
         <div className="flex flex-col gap-5">
           <ConfirmedAnswersList answers={confirmedAlternates} />

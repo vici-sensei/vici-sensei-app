@@ -13,7 +13,8 @@ export function useVocabMeaningReviewCard(
   card: DueCard,
   disabled: boolean,
   onRate: (card: DueCard, rating: Rating) => void,
-  onCancelableChange?: (cancel: (() => void) | null) => void
+  onCancelableChange?: (cancel: (() => void) | null) => void,
+  drillMode?: boolean
 ) {
   return useAlternateReviewCard(
     card,
@@ -27,9 +28,11 @@ export function useVocabMeaningReviewCard(
       return {
         kind: "final",
         result: outcome.result,
+        correct: outcome.result.correct,
         alternates: outcome.siblingMeanings.length > 0 ? outcome.siblingMeanings : undefined,
       };
     },
-    onCancelableChange
+    onCancelableChange,
+    drillMode
   );
 }

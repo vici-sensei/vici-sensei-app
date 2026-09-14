@@ -27,7 +27,8 @@ export function useKanjiReadingReviewCard(
   card: DueCard,
   disabled: boolean,
   onRate: (card: DueCard, rating: Rating) => void,
-  onCancelableChange?: (cancel: (() => void) | null) => void
+  onCancelableChange?: (cancel: (() => void) | null) => void,
+  drillMode?: boolean
 ) {
   // get_due_cards.all_word_readings flattens every sibling row's kana_reading and
   // romaji_reading together, so it can't say which romaji belongs to which kana.
@@ -80,8 +81,9 @@ export function useKanjiReadingReviewCard(
         const display = romajiToKana.get(normalizeReading(outcome.display)) ?? outcome.display;
         return { kind: "alternate", alternates: [display] };
       }
-      return { kind: "final", result: outcome.result };
+      return { kind: "final", result: outcome.result, correct: outcome.result.correct };
     },
-    onCancelableChange
+    onCancelableChange,
+    drillMode
   );
 }

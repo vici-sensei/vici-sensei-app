@@ -23,7 +23,8 @@ export function ReviewCardKanjiMeaning({ card, disabled, onRate, onCancelableCha
     disabled,
     onRate,
     (input) => checkKanjiMeaningAnswer(input, card.kanji_meanings ?? []),
-    onCancelableChange
+    onCancelableChange,
+    card.drill_mode
   );
 
   return (
@@ -47,6 +48,7 @@ export function ReviewCardKanjiMeaning({ card, disabled, onRate, onCancelableCha
       ratingPreviews={card.rating_previews}
       onRate={handleRate}
       onContinue={handleContinue}
+      hideRatingOnCorrect={card.drill_mode}
       answerForm={
         <AnswerForm
           answer={answer}

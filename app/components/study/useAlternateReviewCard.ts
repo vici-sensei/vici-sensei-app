@@ -3,7 +3,11 @@ import type { DueCard, Rating } from "@/lib/types";
 
 export type AlternateCheckOutcome<TResult> =
   | { kind: "alternate"; alternates: string[] }
-  | { kind: "final"; result: TResult; alternates?: string[] };
+  // `correct` is duplicated out of `result` (rather than read off it directly) so drillMode's
+  // Continue-vs-grid decision below doesn't need a `{ correct: boolean }` constraint on TResult
+  // -- adding one previously made TS give up inferring the real TResult from this nested-in-a-
+  // union return position and silently fall back to the constraint itself.
+  | { kind: "final"; result: TResult; correct: boolean; alternates?: string[] };
 
 /**
  * Shared base for review cards where an answer can name a "sibling" alternate
@@ -18,11 +22,18 @@ export function useAlternateReviewCard<TResult>(
   disabled: boolean,
   onRate: (card: DueCard, rating: Rating, confirmedAlternates?: string[]) => void,
   checkAnswer: (answer: string) => AlternateCheckOutcome<TResult>,
-  onCancelableChange?: (cancel: (() => void) | null) => void
+  onCancelableChange?: (cancel: (() => void) | null) => void,
+  // Set by /study/practice's free-practice mode (ReviewCardKanjiReading/ReviewCardVocabMeaning's
+  // drillMode, mirroring useTypedReviewCard's own drillMode): a correct check skips the
+  // Hard/Good/Easy picker entirely and, once the user presses Continue, rates 2 (the "correct"
+  // threshold rate() already uses to decide pass/fail for these cards) instead of the 0 a wrong
+  // answer's Continue uses.
+  drillMode?: boolean
 ) {
   const [answer, setAnswer] = useState("");
   const [confirmedAlternates, setConfirmedAlternates] = useState<string[]>([]);
   const [result, setResult] = useState<TResult | null>(null);
+  const [resultCorrect, setResultCorrect] = useState(false);
   const [committed, setCommitted] = useState(false);
 
   const revealed = result !== null;
@@ -50,6 +61,7 @@ export function useAlternateReviewCard<TResult>(
     // confirmed either way.
     if (outcome.alternates && outcome.alternates.length > 0) addConfirmedAlternates(outcome.alternates);
     setResult(outcome.result);
+    setResultCorrect(outcome.correct);
   }
 
   function cancelCheck() {
@@ -67,7 +79,8 @@ export function useAlternateReviewCard<TResult>(
 
   function handleContinue() {
     setCommitted(true);
-    onRate(card, 0, confirmedAlternates);
+    const rating = drillMode && resultCorrect ? 2 : 0;
+    onRate(card, rating, confirmedAlternates);
   }
 
   useEffect(() => {
