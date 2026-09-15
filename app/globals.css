@@ -244,24 +244,97 @@ input:disabled ~ span {
 }
 
 /* Day streak flame icons (WeekStreak.tsx) -- sway on every lit flame, plus a glow pulse
-   layered on top once the streak hits the 7-day gold milestone. */
+   layered on top once the streak hits the 7-day gold milestone.
+   The sway animation runs once on the flame row (not once per flame) and drives this
+   registered custom property; every flame just reads the shared value via var(), so all
+   flames sway perfectly in phase no matter when each one individually mounts/paints. */
+@property --vici-flame-rotate {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
 @keyframes vici-flame-sway {
   0% {
-    transform: rotate(-6deg);
+    --vici-flame-rotate: -6deg;
   }
   100% {
-    transform: rotate(6deg);
+    --vici-flame-rotate: 6deg;
   }
 }
 
-@keyframes vici-flame-glow {
-  0%,
+/* Durations are deliberately left out of these two "trigger" classes and supplied instead
+   as an inline `animationDuration` style in WeekStreak.tsx (built from its
+   SWAY_DURATION_S / GLOW_PHASE_PERIOD_S constants). A Tailwind arbitrary-value class like
+   `animate-[vici-flame-sway_0.6s_...]` has to be a complete literal string for Tailwind's
+   content scanner to find (it can't evaluate a template expression), which is exactly what
+   previously forced the same "3s" to be duplicated in two places that had to be kept in
+   sync by hand. Plain classes + an inline style sidestep that: each speed now lives in
+   exactly one JS constant. */
+.vici-flame-row-sway {
+  animation-name: vici-flame-sway;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+/* The glow wave uses the same trick as the sway above, for the same reason: a single
+   shared clock instead of one animation instance per flame, so it's immune to a flame
+   rendering/mounting late (a rare timing bug would otherwise start that flame's own
+   animation-delay countdown late too, throwing off the spacing between flames).
+   vici-flame-glow-phase runs once on the flame row and sweeps this registered --vici-
+   flame-phase property through one full cosine cycle (0 to 2*PI) every 3s, linearly, so
+   it wraps seamlessly (cos(0) === cos(2*PI)). Each flame then derives its own glow purely
+   from cos(shared phase + its own static --vici-flame-wave-offset, set inline in
+   WeekStreak.tsx) -- a flame that mounts/re-renders late just reads whatever the shared
+   phase happens to be *right now* and applies its fixed offset to it, so it always lands
+   in the correct place in the wave instead of starting its own countdown from zero. */
+@property --vici-flame-phase {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@keyframes vici-flame-glow-phase {
+  0% {
+    --vici-flame-phase: 0;
+  }
   100% {
-    filter: drop-shadow(0 0 1px currentColor) brightness(1);
+    --vici-flame-phase: 6.283185307; /* 2*PI -- one full cosine cycle */
   }
-  50% {
-    filter: drop-shadow(0 0 4px currentColor) brightness(1.15);
-  }
+}
+
+/* animation-name (and every other longhand here) takes a comma-separated list, one entry
+   per animation, in order -- so the row's inline animationDuration style also needs to be
+   "sway-duration, glow-duration" in this same order when this class is the one applied. */
+.vici-flame-row-sway-glow {
+  animation-name: vici-flame-sway, vici-flame-glow-phase;
+  animation-timing-function: ease-in-out, linear;
+  animation-iteration-count: infinite, infinite;
+  animation-direction: alternate, normal;
+}
+
+.vici-flame-glow-wave {
+  /* Plain cos() never actually stops animating -- it's always easing up or down, so
+     consecutive wave passes ran straight into each other with no real gap. max(0, cos(x))
+     fixes that on its own: it's pinned to exactly 0 (rest) for half of every cycle (whenever
+     cos(x) goes negative), which is already a hard pause, not just a slow approach to dim.
+     Raising that to --vici-flame-glow-sharpness narrows the remaining "on" half into a
+     shorter pulse, stretching the pause further -- 1 leaves the bare half-cycle pause above,
+     higher values (the default below) carve out a snappier flash and a longer rest around
+     it. GLOW_PHASE_PERIOD_S in WeekStreak.tsx is the *other* lever for the gap: it stretches
+     the whole cycle (pulse + rest together) without changing how spread out the pulse itself
+     is, since GLOW_WAVE_STEP_S there is a fixed number of seconds, not a fraction of the
+     cycle -- so a longer period just adds more rest at the end before the next wave starts. */
+  --vici-flame-glow-sharpness: 6;
+  --vici-flame-wave: pow(
+    max(0, cos(var(--vici-flame-phase) + var(--vici-flame-wave-offset, 0))),
+    var(--vici-flame-glow-sharpness)
+  );
+  /* Same 1px/4px blur and 1/1.15 brightness range the old keyframes used -- only the shape
+     of the ramp between them changed, not the range itself. */
+  filter: drop-shadow(0 0 calc(var(--vici-flame-wave) * 3px + 1px) currentColor)
+    brightness(calc(var(--vici-flame-wave) * 0.15 + 1));
 }
 
 /* Falling sakura petals (app/components/ui/SakuraPetals.tsx) -- used behind the dashboard's
