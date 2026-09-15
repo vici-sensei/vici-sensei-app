@@ -44,7 +44,7 @@ function placeholderWeekActivity(): WeeklyActivityDay[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - i);
-    days.push({ date: d.toISOString().slice(0, 10), active: false });
+    days.push({ date: d.toISOString().slice(0, 10), active: false, freeDay: false });
   }
   return days;
 }

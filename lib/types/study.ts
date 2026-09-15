@@ -298,6 +298,8 @@ export interface WeeklyActivityDay {
   /** Local calendar date (YYYY-MM-DD) in the user's timezone. */
   date: string;
   active: boolean;
+  /** Inactive, but forgiven by the weekly free-days budget -- the streak survived this day. */
+  freeDay: boolean;
 }
 
 export interface LevelProgressCategory {

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { getPracticeDeck } from "@/lib/client-data/practiceDeck";
+import { recordPracticeAnswer } from "@/lib/data/practiceLog";
 import {
   clearPracticeQueueCache,
   readPracticeQueueCache,
@@ -109,7 +111,9 @@ const NULL_DUE_CARD_FIELDS = {
  * + Continue, no Hard/Good/Easy grid -- see ReviewCardKanaReading/ReviewCardKanjiMeaning/
  * ReviewCardKanjiReading/ReviewCardVocabMeaning's own drill_mode handling) and never touches SRS
  * state: rate() below only updates the in-memory score and advances to the next card, so nothing
- * here can ever affect due dates, mastery, streaks, or leaderboard/achievement stats. */
+ * here can ever affect due dates or mastery. It does log to practice_logs for streak/XP credit
+ * (see rate()'s own comment) -- that table has no relationship to any user_*_progress row, so
+ * this guarantee still holds. */
 function toDueCard(item: PracticePoolCard): DueCard {
   const shared = {
     progress_id: item.id,
@@ -217,11 +221,11 @@ export interface PracticeQueueState {
 /** Drives /study/practice: a single shuffled pass through every hiragana_reading/
  * katakana_reading/kanji_meaning/kanji_reading/vocab_meaning card the user has ever been
  * introduced to (see getPracticeDeck), restricted to whichever categories they picked on the
- * setup screen. Deliberately has no concept of a session, SRS rating, or review log: rate() only
- * updates the in-memory score and advances to the next card, so nothing here can ever affect due
- * dates, mastery, streaks, or leaderboard/achievement stats. Each character is shown exactly
- * once -- reaching the end of the deck flips `status` to "done" so the page can show a summary
- * instead of looping again.
+ * setup screen. Deliberately has no concept of a session or SRS rating: rate() only updates the
+ * in-memory score, fires a best-effort practice_logs insert for streak/XP credit, and advances to
+ * the next card -- nothing here can ever affect due dates, mastery, or achievement stats. Each
+ * character is shown exactly once -- reaching the end of the deck flips `status` to "done" so the
+ * page can show a summary instead of looping again.
  *
  * Two independent localStorage caches carry state across a refresh, same-browser only:
  * practiceQueueCache mirrors an in-progress pass (order/position/score/activeMs) so leaving
@@ -435,14 +439,32 @@ export function usePracticeQueue(): PracticeQueueState {
     });
   }, [status, queue, index, correct, wrongRefs, activeMs, isRetrying, user.id, restoredSummary, liveWrongAnswers]);
 
-  const rate = useCallback((card: DueCard, rating: Rating, userAnswer?: string) => {
-    if (rating >= 2) {
-      setCorrect((c) => c + 1);
-    } else {
-      setWrongRefs((refs) => [...refs, { kind: kindForExerciseType(card.exercise_type), id: card.progress_id, userAnswer: userAnswer ?? "" }]);
-    }
-    setIndex((i) => i + 1);
-  }, []);
+  const rate = useCallback(
+    (card: DueCard, rating: Rating, userAnswer?: string) => {
+      const isCorrect = rating >= 2;
+      if (isCorrect) {
+        setCorrect((c) => c + 1);
+      } else {
+        setWrongRefs((refs) => [...refs, { kind: kindForExerciseType(card.exercise_type), id: card.progress_id, userAnswer: userAnswer ?? "" }]);
+      }
+      setIndex((i) => i + 1);
+
+      // Fire-and-forget: this only ever earns streak/XP credit (see practice_logs' own trigger),
+      // never anything the queue itself depends on, so a failure here must never block or roll
+      // back the local advance above.
+      void recordPracticeAnswer(createClient(), user.id, {
+        exerciseType: card.exercise_type,
+        correct: isCorrect,
+        kanjiId: card.kanji_id,
+        wordId: card.word_id,
+        hiraganaId: card.hiragana_id,
+        katakanaId: card.katakana_id,
+      }).catch((err) => {
+        console.error("Failed to record practice answer for streak/XP credit", err);
+      });
+    },
+    [user.id]
+  );
 
   // Starts a brand-new pass through just the cards missed this time -- a fresh shuffle, score,
   // and timer, exactly like starting the deck fresh but scoped to the missed cards. Only ever

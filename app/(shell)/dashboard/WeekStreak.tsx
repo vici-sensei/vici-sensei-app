@@ -1,4 +1,4 @@
-import { FaFire } from "react-icons/fa6";
+import { FaFire, FaSnowflake } from "react-icons/fa6";
 import type { CSSProperties } from "react";
 import type { WeeklyActivityDay } from "@/lib/types";
 
@@ -68,6 +68,11 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
     >
       {activity.map((day, i) => {
         const isToday = i === todayIndex;
+        // A free day only ever shows as its own frost icon outside the gold milestone and
+        // outside "today" (which always keeps its own erased/active shading below, regardless
+        // of whether it happened to be forgiven) -- once milestone takes over every day reads
+        // as a solid gold flame, same as an actually-active day.
+        const isFreeDay = !milestone && !isToday && day.freeDay;
 
         let flameColor: string;
         let lit: boolean;
@@ -100,7 +105,11 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
 
         return (
           <div key={day.date} className="flex flex-col items-center gap-1.5">
-            <FaFire className={`h-8 w-8 ${flameColor} ${styleClass}`} style={glowStyle} />
+            {isFreeDay ? (
+              <FaSnowflake className="h-8 w-8 text-accent-blue" />
+            ) : (
+              <FaFire className={`h-8 w-8 ${flameColor} ${styleClass}`} style={glowStyle} />
+            )}
             <span className={`text-[11px] ${isToday ? "font-semibold " : ""}${labelColor}`}>
               {weekdayLabel(day.date)}
             </span>

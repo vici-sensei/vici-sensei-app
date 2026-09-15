@@ -196,7 +196,14 @@ export default function PracticePage() {
             <Button variant="secondary" onClick={actions.goToSetup}>
               New practice
             </Button>
-            <Button onClick={() => router.push("/dashboard")}>Home</Button>
+            <Button
+              onClick={() => {
+                actions.goToSetup();
+                router.push("/dashboard");
+              }}
+            >
+              Home
+            </Button>
           </div>
         </div>
       </div>

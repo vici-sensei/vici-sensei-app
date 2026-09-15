@@ -201,10 +201,13 @@ export async function fetchStudyStats(
     new_katakana_limit: newKatakanaPerDay,
     streak: streakResult.data,
     streak_record: streakRecordResult.data,
-    weekly_activity: (weeklyActivityResult.data ?? []).map((row: { day: string; has_activity: boolean }) => ({
-      date: row.day,
-      active: row.has_activity,
-    })),
+    weekly_activity: (weeklyActivityResult.data ?? []).map(
+      (row: { day: string; has_activity: boolean; is_free_day: boolean }) => ({
+        date: row.day,
+        active: row.has_activity,
+        freeDay: row.is_free_day,
+      })
+    ),
     retention_rate: retentionResult.data,
     next_due_at: nextDueAt,
     next_due_is_today: nextDueIsToday,
