@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FaUserGraduate, FaInbox, FaBook } from "react-icons/fa6";
+import { FaUserGraduate, FaInbox } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import { useAdminDashboardStats } from "@/lib/client-data/adminDashboard";
@@ -77,15 +77,6 @@ export default function AdminOverviewPage() {
             <div>
               <div className="font-bold">Leads</div>
               <div className="text-sm text-text-muted">Free lesson signups waiting to be contacted</div>
-            </div>
-          </GlassCard>
-        </Link>
-        <Link href="/admin/jmdict-review">
-          <GlassCard padding="sm" className="flex items-center gap-4 transition-colors hover:bg-white/[0.03]">
-            <FaBook className="h-6 w-6 text-accent-red" />
-            <div>
-              <div className="font-bold">Dictionary matches</div>
-              <div className="text-sm text-text-muted">Resolve vocabulary words JMdict linking couldn&apos;t match automatically</div>
             </div>
           </GlassCard>
         </Link>
