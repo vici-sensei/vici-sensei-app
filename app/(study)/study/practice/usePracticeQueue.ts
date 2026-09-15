@@ -198,7 +198,7 @@ export interface PracticeQueueState {
    * are omitted entirely on the kana track (see availablePracticeCategories). */
   availableCategories: readonly PracticeCategory[];
   /** What the setup screen should preselect: this user's last actually-started selection, or
-   * every available category the first time they ever visit. */
+   * none, the first time they ever visit. */
   initialCategories: readonly PracticeCategory[];
   actions: {
     rate: (card: DueCard, rating: Rating) => void;
@@ -244,7 +244,7 @@ export function usePracticeQueue(): PracticeQueueState {
   // preselect that latest choice rather than whatever was remembered the first time this hook
   // ever rendered. The read itself is a cheap synchronous localStorage hit either way.
   const remembered = readPracticeCategoriesCache(user.id)?.filter((c) => availableCategories.includes(c));
-  const initialCategories = remembered && remembered.length > 0 ? remembered : availableCategories;
+  const initialCategories = remembered && remembered.length > 0 ? remembered : [];
 
   // Reading the two localStorage caches is synchronous, so the very first render already knows
   // whether to show a restored "done" summary, resume a mid-deck pass, or land on "setup" --

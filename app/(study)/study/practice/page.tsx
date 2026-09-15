@@ -94,11 +94,12 @@ export default function PracticePage() {
 
   if (status === "setup") {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6 py-[60px]">
+      <div className="flex flex-col gap-4 h-screen min-h-full items-center justify-between px-4 pb-8 pt-4">
         <PracticeCategoryPicker
           availableCategories={availableCategories}
           initialCategories={initialCategories}
           onStart={actions.startPractice}
+          onClose={() => router.push("/dashboard")}
         />
       </div>
     );
@@ -108,7 +109,7 @@ export default function PracticePage() {
 
   if (status === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6 py-[60px] text-center">
+      <div className="flex flex-col gap-4 h-screen min-h-full items-center justify-between px-4 pb-8 pt-4 text-center">
         <div className="w-full max-w-[380px]">
           <h1 className="mb-2 text-lg font-bold text-white">Couldn&apos;t load your practice deck</h1>
           <p className="mb-6 text-[0.9rem] leading-[1.6] text-text-muted">{error ?? "Please try again."}</p>
@@ -123,7 +124,7 @@ export default function PracticePage() {
 
   if (status === "empty") {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6 py-[60px] text-center">
+      <div className="flex flex-col gap-4 h-screen min-h-full items-center justify-between px-4 pb-8 pt-4 text-center">
         <div className="w-full max-w-[380px]">
           <h1 className="mb-2 text-lg font-bold text-white">Nothing to practice yet</h1>
           <p className="mb-6 text-[0.9rem] leading-[1.6] text-text-muted">

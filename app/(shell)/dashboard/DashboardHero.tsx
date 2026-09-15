@@ -72,7 +72,6 @@ export function DashboardHero() {
   const { data: studySettings } = useStudySettingsContext();
 
   const isKana = stats?.study_track === "kana";
-  const showPracticeButton = Boolean(allDone && isKana && studySettings?.kana_practice_enabled);
   // Only worth showing once there's actually something to do about it -- hiragana done but the
   // reading test not yet 100%'d (see 20260915_reading_test_gates_katakana.sql). Disappears the
   // instant the test is passed, whether the student got there via this button or navigated there
@@ -85,6 +84,9 @@ export function DashboardHero() {
   // whichever reading test CTA is showing, the dictionary nudge no longer applies (there's a
   // single obvious next step) and the reminder explains what that step unlocks.
   const showReadingTestCta = showHiraganaReadingTestCta || showKatakanaReadingTestCta;
+  // Visible any time it's enabled on the kana track -- allDone or not, reading-test CTA showing
+  // or not. Practice is a free-choice extra, not something gated on finishing today's queue.
+  const showPracticeButton = Boolean(isKana && studySettings?.kana_practice_enabled);
   // Which of the four CTA states (not started / mid first pass / ready to retry / mid retry) each
   // test is in -- only meaningful while its CTA is showing, so left null otherwise.
   const hiraganaReadingTestCta = showHiraganaReadingTestCta

@@ -877,8 +877,8 @@ export function StudySettingsForm({
             <div>
               <div className="mb-0.5 text-[0.95rem] font-bold">Practice mode</div>
               <div className="text-sm text-text-muted">
-                Once you&apos;re done for the day, show a Practice button on the dashboard to freely go through every
-                hiragana and katakana you&apos;ve learned. Just for fun — it never affects your progress or schedule.
+                Show a Practice button on the dashboard to freely go through every hiragana and katakana
+                you&apos;ve learned. Just for fun — it never affects your progress or schedule.
               </div>
             </div>
             <Toggle checked={kanaPracticeEnabled} onChange={() => setKanaPracticeEnabled(!kanaPracticeEnabled)} disabled={disabled} />
