@@ -38,7 +38,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/browse/kanji",
-    label: "Explore",
+    label: "Dictionary",
     isActive: (p) => p.startsWith("/browse"),
     icon: <FaMagnifyingGlass />,
   },
