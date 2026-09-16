@@ -4,6 +4,7 @@ export interface VocabularyShortMeaningRow {
   kana_reading: string | null;
   primary_meanings: string[] | null;
   short_meaning: string | null;
+  jlpt_level: string | null;
 }
 
 export interface FreeLessonLead {

@@ -7,11 +7,15 @@ import { useVocabularyShortMeanings, updateVocabularyShortMeaning } from "@/lib/
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
+import { PillSelector } from "@/app/components/ui/PillSelector";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { getErrorMessage } from "@/lib/api/client";
+import { JLPT_LEVELS } from "@/lib/srs/constants";
 import type { AsyncStatus, VocabularyShortMeaningRow } from "@/lib/types";
 
 const SAVE_DEBOUNCE_MS = 600;
+const ALL_LEVELS = "all" as const;
+type LevelFilter = (typeof JLPT_LEVELS)[number] | typeof ALL_LEVELS;
 
 function matchesQuery(row: VocabularyShortMeaningRow, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -24,6 +28,7 @@ export default function AdminShortMeaningsPage() {
   const { ready, checking } = useRequireAdmin();
   const { data: rows, status } = useVocabularyShortMeanings(ready ? user : null);
   const [query, setQuery] = useState("");
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>(ALL_LEVELS);
 
   // Per-row edited value, seeded from the fetched rows once they arrive -- keeps typing snappy
   // without waiting on a refetch, and isn't clobbered since this page never refetches afterward.
@@ -83,7 +88,29 @@ export default function AdminShortMeaningsPage() {
     void save(id, value);
   }
 
-  const filtered = useMemo(() => (rows ?? []).filter((r) => matchesQuery(r, query)), [rows, query]);
+  const levelCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const row of rows ?? []) {
+      if (row.jlpt_level) counts[row.jlpt_level] = (counts[row.jlpt_level] ?? 0) + 1;
+    }
+    return counts;
+  }, [rows]);
+
+  const levelOptions = useMemo(
+    () => [
+      { value: ALL_LEVELS, label: `All (${rows?.length ?? 0})` },
+      ...JLPT_LEVELS.map((level) => ({ value: level, label: `${level} (${levelCounts[level] ?? 0})` })),
+    ],
+    [rows, levelCounts],
+  );
+
+  const filtered = useMemo(
+    () =>
+      (rows ?? []).filter(
+        (r) => matchesQuery(r, query) && (levelFilter === ALL_LEVELS || r.jlpt_level === levelFilter),
+      ),
+    [rows, query, levelFilter],
+  );
 
   if (checking || !ready) return <FullScreenLoader />;
 
@@ -97,6 +124,14 @@ export default function AdminShortMeaningsPage() {
         Vocabulary words whose primary meanings are all too long to show compactly -- edit the curated short gloss below.
         Saves automatically as you type.
       </p>
+
+      <PillSelector
+        options={levelOptions}
+        active={levelFilter}
+        onChange={setLevelFilter}
+        variant="tabs"
+        className="mb-4"
+      />
 
       <input
         type="text"
