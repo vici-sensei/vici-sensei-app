@@ -75,9 +75,17 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
         // get_review_activity already never marks today itself as a free day.
         const isFreeDay = !isToday && day.freeDay;
 
+        // Today, inside the milestone, with no activity yet: same "erased" treatment as the
+        // non-milestone today case below, just in gold -- still lit (swaying) but dimmed, and
+        // (below) excluded from the glow pulse so an untouched flame doesn't pretend to glow.
+        const isErasedToday = milestone && isToday && !day.active;
+
         let flameColor: string;
         let lit: boolean;
-        if (milestone) {
+        if (milestone && isToday) {
+          flameColor = isErasedToday ? "text-[#7a5c00]" : "text-accent-gold";
+          lit = true;
+        } else if (milestone) {
           flameColor = "text-accent-gold";
           lit = true;
         } else if (isToday) {
@@ -97,8 +105,9 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
         // because a *larger* phase is a *later* point in time -- flame i should peak later
         // than flame 0, so its offset has to pull the phase argument back, not push it
         // forward (see the vici-flame-glow-phase comment in globals.css for the derivation).
-        const styleClass = !lit ? "" : milestone ? `${SWAY_STYLE_CLASS} vici-flame-glow-wave` : SWAY_STYLE_CLASS;
-        const glowStyle = milestone
+        const showGlow = milestone && !isErasedToday;
+        const styleClass = !lit ? "" : showGlow ? `${SWAY_STYLE_CLASS} vici-flame-glow-wave` : SWAY_STYLE_CLASS;
+        const glowStyle = showGlow
           ? ({ "--vici-flame-wave-offset": -i * GLOW_WAVE_STEP_RAD } as CSSProperties)
           : undefined;
 
