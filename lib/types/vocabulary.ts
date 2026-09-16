@@ -2,7 +2,10 @@ export interface VocabularyRow {
   id: number;
   word: string;
   kana_reading: string | null;
-  meanings: string[] | null;
+  primary_meanings: string[] | null;
+  /** JMdict senses not already covered by primary_meanings -- one array of glosses per sense (see
+   * 20261130_vocabulary_primary_other_meanings.sql). Most words have none. */
+  other_meanings: string[][] | null;
   parts_of_speech: string[] | null;
   ids_kanji: number[] | null;
   jlpt_level: string | null;
@@ -25,7 +28,8 @@ export interface VocabularyDetailRow {
   id: number;
   word: string;
   kana_reading: string | null;
-  meanings: string[] | null;
+  primary_meanings: string[] | null;
+  other_meanings: string[][] | null;
   parts_of_speech: string[] | null;
   jlpt_level: string | null;
   other_readings: string[] | null;

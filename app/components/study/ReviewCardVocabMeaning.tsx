@@ -69,7 +69,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
         result && (
           <div className="flex flex-col gap-3">
             <ConfirmedAnswersList answers={confirmedAlternates} subdued />
-            <MeaningList meanings={card.word_meanings ?? []} matchedMeanings={result.matchedMeanings} correct={result.correct} />
+            <MeaningList meanings={card.primary_word_meanings ?? []} matchedMeanings={result.matchedMeanings} correct={result.correct} />
             {!result.correct && <TokenDiffList tokens={result.tokens} />}
           </div>
         )

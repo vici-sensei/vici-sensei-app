@@ -16,7 +16,7 @@ const CHECKED_COLOR = {
 
 export function Toggle({ checked, onChange, disabled, className, color = "red", ...rest }: ToggleProps) {
   return (
-    <label className={["relative h-[26px] w-[46px] shrink-0", className].filter(Boolean).join(" ")}>
+    <label className={["relative inline-block h-[26px] w-[46px] shrink-0", className].filter(Boolean).join(" ")}>
       <input
         type="checkbox"
         className="peer h-0 w-0 opacity-0"

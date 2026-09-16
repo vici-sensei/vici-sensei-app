@@ -47,7 +47,7 @@ function missedRowContent(item: PracticeMissedCard): { prompt: string; correct: 
     case "kanji_reading":
       return { prompt: item.word, correct: item.kanaReading ?? item.romajiReading ?? "" };
     case "vocab_meaning":
-      return { prompt: item.word, correct: item.meanings.join(", ") };
+      return { prompt: item.word, correct: item.primaryMeanings.join(", ") };
   }
 }
 

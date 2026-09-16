@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { prefetchVocabularyDetail, useVocabularyList } from "@/lib/client-data/vocabulary";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import { BrowseListPage, ListSkeleton } from "../BrowseListPage";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 import { useRedirectIfKana } from "@/lib/browse/useRedirectIfKana";
@@ -38,7 +39,8 @@ function VocabularyListing() {
         <>
           <div className="w-auto shrink-0 pt-[0.6em] text-3xl">{renderWordWithFurigana(row.word, row.furiganas)}</div>
           <div className="min-w-55 flex-1">
-            <div className="mb-0.5 text-base font-bold">{row.meanings?.join(", ")}</div>
+            <div className="mb-0.5 text-base font-bold">{row.primary_meanings?.join(", ")}</div>
+            <OtherMeaningsToggle otherMeanings={row.other_meanings} className="mt-2" />
           </div>
           <LevelBadge level={row.jlpt_level} className="ml-auto shrink-0" />
         </>

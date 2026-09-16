@@ -9,6 +9,7 @@ import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
+import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 function NotFound() {
@@ -206,7 +207,10 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
             <div className="pt-[0.6em] text-3xl leading-none">
               {renderWordWithFurigana(w.vocabulary.word, w.vocabulary.furiganas, "text-base text-accent-blue", "bg-accent-blue/10")}
             </div>
-            <div className="text-[0.85rem] text-text-muted">{w.vocabulary.meanings?.join(", ")}</div>
+            <div>
+              <div className="text-[0.85rem] text-text-muted">{w.vocabulary.primary_meanings?.join(", ")}</div>
+              <OtherMeaningsToggle otherMeanings={w.vocabulary.other_meanings} className="mt-2" />
+            </div>
             <LevelBadge level={w.vocabulary.jlpt_level} size="md" className="ml-auto shrink-0" />
           </div>
         ))}

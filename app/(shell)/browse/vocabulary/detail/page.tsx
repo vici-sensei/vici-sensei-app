@@ -9,6 +9,7 @@ import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
+import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 function NotFound() {
@@ -134,7 +135,8 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
           <div className="pt-[0.6em] text-5xl leading-[1.1] mb-3">
             {renderWordWithFurigana(word.word, word.furiganas, "text-lg text-accent-blue", "bg-accent-blue/10", true)}
           </div>
-          <div className="mb-3 text-[1.35rem] font-bold">{word.meanings?.join(", ")}</div>
+          <div className="mb-3 text-[1.35rem] font-bold">{word.primary_meanings?.join(", ")}</div>
+          <OtherMeaningsToggle otherMeanings={word.other_meanings} className="mb-3" />
           <div className="flex flex-wrap gap-6">
             <div>
               <div className={factLabel}>Part of speech</div>
@@ -157,7 +159,7 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
       <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
       {progress ? (
         <ProgressCardRow
-          title={<>Meaning — &quot;{word.meanings?.[0] ?? word.word}&quot;</>}
+          title={<>Meaning — &quot;{word.primary_meanings?.[0] ?? word.word}&quot;</>}
           status={progress.status}
           dueAt={progress.due_at}
           cardType="vocab"

@@ -21,7 +21,7 @@ export function useVocabMeaningReviewCard(
     disabled,
     onRate,
     (answer) => {
-      const outcome = checkVocabMeaningAnswer(answer, card.word_meanings ?? [], card.all_word_meanings ?? card.word_meanings ?? []);
+      const outcome = checkVocabMeaningAnswer(answer, card.primary_word_meanings ?? [], card.all_primary_word_meanings ?? card.primary_word_meanings ?? []);
       if (outcome.kind === "alternate") {
         return { kind: "alternate", alternates: outcome.meanings };
       }

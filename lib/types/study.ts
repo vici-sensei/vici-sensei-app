@@ -5,7 +5,7 @@ export interface NewKanjiIntroWord {
   id: number;
   vocabulary: {
     word: string;
-    meanings: string[] | null;
+    primary_meanings: string[] | null;
     jlpt_level: string | null;
     usually_kana: boolean | null;
     furiganas: string[] | null;
@@ -45,9 +45,9 @@ export interface DueCard {
   romaji_reading: string | null;
   other_readings: string[] | null;
   furiganas: string[] | null;
-  word_meanings: string[] | null;
+  primary_word_meanings: string[] | null;
   /** Meanings from every vocabulary row sharing this word -- the student can't tell which row a card was built from. */
-  all_word_meanings: string[] | null;
+  all_primary_word_meanings: string[] | null;
   /** Readings (kana/romaji/other) from every vocabulary row sharing this word -- same reasoning. */
   all_word_readings: string[] | null;
   /** Sibling kanji (not the target) in this word whose furigana can be hidden -- either because
@@ -130,7 +130,7 @@ export interface NewVocabCandidate {
   id: number;
   word: string;
   kana_reading: string | null;
-  meanings: string[] | null;
+  primary_meanings: string[] | null;
   parts_of_speech: string[] | null;
   jlpt_level: string | null;
   usually_kana: boolean | null;

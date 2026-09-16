@@ -6,7 +6,8 @@ type KanjiDetailWordRow = {
   reading_group: number | null;
   word: string;
   kana_reading: string | null;
-  meanings: string[] | null;
+  primary_meanings: string[] | null;
+  other_meanings: string[][] | null;
   furiganas: string[] | null;
   jlpt_level: string | null;
 };
@@ -27,7 +28,8 @@ export async function fetchKanjiDetailWords(
     vocabulary: {
       word: row.word,
       kana_reading: row.kana_reading,
-      meanings: row.meanings,
+      primary_meanings: row.primary_meanings,
+      other_meanings: row.other_meanings,
       furiganas: row.furiganas,
       jlpt_level: row.jlpt_level,
     },
@@ -40,7 +42,7 @@ type KanjiIntroWordBatchRow = {
   kanji_id: number;
   kanji_word_id: number;
   word: string;
-  meanings: string[] | null;
+  primary_meanings: string[] | null;
   jlpt_level: string | null;
   usually_kana: boolean | null;
   furiganas: string[] | null;
@@ -65,7 +67,7 @@ export async function fetchKanjiDetailWordsBatch(
       id: row.kanji_word_id,
       vocabulary: {
         word: row.word,
-        meanings: row.meanings,
+        primary_meanings: row.primary_meanings,
         jlpt_level: row.jlpt_level,
         usually_kana: row.usually_kana,
         furiganas: row.furiganas,

@@ -68,11 +68,12 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
     >
       {activity.map((day, i) => {
         const isToday = i === todayIndex;
-        // A free day only ever shows as its own frost icon outside the gold milestone and
-        // outside "today" (which always keeps its own erased/active shading below, regardless
-        // of whether it happened to be forgiven) -- once milestone takes over every day reads
-        // as a solid gold flame, same as an actually-active day.
-        const isFreeDay = !milestone && !isToday && day.freeDay;
+        // A free day always shows as its own frost icon -- including inside the gold
+        // milestone, where every flame would otherwise read identically gold and swallow the
+        // distinction. "today" (which always keeps its own erased/active shading below,
+        // regardless of whether it happened to be forgiven) is excluded, though
+        // get_review_activity already never marks today itself as a free day.
+        const isFreeDay = !isToday && day.freeDay;
 
         let flameColor: string;
         let lit: boolean;
@@ -106,7 +107,15 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
         return (
           <div key={day.date} className="flex flex-col items-center gap-1.5">
             {isFreeDay ? (
-              <FaSnowflake className="h-8 w-8 text-accent-blue" />
+              // Gold only inside the milestone, to match the rest of the row's theme there --
+              // the shape (snowflake vs flame) is what marks it as a free day at that point,
+              // not the color. Outside the milestone it keeps its own blue, same as before.
+              // The glow-wave class only touches `filter` (globals.css), so it layers on top
+              // of the drift keyframes above without fighting them for `transform`.
+              <FaSnowflake
+                className={`h-8 w-8 ${milestone ? "text-accent-gold" : "text-[#149BBB]"} vici-snowflake-drift ${milestone ? "vici-flame-glow-wave" : ""}`}
+                style={glowStyle}
+              />
             ) : (
               <FaFire className={`h-8 w-8 ${flameColor} ${styleClass}`} style={glowStyle} />
             )}

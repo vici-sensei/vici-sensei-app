@@ -36,7 +36,7 @@ export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
         {isUsuallyKana ? candidate.kana_reading : renderWordWithFurigana(candidate.word, candidate.furiganas)}
       </CardHeading>
 
-      <div className="mb-2.5 text-[1.3rem] font-bold text-white">{candidate.meanings?.join(", ")}</div>
+      <div className="mb-2.5 text-[1.3rem] font-bold text-white">{candidate.primary_meanings?.join(", ")}</div>
 
       <div className="mt-2.5 flex flex-wrap justify-center gap-2">
         {candidate.parts_of_speech?.map((pos) => <InfoChip key={pos}>{pos}</InfoChip>)}

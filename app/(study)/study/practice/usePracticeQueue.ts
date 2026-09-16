@@ -97,8 +97,8 @@ const NULL_DUE_CARD_FIELDS = {
   romaji_reading: null,
   other_readings: null,
   furiganas: null,
-  word_meanings: null,
-  all_word_meanings: null,
+  primary_word_meanings: null,
+  all_primary_word_meanings: null,
   all_word_readings: null,
   known_kanji_chars: null,
   kana_character: null,
@@ -157,7 +157,7 @@ function toDueCard(item: PracticePoolCard): DueCard {
         romaji_reading: item.romajiReading,
         other_readings: item.otherReadings,
         furiganas: item.furiganas,
-        word_meanings: item.wordMeanings,
+        primary_word_meanings: item.primaryWordMeanings,
       };
     case "vocab_meaning":
       return {
@@ -167,7 +167,8 @@ function toDueCard(item: PracticePoolCard): DueCard {
         word: item.word,
         kana_reading: item.kanaReading,
         furiganas: item.furiganas,
-        word_meanings: item.meanings,
+        primary_word_meanings: item.primaryMeanings,
+        all_primary_word_meanings: item.allPrimaryMeanings,
       };
   }
 }

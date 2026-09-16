@@ -21,7 +21,7 @@ export interface PracticeKanjiReadingCard {
   romajiReading: string | null;
   otherReadings: string[] | null;
   furiganas: string[] | null;
-  wordMeanings: string[] | null;
+  primaryWordMeanings: string[] | null;
 }
 
 interface SeenKanjiMeaningRow {
@@ -69,7 +69,7 @@ interface SeenKanjiReadingRow {
       romaji_reading: string | null;
       other_readings: string[] | null;
       furiganas: string[] | null;
-      meanings: string[] | null;
+      primary_meanings: string[] | null;
       study_enabled: boolean;
     } | null;
   } | null;
@@ -90,7 +90,7 @@ export async function fetchSeenKanjiReading(
   const { data, error } = await supabase
     .from("user_kanji_reading_progress")
     .select(
-      "kanji_id, kanji_word_id, kanji:kanji_id(kanji, meanings, level), kanji_word:kanji_word_id(vocabulary:id_word(word, kana_reading, romaji_reading, other_readings, furiganas, meanings, study_enabled))"
+      "kanji_id, kanji_word_id, kanji:kanji_id(kanji, meanings, level), kanji_word:kanji_word_id(vocabulary:id_word(word, kana_reading, romaji_reading, other_readings, furiganas, primary_meanings, study_enabled))"
     )
     .eq("user_id", userId)
     .neq("status", "suspended");
@@ -120,7 +120,7 @@ export async function fetchSeenKanjiReading(
         romajiReading: vocabulary.romaji_reading,
         otherReadings: vocabulary.other_readings,
         furiganas: vocabulary.furiganas,
-        wordMeanings: vocabulary.meanings,
+        primaryWordMeanings: vocabulary.primary_meanings,
       };
     });
 }

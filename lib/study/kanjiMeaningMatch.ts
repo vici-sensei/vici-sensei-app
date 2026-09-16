@@ -138,7 +138,7 @@ export type VocabMeaningOutcome =
 
 /**
  * public.vocabulary.word isn't unique -- the same written word can have several
- * rows with different senses. get_due_cards.all_word_meanings aggregates
+ * rows with different senses. get_due_cards.all_primary_word_meanings aggregates
  * meanings across every row sharing this row's word *and* kana_reading (see
  * 20261004_scope_vocab_meanings_by_reading_again.sql) -- not across every
  * reading, since furigana is now always visible and tells the student which
@@ -149,7 +149,7 @@ export type VocabMeaningOutcome =
  * meanings is a real, valid sense of the word, but not the one this card is
  * testing, so it's reported as "alternate" rather than accepted outright --
  * the caller should prompt for another meaning instead of ending the review. A
- * match against this row's own word_meanings ("target") ends the review as
+ * match against this row's own primary_word_meanings ("target") ends the review as
  * correct, even if the answer also names a sibling meaning alongside it.
  *
  * This function only classifies a single answer -- it has no memory of sibling

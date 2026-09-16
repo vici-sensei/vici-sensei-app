@@ -337,6 +337,24 @@ input:disabled ~ span {
     brightness(calc(var(--vici-flame-wave) * 0.15 + 1));
 }
 
+/* Free-day snowflake icon (WeekStreak.tsx) -- a slow, gentle bob+tilt so a "frozen" day reads
+   as calm drifting snow rather than a static glyph, deliberately much slower than the flames'
+   0.6s sway since there's no urgency to convey here. Independent per icon (no shared-clock
+   trick like the flame row above) since at most 2 ever show in a week and they don't need to
+   move in visual unison the way a full row of flames does. */
+@keyframes vici-snowflake-drift {
+  0% {
+    transform: translateY(-2px) rotate(-8deg);
+  }
+  100% {
+    transform: translateY(2px) rotate(8deg);
+  }
+}
+
+.vici-snowflake-drift {
+  animation: vici-snowflake-drift 3.2s ease-in-out infinite alternate;
+}
+
 /* Falling sakura petals (app/components/ui/SakuraPetals.tsx) -- used behind the dashboard's
    streak-record card and the achievement-unlock modal. Petals drift down and slowly rotate,
    like falling sakura, rather than a straight-down snow/confetti fall.

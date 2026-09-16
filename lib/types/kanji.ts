@@ -20,7 +20,8 @@ export interface KanjiDetailWord {
   vocabulary: {
     word: string;
     kana_reading: string | null;
-    meanings: string[] | null;
+    primary_meanings: string[] | null;
+    other_meanings: string[][] | null;
     furiganas: string[] | null;
     jlpt_level: string | null;
   };
