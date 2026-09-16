@@ -5,7 +5,6 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import { useJmdictSenseReviewRows, saveJmdictEntrySenses } from "@/lib/client-data/jmdictSenses";
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
-import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -38,20 +37,21 @@ interface SenseReviewCardProps {
   row: JmdictSenseReviewRow;
   rowStatus: AsyncStatus | "idle";
   rowError: string | null;
-  onSave: (selected: Set<number>) => void;
+  onToggle: (selected: Set<number>) => void;
 }
 
-function SenseReviewCard({ row, rowStatus, rowError, onSave }: SenseReviewCardProps) {
+function SenseReviewCard({ row, rowStatus, rowError, onToggle }: SenseReviewCardProps) {
   const [selected, setSelected] = useState<Set<number>>(() => effectivePrimarySet(row.senses));
   const busy = rowStatus === "loading";
 
+  // Saves immediately on every toggle -- no separate Save button. `next` is computed here (not
+  // via the setSelected functional-updater form) so it can also be handed straight to onToggle.
   function toggle(index: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
+    const next = new Set(selected);
+    if (next.has(index)) next.delete(index);
+    else next.add(index);
+    setSelected(next);
+    onToggle(next);
   }
 
   return (
@@ -72,15 +72,15 @@ function SenseReviewCard({ row, rowStatus, rowError, onSave }: SenseReviewCardPr
             ...sense.misc.map((m) => ({ text: m, tone: "misc" as const })),
           ];
           return (
-            <label
+            <div
               key={i}
-              className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 ${
-                checked ? "border-accent-red/60 bg-accent-red/10" : "border-border-soft bg-bg-cards/60 hover:border-white/20"
+              className={`flex items-start gap-3 rounded-lg border px-3 py-2 ${
+                checked ? "border-accent-red/60 bg-accent-red/10" : "border-border-soft bg-bg-cards/60"
               }`}
             >
               <input
                 type="checkbox"
-                className="mt-1 cursor-pointer"
+                className="mt-0.5 h-8 w-8 flex-shrink-0 cursor-pointer accent-accent-red"
                 checked={checked}
                 disabled={busy}
                 onChange={() => toggle(i)}
@@ -108,7 +108,7 @@ function SenseReviewCard({ row, rowStatus, rowError, onSave }: SenseReviewCardPr
                   </div>
                 )}
               </div>
-            </label>
+            </div>
           );
         })}
       </div>
@@ -117,15 +117,10 @@ function SenseReviewCard({ row, rowStatus, rowError, onSave }: SenseReviewCardPr
         <p className="text-xs italic text-text-muted">Niciun sens marcat -- implicit se va folosi sensul #1.</p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-h-4 text-xs">
-          {busy && <span className="text-text-muted">Se salvează...</span>}
-          {!busy && rowStatus === "error" && <span className="text-accent-red">{rowError ?? "A apărut o eroare."}</span>}
-          {!busy && rowStatus === "loaded" && <span className="font-medium text-accent-green">✓ Salvat</span>}
-        </div>
-        <Button variant="secondary" size="sm" disabled={busy} onClick={() => onSave(selected)}>
-          Salvează
-        </Button>
+      <div className="min-h-4 text-xs">
+        {busy && <span className="text-text-muted">Se salvează...</span>}
+        {!busy && rowStatus === "error" && <span className="text-accent-red">{rowError ?? "A apărut o eroare."}</span>}
+        {!busy && rowStatus === "loaded" && <span className="font-medium text-accent-green">✓ Salvat</span>}
       </div>
     </GlassCard>
   );
@@ -138,7 +133,7 @@ export default function AdminJmdictSensesPage() {
   const [rowStatus, setRowStatus] = useState<Record<number, AsyncStatus | "idle">>({});
   const [rowError, setRowError] = useState<Record<number, string | null>>({});
 
-  async function handleSave(id: number, senses: JmdictSense[], selected: Set<number>) {
+  async function handleToggle(id: number, senses: JmdictSense[], selected: Set<number>) {
     setRowStatus((prev) => ({ ...prev, [id]: "loading" }));
     setRowError((prev) => ({ ...prev, [id]: null }));
     const updatedSenses = senses.map((sense, i) => ({ ...sense, is_primary: selected.has(i) }));
@@ -181,7 +176,7 @@ export default function AdminJmdictSensesPage() {
               row={row}
               rowStatus={rowStatus[row.id] ?? "idle"}
               rowError={rowError[row.id] ?? null}
-              onSave={(selected) => handleSave(row.id, row.senses, selected)}
+              onToggle={(selected) => handleToggle(row.id, row.senses, selected)}
             />
           ))}
         </div>
