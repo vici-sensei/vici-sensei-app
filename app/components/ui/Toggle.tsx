@@ -5,10 +5,16 @@ interface ToggleProps {
   onChange: () => void;
   disabled?: boolean;
   className?: string;
+  color?: "red" | "blue";
   "aria-label"?: string;
 }
 
-export function Toggle({ checked, onChange, disabled, className, ...rest }: ToggleProps) {
+const CHECKED_COLOR = {
+  red: "peer-checked:bg-accent-red",
+  blue: "peer-checked:bg-accent-blue",
+};
+
+export function Toggle({ checked, onChange, disabled, className, color = "red", ...rest }: ToggleProps) {
   return (
     <label className={["relative h-[26px] w-[46px] shrink-0", className].filter(Boolean).join(" ")}>
       <input
@@ -19,7 +25,9 @@ export function Toggle({ checked, onChange, disabled, className, ...rest }: Togg
         disabled={disabled}
         {...rest}
       />
-      <span className="absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 peer-checked:bg-accent-red peer-disabled:cursor-not-allowed peer-disabled:opacity-40" />
+      <span
+        className={`absolute inset-0 cursor-pointer rounded-full bg-white/10 transition-colors duration-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-40 ${CHECKED_COLOR[color]}`}
+      />
       <span className="pointer-events-none absolute left-[3px] top-[3px] flex h-5 w-5 items-center justify-center rounded-full bg-white transition-transform duration-200 peer-checked:translate-x-5">
         {disabled ? <FaLock className="h-2.5 w-2.5 text-black/50" /> : null}
       </span>

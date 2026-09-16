@@ -64,38 +64,6 @@ export interface AdminDashboardStats {
   leads_uncontacted: number;
 }
 
-/** One JMdict sense, verbatim from jmdict_entries.senses (see
- * 20261115_jmdict_entries_add_senses_column.sql) plus the is_primary flag an admin can set from
- * the sense-review page (see 20261125_jmdict_entries_admin_can_edit_senses.sql). Absent/false
- * means "not primary" -- the row-level fallback (no sense marked -> sense #1 is primary) lives in
- * the sync_jmdict_entries_primary_other_meanings() trigger, not here. */
-export interface JmdictSenseGloss {
-  lang: string;
-  gender: string | null;
-  type: string | null;
-  text: string;
-}
-
-export interface JmdictSense {
-  partOfSpeech: string[];
-  field: string[];
-  dialect: string[];
-  misc: string[];
-  info: string[];
-  related: unknown[];
-  antonym: unknown[];
-  languageSource: unknown[];
-  gloss: JmdictSenseGloss[];
-  is_primary?: boolean;
-}
-
-export interface JmdictSenseReviewRow {
-  id: number;
-  word: string | null;
-  kana_reading: string;
-  senses: JmdictSense[];
-}
-
 export interface StudentDetail {
   id: string;
   display_name: string | null;
