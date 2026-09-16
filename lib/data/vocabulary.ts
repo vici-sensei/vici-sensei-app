@@ -15,6 +15,7 @@ export async function fetchVocabularyDetail(id: number): Promise<VocabularyDetai
     .from("vocabulary")
     .select("id, word, kana_reading, meanings, parts_of_speech, jlpt_level, other_readings, furiganas")
     .eq("id", id)
+    .eq("study_enabled", true)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data;
