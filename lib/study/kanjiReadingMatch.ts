@@ -11,23 +11,39 @@ export type ReadingCheckOutcome =
   | { kind: "alternate"; display: string }
   | { kind: "wrong"; result: ReadingCheckResult };
 
-function normalize(value: string): string {
-  return value.trim().toLowerCase();
+// Drops everything but letters -- this is what decides correct/incorrect, so spaces and
+// punctuation are typing noise the student shouldn't be marked wrong for, wherever in the answer
+// they land (mirrors checkKanaReadingAnswer's stripToLetters). No digits kept here (unlike
+// kanjiMeaningMatch's normalizeCompare) -- a reading is always phonetic kana/romaji, never a bare
+// numeral, so there's no legitimate answer that stripping digits could ever break.
+function normalizeCompare(value: string): string {
+  return value.replace(/[^\p{L}]/gu, "").toLowerCase();
+}
+
+// For the hint rendered on a wrong/alternate answer -- punctuation/symbols are kept as typed,
+// only whitespace runs are collapsed to one space and trimmed so the hint still reads cleanly.
+// Only ever used once an answer has already failed the stricter normalizeCompare match above, so
+// this never affects correct/incorrect -- purely how the hint is displayed.
+function normalizeDiffDisplay(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 interface ReadingVariant {
+  /** Letters only, lowercased -- the exact-match key an answer's own compare is checked against. */
   compare: string;
-  display: string;
+  /** Spaces-preserved counterpart of `compare`, used to build the diff/alternate-reading hint. */
+  diffDisplay: string;
+  diffCompare: string;
 }
 
 function collectVariants(values: (string | null | undefined)[]): ReadingVariant[] {
   const variants = new Map<string, ReadingVariant>();
-  for (const display of values) {
-    if (!display) continue;
-    const trimmed = display.trim();
-    if (!trimmed) continue;
-    const compare = trimmed.toLowerCase();
-    if (!variants.has(compare)) variants.set(compare, { compare, display: trimmed });
+  for (const raw of values) {
+    if (!raw) continue;
+    const compare = normalizeCompare(raw);
+    if (!compare || variants.has(compare)) continue;
+    const diffDisplay = normalizeDiffDisplay(raw);
+    variants.set(compare, { compare, diffDisplay, diffCompare: diffDisplay.toLowerCase() });
   }
   return Array.from(variants.values());
 }
@@ -36,6 +52,7 @@ function findClosest(compareInput: string, variants: ReadingVariant[]): ReadingV
   let best = variants[0];
   let bestDist = Infinity;
   for (const variant of variants) {
+    // Ranked on the strict (spaces-stripped) form -- see normalizeCompare.
     const dist = levenshteinDistance(compareInput, variant.compare);
     if (dist < bestDist) {
       bestDist = dist;
@@ -63,8 +80,8 @@ export function checkKanjiReadingAnswer(
   otherReadings: string[] | null,
   allWordReadings: string[] | null
 ): ReadingCheckOutcome {
-  const display = input.trim();
-  const compare = normalize(input);
+  const compare = normalizeCompare(input);
+  const diffDisplay = normalizeDiffDisplay(input);
 
   const targetVariants = collectVariants([kanaReading, romajiReading, ...(otherReadings ?? [])]);
   if (targetVariants.some((v) => v.compare === compare)) {
@@ -75,7 +92,7 @@ export function checkKanjiReadingAnswer(
   const alternateVariants = collectVariants(allWordReadings ?? []).filter((v) => !targetCompareSet.has(v.compare));
   const alternateMatch = alternateVariants.find((v) => v.compare === compare);
   if (alternateMatch) {
-    return { kind: "alternate", display: alternateMatch.display };
+    return { kind: "alternate", display: alternateMatch.diffDisplay };
   }
 
   if (targetVariants.length === 0) {
@@ -83,6 +100,11 @@ export function checkKanjiReadingAnswer(
   }
 
   const closest = findClosest(compare, targetVariants);
-  const { userDiff, targetDiff } = levenshteinAlign(compare, display, closest.compare, closest.display);
+  const { userDiff, targetDiff } = levenshteinAlign(
+    diffDisplay.toLowerCase(),
+    diffDisplay,
+    closest.diffCompare,
+    closest.diffDisplay
+  );
   return { kind: "wrong", result: { correct: false, userDiff, targetDiff } };
 }

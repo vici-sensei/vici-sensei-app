@@ -78,11 +78,16 @@ export function ReadingTestAnswerForm({
     };
   }, []);
 
+  // Romaji is always lowercase a-z -- typing/autofill/IME input is filtered down to that on every
+  // change (uppercase is lowercased rather than dropped, so caps lock doesn't just eat keystrokes
+  // silently), instead of only rejecting it at Check time. Paste/drop are already blocked outright
+  // above, so this mainly guards direct typing.
   const handleAnswerChange = (value: string) => {
-    setAnswer(value);
+    const filtered = value.toLowerCase().replace(/[^a-z]/g, "");
+    setAnswer(filtered);
     if (draftTimeoutRef.current) clearTimeout(draftTimeoutRef.current);
     draftTimeoutRef.current = setTimeout(
-      () => onDraftChange(sentence.id, value),
+      () => onDraftChange(sentence.id, filtered),
       DRAFT_SAVE_DEBOUNCE_MS,
     );
   };

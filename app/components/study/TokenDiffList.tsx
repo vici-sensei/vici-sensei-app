@@ -16,7 +16,12 @@ export function TokenDiffList({ tokens, className = "mt-3" }: Props) {
             token.correct ? "border-accent-green/20 bg-accent-green/[0.05]" : "border-accent-red/20 bg-accent-red/[0.05]"
           }`}
         >
-          <div className="font-mono text-[1.05rem] leading-relaxed flex items-center">
+          {/* whitespace-pre-wrap: without it, a lone space character sitting alone inside its
+              own flex-item span (one span per diff char) is both the first and last character of
+              its own box, so normal whitespace collapsing treats it as leading+trailing and drops
+              it entirely -- "to becomex" renders as "tobecomex". pre-wrap preserves it while still
+              allowing the line to wrap. */}
+          <div className="font-mono text-[1.05rem] leading-relaxed flex items-center flex-wrap whitespace-pre-wrap">
             {token.correct ? (
               <span className="inline-flex items-center gap-1.5 text-accent-green">
                 <FaCheck /> {token.raw}

@@ -21,34 +21,46 @@ export interface MeaningCheckResult {
   matchedMeanings: MatchedMeaning[];
 }
 
-function normalizeDisplay(value: string): string {
-  return value
-    .trim()
-    .replace(/[.!?]+$/g, "")
-    .replace(/\s+/g, " ");
+// Drops everything but letters and digits -- this is what decides correct/incorrect, so spaces
+// and punctuation (commas, periods, parentheses, carets, hashes, ...) are typing noise the
+// student shouldn't be marked wrong for, wherever in the answer they land. Digits are kept (not
+// folded in with punctuation) because a numeral can be the entire accepted meaning (e.g. "1" for
+// 一) -- stripping those too would turn it into "" and make that meaning impossible to ever type
+// correctly.
+function normalizeCompare(value: string): string {
+  return value.replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-function normalize(value: string): string {
-  return normalizeDisplay(value).toLowerCase();
+// For the hint rendered on a wrong answer -- unlike normalizeCompare, punctuation/symbols are
+// kept here (typing "to-       becomem" should show as "to- becomem", not "tobecomem"), only
+// whitespace runs are collapsed to one space and trimmed so the hint still reads cleanly. Only
+// ever fed into a diff once a token has already failed the stricter normalizeCompare match above,
+// so this never affects correct/incorrect -- purely how the hint is displayed.
+function normalizeDiffDisplay(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 interface MeaningVariant {
+  /** Letters/digits only, lowercased -- the exact-match key an answer's own compare is checked
+   * against. */
   compare: string;
-  display: string;
+  /** Spaces-preserved counterparts of `compare`, cased/lowercased -- only used to build the diff
+   * when this variant turns out to be the closest wrong guess (see findClosest). */
+  diffDisplay: string;
+  diffCompare: string;
 }
 
-// "(fighting) spirit" is accepted as both "spirit" and "fighting spirit" —
-// the parenthetical is a sense qualifier, not literal text to type. `display`
-// keeps the original casing (e.g. "Japan") so diffs can show it; `compare`
-// is the lowercased form matching/alignment actually run on.
+// "(fighting) spirit" is accepted as both "spirit" and "fighting spirit" -- the parenthetical is
+// a sense qualifier, not literal text to type.
 function meaningVariants(meaning: string): MeaningVariant[] {
-  const shortDisplay = normalizeDisplay(meaning.replace(/\([^)]*\)/g, " "));
-  const longDisplay = normalizeDisplay(meaning.replace(/[()]/g, ""));
+  const shortRaw = meaning.replace(/\([^)]*\)/g, " ");
+  const longRaw = meaning.replace(/[()]/g, "");
   const variants = new Map<string, MeaningVariant>();
-  for (const display of [shortDisplay, longDisplay]) {
-    if (!display) continue;
-    const compare = display.toLowerCase();
-    if (!variants.has(compare)) variants.set(compare, { compare, display });
+  for (const raw of [shortRaw, longRaw]) {
+    const compare = normalizeCompare(raw).toLowerCase();
+    if (!compare || variants.has(compare)) continue;
+    const diffDisplay = normalizeDiffDisplay(raw);
+    variants.set(compare, { compare, diffDisplay, diffCompare: diffDisplay.toLowerCase() });
   }
   return Array.from(variants.values());
 }
@@ -63,19 +75,21 @@ function splitAnswer(input: string): string[] {
 function findClosest(
   compareToken: string,
   acceptedMeanings: string[]
-): { meaning: string; compare: string; display: string } {
-  let best: { meaning: string; compare: string; display: string } | null = null;
+): { meaning: string; diffCompare: string; diffDisplay: string } {
+  let best: { meaning: string; diffCompare: string; diffDisplay: string } | null = null;
   let bestDist = Infinity;
   for (const meaning of acceptedMeanings) {
     for (const variant of meaningVariants(meaning)) {
+      // Ranked on the strict (spaces-stripped) form -- how close the letters/digits are is what
+      // "closest" should mean, not how many spaces happen to differ.
       const dist = levenshteinDistance(compareToken, variant.compare);
       if (dist < bestDist) {
         bestDist = dist;
-        best = { meaning, compare: variant.compare, display: variant.display };
+        best = { meaning, diffCompare: variant.diffCompare, diffDisplay: variant.diffDisplay };
       }
     }
   }
-  return best ?? { meaning: acceptedMeanings[0], compare: "", display: "" };
+  return best ?? { meaning: acceptedMeanings[0], diffCompare: "", diffDisplay: "" };
 }
 
 /**
@@ -96,8 +110,8 @@ export function checkKanjiMeaningAnswer(input: string, acceptedMeanings: string[
 
   const parsed = tokens.map((raw) => ({
     raw,
-    display: normalizeDisplay(raw),
-    compare: normalize(raw),
+    compare: normalizeCompare(raw).toLowerCase(),
+    diffDisplay: normalizeDiffDisplay(raw),
   }));
   const matchedIndex = parsed.map(({ compare }) => variantSets.findIndex((set) => set.has(compare)));
 
@@ -107,12 +121,17 @@ export function checkKanjiMeaningAnswer(input: string, acceptedMeanings: string[
   const remainingMeanings = meanings.filter((_, i) => !consumed.has(i));
   const candidateMeanings = remainingMeanings.length > 0 ? remainingMeanings : meanings;
 
-  const results: TokenResult[] = parsed.map(({ raw, display, compare }, i) => {
+  const results: TokenResult[] = parsed.map(({ raw, diffDisplay, compare }, i) => {
     if (matchedIndex[i] !== -1) {
       return { raw, correct: true };
     }
     const closest = findClosest(compare, candidateMeanings);
-    const { userDiff, targetDiff } = levenshteinAlign(compare, display, closest.compare, closest.display);
+    const { userDiff, targetDiff } = levenshteinAlign(
+      diffDisplay.toLowerCase(),
+      diffDisplay,
+      closest.diffCompare,
+      closest.diffDisplay
+    );
     return { raw, correct: false, closestMeaning: closest.meaning, userDiff, targetDiff };
   });
 
