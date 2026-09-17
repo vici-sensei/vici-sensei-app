@@ -95,6 +95,7 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
           placeholder="Type the romaji…"
           disabled={disabled}
           accent={isHiragana ? "violet" : "orange"}
+          lowercaseLettersOnly
         />
       }
       revealContent={

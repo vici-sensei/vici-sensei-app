@@ -8,6 +8,10 @@ interface Props {
   placeholder: string;
   disabled: boolean;
   accent: ReviewAccent;
+  /** Romaji kana-reading cards only -- strips every keystroke down to lowercase Latin letters
+   * (a-z) as it's typed, so spaces, punctuation, digits, other alphabets (Cyrillic, kana/kanji
+   * IME input, ...), and uppercase can never appear in the field, even transiently. */
+  lowercaseLettersOnly?: boolean;
 }
 
 // Referenced by ReviewCardShell's Check button (via the `form` attribute) so that button can
@@ -15,7 +19,11 @@ interface Props {
 // being stuck directly under the input.
 export const ANSWER_FORM_ID = "answer-form";
 
-export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disabled, accent }: Props) {
+function toLowercaseLettersOnly(value: string): string {
+  return value.toLowerCase().replace(/[^a-z]/g, "");
+}
+
+export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disabled, accent, lowercaseLettersOnly = false }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -32,7 +40,7 @@ export function AnswerForm({ answer, onAnswerChange, onSubmit, placeholder, disa
         ref={inputRef}
         type="text"
         value={answer}
-        onChange={(e) => onAnswerChange(e.target.value)}
+        onChange={(e) => onAnswerChange(lowercaseLettersOnly ? toLowercaseLettersOnly(e.target.value) : e.target.value)}
         onPaste={preventClipboardBypass}
         onCopy={preventClipboardBypass}
         onCut={preventClipboardBypass}
