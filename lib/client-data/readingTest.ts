@@ -15,6 +15,7 @@ import {
   resetWrongAnswers,
   saveReadingTestDraft,
   submitReadingTestAnswer,
+  undoReadingTestAnswer,
   type ReadingTestAnswer,
   type ReadingTestSession,
 } from "@/lib/data/readingTest";
@@ -57,8 +58,10 @@ export function useReadingTestSentences(testType: string): {
  * user_reading_test_progress's doc comment -- a sentence missing from this map is still pending).
  * markAnswered persists a Check result and updates the map optimistically; retryWrong reopens
  * every wrong sentence (deletes those entries, both locally and server-side) for the "Retry the
- * ones I got wrong" flow. Both return the underlying persist promise so a caller can surface a
- * failure (e.g. via a toast) without this hook needing to know about UI. */
+ * ones I got wrong" flow; undoAnswered reopens a single just-Checked sentence (deletes just that
+ * entry) for the reading-test page's own Undo pill. All three return the underlying persist
+ * promise so a caller can surface a failure (e.g. via a toast) without this hook needing to know
+ * about UI. */
 export function useReadingTestProgress(
   userId: string,
   testType: string
@@ -68,6 +71,7 @@ export function useReadingTestProgress(
   error: string | null;
   markAnswered: (sentenceId: number, correct: boolean, userAnswer: string) => Promise<void>;
   retryWrong: () => Promise<void>;
+  undoAnswered: (sentenceId: number) => Promise<void>;
 } {
   const [progress, setProgress] = useState<Map<number, ReadingTestAnswer> | null>(null);
   const [status, setStatus] = useState<AsyncStatus>("loading");
@@ -114,7 +118,20 @@ export function useReadingTestProgress(
     return resetWrongAnswers(createClient(), userId, testType);
   }, [userId, testType]);
 
-  return { progress, status, error, markAnswered, retryWrong };
+  const undoAnswered = useCallback(
+    (sentenceId: number) => {
+      setProgress((prev) => {
+        if (!prev) return prev;
+        const next = new Map(prev);
+        next.delete(sentenceId);
+        return next;
+      });
+      return undoReadingTestAnswer(createClient(), userId, testType, sentenceId);
+    },
+    [userId, testType]
+  );
+
+  return { progress, status, error, markAnswered, retryWrong, undoAnswered };
 }
 
 export async function fetchReadingTestPassedStatus(userId: string, testType: string): Promise<boolean> {

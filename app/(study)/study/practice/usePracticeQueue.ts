@@ -199,6 +199,12 @@ export interface PracticeQueueState {
   /** Screen-on milliseconds spent on this pass so far (see the timer effect below) -- frozen once
    * `status` reaches "done", so the summary shows a stable total. */
   activeMs: number;
+  /** Whether actions.undoLast has something to undo right now -- true from the moment rate()
+   * grades a card *incorrect* until either undoLast consumes it or another rate() call replaces
+   * it (only the single most recent grade is ever undoable). A correct grade never sets this --
+   * the practice page's Undo pill exists to let a mistake be corrected, not to reopen a card
+   * that was already answered right. */
+  canUndo: boolean;
   /** The 4 category options this user's study_track actually has content for -- kanji/vocabulary
    * are omitted entirely on the kana track (see availablePracticeCategories). */
   availableCategories: readonly PracticeCategory[];
@@ -207,6 +213,12 @@ export interface PracticeQueueState {
   initialCategories: readonly PracticeCategory[];
   actions: {
     rate: (card: DueCard, rating: Rating) => void;
+    /** Undoes the single most recent rate() call -- steps `index` back by one and reverts
+     * whatever it changed (correct count, or the tail of wrongRefs), so the same card is shown
+     * again. Purely in-memory, like the rest of this hook's score-keeping: the practice_logs row
+     * rate() already fired for streak/XP credit is left in place, same as /study's undo leaves an
+     * already-awarded review's XP untouched. */
+    undoLast: () => void;
     /** Starts a fresh pass through just the cards missed this pass -- see retryMistakes below. */
     retryMistakes: () => void;
     /** Fetches and shuffles a fresh deck for exactly these categories -- called once from the
@@ -272,6 +284,10 @@ export function usePracticeQueue(): PracticeQueueState {
   const [correct, setCorrect] = useState(0);
   const [wrongRefs, setWrongRefs] = useState<PracticeWrongCardRef[]>([]);
   const [activeMs, setActiveMs] = useState(0);
+  // Set by rate() to whether IT was correct, cleared by undoLast (or a fresh pass) -- lets
+  // undoLast revert the right counter without needing to know anything else about that card, and
+  // its mere presence is what makes the Undo pill visible.
+  const [undoable, setUndoable] = useState<{ wasCorrect: boolean } | null>(null);
   // True once retryMistakes has swapped the queue down to just the missed cards -- gates the
   // mid-deck cache-mirror effect below, since that smaller queue must never be persisted as if
   // it were the real deck (see that effect's own comment).
@@ -328,6 +344,7 @@ export function usePracticeQueue(): PracticeQueueState {
           activeMsRef.current = resolvedActiveMs;
           setActiveMs(resolvedActiveMs);
           setIsRetrying(false);
+          setUndoable(null);
           setStatus("ready");
         })
         .catch(() => {
@@ -449,6 +466,7 @@ export function usePracticeQueue(): PracticeQueueState {
         setWrongRefs((refs) => [...refs, { kind: kindForExerciseType(card.exercise_type), id: card.progress_id, userAnswer: userAnswer ?? "" }]);
       }
       setIndex((i) => i + 1);
+      setUndoable({ wasCorrect: isCorrect });
 
       // Fire-and-forget: this only ever earns streak/XP credit (see practice_logs' own trigger),
       // never anything the queue itself depends on, so a failure here must never block or roll
@@ -467,6 +485,14 @@ export function usePracticeQueue(): PracticeQueueState {
     [user.id]
   );
 
+  const undoLast = useCallback(() => {
+    // Only a wrong grade is ever undoable here -- see canUndo's own doc comment.
+    if (!undoable || undoable.wasCorrect) return;
+    setIndex((i) => Math.max(i - 1, 0));
+    setWrongRefs((refs) => refs.slice(0, -1));
+    setUndoable(null);
+  }, [undoable]);
+
   // Starts a brand-new pass through just the cards missed this time -- a fresh shuffle, score,
   // and timer, exactly like starting the deck fresh but scoped to the missed cards. Only ever
   // called from the "done" summary, so there's no in-flight rate() call it could race with.
@@ -483,6 +509,7 @@ export function usePracticeQueue(): PracticeQueueState {
     setWrongRefs([]);
     activeMsRef.current = 0;
     setActiveMs(0);
+    setUndoable(null);
     setStatus("ready");
   }, [restoredSummary, liveWrongAnswers, user.id]);
 
@@ -508,6 +535,7 @@ export function usePracticeQueue(): PracticeQueueState {
     activeMsRef.current = 0;
     setActiveMs(0);
     setIsRetrying(false);
+    setUndoable(null);
     setStatus("setup");
   }, [user.id]);
 
@@ -522,8 +550,9 @@ export function usePracticeQueue(): PracticeQueueState {
     total: restoredSummary ? restoredSummary.total : queue.length,
     wrongAnswers,
     activeMs: restoredSummary ? restoredSummary.activeMs : activeMs,
+    canUndo: undoable !== null && !undoable.wasCorrect,
     availableCategories,
     initialCategories,
-    actions: { rate, retryMistakes, startPractice, goToSetup },
+    actions: { rate, undoLast, retryMistakes, startPractice, goToSetup },
   };
 }

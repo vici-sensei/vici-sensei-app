@@ -11,6 +11,7 @@ import { ReviewCardKanjiReading } from "@/app/components/study/ReviewCardKanjiRe
 import { ReviewCardVocabMeaning } from "@/app/components/study/ReviewCardVocabMeaning";
 import { PracticeCategoryPicker } from "@/app/components/study/PracticeCategoryPicker";
 import { QueueProgressBar } from "@/app/components/study/QueueProgressBar";
+import { UndoPill } from "@/app/components/study/UndoPill";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
@@ -77,14 +78,16 @@ function formatDuration(ms: number): string {
  * to practice, then a single shuffled pass through every card of those kinds they've already
  * been introduced to -- plus, once both kana scripts are fully mastered, their study_enabled =
  * false bonus characters (badged "Bonus" by ReviewCardKanaReading) -- with no effect on SRS
- * state or review history (see usePracticeQueue's own doc comment). Unlike /study, there is no
- * Undo (nothing is ever recorded to undo) and no session to end, just a summary once the deck
- * runs out -- which (see usePracticeQueue) survives a refresh indefinitely until the user
- * explicitly retries or starts a new practice. */
+ * state or review history (see usePracticeQueue's own doc comment). Undo here (see
+ * usePracticeQueue's canUndo/undoLast) only ever appears to let a just-missed card be retried --
+ * a correct grade is never undoable -- and only rewinds this in-memory score-keeping by one card,
+ * since nothing about a practice pass is otherwise persisted server-side; unlike /study there's no
+ * session to end either, just a summary once the deck runs out -- which (see usePracticeQueue)
+ * survives a refresh indefinitely until the user explicitly retries or starts a new practice. */
 export default function PracticePage() {
   const router = useRouter();
   useViewportHeight();
-  const { status, error, current, correct, completed, total, wrongAnswers, activeMs, availableCategories, initialCategories, actions } =
+  const { status, error, current, correct, completed, total, wrongAnswers, activeMs, canUndo, availableCategories, initialCategories, actions } =
     usePracticeQueue();
   const isPerfect = status === "done" && total > 0 && correct === total;
 
@@ -219,8 +222,10 @@ export default function PracticePage() {
       </div>
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4">
         <PracticeCard key={current.key} card={current.card} onRate={actions.rate} />
+        <div className="mt-4">
+          <UndoPill visible={canUndo} onUndo={actions.undoLast} />
+        </div>
       </div>
-      <div className="shrink-0 px-4 py-2" />
     </div>
   );
 }

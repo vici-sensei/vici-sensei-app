@@ -110,7 +110,7 @@ export function ReadingTestSentenceRow({
   );
 
   return (
-    <div className="flex flex-col items-center gap-4 my-auto w-full">
+    <div className="flex flex-col items-center gap-4 w-full">
       <p
         className={`w-fit text-[1.3rem] leading-relaxed text-white ${result ? "" : "select-none no-touch-callout"}`}
         onCopy={result ? undefined : (e) => e.preventDefault()}

@@ -16,6 +16,7 @@ import { useKeyboardOpen } from "@/lib/useKeyboardOpen";
 import { ReadingTestSentenceRow } from "@/app/components/readingTest/ReadingTestSentenceRow";
 import { ReadingTestAnswerForm } from "@/app/components/readingTest/ReadingTestAnswerForm";
 import { ReadingTestCloseButton } from "@/app/components/readingTest/ReadingTestCloseButton";
+import { UndoPill } from "@/app/components/study/UndoPill";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Button } from "@/app/components/ui/Button";
 import type { BrowseKanaEntry } from "@/lib/types";
@@ -40,8 +41,10 @@ interface Props {
 /** Shared implementation behind both /study/test/hiragana and /study/test/katakana -- fixed
  * text, one attempt per sentence, shown one at a time. Both outcomes are persisted (see
  * user_reading_test_progress's doc comment), so a sentence stays locked across a refresh/reopen
- * once answered, right or wrong -- only the summary page's "Retry the ones I got wrong" reopens a
- * wrong one. Once every sentence in this pass has a result, advancing past the last one redirects
+ * once answered, right or wrong -- only the summary page's "Retry the ones I got wrong", or this
+ * page's own Undo pill for a just-missed sentence while its result is still on screen (before
+ * Next moves the pass past it) -- a correct answer is never undoable -- reopens one. Once every
+ * sentence in this pass has a result, advancing past the last one redirects
  * to the score screen. The only per-script differences are `kanaEntries` above and hiragana's
  * extra "trickier than they look" blurb below (katakana's ー hint would give too much away, so
  * ReadingTestSentenceRow only offers it for hiragana). */
@@ -62,7 +65,9 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
     status: progressStatus,
     error: progressError,
     markAnswered,
+    undoAnswered,
   } = useReadingTestProgress(user.id, testType);
+  const [undoPending, setUndoPending] = useState(false);
   const {
     session,
     status: sessionStatus,
@@ -178,6 +183,15 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
     });
   };
 
+  const handleUndoAnswer = (sentenceId: number) => {
+    setUndoPending(true);
+    undoAnswered(sentenceId)
+      .catch(() => {
+        showToast("Couldn't undo that answer — try again.", "error");
+      })
+      .finally(() => setUndoPending(false));
+  };
+
   // Advances to the next question in this pass, or -- once every question in it has a result --
   // does the same hard navigation to the summary the redirect effect above does, except this one
   // only fires from the student's own Next click on the LAST question, so they always get to see
@@ -240,6 +254,8 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
     // navigate away.
     return <FullScreenLoader />;
   }
+
+  const currentAnswer = progress.get(currentSentence.id) ?? null;
 
   const answeredCount = passQueueIds.filter((id) => progress.has(id)).length;
   const correctCount = passQueueIds.filter(
@@ -354,15 +370,27 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
             the browser's native "scroll focused input into view" can only ever act on this
             region, never on the header or the Check/Next row below it. */}
         <div className="min-h-0 flex-1 w-full overflow-y-auto flex flex-col items-center">
-          <ReadingTestSentenceRow
-            key={`row-${currentSentence.id}`}
-            sentence={currentSentence}
-            kanaRomajiMap={kanaRomajiMap}
-            testType={testType}
-            initialAnswer={progress.get(currentSentence.id) ?? null}
-            onNext={handleNext}
-            onAnswerSlotReady={setAnswerSlot}
-          />
+          {/* my-auto here (not on the row itself) is what centers the row and, once wrong,
+              the Undo pill right under it as a single group -- same self-centering trick
+              ReadingTestSentenceRow used to apply to just itself. */}
+          <div className="flex flex-col items-center gap-4 my-auto w-full">
+            <ReadingTestSentenceRow
+              key={`row-${currentSentence.id}`}
+              sentence={currentSentence}
+              kanaRomajiMap={kanaRomajiMap}
+              testType={testType}
+              initialAnswer={currentAnswer}
+              onNext={handleNext}
+              onAnswerSlotReady={setAnswerSlot}
+            />
+            {currentAnswer && !currentAnswer.correct && (
+              <UndoPill
+                visible
+                disabled={undoPending}
+                onUndo={() => handleUndoAnswer(currentSentence.id)}
+              />
+            )}
+          </div>
         </div>
 
         <div className="shrink-0">

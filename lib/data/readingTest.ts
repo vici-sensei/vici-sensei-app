@@ -81,6 +81,25 @@ export async function submitReadingTestAnswer(
   return { correct: row.correct, userAnswer: row.user_answer, attemptedAt: new Date().toISOString() };
 }
 
+/** Undoes the just-Checked answer for one sentence -- lets the student retype it before Next
+ * moves the pass past it (see reading_test_undo_answer). Only ever called for the sentence
+ * currently on screen, the only one that can still have a result showing without having advanced
+ * past it yet. Unlike resetWrongAnswers, this never bumps the attempt counter or touches
+ * queue_position -- it's a correction within the same pass, not a new attempt. */
+export async function undoReadingTestAnswer(
+  supabase: AppSupabaseClient,
+  userId: string,
+  testType: string,
+  sentenceId: number
+): Promise<void> {
+  const { error } = await supabase.rpc("reading_test_undo_answer", {
+    p_user_id: userId,
+    p_test_type: testType,
+    p_sentence_id: sentenceId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export interface ReadingTestSession {
   started: boolean;
   queueOrder: number[] | null;
