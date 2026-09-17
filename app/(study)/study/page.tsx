@@ -224,13 +224,13 @@ export default function StudyPage() {
             onConfirm={() => actions.introduceKatakanaRule(current)}
           />
         )}
-      </div>
-      <div className="flex shrink-0 justify-center px-4 py-2">
-        <UndoPill
-          visible={!undoDisabled && (lastReview !== null || cancelCheck !== null)}
-          disabled={cancelCheck === null && actionPending}
-          onUndo={handleUndo}
-        />
+        <div className="mt-4">
+          <UndoPill
+            visible={!undoDisabled && (lastReview !== null || cancelCheck !== null)}
+            disabled={cancelCheck === null && actionPending}
+            onUndo={handleUndo}
+          />
+        </div>
       </div>
       {levelUpResult && <JlptLevelUpModal result={levelUpResult} onClose={actions.dismissLevelUp} />}
       {kanaGraduationResult && <KanaGraduationModal kind={kanaGraduationResult} onClose={actions.dismissKanaGraduation} />}
