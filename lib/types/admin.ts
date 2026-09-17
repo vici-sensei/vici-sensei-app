@@ -1,12 +1,3 @@
-export interface VocabularyShortMeaningRow {
-  id: number;
-  word: string;
-  kana_reading: string | null;
-  primary_meanings: string[] | null;
-  short_meaning: string | null;
-  jlpt_level: string | null;
-}
-
 export interface FreeLessonLead {
   id: number;
   name: string;

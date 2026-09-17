@@ -1,0 +1,28 @@
+-- Run this manually in DBeaver or the Supabase SQL editor.
+--
+-- Drops public.jmdict_entries entirely, at the user's explicit request after being shown the
+-- tradeoff: it held the full JMdict dictionary (218,732 rows, 287 MB), of which only 17,331 rows
+-- were ever linked (vocabulary_ids) to a public.vocabulary row -- the other ~201,400 were unused
+-- reserve entries for expanding the app's vocabulary beyond its current ~17,349 words. That
+-- expansion path is gone unless JMdict is re-imported from source via scripts/import-jmdict.mjs.
+--
+-- Confirmed dead before dropping: no app code reads this table (only scripts/import-jmdict.mjs
+-- does, which is not part of the running app); the sync trigger that fed
+-- vocabulary.primary_meanings/other_meanings from it was already dropped in
+-- 20261207_drop_jmdict_entries_meanings_sync_trigger.sql; the vocabulary_ids-uniqueness trigger was
+-- already dropped in 20261122_jmdict_entries_allow_shared_vocabulary_ids.sql; both admin pages that
+-- wrote to it (/admin/jmdict-review, /admin/jmdict-senses) are already retired; no other table has
+-- a foreign key into it and no live function references it.
+--
+-- public.vocabulary.primary_meanings/other_meanings (the actual output of this table's curation
+-- work, including the 9 rows with a manually-picked primary sense -- see
+-- 20261125_jmdict_entries_admin_can_edit_senses.sql) are untouched by this migration; they were
+-- already finalized and copied over.
+--
+-- DROP TABLE takes everything that belongs to it along for free: all four indexes
+-- (idx_jmdict_entries_word[_trgm], idx_jmdict_entries_kana_reading[_trgm],
+-- idx_jmdict_entries_vocabulary_ids), both CHECK constraints, the jmdict_id UNIQUE constraint, and
+-- the "Authenticated users can read jmdict_entries" RLS policy. No CASCADE needed -- nothing
+-- external depends on this table.
+
+drop table public.jmdict_entries;
