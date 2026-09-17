@@ -128,7 +128,7 @@ export function WeekStreak({ activity, streak }: WeekStreakProps) {
             ) : (
               <FaFire className={`h-8 w-8 ${flameColor} ${styleClass}`} style={glowStyle} />
             )}
-            <span className={`text-[11px] ${isToday ? "font-semibold " : ""}${labelColor}`}>
+            <span className={`text-[0.6875rem] ${isToday ? "font-semibold " : ""}${labelColor}`}>
               {weekdayLabel(day.date)}
             </span>
           </div>

@@ -112,7 +112,7 @@ export function ReadingTestSentenceRow({
   return (
     <div className="flex flex-col items-center gap-4 w-full">
       <p
-        className={`w-fit text-[1.3rem] leading-relaxed text-white ${result ? "" : "select-none no-touch-callout"}`}
+        className={`w-fit text-[1.7rem] leading-relaxed text-white ${result ? "" : "select-none no-touch-callout"}`}
         onCopy={result ? undefined : (e) => e.preventDefault()}
         onContextMenu={result ? undefined : (e) => e.preventDefault()}
       >
@@ -131,7 +131,7 @@ export function ReadingTestSentenceRow({
       {result && (
         <>
           {result.correct ? (
-            <div className="w-full flex items-center gap-2.5 rounded-lg border border-accent-green/20 bg-accent-green/[0.05] px-4 py-3">
+            <div className="w-full flex items-center justify-center gap-2.5 rounded-lg border border-accent-green/20 bg-accent-green/[0.05] px-4 py-3">
               <FaCheck className="shrink-0 text-accent-green" />
               <span className="text-[0.95rem] text-white">
                 {sentence.romaji}

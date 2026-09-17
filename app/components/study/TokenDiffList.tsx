@@ -8,7 +8,7 @@ interface Props {
 
 export function TokenDiffList({ tokens, className = "mt-3" }: Props) {
   return (
-    <div className={`${className} space-y-2.5 text-left`}>
+    <div className={`${className} space-y-2.5 text-center`}>
       {tokens.map((token, i) => (
         <div
           key={i}
@@ -21,7 +21,7 @@ export function TokenDiffList({ tokens, className = "mt-3" }: Props) {
               its own box, so normal whitespace collapsing treats it as leading+trailing and drops
               it entirely -- "to becomex" renders as "tobecomex". pre-wrap preserves it while still
               allowing the line to wrap. */}
-          <div className="font-mono text-[1.05rem] leading-relaxed flex items-center flex-wrap whitespace-pre-wrap">
+          <div className="font-mono text-[1.05rem] leading-relaxed flex items-center justify-center flex-wrap whitespace-pre-wrap">
             {token.correct ? (
               <span className="inline-flex items-center gap-1.5 text-accent-green">
                 <FaCheck /> {token.raw}
@@ -32,7 +32,7 @@ export function TokenDiffList({ tokens, className = "mt-3" }: Props) {
                   <FaXmark />
                 </span>
                 {token.userDiff?.map((c, ci) => (
-                  <span key={ci} className={c.match ? "text-white" : "text-accent-red line-through decoration-2"}>
+                  <span key={ci} className={c.match ? "text-white" : "text-accent-red"}>
                     {c.char}
                   </span>
                 ))}

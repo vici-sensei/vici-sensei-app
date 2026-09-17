@@ -47,7 +47,7 @@ export function ActivityHeatmap({ days }: { days: StudentDailyActivity[] }) {
     <div className="flex gap-3">
       <div className="flex flex-col gap-1 pt-[18px]">
         {WEEKDAY_LABELS.map((label, i) => (
-          <span key={i} className="h-3 text-[10px] leading-3 text-text-muted">
+          <span key={i} className="h-3 text-[0.625rem] leading-3 text-text-muted">
             {i % 2 === 1 ? label : ""}
           </span>
         ))}
@@ -56,7 +56,7 @@ export function ActivityHeatmap({ days }: { days: StudentDailyActivity[] }) {
         {columns.map((col, i) => (
           <div key={i} className="flex flex-col gap-1">
             {i === 0 || columns[i - 1]?.[0]?.key.slice(0, 7) !== col[0]?.key.slice(0, 7) ? (
-              <span className="h-3 text-[10px] leading-3 text-text-muted">
+              <span className="h-3 text-[0.625rem] leading-3 text-text-muted">
                 {col[0] ? new Date(col[0].key).toLocaleDateString(undefined, { month: "short" }) : ""}
               </span>
             ) : (

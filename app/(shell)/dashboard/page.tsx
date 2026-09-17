@@ -101,7 +101,7 @@ function StreakCard() {
         {/* Discreet reminder that the weekly free-days budget (streak_free_days_per_week in
             supabase/migrations/20261128_streak_weekly_free_days.sql) exists -- easy to miss
             since it's applied silently, with no other UI surface explaining it. */}
-        <div className="flex w-full basis-full items-center justify-center gap-1 text-[11px] text-text-muted">
+        <div className="flex w-full basis-full items-center justify-center gap-1 text-[0.6875rem] text-text-muted">
           <FaSnowflake className="h-3 w-3 text-[#149BBB]" />
           <span>2 rest days a week are yours — no streak lost, promise.</span>
         </div>
@@ -191,7 +191,7 @@ function NewKanjiCard() {
   const { stats } = useStudyStats();
   return (
     <NewCardStat
-      icon={<span className="text-[27px] font-medium leading-none">竜</span>}
+      icon={<span className="text-[1.6875rem] font-medium leading-none">竜</span>}
       colorClass="stroke-accent-blue"
       today={stats?.new_kanji_today ?? 0}
       limit={stats?.new_kanji_limit ?? FALLBACK_NEW_KANJI_LIMIT}
@@ -217,7 +217,7 @@ function NewHiraganaCard() {
   const { stats } = useStudyStats();
   return (
     <NewCardStat
-      icon={<span className="text-[27px] font-medium leading-none">あ</span>}
+      icon={<span className="text-[1.6875rem] font-medium leading-none">あ</span>}
       colorClass="stroke-accent-blue"
       today={stats?.new_hiragana_today ?? 0}
       limit={stats?.new_hiragana_limit ?? FALLBACK_NEW_HIRAGANA_LIMIT}
@@ -230,7 +230,7 @@ function NewKatakanaCard() {
   const { stats } = useStudyStats();
   return (
     <NewCardStat
-      icon={<span className="text-[27px] font-medium leading-none">ア</span>}
+      icon={<span className="text-[1.6875rem] font-medium leading-none">ア</span>}
       colorClass="stroke-accent-violet"
       today={stats?.new_katakana_today ?? 0}
       limit={stats?.new_katakana_limit ?? FALLBACK_NEW_KATAKANA_LIMIT}

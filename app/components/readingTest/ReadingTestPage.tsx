@@ -16,6 +16,7 @@ import { useKeyboardOpen } from "@/lib/useKeyboardOpen";
 import { ReadingTestSentenceRow } from "@/app/components/readingTest/ReadingTestSentenceRow";
 import { ReadingTestAnswerForm } from "@/app/components/readingTest/ReadingTestAnswerForm";
 import { ReadingTestCloseButton } from "@/app/components/readingTest/ReadingTestCloseButton";
+import { StudyCardShell } from "@/app/components/study/StudyCardShell";
 import { UndoPill } from "@/app/components/study/UndoPill";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Button } from "@/app/components/ui/Button";
@@ -49,6 +50,10 @@ interface Props {
  * extra "trickier than they look" blurb below (katakana's ー hint would give too much away, so
  * ReadingTestSentenceRow only offers it for hiragana). */
 export function ReadingTestPage({ testType, kanaEntries }: Props) {
+  // Same label/accent convention as ReviewCardKanaReading's study-queue flashcard for this
+  // exercise type, so this test's card reads as the same "kind" of thing.
+  const cardLabel = testType === "hiragana" ? "Hiragana reading" : "Katakana reading";
+  const cardAccent = testType === "hiragana" ? "violet" : "orange";
   const router = useRouter();
   useViewportHeight();
   const keyboardOpen = useKeyboardOpen();
@@ -275,34 +280,36 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
         className="overflow-y-auto p-8"
         style={{ height: "var(--app-height, 100dvh)" }}
       >
-        <div className="mx-auto w-full max-w-[640px] h-full flex flex-col gap-8 justify-between">
+        <div className="mx-auto w-full max-w-[640px] h-full flex flex-col gap-8">
           <ReadingTestCloseButton />
-          <div className="h-full flex flex-col gap-8 justify-center">
-            <h1 className="text-[1.6rem] font-extrabold leading-[1.25] text-white text-center">
-              Let&apos;s read some words
-            </h1>
-            <div>
-              <p className="text-[0.9rem] leading-[1.6] text-text-muted">
-                Type the romaji reading for each word below, then press Check to
-                see it.
-              </p>
-              {testType === "hiragana" && (
+          <div className="flex-1 flex items-center justify-center">
+            <StudyCardShell label={cardLabel} accent={cardAccent}>
+              <h1 className="text-[1.6rem] font-extrabold leading-[1.25] text-white">
+                Let&apos;s read some words
+              </h1>
+              <div className="mt-4 flex flex-col gap-2">
                 <p className="text-[0.9rem] leading-[1.6] text-text-muted">
-                  A couple of words are trickier than they look, so you&apos;ll
-                  find their reading written above them as a hint.
+                  Type the romaji reading for each word below, then press Check to
+                  see it.
                 </p>
-              )}
-            </div>
-          </div>
-          <div className="mx-auto">
-            <Button
-              onClick={() => {
-                setStarted(true);
-                markStarted().catch(() => {});
-              }}
-            >
-              Start
-            </Button>
+                {testType === "hiragana" && (
+                  <p className="text-[0.9rem] leading-[1.6] text-text-muted">
+                    A couple of words are trickier than they look, so you&apos;ll
+                    find their reading written above them as a hint.
+                  </p>
+                )}
+              </div>
+              <div className="mt-8.5">
+                <Button
+                  onClick={() => {
+                    setStarted(true);
+                    markStarted().catch(() => {});
+                  }}
+                >
+                  Start
+                </Button>
+              </div>
+            </StudyCardShell>
           </div>
         </div>
       </div>
@@ -364,25 +371,43 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
         </div>
 
         {/* The only scrollable region -- min-h-0 lets it shrink below its content's natural
-            height instead of pushing the header/footer off-screen, and its own overflow-y-auto
-            keeps any overflow an internal scrollbar here rather than a whole-page one. Just as
-            important for the on-screen keyboard: since this is the sole scrollable ancestor,
-            the browser's native "scroll focused input into view" can only ever act on this
-            region, never on the header or the Check/Next row below it. */}
+            height instead of pushing the header off-screen, and its own overflow-y-auto keeps
+            any overflow an internal scrollbar here rather than a whole-page one. Just as
+            important for the on-screen keyboard: since this is the sole scrollable ancestor
+            (the card inside it, including its own Check/Next button, scrolls as part of it),
+            the browser's native "scroll focused input into view" can only ever act here, never
+            on the header. */}
         <div className="min-h-0 flex-1 w-full overflow-y-auto flex flex-col items-center">
           {/* my-auto here (not on the row itself) is what centers the row and, once wrong,
               the Undo pill right under it as a single group -- same self-centering trick
               ReadingTestSentenceRow used to apply to just itself. */}
           <div className="flex flex-col items-center gap-4 my-auto w-full">
-            <ReadingTestSentenceRow
-              key={`row-${currentSentence.id}`}
-              sentence={currentSentence}
-              kanaRomajiMap={kanaRomajiMap}
-              testType={testType}
-              initialAnswer={currentAnswer}
-              onNext={handleNext}
-              onAnswerSlotReady={setAnswerSlot}
-            />
+            <StudyCardShell label={cardLabel} accent={cardAccent}>
+              <ReadingTestSentenceRow
+                key={`row-${currentSentence.id}`}
+                sentence={currentSentence}
+                kanaRomajiMap={kanaRomajiMap}
+                testType={testType}
+                initialAnswer={currentAnswer}
+                onNext={handleNext}
+                onAnswerSlotReady={setAnswerSlot}
+              />
+              <div className="mt-8.5">
+                {progress.has(currentSentence.id) ? (
+                  <button
+                    key={`next-${currentSentence.id}`}
+                    type="button"
+                    onClick={handleNext}
+                    autoFocus
+                    className="w-fit cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white outline-none transition-colors hover:border-white/20 hover:bg-white/[0.07] focus-visible:border-white/20"
+                  >
+                    Next
+                  </button>
+                ) : (
+                  answerForm
+                )}
+              </div>
+            </StudyCardShell>
             {currentAnswer && !currentAnswer.correct && (
               <UndoPill
                 visible
@@ -391,22 +416,6 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
               />
             )}
           </div>
-        </div>
-
-        <div className="shrink-0">
-          {progress.has(currentSentence.id) ? (
-            <button
-              key={`next-${currentSentence.id}`}
-              type="button"
-              onClick={handleNext}
-              autoFocus
-              className="w-fit cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white outline-none transition-colors hover:border-white/20 hover:bg-white/[0.07] focus-visible:border-white/20"
-            >
-              Next
-            </button>
-          ) : (
-            answerForm
-          )}
         </div>
       </div>
     </div>
