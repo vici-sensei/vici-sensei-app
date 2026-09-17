@@ -13,12 +13,14 @@ export async function fetchVocabularyDetail(id: number): Promise<VocabularyDetai
   const supabase = createClient();
   const { data, error } = await supabase
     .from("vocabulary")
-    .select("id, word, kana_reading, primary_meanings, other_meanings, parts_of_speech, jlpt_level, other_readings, furiganas")
+    .select("id, word, kana_reading, primary_meanings, other_meanings, parts_of_speech, jlpt_level, other_readings, furiganas, short_meaning")
     .eq("id", id)
     .eq("study_enabled", true)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return data;
+  if (!data) return null;
+  const { short_meaning, ...row } = data;
+  return { ...row, primary_meanings: short_meaning ? [short_meaning, ...(row.primary_meanings ?? [])] : row.primary_meanings };
 }
 
 /**
