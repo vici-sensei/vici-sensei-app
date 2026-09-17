@@ -14,7 +14,7 @@ import {
 } from "@/lib/client-data/adminStudentDetail";
 import { fetchStudentReviewLogsForDay } from "@/lib/data/adminStudentDetail";
 import { createClient } from "@/lib/supabase/client";
-import { ACHIEVEMENT_CATALOG } from "@/lib/achievements/registry";
+import { ACHIEVEMENT_CATEGORIES } from "@/lib/achievements/registry";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import type { ProgressStatusCounts, ProgressSummaryResponse, StudentReviewLogEntry } from "@/lib/types";
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
@@ -22,6 +22,7 @@ import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Badge } from "@/app/components/ui/Badge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { AchievementCard } from "@/app/components/ui/AchievementCard";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
@@ -118,6 +119,15 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
 
   const daysWithActivity = (dailyActivity ?? []).slice(0, 90);
   const knowledgeBlocks = KNOWLEDGE_BLOCKS.filter((b) => knowledge?.[b.key] && total(knowledge[b.key]) > 0);
+
+  // Earned achievements grouped by category, each category's entries kept in the registry's own
+  // fixed catalog order (not earned_at) -- so the list reads the same way every time regardless of
+  // the order a student happened to unlock things in, matching ACHIEVEMENT_CATALOG's display order.
+  const earnedAt = new Map((achievements ?? []).map((a) => [a.achievement_key, a.earned_at]));
+  const achievementsByCategory = ACHIEVEMENT_CATEGORIES.map((category) => ({
+    category,
+    entries: category.subcategories.flatMap((sub) => sub.entries).filter((entry) => earnedAt.has(entry.achievementKey)),
+  })).filter((group) => group.entries.length > 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -356,23 +366,24 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
       </section>
 
       {/* Achievements */}
-      {achievements && achievements.length > 0 && (
+      {achievementsByCategory.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-bold">Achievements</h2>
-          <div className="flex flex-wrap gap-2">
-            {achievements.map((a) => {
-              const entry = ACHIEVEMENT_CATALOG.find((c) => c.achievementKey === a.achievement_key);
-              return (
-                <span
-                  key={a.achievement_key}
-                  title={dateFormatter.format(new Date(a.earned_at))}
-                  className="inline-flex items-center gap-2 rounded-lg border border-accent-gold/25 bg-accent-gold/[0.06] px-3 py-1.5 text-sm"
-                >
-                  {entry?.icon ? <entry.icon className="h-4 w-4 text-accent-gold" /> : null}
-                  {entry?.title ?? a.achievement_key}
-                </span>
-              );
-            })}
+          <div className="flex flex-col gap-6">
+            {achievementsByCategory.map(({ category, entries }) => (
+              <div key={category.key}>
+                <h3 className="mb-2.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">
+                  {category.label}
+                </h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {entries.map((entry) => (
+                    <div key={entry.achievementKey} title={dateFormatter.format(new Date(earnedAt.get(entry.achievementKey)!))}>
+                      <AchievementCard entry={entry} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}
