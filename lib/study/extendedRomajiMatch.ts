@@ -40,6 +40,76 @@ const SMALL_KANA = new Set([..."ゃゅょぁぃぅぇぉャュョァィゥェォ
 // Fixed expressions whose last は is read "wa".
 const ENDS_IN_WA = new Set(["こんにちは", "こんばんは"]);
 
+/** Kana romaji-tables.tsv lists (its categories 1-7) but public.hiragana / public.katakana have no
+ * row for -- rare loanword combinations (ツァ, フュ, ヴュ, ...), archaic ゐ/ゑ, ヷ-ヺ, and the
+ * sokuon combinations the tables leave out (っしゃ, っふ, ...). Keyed by hiragana form (katakana
+ * looks it up through toHiragana; ヷ-ヺ have no hiragana form and are keyed as themselves). Each
+ * value is Hepburn first, then the other systems' and direct keyboard spellings, exactly what the
+ * DB rows hold; only consulted when the DB has no row, so adding one there overrides it. Kept in
+ * code on purpose: adding rows to the tables would also put them in Browse and the study queue. */
+const FALLBACK_UNITS: Record<string, string[]> = {
+  "ゐ": ["i", "wi", "wyi"],
+  "ゑ": ["e", "we", "wye"],
+  "ぢゃ": ["ja", "zya", "dya", "jya"],
+  "ぢゅ": ["ju", "zyu", "dyu", "jyu"],
+  "ぢょ": ["jo", "zyo", "dyo", "jyo"],
+  "ふゅ": ["fyu", "hwyu"],
+  "てゅ": ["tyu", "teyu", "thu", "t'yu"],
+  "でゅ": ["dyu", "deyu", "dhu", "d'yu"],
+  "ゔゅ": ["vyu", "byu"],
+  "つぁ": ["tsa", "tsua"],
+  "つぃ": ["tsi", "tsui"],
+  "つぇ": ["tse", "tsue"],
+  "つぉ": ["tso", "tsuo"],
+  "いぇ": ["ye", "ie"],
+  "くぁ": ["kwa", "kua", "qa"],
+  "くぃ": ["kwi", "kui", "qi"],
+  "くぇ": ["kwe", "kue", "qe"],
+  "くぉ": ["kwo", "kuo", "qo"],
+  "ぐぁ": ["gwa", "gua"],
+  "ぐぃ": ["gwi", "gui"],
+  "ぐぇ": ["gwe", "gue"],
+  "ぐぉ": ["gwo", "guo"],
+  "すぃ": ["si", "sui", "swi"],
+  "ずぃ": ["zi", "zui", "zwi"],
+  "きぇ": ["kye", "kie"],
+  "にぇ": ["nye", "nie"],
+  "ひぇ": ["hye", "hie"],
+  "みぇ": ["mye", "mie"],
+  "りぇ": ["rye", "rie"],
+  "ぎぇ": ["gye", "gie"],
+  "びぇ": ["bye", "bie"],
+  "ぴぇ": ["pye", "pie"],
+  "ヷ": ["va"],
+  "ヸ": ["vi"],
+  "ヹ": ["ve"],
+  "ヺ": ["vo"],
+  "ぢぇ": ["je", "dye"],
+  "っが": ["gga"],
+  "っぎ": ["ggi"],
+  "っげ": ["gge"],
+  "っご": ["ggo"],
+  "っざ": ["zza"],
+  "っぜ": ["zze"],
+  "っぞ": ["zzo"],
+  "っだ": ["dda"],
+  "っで": ["dde"],
+  "っば": ["bba"],
+  "っび": ["bbi"],
+  "っべ": ["bbe"],
+  "っぼ": ["bbo"],
+  "っしゃ": ["ssha", "ssya"],
+  "っしゅ": ["sshu", "ssyu"],
+  "っしょ": ["ssho", "ssyo"],
+  "っちゃ": ["tcha", "ttya", "ccha", "ccya"],
+  "っちゅ": ["tchu", "ttyu", "cchu", "ccyu"],
+  "っちょ": ["tcho", "ttyo", "ccho", "ccyo"],
+  "っふ": ["ffu", "hhu"],
+  "っじゃ": ["jja", "zzya", "jjya"],
+  "っじゅ": ["jju", "zzyu", "jjyu"],
+  "っじょ": ["jjo", "zzyo", "jjyo"],
+};
+
 /** Same normalization the callers compare with: letters only, lowercase. */
 const normalize = (value: string) => value.replace(/[^\p{L}]/gu, "").toLowerCase();
 
@@ -54,8 +124,9 @@ function shiftKana(value: string, from: [number, number], delta: number): string
 const toKatakana = (s: string) => shiftKana(s, [0x3041, 0x3096], 0x60);
 const toHiragana = (s: string) => shiftKana(s, [0x30a1, 0x30f6], -0x60);
 
-/** Letters a-z only, no x/l (those only appear in composed key sequences like xtu/ltu/kilya). */
-function isDirect(spelling: string): boolean {
+/** Letters a-z only, no x/l (those only appear in composed key sequences like xtu/ltu/kilya) --
+ * a spelling someone would actually type as romaji. Also used by Browse's kana search. */
+export function isDirectSpelling(spelling: string): boolean {
   return /^[a-z]+$/.test(spelling) && !/[xl]/.test(spelling);
 }
 
@@ -95,11 +166,12 @@ export function matchesExtendedRomaji(answer: string, kanaReading: string | null
   const convert = script === "hiragana" ? toKatakana : toHiragana;
 
   // A row's spellings, canonical first; falls back to the same kana in the other script (the two
-  // tables romanize identically, and e.g. katakana ッチ has no row of its own but っち does).
+  // tables romanize identically, and e.g. katakana ッチ has no row of its own but っち does), then
+  // to FALLBACK_UNITS for kana neither table has.
   function spellings(text: string): string[] | null {
-    const row = units[script][text] ?? units[other][convert(text)];
+    const row = units[script][text] ?? units[other][convert(text)] ?? FALLBACK_UNITS[toHiragana(text)];
     if (!row || row.length === 0) return null;
-    return Array.from(new Set([row[0], ...row.slice(1).filter(isDirect)]));
+    return Array.from(new Set([row[0], ...row.slice(1).filter(isDirectSpelling)]));
   }
 
   // The whole word is one row of the kana tables: also accept that kana's own card answers. Only
