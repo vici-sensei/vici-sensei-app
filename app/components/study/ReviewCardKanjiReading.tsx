@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableChange }: Props) {
-  const { answer, setAnswer, result, revealed, confirmedAlternates, handleCheck, handleRate, handleContinue } =
+  const { answer, setAnswer, result, revealed, confirmedAlternates, checkBlocked, handleCheck, handleRate, handleContinue } =
     useKanjiReadingReviewCard(card, disabled, onRate, onCancelableChange, card.drill_mode);
 
   const askingForAnother = confirmedAlternates.length > 0 && !revealed;
@@ -47,7 +47,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
         )
       }
       revealed={revealed}
-      checkDisabled={disabled || !answer.trim()}
+      checkDisabled={checkBlocked || !answer.trim()}
       correct={result?.correct ?? false}
       disabled={disabled}
       ratingPreviews={card.rating_previews}

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import type { DueCard, Rating } from "@/lib/types";
 import { checkKanjiReadingAnswer } from "@/lib/study/kanjiReadingMatch";
+import { matchesExtendedRomaji } from "@/lib/study/extendedRomajiMatch";
+import { useExtendedRomajiEnabled } from "@/lib/study/useExtendedRomajiEnabled";
+import { useKanaExtendedRomaji } from "@/lib/client-data/kana";
 import { fetchSiblingReadingPairs } from "@/lib/data/vocabulary";
 import { useAlternateReviewCard } from "@/app/components/study/useAlternateReviewCard";
 
@@ -38,6 +41,15 @@ export function useKanjiReadingReviewCard(
   // regardless of how the student typed it.
   const [romajiToKana, setRomajiToKana] = useState<Map<string, string>>(new Map());
 
+  // "Extended romaji": besides the readings the card carries, an answer that spells this word's
+  // kana_reading out of any combination of the kana tables' accepted spellings also counts (see
+  // matchesExtendedRomaji). Nothing extra is stored per word -- only the kana tables' own
+  // extended_romaji, already loaded for the kana cards, is needed. Checking is held off until they
+  // are available, so a very fast first answer can't be judged without them.
+  const extendedEnabled = useExtendedRomajiEnabled();
+  const { data: kanaExtended, ready: extendedReady } = useKanaExtendedRomaji(extendedEnabled);
+  const checkBlocked = disabled || !extendedReady;
+
   useEffect(() => {
     if (!card.word || !hasSiblingReadings(card)) return;
     let cancelled = false;
@@ -65,9 +77,9 @@ export function useKanjiReadingReviewCard(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card.word]);
 
-  return useAlternateReviewCard(
+  const base = useAlternateReviewCard(
     card,
-    disabled,
+    checkBlocked,
     onRate,
     (answer) => {
       const outcome = checkKanjiReadingAnswer(
@@ -75,7 +87,10 @@ export function useKanjiReadingReviewCard(
         card.kana_reading,
         card.romaji_reading,
         card.other_readings,
-        card.all_word_readings
+        card.all_word_readings,
+        extendedEnabled && kanaExtended
+          ? (normalized) => matchesExtendedRomaji(normalized, card.kana_reading, kanaExtended.units)
+          : undefined
       );
       if (outcome.kind === "alternate") {
         const display = romajiToKana.get(normalizeReading(outcome.display)) ?? outcome.display;
@@ -86,4 +101,6 @@ export function useKanjiReadingReviewCard(
     onCancelableChange,
     drillMode
   );
+
+  return { ...base, checkBlocked };
 }

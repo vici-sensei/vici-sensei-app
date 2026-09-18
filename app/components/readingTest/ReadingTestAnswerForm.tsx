@@ -10,6 +10,9 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { checkKanaReadingAnswer } from "@/lib/study/kanaReadingMatch";
+import { matchesExtendedRomaji } from "@/lib/study/extendedRomajiMatch";
+import { useExtendedRomajiEnabled } from "@/lib/study/useExtendedRomajiEnabled";
+import { useKanaExtendedRomaji } from "@/lib/client-data/kana";
 import { ACCENT_FOCUS_BORDER_CLASSES } from "@/lib/study/accent";
 import type { ReadingTestSentence } from "@/lib/types";
 
@@ -61,6 +64,11 @@ export function ReadingTestAnswerForm({
   topSlot,
   keyboardOpen,
 }: Props) {
+  // "Extended romaji": the word (sentence.question is its kana) may also be spelled out of any
+  // combination of the kana tables' accepted spellings -- see matchesExtendedRomaji. Check is held
+  // off until they're loaded, so a very fast answer can't be judged without them.
+  const extendedEnabled = useExtendedRomajiEnabled();
+  const { data: kanaExtended, ready: extendedReady } = useKanaExtendedRomaji(extendedEnabled);
   const [answer, setAnswer] = useState(initialDraft);
   const [bottomSlot, setBottomSlot] = useState<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -94,9 +102,15 @@ export function ReadingTestAnswerForm({
 
   const handleCheck = (event: FormEvent) => {
     event.preventDefault();
-    if (!answer.trim() || submittedRef.current) return;
+    if (!answer.trim() || !extendedReady || submittedRef.current) return;
     submittedRef.current = true;
-    const checked = checkKanaReadingAnswer(answer, sentence.romaji);
+    const checked = checkKanaReadingAnswer(
+      answer,
+      sentence.romaji,
+      extendedEnabled && kanaExtended
+        ? (normalized) => matchesExtendedRomaji(normalized, sentence.question, kanaExtended.units)
+        : [],
+    );
     if (draftTimeoutRef.current) clearTimeout(draftTimeoutRef.current);
     onDraftClear(sentence.id);
     onCheck(sentence.id, checked.correct, answer);
@@ -149,7 +163,7 @@ export function ReadingTestAnswerForm({
         <div ref={setBottomSlot} className={keyboardOpen ? "flex-1" : "hidden"} />
         <button
           type="submit"
-          disabled={!answer.trim()}
+          disabled={!answer.trim() || !extendedReady}
           className="shrink-0 cursor-pointer rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white outline-none transition-colors enabled:hover:border-white/20 enabled:hover:bg-white/[0.07] enabled:focus-visible:border-white/20 disabled:cursor-not-allowed disabled:opacity-45"
         >
           Check

@@ -44,13 +44,15 @@ export function ReadingTestSentenceRow({
   onNext,
   onAnswerSlotReady,
 }: Props) {
-  const result = useMemo(
-    () =>
-      initialAnswer
-        ? checkKanaReadingAnswer(initialAnswer.userAnswer, sentence.romaji)
-        : null,
-    [initialAnswer, sentence.romaji],
-  );
+  // Correctness is whatever was persisted when Check ran -- not recomputed here, so an answer
+  // accepted through extended_romaji stays correct whether or not the setting is on right now (and
+  // this row never needs to know about it). Only the diff shown for a wrong answer is computed
+  // here, and always against romaji alone, never an extended_romaji spelling.
+  const result = useMemo(() => {
+    if (!initialAnswer) return null;
+    if (initialAnswer.correct) return { correct: true, userDiff: [], targetDiff: [] };
+    return checkKanaReadingAnswer(initialAnswer.userAnswer, sentence.romaji);
+  }, [initialAnswer, sentence.romaji]);
 
   // Lets Enter advance to the next question on desktop without requiring a click, even when focus
   // isn't on the Next button itself (the input that just blurred, for instance). Skipped when a

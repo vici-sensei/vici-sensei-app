@@ -72,13 +72,21 @@ function findClosest(compareInput: string, variants: ReadingVariant[]): ReadingV
  * should prompt for another reading instead of ending the review. Only a
  * match against this row's own kana_reading/romaji_reading/other_readings
  * ("target") ends the review as correct.
+ *
+ * `extendedMatch` (only passed while the student has "Extended romaji" on -- see
+ * matchesExtendedRomaji) widens what counts as this row's own reading, and is consulted last: after
+ * the exact target and sibling checks above, so it can only ever turn an answer that would have
+ * been "wrong" into "target", never change what an already-matching answer is. It receives the
+ * normalized (letters-only, lowercase) input. The diff on a wrong answer still only ever compares
+ * against the readings above, never against an extended spelling.
  */
 export function checkKanjiReadingAnswer(
   input: string,
   kanaReading: string | null,
   romajiReading: string | null,
   otherReadings: string[] | null,
-  allWordReadings: string[] | null
+  allWordReadings: string[] | null,
+  extendedMatch?: (normalizedInput: string) => boolean
 ): ReadingCheckOutcome {
   const compare = normalizeCompare(input);
   const diffDisplay = normalizeDiffDisplay(input);
@@ -93,6 +101,10 @@ export function checkKanjiReadingAnswer(
   const alternateMatch = alternateVariants.find((v) => v.compare === compare);
   if (alternateMatch) {
     return { kind: "alternate", display: alternateMatch.diffDisplay };
+  }
+
+  if (extendedMatch?.(compare)) {
+    return { kind: "target", result: { correct: true, userDiff: [], targetDiff: [] } };
   }
 
   if (targetVariants.length === 0) {
