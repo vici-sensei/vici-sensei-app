@@ -41,6 +41,7 @@ type Snapshot = {
   studyKatakana: boolean;
   leaderboardAnonymous: boolean;
   kanaPracticeEnabled: boolean;
+  extendedRomajiEnabled: boolean;
 };
 
 function snapshotFrom(settings: StudySettings): Snapshot {
@@ -58,6 +59,9 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     studyKatakana: settings.study_katakana,
     leaderboardAnonymous: settings.leaderboard_anonymous ?? false,
     kanaPracticeEnabled: settings.kana_practice_enabled,
+    // `?? false`: a settings object hydrated from a localStorage cache written before this
+    // column existed has no such key at all -- treated as the column's own default.
+    extendedRomajiEnabled: settings.extended_romaji_enabled ?? false,
   };
 }
 
@@ -75,7 +79,8 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
     a.studyHiragana === b.studyHiragana &&
     a.studyKatakana === b.studyKatakana &&
     a.leaderboardAnonymous === b.leaderboardAnonymous &&
-    a.kanaPracticeEnabled === b.kanaPracticeEnabled
+    a.kanaPracticeEnabled === b.kanaPracticeEnabled &&
+    a.extendedRomajiEnabled === b.extendedRomajiEnabled
   );
 }
 
@@ -107,6 +112,7 @@ export function StudySettingsForm({
   // page in practice, since /onboarding gates access before it, but the toggle itself is binary.
   const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous ?? false);
   const [kanaPracticeEnabled, setKanaPracticeEnabled] = useState(initial.kana_practice_enabled);
+  const [extendedRomajiEnabled, setExtendedRomajiEnabled] = useState(initial.extended_romaji_enabled ?? false);
   const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(initial.leaderboard_alias);
   // Not part of the autosaved Snapshot below -- only ever changed by handleCrossTrack's own
   // atomic save, never by the periodic autosave.
@@ -420,6 +426,7 @@ export function StudySettingsForm({
     setStudyKatakana(snapshot.studyKatakana);
     setLeaderboardAnonymous(snapshot.leaderboardAnonymous);
     setKanaPracticeEnabled(snapshot.kanaPracticeEnabled);
+    setExtendedRomajiEnabled(snapshot.extendedRomajiEnabled);
   }
 
   async function handleReroll() {
@@ -506,6 +513,7 @@ export function StudySettingsForm({
       studyKatakana,
       leaderboardAnonymous,
       kanaPracticeEnabled,
+      extendedRomajiEnabled,
     };
     if (sameSnapshot(current, saved)) return;
 
@@ -524,6 +532,7 @@ export function StudySettingsForm({
         study_katakana: current.studyKatakana,
         leaderboard_anonymous: current.leaderboardAnonymous,
         kana_practice_enabled: current.kanaPracticeEnabled,
+        extended_romaji_enabled: current.extendedRomajiEnabled,
       };
       try {
         const updated = await updateStudySettings(user.id, body);
@@ -573,6 +582,7 @@ export function StudySettingsForm({
     studyKatakana,
     leaderboardAnonymous,
     kanaPracticeEnabled,
+    extendedRomajiEnabled,
     saved,
     user,
   ]);
@@ -842,6 +852,23 @@ export function StudySettingsForm({
           >
             <div className="min-h-0 overflow-hidden text-xs text-amber-400">{vocabularyMessage}</div>
           </div>
+        </div>
+      </GlassCard>
+
+      <GlassCard padding="lg" className="mt-5.5">
+        <div className="flex items-center justify-between gap-5 py-1">
+          <div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">Extended romaji</div>
+            <div className="text-sm text-text-muted">
+              Also accept other common romaji spellings when you type readings. When off, only the standard romaji
+              counts.
+            </div>
+          </div>
+          <Toggle
+            checked={extendedRomajiEnabled}
+            onChange={() => setExtendedRomajiEnabled(!extendedRomajiEnabled)}
+            disabled={disabled}
+          />
         </div>
       </GlassCard>
 

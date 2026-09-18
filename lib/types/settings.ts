@@ -28,6 +28,10 @@ export interface StudySettings {
    * day, linking to /study/practice (an unscored, single-pass review of every hiragana/katakana
    * character they've seen). Purely a display preference; ignored on the standard track. */
   kana_practice_enabled: boolean;
+  /** When true, hiragana/katakana reading cards accept hiragana.extended_romaji /
+   * katakana.extended_romaji as correct answers on top of romaji; when false (default) only
+   * romaji counts. Applies on both tracks -- see ReviewCardKanaReading. */
+  extended_romaji_enabled: boolean;
   /** The exact step the user was on -- updated on every navigation, so a refresh resumes here. */
   onboarding_step: number;
   /** The furthest step ever reached -- only grows, used for the progress bar (which steps are clickable/dimmed). */
@@ -59,4 +63,5 @@ export interface StudySettingsPatch {
   new_hiragana_per_day?: number;
   new_katakana_per_day?: number;
   kana_practice_enabled?: boolean;
+  extended_romaji_enabled?: boolean;
 }
