@@ -84,4 +84,6 @@ export interface StudentDetail {
   new_hiragana_per_day: number | null;
   new_katakana_per_day: number | null;
   max_reviews_per_day: number | null;
+  /** user_study_settings.extended_romaji_enabled -- null when the student has no settings row. */
+  extended_romaji_enabled: boolean | null;
 }

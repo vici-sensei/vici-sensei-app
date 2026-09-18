@@ -196,6 +196,12 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
                 {student.max_reviews_per_day ?? 0} max reviews
               </div>
             </div>
+            <div>
+              <div className="text-xs text-text-muted">Extended romaji</div>
+              <div className="font-semibold">
+                {student.extended_romaji_enabled == null ? "—" : student.extended_romaji_enabled ? "On" : "Off"}
+              </div>
+            </div>
             {student.pending_deletion_at && (
               <div className="col-span-full">
                 <Badge color="red">Account pending deletion</Badge>

@@ -17,7 +17,7 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
     supabase.from("leaderboard_stats").select("current_streak, longest_streak, last_active_date").eq("user_id", studentId).maybeSingle(),
     supabase
       .from("user_study_settings")
-      .select("study_track, enabled_levels, new_kanji_per_day, new_vocab_per_day, new_hiragana_per_day, new_katakana_per_day, max_reviews_per_day")
+      .select("study_track, enabled_levels, new_kanji_per_day, new_vocab_per_day, new_hiragana_per_day, new_katakana_per_day, max_reviews_per_day, extended_romaji_enabled")
       .eq("user_id", studentId)
       .maybeSingle(),
     supabase.rpc("get_retention_rate", { p_user_id: studentId, p_window_days: 30 }),
@@ -53,6 +53,7 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
     new_hiragana_per_day: settings?.new_hiragana_per_day ?? null,
     new_katakana_per_day: settings?.new_katakana_per_day ?? null,
     max_reviews_per_day: settings?.max_reviews_per_day ?? null,
+    extended_romaji_enabled: settings?.extended_romaji_enabled ?? null,
   };
 }
 
