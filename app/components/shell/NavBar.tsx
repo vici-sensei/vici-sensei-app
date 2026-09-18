@@ -9,16 +9,23 @@ import { prefetchFirstDueCard } from "@/lib/client-data/study";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { prefetchLeaderboard } from "@/lib/client-data/leaderboard";
 import { prefetchKanjiList } from "@/lib/client-data/kanji";
-import { prefetchHiraganaList } from "@/lib/client-data/kana";
+import { prefetchHiraganaList, prefetchKanaExtendedRomaji } from "@/lib/client-data/kana";
 import { NAV_ITEMS } from "./navItems";
 import { NavItem } from "./NavItem";
 import { MobileNavMenu } from "./MobileNavMenu";
 import { navBarClasses } from "./navBarClasses";
 
-function intentFor(href: string, userId: string | undefined): (() => void) | undefined {
+function intentFor(href: string, userId: string | undefined, extendedRomajiEnabled: boolean): (() => void) | undefined {
   switch (href) {
     case "/study":
-      return userId ? () => prefetchFirstDueCard(userId) : undefined;
+      return userId
+        ? () => {
+            prefetchFirstDueCard(userId);
+            // Only worth fetching when the study cards will actually read it (see
+            // useKanaExtendedRomaji) -- with Extended romaji off nothing ever does.
+            if (extendedRomajiEnabled) prefetchKanaExtendedRomaji();
+          }
+        : undefined;
     case "/progress":
       return userId ? () => prefetchProgressSummary(userId) : undefined;
     case "/leaderboard":
@@ -57,7 +64,7 @@ export function NavBar() {
         icon: sub.icon,
         active: sub.isActive(pathname),
       })),
-      onIntent: intentFor(href, user?.id),
+      onIntent: intentFor(href, user?.id, studySettings?.extended_romaji_enabled ?? false),
     };
   });
 

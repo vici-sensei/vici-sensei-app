@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { prefetchFirstDueCard, startSession } from "@/lib/client-data/study";
+import { prefetchKanaExtendedRomaji } from "@/lib/client-data/kana";
+import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import { setStoredSessionId } from "@/lib/study/session";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
@@ -15,8 +17,12 @@ export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
   const router = useRouter();
   const { user } = useAuth();
 
+  // Not a hard dependency: settings can still be loading, in which case nothing extra is prefetched.
+  const extendedRomajiEnabled = useStudySettingsContext().data?.extended_romaji_enabled ?? false;
+
   function handleIntent() {
     if (user) prefetchFirstDueCard(user.id);
+    if (extendedRomajiEnabled) prefetchKanaExtendedRomaji();
   }
 
   async function handleStart() {

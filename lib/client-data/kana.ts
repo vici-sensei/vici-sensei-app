@@ -117,6 +117,14 @@ export function useKanaExtendedRomaji(enabled: boolean): { data: KanaExtendedRom
   return { data: enabled ? data : null, ready: !enabled || data !== null || failed };
 }
 
+/** Fire-and-forget: warms the kana spellings useKanaExtendedRomaji needs (in memory and in the
+ * localStorage cache), so the first kana card or reading test of a visit doesn't wait on them.
+ * Callers only invoke it while the student has "Extended romaji" on -- with it off nothing ever
+ * reads this data, so there is nothing worth fetching. */
+export const prefetchKanaExtendedRomaji = createPrefetcher(async () => {
+  await loadKanaExtendedRomaji();
+});
+
 /** Fire-and-forget: called on hover/focus/touchstart of an Explore nav entry point, well before
  * the user actually navigates to the list page -- mirrors prefetchKanjiList/prefetchVocabularyList
  * so Hiragana/Katakana paint from a warm cache too instead of always starting cold on mount. */

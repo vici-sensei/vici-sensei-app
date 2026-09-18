@@ -12,6 +12,9 @@ import { BrowseTabs } from "./BrowseTabs";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { scrollWindowToTopOnFocus } from "@/lib/scrollFocus";
 import { renderKanaRuleNotes } from "@/lib/study/kanaRuleNotes";
+import { isDirectSpelling } from "@/lib/study/extendedRomajiMatch";
+import { useKanaExtendedRomaji } from "@/lib/client-data/kana";
+import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 import type { BrowseKanaEntry, KanaRuleLabel } from "@/lib/types";
 
@@ -21,9 +24,14 @@ function normalize(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function matches(row: KanaRow, query: string): boolean {
+/** `extraSpellings` is the row's extended_romaji, only passed while the student has "Extended
+ * romaji" on -- a search for a spelling that setting accepts elsewhere (si for し) then finds the
+ * kana too. Only the directly typable spellings count (no composed key sequences like ltuci,
+ * which would make almost any short query match), same rule matchesExtendedRomaji uses. */
+function matches(row: KanaRow, query: string, extraSpellings?: string[]): boolean {
   if (!query) return true;
-  return row.character.includes(query) || normalize(row.romaji).includes(query);
+  if (row.character.includes(query) || normalize(row.romaji).includes(query)) return true;
+  return !!extraSpellings?.some((spelling) => isDirectSpelling(spelling) && normalize(spelling).includes(query));
 }
 
 const TIER_LABELS: Partial<Record<BrowseKanaEntry["frequency_tier"], string>> = {
@@ -218,9 +226,14 @@ function GojuonRowSection({
 export function BrowseKanaListPage({ active, placeholder, accentClass, data, status, labels }: Props) {
   const [search, setSearch] = useState("");
   const query = normalize(search);
+  // Loaded only while the setting is on (useKanaExtendedRomaji hands back null otherwise), so with
+  // it off the search behaves exactly as before.
+  const extendedEnabled = useStudySettingsContext().data?.extended_romaji_enabled ?? false;
+  const { data: kanaExtended } = useKanaExtendedRomaji(extendedEnabled);
+  const extendedById = kanaExtended ? kanaExtended[active] : null;
 
   const partitioned = useMemo(() => {
-    const rows = (data ?? []).filter((row) => matches(row, query));
+    const rows = (data ?? []).filter((row) => matches(row, query, extendedById?.[row.id]));
     const seion = rows.filter((row) => row.entry_kind === "character" && row.kana_type === "seion");
     const seionRule = rows.find((row) => row.entry_kind === "rule" && row.kana_type === "seion");
     const dakuten = rows.filter((row) => row.entry_kind === "character" && row.kana_type === "dakuten");
@@ -258,7 +271,7 @@ export function BrowseKanaListPage({ active, placeholder, accentClass, data, sta
           rows: soundRules.filter((row) => row.kana_type === entry.kana_type),
         })),
     };
-  }, [data, query, labels]);
+  }, [data, query, labels, extendedById]);
 
   const hasSoundRules = partitioned.soundRuleSections.some((section) => section.rows.length > 0);
   const isInitialLoading = status === "loading" && !data;
