@@ -2,7 +2,9 @@
 
 import type { DueCard, Rating } from "@/lib/types";
 import { FaCheck } from "react-icons/fa6";
-import { checkKanaReadingAnswer } from "@/lib/study/kanaReadingMatch";
+import { checkKanaReadingAnswer, extraRomajiForCard } from "@/lib/study/kanaReadingMatch";
+import { useExtendedRomajiEnabled } from "@/lib/study/useExtendedRomajiEnabled";
+import { useKanaExtendedRomaji } from "@/lib/client-data/kana";
 import { useTypedReviewCard } from "./useTypedReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
@@ -25,9 +27,13 @@ interface Props {
 
 /** Shared by hiragana_reading and katakana_reading -- structurally identical, only the
  * label/accent differ, same reasoning as ReviewCardKanjiReading but without word-level
- * concerns (siblings, furigana): a kana character tests exactly one fixed romaji string. */
+ * concerns (siblings, furigana): a kana character tests one canonical romaji string -- plus its
+ * extended_romaji spellings when the student has "Extended romaji" turned on in Settings. */
 export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChange, hideDrillStreak = false }: Props) {
   const isHiragana = card.exercise_type === "hiragana_reading";
+  const extendedEnabled = useExtendedRomajiEnabled();
+  const { data: extendedRomaji, ready: extendedReady } = useKanaExtendedRomaji(extendedEnabled);
+  const extraRomaji = extraRomajiForCard(card, extendedRomaji);
   // Server-computed (get_due_cards/get_hiragana_reading_cards/get_katakana_reading_cards --
   // status = 'learning' and kana_type = 'seion') so this always agrees with useStudyQueue.ts's
   // rate(), which routes on the same flag -- see card.drill_mode's own doc comment. True means
@@ -36,11 +42,14 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
   // Hard/Good/Easy picker, graded purely on typed-answer correctness, repeats until answered
   // right 3 times in a row.
   const drillMode = card.drill_mode;
+  // Checking is held off (button and Enter alike) until the extra spellings are available, so a
+  // very fast first answer can't be judged against romaji alone while Extended romaji is on.
+  const checkBlocked = disabled || !extendedReady;
   const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
     card,
-    disabled,
+    checkBlocked,
     onRate,
-    (input) => checkKanaReadingAnswer(input, card.kana_romaji ?? ""),
+    (input) => checkKanaReadingAnswer(input, card.kana_romaji ?? "", extraRomaji),
     onCancelableChange,
     drillMode
   );
@@ -80,7 +89,7 @@ export function ReviewCardKanaReading({ card, disabled, onRate, onCancelableChan
         </>
       }
       revealed={revealed}
-      checkDisabled={disabled || !answer.trim()}
+      checkDisabled={checkBlocked || !answer.trim()}
       correct={result?.correct ?? false}
       disabled={disabled}
       ratingPreviews={card.rating_previews}

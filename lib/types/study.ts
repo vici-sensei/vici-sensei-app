@@ -237,6 +237,22 @@ export interface BrowseKanaEntry {
   notes: string | null;
 }
 
+/** hiragana.extended_romaji / katakana.extended_romaji, loaded once when the student has turned on
+ * "Extended romaji" (user_study_settings.extended_romaji_enabled). */
+export interface KanaExtendedRomaji {
+  /** By row id -- only rows that have at least one extra spelling appear. Used by
+   * ReviewCardKanaReading, whose card knows its hiragana_id/katakana_id. */
+  hiragana: Record<number, string[]>;
+  katakana: Record<number, string[]>;
+  /** By kana character (rule rows left out): `[romaji, ...extended_romaji]`, canonical first. Used
+   * by matchesExtendedRomaji, which spells a whole word out of its kana_reading one kana at a
+   * time instead of storing every combination per word. */
+  units: {
+    hiragana: Record<string, string[]>;
+    katakana: Record<string, string[]>;
+  };
+}
+
 /** One entry of a standalone /study/test reading test (public.test) -- fixed, non-per-user
  * content, unrelated to kana progress/mastery. */
 export interface ReadingTestSentence {
