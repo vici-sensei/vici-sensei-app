@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { FaLock } from "react-icons/fa6";
 import type { AchievementCatalogEntry } from "@/lib/achievements/registry";
@@ -13,12 +13,44 @@ import { Modal } from "@/app/components/ui/Modal";
  * too small to tap or even make out on a phone. */
 const CIRCLE_SIZE_CLASS = "h-16 w-16";
 
+/** True from the first moment the returned ref's element is actually on (or just about to enter)
+ * the screen, and stays true after -- used to hold a thumbnail's <img> back until then. The
+ * browser's own `loading="lazy"` isn't enough here: BadgesSection keeps collapsed groups mounted
+ * (so they can animate open), and a badge inside a collapsed, zero-height group still counts as
+ * "near the viewport" to native lazy loading, so nearly every thumbnail on the page got
+ * downloaded up front. An IntersectionObserver entry for such a clipped-away element reports a
+ * zero-area intersectionRect though, and requiring a non-empty one is what tells "actually
+ * visible" apart from "merely laid out somewhere nearby". The 200px margin starts the download
+ * slightly before the badge scrolls in. */
+function useSeen<T extends Element>() {
+  const ref = useRef<T>(null);
+  const [seen, setSeen] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (seen || !el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting && e.intersectionRect.width > 0 && e.intersectionRect.height > 0)) {
+          setSeen(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [seen]);
+
+  return [ref, seen] as const;
+}
+
 /** Clicking a badge's circle -- in either the list or grid view -- opens this same full-screen
  * modal with the badge's full artwork, title, and description. A small inline "enlarge in place"
  * used to exist just for the list view, but a phone-sized card has no room to grow an image into
- * without cramping everything around it, so both views now go through this instead. `max-w-full`
- * on the image (plus a `max-h` cap) is what actually keeps it from overflowing a narrow screen --
- * it's an intrinsic-sized <Image>, not a `fill` one, precisely so those two classes are enough. */
+ * without cramping everything around it, so both views now go through this instead. The artwork
+ * is shown the same way as in the thumbnails -- square-cropped in a gold circle with the shine
+ * sweep -- only scaled up. */
 function BadgeImageModal({
   entry,
   earned,
@@ -50,24 +82,38 @@ function BadgeImageModal({
             {imageFailed ? (
               <Icon className={`text-8xl ${earned ? "text-accent-gold" : "text-text-muted grayscale"}`} />
             ) : (
-              <Image
-                src={src}
-                alt=""
-                width={800}
-                height={800}
-                sizes="100vw"
-                className={`max-h-[60vh] w-auto max-w-full object-contain ${earned ? "" : "grayscale"}`}
-                onError={() => setImageFailed(true)}
-              />
+              // Same circular gold ring, square-cropped artwork and earned-only shine sweep as the
+              // thumbnails (vici-badge-ring in globals.css), just bigger -- `vici-badge-ring-lg`
+              // widens the ring's padding to suit. The square's side is capped three ways: 32rem
+              // (512px) so it doesn't balloon on a big desktop monitor -- the artwork is only
+              // ~768px tall natively, so much past this just upscales it -- the viewport height
+              // (60vh, leaving room for the title/description below), and the viewport width minus
+              // the modal's padding, which keeps it from overflowing a narrow phone screen. The
+              // grayscale for a locked badge goes on the ring wrapper so it desaturates the gold
+              // along with the artwork, matching the locked thumbnails.
+              <div
+                className={`vici-badge-ring vici-badge-ring-lg size-[min(32rem,60vh,calc(100vw_-_3rem))] rounded-full ${earned ? "" : "grayscale"}`}
+              >
+                <span className="vici-badge-ring-inner relative block h-full w-full overflow-hidden rounded-full">
+                  <Image
+                    src={src}
+                    alt=""
+                    fill
+                    sizes="min(32rem, 60vh, 100vw)"
+                    loading="eager"
+                    className="object-cover"
+                    onError={() => setImageFailed(true)}
+                  />
+                  {earned && <span className="vici-badge-shine vici-badge-shine-lg" aria-hidden="true" />}
+                </span>
+              </div>
             )}
             {!earned && (
-              // Sized as a fraction of the image's own box (h-1/2 w-1/2 of this wrapper, which
-              // matches the rendered image exactly), not a fixed rem value -- a fixed size looked
-              // right against a large desktop image but badly overflowed a small one. The SVG's
-              // own default preserveAspectRatio (xMidYMid meet) keeps the glyph itself undistorted
-              // and centered within that box even though the box isn't square. The dark
-              // drop-shadow gives it a halo so it still reads against both light and dark regions
-              // of the artwork, not just one.
+              // Sized as a fraction of the framed image's own box (h-1/2 w-1/2 of this wrapper,
+              // which matches the ring + image exactly), not a fixed rem value -- a fixed size
+              // looked right against a large desktop image but badly overflowed a small one. The
+              // dark drop-shadow gives the glyph a halo so it still reads against both light and
+              // dark regions of the artwork, not just one.
               <div className="pointer-events-none absolute left-1/2 top-1/2 flex h-1/2 w-1/2 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
                 <FaLock
                   aria-hidden="true"
@@ -101,15 +147,18 @@ interface BadgeArtProps {
 /** Shows a badge's artwork if one has been assigned (see lib/achievements/badgeImages.ts),
  * falling back to its react-icons icon otherwise -- either because no filename has been set yet
  * (no image ever attempted, so no doomed network request) or because the assigned file failed to
- * load (same "onError swaps to a fallback" pattern as ProfileMenu.tsx's Avatar). Tapping a loaded
- * image opens BadgeImageModal with the full-size artwork. */
+ * load (same "onError swaps to a fallback" pattern as ProfileMenu.tsx's Avatar). The thumbnail is
+ * a small pre-cropped file that only starts downloading once the badge is really on screen (see
+ * useSeen); tapping it opens BadgeImageModal, which loads the larger "full" file on demand. */
 function BadgeArt({ entry, earned, borderClass, bgClass, textClass }: BadgeArtProps) {
   const [imageFailed, setImageFailed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [buttonRef, seen] = useSeen<HTMLButtonElement>();
   const Icon = entry.icon;
-  const src = achievementImageSrc(entry.achievementKey);
+  const thumbSrc = achievementImageSrc(entry.achievementKey, "thumb");
+  const fullSrc = achievementImageSrc(entry.achievementKey, "full");
 
-  if (!src || imageFailed) {
+  if (!thumbSrc || !fullSrc || imageFailed) {
     return (
       <span
         className={`flex ${CIRCLE_SIZE_CLASS} shrink-0 items-center justify-center rounded-full border ${borderClass} ${bgClass} text-2xl ${textClass}`}
@@ -122,18 +171,28 @@ function BadgeArt({ entry, earned, borderClass, bgClass, textClass }: BadgeArtPr
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setModalOpen(true)}
         aria-label={`View ${entry.title} image`}
         className={`vici-badge-ring flex ${CIRCLE_SIZE_CLASS} shrink-0 cursor-zoom-in items-center justify-center rounded-full`}
       >
-        <span className="vici-badge-ring-inner relative block h-full w-full overflow-hidden rounded-full">
-          <Image src={src} alt="" fill sizes="64px" className="object-cover" onError={() => setImageFailed(true)} />
+        <span className="vici-badge-ring-inner relative block h-full w-full overflow-hidden rounded-full bg-bg-cards">
+          {seen && (
+            <Image
+              src={thumbSrc}
+              alt=""
+              fill
+              sizes="64px"
+              className="object-cover"
+              onError={() => setImageFailed(true)}
+            />
+          )}
           {earned && <span className="vici-badge-shine" aria-hidden="true" />}
         </span>
       </button>
       {modalOpen && (
-        <BadgeImageModal entry={entry} earned={earned} src={src} onClose={() => setModalOpen(false)} />
+        <BadgeImageModal entry={entry} earned={earned} src={fullSrc} onClose={() => setModalOpen(false)} />
       )}
     </>
   );
@@ -190,13 +249,15 @@ export function LockedAchievementCard({ entry }: { entry: AchievementCatalogEntr
 export function GridBadgeIcon({ entry, earned }: { entry: AchievementCatalogEntry; earned: boolean }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [buttonRef, seen] = useSeen<HTMLButtonElement>();
   const Icon = entry.icon;
-  const src = achievementImageSrc(entry.achievementKey);
+  const thumbSrc = achievementImageSrc(entry.achievementKey, "thumb");
+  const fullSrc = achievementImageSrc(entry.achievementKey, "full");
   const toneClasses = earned
     ? "border-accent-gold/30 bg-accent-gold/10 text-accent-gold"
     : "border-border-soft bg-white/[0.02] text-text-muted opacity-40 grayscale";
 
-  if (!src || imageFailed) {
+  if (!thumbSrc || !fullSrc || imageFailed) {
     return (
       <span
         aria-label={entry.title}
@@ -210,18 +271,28 @@ export function GridBadgeIcon({ entry, earned }: { entry: AchievementCatalogEntr
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setModalOpen(true)}
         aria-label={`View ${entry.title}`}
         className={`vici-badge-ring flex ${CIRCLE_SIZE_CLASS} shrink-0 cursor-pointer items-center justify-center rounded-full ${earned ? "" : "opacity-40 grayscale"}`}
       >
-        <span className="vici-badge-ring-inner relative block h-full w-full overflow-hidden rounded-full">
-          <Image src={src} alt="" fill sizes="64px" className="object-cover" onError={() => setImageFailed(true)} />
+        <span className="vici-badge-ring-inner relative block h-full w-full overflow-hidden rounded-full bg-bg-cards">
+          {seen && (
+            <Image
+              src={thumbSrc}
+              alt=""
+              fill
+              sizes="64px"
+              className="object-cover"
+              onError={() => setImageFailed(true)}
+            />
+          )}
           {earned && <span className="vici-badge-shine" aria-hidden="true" />}
         </span>
       </button>
       {modalOpen && (
-        <BadgeImageModal entry={entry} earned={earned} src={src} onClose={() => setModalOpen(false)} />
+        <BadgeImageModal entry={entry} earned={earned} src={fullSrc} onClose={() => setModalOpen(false)} />
       )}
     </>
   );

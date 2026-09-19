@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build && node scripts/generate-sw.mjs",
     "lint": "eslint",
+    "badges:optimize": "node scripts/optimize-badges.mjs",
     "preview": "next build && node scripts/generate-sw.mjs && wrangler dev",
     "deploy": "next build && node scripts/generate-sw.mjs && wrangler deploy"
   },
@@ -30,6 +31,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5",
     "wrangler": "^4.118.0"

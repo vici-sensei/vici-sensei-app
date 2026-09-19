@@ -1,24 +1,41 @@
 # Badge artwork
 
-Drop your **SVG** files in this folder, named however you like -- then point each achievement at
-its filename by editing `lib/achievements/badgeImages.ts`'s `BADGE_IMAGES` map (find the
-achievement's key in the table below, set its value to the filename). No naming convention is
-required; the mapping is what connects a badge to its file, not the filename itself.
+This folder holds the **full-size masters** (WebP/PNG/JPG). They are *not* served to users -- they
+live here, outside `public/`, so the deployed site doesn't ship 30+ MB of oversized images. The app
+serves the small square copies that `npm run badges:optimize` generates from them.
 
-`app/components/ui/AchievementCard.tsx`'s `BadgeArt` component reads that map: a badge with an
-assigned filename loads `/images/badges/<that filename>`; a badge left unassigned (empty string,
-the default for all 87 today) just shows its react-icons icon (`entry.icon` in
-`lib/achievements/registry.tsx`) and never even attempts a network request for it. If an assigned
-file fails to load (typo, wrong path), it falls back to the icon too rather than breaking the
-card. Assign files here in any order, at any pace -- each takes over the moment its map entry is
-filled in, no other code changes needed.
+## Adding or changing a badge
 
-Rendered at 44×44 CSS px inside a `rounded-full` circle with `object-cover`. A square `viewBox`
-(e.g. `0 0 64 64`) with the design filling the frame edge-to-edge works best -- the circular mask
-crops to an inscribed circle, so keep anything important centered rather than in the corners.
-Self-contained paths/shapes only (no external `<image>` refs or web fonts), since the file has to
-render correctly wherever it's dropped. Locked badges render the same file through a `grayscale` +
-`opacity-40` CSS filter, so no separate "locked" variant is needed.
+1. Drop the master in this folder, named however you like (no naming convention is required).
+2. Point the achievement at that filename in `lib/achievements/badgeImages.ts`'s `BADGE_IMAGES`
+   map (find its key in the table below, set its value to the filename).
+3. Run `npm run badges:optimize`, then commit the new/changed files it produced under
+   `public/images/badges/` plus `lib/achievements/badgeImageHashes.json`. It only regenerates what
+   changed, and deletes outputs of masters that were changed or removed.
+
+A badge whose filename is unset (`""`), or whose master hasn't been through step 3 yet, just shows
+its react-icons icon (`entry.icon` in `lib/achievements/registry.tsx`) and never attempts a network
+request for an image. If a generated file fails to load, it falls back to the icon too rather than
+breaking the card.
+
+## What the script produces
+
+Two center-cropped squares per master -- the app shows them in a `rounded-full` circle with
+`object-cover`, so anything outside the central square is never visible anyway:
+
+| Folder | Size | Used for |
+| --- | --- | --- |
+| `public/images/badges/thumb/` | 192x192 (~10 KB) | the 64px circle in the list/grid views |
+| `public/images/badges/full/` | 768x768 (~95 KB) | the enlarged circle in the click-to-open modal (shown at up to 512px) |
+
+Neither is ever upscaled past the master's shorter side. Filenames are `<name>.<hash>.webp`, the
+hash derived from the master and the resize settings, which is what allows `public/_headers` to
+serve them as `immutable` -- a changed master gets a new URL, so nobody sees a stale copy.
+
+Tips for masters: keep the important part of the artwork **centered** (only the middle square is
+kept, and the circle crops the corners of that too), and make it at least 768px on the shorter
+side -- a square 1024x1024 master is ideal. Locked badges render the same file through a
+`grayscale` + `opacity-40` CSS filter, so no separate "locked" variant is needed.
 
 The table below is a snapshot of every achievement in `lib/achievements/registry.tsx` as of this
 writing (87 total), grouped exactly as they appear in Settings > Profile > Badges. It's not read

@@ -562,6 +562,11 @@ input:disabled ~ span {
     inset 0 -1px 2px rgba(0, 0, 0, 0.4);
 }
 
+/* Wider ring for the full-size image in BadgeImageModal, where 5px reads as a hairline. */
+.vici-badge-ring-lg {
+  padding: 8px;
+}
+
 .vici-badge-ring-inner {
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.3),
@@ -601,9 +606,45 @@ input:disabled ~ span {
   }
 }
 
+/* Modal-size variant (BadgeImageModal) -- the same diagonal sweep, but a narrower, brighter,
+   softer band on a shorter cycle. The thumbnail's 65%-wide, 0.6-alpha band on a ~3.6s cycle reads
+   as a crisp glint on a 64px circle, but on a circle several times bigger it turns into a faint
+   haze that's easy to miss between sweeps. Translate percentages are relative to the element's own
+   width (45% of the circle), so 400% carries it from fully off the left edge to fully off the right. */
+.vici-badge-shine-lg {
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.25) 30%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0.25) 70%,
+    transparent
+  );
+  filter: blur(6px);
+  animation: vici-badge-shine-sweep-lg 2.6s ease-in-out infinite;
+}
+
+@keyframes vici-badge-shine-sweep-lg {
+  0% {
+    transform: translateX(0) rotate(18deg);
+  }
+  45% {
+    transform: translateX(400%) rotate(18deg);
+  }
+  100% {
+    transform: translateX(400%) rotate(18deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vici-badge-shine {
     animation: none;
     transform: translateX(138%) rotate(18deg);
+  }
+
+  .vici-badge-shine-lg {
+    animation: none;
+    transform: translateX(220%) rotate(18deg);
   }
 }

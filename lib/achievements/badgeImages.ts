@@ -1,12 +1,16 @@
-/** Maps an achievement_key to the filename of its vector artwork, in public/images/badges/ --
- * no naming convention required, name the SVG files however you like and just point each key at
- * its file here. A badge left as "" (the default for everything below) just shows its fallback
- * icon (see the `icon` field in lib/achievements/registry.tsx) until a filename is set -- BadgeArt
- * in app/components/ui/AchievementCard.tsx never even attempts to load an image for one that's
- * still empty, so there's no doomed network request either.
+import badgeImageHashes from "./badgeImageHashes.json";
+
+/** Maps an achievement_key to the filename of its full-size master artwork, in
+ * assets-src/badges/ -- no naming convention required, name the files however you like and just
+ * point each key at its file here, then run `npm run badges:optimize` (scripts/optimize-badges.mjs)
+ * to generate the small square thumb/full versions the app actually serves from
+ * public/images/badges/. A badge left as "" (the default for everything below), or one whose
+ * master hasn't been through that script yet, just shows its fallback icon (see the `icon` field
+ * in lib/achievements/registry.tsx) -- BadgeArt in app/components/ui/AchievementCard.tsx never even
+ * attempts to load an image for one that has none, so there's no doomed network request either.
  *
  * Grouped and commented to match Settings > Profile > Badges' own category/subcategory layout
- * (and public/images/badges/README.md's badge-name table) purely for readability while filling
+ * (and assets-src/badges/README.md's badge-name table) purely for readability while filling
  * this in -- the object itself is flat, order doesn't matter to the code.
  */
 export const BADGE_IMAGES: Record<string, string> = {
@@ -138,9 +142,19 @@ export const BADGE_IMAGES: Record<string, string> = {
   n1_completed: "", // N1 Completed
 };
 
-/** Resolves an achievement_key to its image URL under /images/badges/, or undefined if no
- * filename has been assigned to it yet in BADGE_IMAGES above. */
-export function achievementImageSrc(achievementKey: string): string | undefined {
+/** "thumb" is the small circle in the list/grid views, "full" the enlarged one in BadgeImageModal. */
+export type BadgeImageSize = "thumb" | "full";
+
+/** Resolves an achievement_key to the URL of its optimized image of the given size, or undefined
+ * if no filename has been assigned to it yet in BADGE_IMAGES above, or its master hasn't been run
+ * through `npm run badges:optimize` yet (no entry in badgeImageHashes.json). The URL embeds a
+ * content hash (`<name>.<hash>.webp`), which is what lets public/_headers serve /images/badges/
+ * as immutable -- a changed master gets a new hash, so a new URL, never a stale cached file. */
+export function achievementImageSrc(achievementKey: string, size: BadgeImageSize): string | undefined {
   const filename = BADGE_IMAGES[achievementKey];
-  return filename ? `/images/badges/${filename}` : undefined;
+  if (!filename) return undefined;
+  const hash = (badgeImageHashes as Record<string, string>)[filename];
+  if (!hash) return undefined;
+  const stem = filename.replace(/\.[^.]+$/, "");
+  return `/images/badges/${size}/${stem}.${hash}.webp`;
 }
