@@ -1,4 +1,5 @@
 import { FaRotateLeft } from "react-icons/fa6";
+import { useKeyboardOpen } from "@/lib/useKeyboardOpen";
 
 interface UndoPillProps {
   visible: boolean;
@@ -7,7 +8,9 @@ interface UndoPillProps {
 }
 
 export function UndoPill({ visible, onUndo, disabled }: UndoPillProps) {
-  if (!visible) return null;
+  // Hidden while the on-screen keyboard is up (it would only crowd the shrunken viewport).
+  const keyboardOpen = useKeyboardOpen();
+  if (!visible || keyboardOpen) return null;
 
   return (
     <button
