@@ -7,33 +7,39 @@ function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function bucketColor(reviewsCount: number): string {
-  if (reviewsCount <= 0) return "bg-white/[0.05]";
-  if (reviewsCount < 10) return "bg-accent-red/30";
-  if (reviewsCount < 25) return "bg-accent-red/60";
+function bucketColor(totalCount: number): string {
+  if (totalCount <= 0) return "bg-white/[0.05]";
+  if (totalCount < 10) return "bg-accent-red/30";
+  if (totalCount < 25) return "bg-accent-red/60";
   return "bg-accent-red";
+}
+
+function totalActivity(day: StudentDailyActivity): number {
+  return day.reviews_count + day.new_cards_count + day.learned_count + day.practice_count + day.test_count;
 }
 
 /** GitHub-contribution-graph-style grid, most recent day last (bottom-right) -- WeekStreak's
  *  flame strip only ever shows a fixed 7 days and isn't a grid, so this is a new small
- *  component rather than an extension of it (see admin plan). */
+ *  component rather than an extension of it (see admin plan). Colored by the sum of every
+ *  activity type (reviews, new cards, kana graduations, practice, tests), not reviews alone. */
 export function ActivityHeatmap({ days }: { days: StudentDailyActivity[] }) {
   const byDay = new Map(days.map((d) => [d.day, d]));
 
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
-  const cells: { key: string; reviewsCount: number }[] = [];
+  const cells: { key: string; totalCount: number }[] = [];
   for (let i = DAYS_SHOWN - 1; i >= 0; i--) {
     const date = new Date(today);
     date.setUTCDate(date.getUTCDate() - i);
     const key = toDateKey(date);
-    cells.push({ key, reviewsCount: byDay.get(key)?.reviews_count ?? 0 });
+    const day = byDay.get(key);
+    cells.push({ key, totalCount: day ? totalActivity(day) : 0 });
   }
 
   // Pad the front so the grid always starts on a Sunday column, matching WEEKDAY_LABELS.
   const leadingBlanks = new Date(cells[0].key).getUTCDay();
-  const columns: ({ key: string; reviewsCount: number } | null)[][] = [];
-  let column: ({ key: string; reviewsCount: number } | null)[] = new Array(leadingBlanks).fill(null);
+  const columns: ({ key: string; totalCount: number } | null)[][] = [];
+  let column: ({ key: string; totalCount: number } | null)[] = new Array(leadingBlanks).fill(null);
   for (const cell of cells) {
     column.push(cell);
     if (column.length === 7) {
@@ -66,8 +72,8 @@ export function ActivityHeatmap({ days }: { days: StudentDailyActivity[] }) {
               cell ? (
                 <div
                   key={cell.key}
-                  title={`${cell.key}: ${cell.reviewsCount} review${cell.reviewsCount === 1 ? "" : "s"}`}
-                  className={`h-3 w-3 rounded-[3px] ${bucketColor(cell.reviewsCount)}`}
+                  title={`${cell.key}: ${cell.totalCount} activit${cell.totalCount === 1 ? "y" : "ies"}`}
+                  className={`h-3 w-3 rounded-[3px] ${bucketColor(cell.totalCount)}`}
                 />
               ) : (
                 <div key={j} className="h-3 w-3" />

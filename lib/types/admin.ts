@@ -19,6 +19,10 @@ export interface StudentRosterRow {
   longest_streak: number;
   last_active_date: string | null;
   reviews_count: number;
+  new_cards_count: number;
+  learned_count: number;
+  practice_count: number;
+  test_count: number;
   xp_points: number;
 }
 
@@ -26,6 +30,9 @@ export interface StudentDailyActivity {
   day: string;
   reviews_count: number;
   new_cards_count: number;
+  learned_count: number;
+  practice_count: number;
+  test_count: number;
   xp_points: number;
 }
 
@@ -40,6 +47,17 @@ export interface StudentReviewLogEntry {
   katakana: { character: string } | null;
 }
 
+export interface StudentPracticeLogEntry {
+  id: number;
+  exercise_type: string;
+  correct: boolean;
+  practiced_at: string;
+  kanji: { kanji: string } | null;
+  word: { word: string; kana_reading: string | null; usually_kana: boolean | null } | null;
+  hiragana: { character: string } | null;
+  katakana: { character: string } | null;
+}
+
 export interface StudentTestResult {
   id: number;
   test_type: string;
@@ -47,6 +65,15 @@ export interface StudentTestResult {
   percent: number;
   earned_at: string;
 }
+
+/** One item in the per-day drill-down list on the admin student detail page -- reviews, free
+ * practice reps, kana drill graduations ("learned"), and reading test attempts merged into a
+ * single chronological, type-labeled list (see fetchStudentActivityForDay). */
+export type StudentActivityEntry =
+  | { kind: "review"; key: string; at: string; label: string; correct: boolean | null }
+  | { kind: "practice"; key: string; at: string; label: string; correct: boolean }
+  | { kind: "learned"; key: string; at: string; label: string }
+  | { kind: "test"; key: string; at: string; label: string; percent: number };
 
 export interface StudentAchievement {
   achievement_key: string;
@@ -86,4 +113,10 @@ export interface StudentDetail {
   max_reviews_per_day: number | null;
   /** user_study_settings.extended_romaji_enabled -- null when the student has no settings row. */
   extended_romaji_enabled: boolean | null;
+  /** user_study_settings.kana_practice_enabled -- null when the student has no settings row. */
+  kana_practice_enabled: boolean | null;
+  /** user_study_settings.timezone -- null when the student has no settings row or never set one;
+   *  callers needing a study-day boundary should fall back to 'UTC', same as every server-side
+   *  study_day/study_day_bounds call does. */
+  timezone: string | null;
 }

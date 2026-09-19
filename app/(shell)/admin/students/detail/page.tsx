@@ -12,12 +12,11 @@ import {
   useStudentProgressSummary,
   useStudentTestResults,
 } from "@/lib/client-data/adminStudentDetail";
-import { fetchStudentReviewLogsForDay } from "@/lib/data/adminStudentDetail";
+import { fetchStudentActivityForDay } from "@/lib/data/adminStudentDetail";
 import { createClient } from "@/lib/supabase/client";
 import { ACHIEVEMENT_CATEGORIES } from "@/lib/achievements/registry";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
-import { showsKanaOnly } from "@/lib/study/furigana";
-import type { ProgressStatusCounts, ProgressSummaryResponse, StudentReviewLogEntry } from "@/lib/types";
+import type { ProgressStatusCounts, ProgressSummaryResponse, StudentActivityEntry } from "@/lib/types";
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -56,23 +55,6 @@ function total(counts: ProgressStatusCounts): number {
   return PROGRESS_STATUSES.reduce((sum, s) => sum + counts[s], 0);
 }
 
-function dayLabel(day: string): { start: string; end: string } {
-  const start = `${day}T00:00:00.000Z`;
-  const end = new Date(new Date(start).getTime() + 24 * 60 * 60 * 1000).toISOString();
-  return { start, end };
-}
-
-function reviewItemLabel(entry: StudentReviewLogEntry): string {
-  if (entry.kanji) return entry.kanji.kanji;
-  if (entry.word) {
-    if (showsKanaOnly(entry.word)) return entry.word.kana_reading ?? entry.word.word;
-    return entry.word.kana_reading ? `${entry.word.word} (${entry.word.kana_reading})` : entry.word.word;
-  }
-  if (entry.hiragana) return entry.hiragana.character;
-  if (entry.katakana) return entry.katakana.character;
-  return entry.exercise_type;
-}
-
 function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   const { ready, checking } = useRequireAdmin();
 
@@ -83,7 +65,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   const { data: achievements } = useStudentAchievements(ready ? studentId : null);
 
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
-  const [dayEntries, setDayEntries] = useState<Record<string, StudentReviewLogEntry[]>>({});
+  const [dayEntries, setDayEntries] = useState<Record<string, StudentActivityEntry[]>>({});
   const [loadingDay, setLoadingDay] = useState<string | null>(null);
 
   async function toggleDay(day: string) {
@@ -94,8 +76,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
     setExpandedDay(day);
     if (!dayEntries[day]) {
       setLoadingDay(day);
-      const { start, end } = dayLabel(day);
-      const entries = await fetchStudentReviewLogsForDay(createClient(), studentId, start, end);
+      const entries = await fetchStudentActivityForDay(createClient(), studentId, day, student?.timezone ?? "UTC");
       setDayEntries((prev) => ({ ...prev, [day]: entries }));
       setLoadingDay(null);
     }
@@ -127,11 +108,21 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   // Earned achievements grouped by category, each category's entries kept in the registry's own
   // fixed catalog order (not earned_at) -- so the list reads the same way every time regardless of
   // the order a student happened to unlock things in, matching ACHIEVEMENT_CATALOG's display order.
+  // Both the category order and each category's entry order are reversed for THIS admin view only
+  // -- copies of ACHIEVEMENT_CATEGORIES/its arrays, never .reverse()'d in place, since that same
+  // registry also drives the student-facing achievements page (settings/profile/BadgesSection.tsx)
+  // and must keep its own forward order there.
   const earnedAt = new Map((achievements ?? []).map((a) => [a.achievement_key, a.earned_at]));
-  const achievementsByCategory = ACHIEVEMENT_CATEGORIES.map((category) => ({
-    category,
-    entries: category.subcategories.flatMap((sub) => sub.entries).filter((entry) => earnedAt.has(entry.achievementKey)),
-  })).filter((group) => group.entries.length > 0);
+  const achievementsByCategory = [...ACHIEVEMENT_CATEGORIES]
+    .reverse()
+    .map((category) => ({
+      category,
+      entries: category.subcategories
+        .flatMap((sub) => sub.entries)
+        .reverse()
+        .filter((entry) => earnedAt.has(entry.achievementKey)),
+    }))
+    .filter((group) => group.entries.length > 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -206,6 +197,20 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
                 {student.extended_romaji_enabled == null ? "—" : student.extended_romaji_enabled ? "On" : "Off"}
               </div>
             </div>
+            <div>
+              <div className="text-xs text-text-muted">Practice mode</div>
+              <div className="font-semibold">
+                {student.kana_practice_enabled == null ? "—" : student.kana_practice_enabled ? "On" : "Off"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-text-muted">Country</div>
+              <div className="font-semibold">{student.country ?? "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-muted">Account status</div>
+              <div className="font-semibold">{student.pending_deletion_at ? "Pending deletion" : "Active"}</div>
+            </div>
             {student.pending_deletion_at && (
               <div className="col-span-full">
                 <Badge color="red">Account pending deletion</Badge>
@@ -231,14 +236,16 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
                       <th className="w-6 px-2 py-2" />
                       <th className="px-2 py-2 font-semibold">Date</th>
                       <th className="px-2 py-2 font-semibold">Reviews</th>
-                      <th className="px-2 py-2 font-semibold">New items</th>
+                      <th className="px-2 py-2 font-semibold">New</th>
+                      <th className="px-2 py-2 font-semibold">Practice</th>
+                      <th className="px-2 py-2 font-semibold">Test</th>
                       <th className="px-2 py-2 font-semibold">XP</th>
                     </tr>
                   </thead>
                   <tbody>
                     {daysWithActivity.length === 0 && (
                       <tr>
-                        <td className="px-2 py-4 text-center text-text-muted" colSpan={5}>
+                        <td className="px-2 py-4 text-center text-text-muted" colSpan={7}>
                           No activity yet.
                         </td>
                       </tr>
@@ -253,37 +260,77 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
                             {expandedDay === day.day ? <FaChevronDown /> : <FaChevronRight />}
                           </td>
                           <td className="px-2 py-2">{dateFormatter.format(new Date(day.day))}</td>
-                          <td className="px-2 py-2">{day.reviews_count}</td>
+                          {/* Includes learned_count -- a kana drill graduation is a special kind
+                              of review, not a distinct activity type, on this table. */}
+                          <td className="px-2 py-2">{day.reviews_count + day.learned_count}</td>
                           <td className="px-2 py-2">{day.new_cards_count}</td>
+                          <td className="px-2 py-2">{day.practice_count}</td>
+                          <td className="px-2 py-2">{day.test_count}</td>
                           <td className="px-2 py-2 text-text-muted">{day.xp_points}</td>
                         </tr>
                         {expandedDay === day.day && (
                           <tr className="border-b border-border-soft/50 bg-white/[0.02]">
-                            <td colSpan={5} className="px-4 py-3">
+                            <td colSpan={7} className="px-4 py-3">
                               {loadingDay === day.day ? (
                                 <Skeleton className="h-5 w-full" />
                               ) : (
                                 <div className="flex flex-wrap gap-2">
                                   {(dayEntries[day.day] ?? []).length === 0 ? (
-                                    <span className="text-sm text-text-muted">No review details for this day.</span>
+                                    <span className="text-sm text-text-muted">No activity details for this day.</span>
                                   ) : (
-                                    (dayEntries[day.day] ?? []).map((entry) => (
-                                      <span
-                                        key={entry.id}
-                                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm ${
-                                          entry.correct
-                                            ? "border-accent-blue/25 bg-accent-blue/[0.06]"
-                                            : "border-accent-red/25 bg-accent-red/[0.06]"
-                                        }`}
-                                      >
-                                        {entry.correct ? (
-                                          <FaCheck className="h-3 w-3 text-accent-blue" />
-                                        ) : (
-                                          <FaXmark className="h-3 w-3 text-accent-red" />
-                                        )}
-                                        {reviewItemLabel(entry)}
-                                      </span>
-                                    ))
+                                    (dayEntries[day.day] ?? []).map((entry) => {
+                                      if (entry.kind === "review" || entry.kind === "practice") {
+                                        return (
+                                          <span
+                                            key={entry.key}
+                                            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm ${
+                                              entry.correct
+                                                ? "border-accent-blue/25 bg-accent-blue/[0.06]"
+                                                : "border-accent-red/25 bg-accent-red/[0.06]"
+                                            }`}
+                                          >
+                                            {entry.correct ? (
+                                              <FaCheck className="h-3 w-3 text-accent-blue" />
+                                            ) : (
+                                              <FaXmark className="h-3 w-3 text-accent-red" />
+                                            )}
+                                            {entry.kind === "practice" && (
+                                              <span className="text-[0.65rem] font-bold uppercase tracking-wide text-text-muted">
+                                                Practice
+                                              </span>
+                                            )}
+                                            {entry.label}
+                                          </span>
+                                        );
+                                      }
+                                      if (entry.kind === "learned") {
+                                        return (
+                                          <span
+                                            key={entry.key}
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-accent-gold/25 bg-accent-gold/[0.06] px-2.5 py-1 text-sm"
+                                          >
+                                            <span className="text-[0.65rem] font-bold uppercase tracking-wide text-text-muted">
+                                              Learned
+                                            </span>
+                                            {entry.label}
+                                          </span>
+                                        );
+                                      }
+                                      return (
+                                        <span
+                                          key={entry.key}
+                                          className="inline-flex items-center gap-1.5 rounded-lg border border-border-soft bg-white/[0.03] px-2.5 py-1 text-sm"
+                                        >
+                                          <span className="text-[0.65rem] font-bold uppercase tracking-wide text-text-muted">
+                                            Test
+                                          </span>
+                                          {entry.label}
+                                          <Badge color={entry.percent >= 80 ? "blue" : entry.percent >= 50 ? "gold" : "red"}>
+                                            {entry.percent}%
+                                          </Badge>
+                                        </span>
+                                      );
+                                    })
                                   )}
                                 </div>
                               )}

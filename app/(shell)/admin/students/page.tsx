@@ -58,6 +58,9 @@ export default function AdminStudentsPage() {
               <th className="px-3 py-2.5 font-semibold">Last active</th>
               <th className="px-3 py-2.5 font-semibold">Streak</th>
               <th className="px-3 py-2.5 font-semibold">Reviews</th>
+              <th className="px-3 py-2.5 font-semibold">New</th>
+              <th className="px-3 py-2.5 font-semibold">Practice</th>
+              <th className="px-3 py-2.5 font-semibold">Test</th>
               <th className="px-3 py-2.5 font-semibold">Joined</th>
             </tr>
           </thead>
@@ -65,21 +68,21 @@ export default function AdminStudentsPage() {
             {status === "loading" &&
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={i} className="border-b border-border-soft/50">
-                  <td className="px-3 py-3" colSpan={5}>
+                  <td className="px-3 py-3" colSpan={8}>
                     <Skeleton className="h-5 w-full" />
                   </td>
                 </tr>
               ))}
             {status === "error" && (
               <tr>
-                <td className="px-3 py-6 text-center text-text-muted" colSpan={5}>
+                <td className="px-3 py-6 text-center text-text-muted" colSpan={8}>
                   Failed to load student list.
                 </td>
               </tr>
             )}
             {status === "loaded" && filtered.length === 0 && (
               <tr>
-                <td className="px-3 py-6 text-center text-text-muted" colSpan={5}>
+                <td className="px-3 py-6 text-center text-text-muted" colSpan={8}>
                   {students?.length === 0 ? "No students yet." : "No results."}
                 </td>
               </tr>
@@ -94,7 +97,12 @@ export default function AdminStudentsPage() {
                   </td>
                   <td className="px-3 py-3 text-text-muted">{formatLastActive(student.last_active_date)}</td>
                   <td className="px-3 py-3">{student.current_streak}</td>
-                  <td className="px-3 py-3">{student.reviews_count}</td>
+                  {/* Includes learned_count -- a kana drill graduation is a special kind of
+                      review, not a distinct activity type, on this table. */}
+                  <td className="px-3 py-3">{student.reviews_count + student.learned_count}</td>
+                  <td className="px-3 py-3">{student.new_cards_count}</td>
+                  <td className="px-3 py-3">{student.practice_count}</td>
+                  <td className="px-3 py-3">{student.test_count}</td>
                   <td className="px-3 py-3 text-text-muted">{dateFormatter.format(new Date(student.created_at))}</td>
                 </tr>
               ))}
