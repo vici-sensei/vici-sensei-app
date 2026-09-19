@@ -672,6 +672,24 @@ export function useStudyQueue() {
   const clockOffsetMs = useServerClockOffset();
 
   const sessionIdRef = useRef<number | null>(null);
+  // The in-flight (or settled) study_sessions insert started by ensureSession in init() -- null
+  // until the queue is confirmed non-empty, and stays null when a session was restored from
+  // sessionStorage instead. Never rejects (attemptSessionStart swallows a failed start).
+  const sessionStartRef = useRef<Promise<void> | null>(null);
+  // Whether sessionReady has already spent its one retry of a failed session start.
+  const sessionRetriedRef = useRef(false);
+  // Resolves once init() has settled whether this visit gets a study session at all -- restored
+  // from sessionStorage, started, or none (empty queue / failed load). sessionReady, and through
+  // it every enqueued mutation, waits on this: while the first paint is still an unconfirmed
+  // cached card, the session doesn't exist yet, and without the wait an answer given in that window
+  // would go out with no session_id.
+  const [sessionDecided] = useState(() => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  });
   const endingRef = useRef(false);
   const hasProcessedAnyRef = useRef(false);
   // Guards the "is there really nothing left" check below (see the queue.length === 0 effect)
@@ -807,6 +825,41 @@ export function useStudyQueue() {
   const initStartedRef = useRef(false);
   const cancelledRef = useRef(false);
 
+  // One attempt at opening this visit's study_sessions row. Never rejects: a failure just leaves
+  // sessionIdRef null, and sessionReady below retries once before the first mutation needs it.
+  const attemptSessionStart = useCallback(async () => {
+    try {
+      const started = await startStudySessionApi(user.id);
+      if (cancelledRef.current) return;
+      setStoredSessionId(user.id, started.session_id);
+      sessionIdRef.current = started.session_id;
+    } catch {
+      // Retried once by sessionReady; otherwise reviews submit without a session id attached.
+    }
+  }, [user.id]);
+
+  // Every enqueued mutation runs behind this (see enqueueMutation), so rate()/introduce*() always
+  // read the real sessionIdRef.current: it waits for init() to settle whether a session exists at
+  // all, then for its insert. A session start that failed gets one more try right here, and the
+  // student is told if that fails too -- otherwise the whole session would run untagged and
+  // /study/summary (which needs the stored id) would silently bounce back to /dashboard.
+  const sessionReady = useCallback(async () => {
+    await sessionDecided.promise;
+    await sessionStartRef.current;
+    if (
+      sessionStartRef.current &&
+      sessionIdRef.current == null &&
+      !sessionRetriedRef.current &&
+      !cancelledRef.current
+    ) {
+      sessionRetriedRef.current = true;
+      await attemptSessionStart();
+      if (sessionIdRef.current == null && !cancelledRef.current) {
+        showToast("Could not start a study session.", "error");
+      }
+    }
+  }, [sessionDecided, attemptSessionStart, showToast]);
+
   useEffect(() => {
     cancelledRef.current = false;
 
@@ -814,6 +867,7 @@ export function useStudyQueue() {
       const storedSessionId = getStoredSessionId(user.id);
       if (storedSessionId != null) {
         sessionIdRef.current = storedSessionId;
+        sessionDecided.resolve();
         // Restores how many cards were already completed in this still-open session (e.g.
         // after a page refresh), so the progress bar's numerator doesn't visually reset to 0
         // while the denominator (completedCount + the freshly fetched queue below) correctly
@@ -826,20 +880,19 @@ export function useStudyQueue() {
           .catch(() => {
             // Non-critical -- the bar just won't restore its prior progress this load.
           });
-      } else {
-        // Doesn't gate the first card -- rate()/introduceKanji()/introduceVocab() already
-        // tolerate sessionIdRef being null until this lands, so it finishes in the
-        // background instead of making the user wait on an extra insert before card 1 shows.
-        startStudySessionApi(user.id)
-          .then((started) => {
-            if (cancelledRef.current) return;
-            setStoredSessionId(user.id, started.session_id);
-            sessionIdRef.current = started.session_id;
-          })
-          .catch(() => {
-            // Reviews still submit without a session id attached; nothing to recover here.
-          });
       }
+
+      // Starts this visit's study_sessions row -- but only once a real fetch has confirmed there's
+      // actually something to study (called from the two `settled = true` points below), never
+      // up front: a click that finds an empty queue would otherwise leave behind a session that
+      // was opened and closed within a second with 0 cards. Doesn't gate the first card either --
+      // the insert finishes in the background, and sessionReady makes every mutation wait for it
+      // so rate()/introduce*() never fire before it lands.
+      const ensureSession = () => {
+        if (sessionIdRef.current != null || sessionStartRef.current) return;
+        sessionStartRef.current = attemptSessionStart();
+        sessionDecided.resolve();
+      };
 
       // Instant paint from localStorage -- written by prefetchFirstDueCard() (hover/focus on
       // a "Start studying" entry point) or by a previous /study mount below. Purely
@@ -873,6 +926,7 @@ export function useStudyQueue() {
           writeFirstCardCache(user.id, card);
           setQueue([{ key: reviewKey(card), kind: "review", card }]);
           setStatus("ready");
+          ensureSession();
         })
         .catch(() => {
           // The full fetch below is authoritative and will surface any real error.
@@ -923,10 +977,15 @@ export function useStudyQueue() {
         );
         if (items.length === 0) {
           clearFirstCardCache(user.id);
+          // Without this the student just watches /study flash and bounce back to /dashboard with
+          // no explanation -- the dashboard offered "Start studying", so say why nothing opened.
+          // ToastProvider lives in the root layout, so it survives the redirect below.
+          showToast("Nothing to study right now.");
           void endSession(false);
           return;
         }
         setStatus("ready");
+        ensureSession();
       } catch (err) {
         if (cancelledRef.current || settled) return; // the fast path already painted real content
         setError(err instanceof ApiError ? err.message : "Could not load your study queue.");
@@ -936,7 +995,9 @@ export function useStudyQueue() {
 
     if (!initStartedRef.current) {
       initStartedRef.current = true;
-      void init();
+      // However init() ends -- empty queue, load error, unmount, an unexpected throw -- the
+      // session question is settled, so no mutation is ever left waiting on sessionDecided.
+      void init().finally(sessionDecided.resolve);
     }
     return () => {
       cancelledRef.current = true;
@@ -1032,9 +1093,15 @@ export function useStudyQueue() {
     };
   }, [status, queue, endSession, user.id, settings]);
 
-  const enqueueMutation = useCallback((mutate: () => Promise<void>) => {
-    mutationChainRef.current = mutationChainRef.current.then(mutate, mutate);
-  }, []);
+  const enqueueMutation = useCallback(
+    (mutate: () => Promise<void>) => {
+      // sessionReady (a near no-op once the session exists) runs before every mutation, so
+      // whichever one goes first reads the real sessionIdRef.current. A rejection from the
+      // previous link skips it and still reaches mutate through the second handler, same as before.
+      mutationChainRef.current = mutationChainRef.current.then(sessionReady).then(mutate, mutate);
+    },
+    [sessionReady]
+  );
 
   // Post-introduction drill for hiragana_reading/katakana_reading (record_hiragana_drill_result/
   // record_katakana_drill_result -- 20260827_hiragana_katakana_drill.sql): correct/incorrect

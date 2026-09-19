@@ -2,18 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ApiError } from "@/lib/api/client";
-import { prefetchFirstDueCard, startSession } from "@/lib/client-data/study";
+import { prefetchFirstDueCard } from "@/lib/client-data/study";
 import { prefetchKanaExtendedRomaji } from "@/lib/client-data/kana";
 import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
-import { setStoredSessionId } from "@/lib/study/session";
+import { clearStoredSessionId } from "@/lib/study/session";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 
 export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
   const [loading, setLoading] = useState(false);
-  const { showToast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
 
@@ -25,18 +22,17 @@ export function StartStudyButton({ disabled = false }: { disabled?: boolean }) {
     if (extendedRomajiEnabled) prefetchKanaExtendedRomaji();
   }
 
-  async function handleStart() {
+  function handleStart() {
     // The shell layout only renders this button once the user is confirmed authed.
     if (!user) return;
     setLoading(true);
-    try {
-      const session = await startSession(user.id);
-      setStoredSessionId(user.id, session.session_id);
-      router.push("/study");
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not start a study session.", "error");
-      setLoading(false);
-    }
+    // No study_sessions row is created here: /study starts one itself only once its queue is
+    // confirmed non-empty (see ensureSession in useStudyQueue), so a click that finds nothing to
+    // study never leaves an empty session behind. Clearing the stored id keeps "every click is a
+    // fresh session" -- the old startSession call always overwrote whatever a previous, abandoned
+    // visit (the X button doesn't end its session) had left in sessionStorage.
+    clearStoredSessionId(user.id);
+    router.push("/study");
   }
 
   return (
