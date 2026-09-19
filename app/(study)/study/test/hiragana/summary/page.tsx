@@ -11,6 +11,7 @@ import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
+import { ReadingTestMissedList } from "@/app/components/readingTest/ReadingTestMissedList";
 import { createClient } from "@/lib/supabase/client";
 import { acknowledgeAchievements, fetchUnacknowledgedAchievements } from "@/lib/data/achievements";
 import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achievements/registry";
@@ -66,6 +67,17 @@ function SummaryContent() {
   const displayCorrect = isRetry ? retryAnswers.filter((a) => a.correct).length : correct;
   const displayTotal = isRetry ? retryAnswers.length : total;
   const percent = displayTotal > 0 ? Math.round((displayCorrect / displayTotal) * 100) : 0;
+
+  // Every wrong row still in progress -- on a retry that's already just this attempt's misses,
+  // since retryWrong deletes the previous attempt's wrong rows (only correct ones stay locked).
+  // In test order, since `sentences` is fetched ordered by sort_order.
+  const missed =
+    sentences && progress
+      ? sentences.flatMap((sentence) => {
+          const answer = progress.get(sentence.id);
+          return answer && !answer.correct ? [{ sentence, answer }] : [];
+        })
+      : [];
 
   useEffect(() => {
     if (passed && !justFinished) {
@@ -162,6 +174,7 @@ function SummaryContent() {
           </div>
           <div className="mt-1.5 text-sm font-semibold text-text-muted">{percent}% correct</div>
         </div>
+        {!passed && <ReadingTestMissedList items={missed} />}
         {passed ? (
           <Button className="w-full" onClick={() => router.push("/dashboard")}>
             Continue to dashboard
