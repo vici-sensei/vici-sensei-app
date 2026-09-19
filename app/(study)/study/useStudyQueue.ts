@@ -62,6 +62,13 @@ import {
 
 const REFRESH_INTERVAL_MS = 45_000;
 
+// Caps how many times the "queue just emptied" check (below) will hand the SAME card back
+// instead of ending the session -- a student who keeps failing the very last card would
+// otherwise never leave the session, since a learning-step retry is always within
+// get_due_cards' 10-minute grace window (see LEARNING_STEPS_MINUTES) the instant it's
+// rescheduled. The 6th time that same card is the only thing left, the session ends normally.
+const MAX_GRACE_RESURFACES = 5;
+
 // Mirrors useTypedReviewCard/useAlternateReviewCard's own FLASH_DELAY_MS -- rate() (below) is
 // now what actually holds the queue swap for this long, since those hooks call it immediately
 // on click instead of delaying the call themselves (see rate()'s own doc comment for why).
@@ -667,6 +674,13 @@ export function useStudyQueue() {
   const sessionIdRef = useRef<number | null>(null);
   const endingRef = useRef(false);
   const hasProcessedAnyRef = useRef(false);
+  // Guards the "is there really nothing left" check below (see the queue.length === 0 effect)
+  // so a rapid double render with an empty queue can't fire getFirstDueCard twice concurrently.
+  const checkingEmptyRef = useRef(false);
+  // How many times that same check has already resurfaced a given card (keyed by reviewKey) --
+  // caps a student who keeps failing the very last card in the queue at MAX_GRACE_RESURFACES
+  // trips around, instead of letting it hold the session open forever.
+  const graceResurfaceCountsRef = useRef<Map<string, number>>(new Map());
   // The review_logs id of the most recently *confirmed-submitted* review from this tab, or
   // null while a submit is in flight/failed. Undo reads this (after the mutation chain has
   // caught it up) instead of asking the server to guess "the latest review" -- that guess can
@@ -962,22 +976,61 @@ export function useStudyQueue() {
     return () => clearTimeout(timeout);
   }, [status, nextDueAt, clockOffsetMs, refreshQueue]);
 
-  // Ends the session once the queue actually empties. Runs post-commit (not inside a
-  // setQueue updater) so router.push doesn't fire a setState while StudyPage is rendering.
+  // Ends the session once the queue actually empties -- but only once one more authoritative
+  // check confirms there's genuinely nothing left, including a card just answered (right or
+  // wrong) that's already eligible again: get_due_cards' grace-window fallback
+  // (20261234_early_repeat_near_due_learning_cards.sql) surfaces a learning/relearning card up
+  // to 10 minutes before its real due_at, but ONLY once nothing else is strictly due for this
+  // user -- exactly the state the local queue is in the instant it empties. Reuses
+  // getFirstDueCard, the same lightweight single-card RPC the very first paint already uses,
+  // rather than a full fetchStudyQueue: all that's needed here is "is there really nothing left".
   //
-  // Ending immediately (rather than waiting out a same-session learning-step retry, e.g. right
-  // after answering the last card wrong) is intentional, not a bug: there's no "hold the page
-  // open and wait" mode here -- /study/summary is the product's actual answer to "when do I come
-  // back", via its own next_due_at/next_due_is_today (endStudySession calls the same get_next_due
-  // this page does -- see studySessions.ts). That RPC used to never look at
-  // user_hiragana_progress/user_katakana_progress at all, so a kana-track account always got
-  // next_due_at = null there regardless of what was really coming due -- fixed at the source in
-  // 20260922_get_next_due_includes_kana.sql instead of worked around here.
+  // This used to end immediately, with a comment explaining that as intentional ("no 'hold the
+  // page open and wait' mode") -- superseded now that get_due_cards can itself decide a
+  // resurfacing card is close enough to hand back early: since that card's own due_at is, by
+  // construction, never more than 10 minutes out the moment it's (re)scheduled (see
+  // LEARNING_STEPS_MINUTES), this check resolves in one fast round trip, not a 10-minute wait --
+  // the student sees it pop back into the queue instead of being routed to /study/summary. A
+  // card that's still genuinely far out (a review-phase graduation, or a learning card with other
+  // real reviews still ahead of it earlier in the session) is untouched by this: the grace window
+  // never applies while anything else is due, so this check comes back empty and the session ends
+  // exactly as before.
   useEffect(() => {
-    if (status === "ready" && queue.length === 0 && !endingRef.current) {
-      void endSession(hasProcessedAnyRef.current);
-    }
-  }, [status, queue, endSession]);
+    if (status !== "ready" || queue.length !== 0 || endingRef.current || checkingEmptyRef.current) return;
+    checkingEmptyRef.current = true;
+    let cancelled = false;
+
+    void (async () => {
+      let card: DueCard | null = null;
+      try {
+        card = await getFirstDueCard(user.id, settings);
+      } catch {
+        // Falls through to ending the session, same as any other transient fetch failure here --
+        // /study/summary's own next_due_at is the fallback if something really was about to come due.
+      }
+      if (cancelled) return;
+      checkingEmptyRef.current = false;
+      if (card) {
+        const dueCard = card;
+        const key = reviewKey(dueCard);
+        const resurfaces = graceResurfaceCountsRef.current.get(key) ?? 0;
+        if (resurfaces < MAX_GRACE_RESURFACES) {
+          graceResurfaceCountsRef.current.set(key, resurfaces + 1);
+          // Guards against a concurrent refreshQueue poll having already added something else
+          // (or this same card) in the meantime -- never clobber a queue that's no longer empty.
+          setQueue((prev) => (prev.length === 0 ? [{ key, kind: "review", card: dueCard }] : prev));
+          return;
+        }
+        // MAX_GRACE_RESURFACES already spent on this exact card -- fall through and end the
+        // session instead of handing it back a 6th time.
+      }
+      if (!endingRef.current) void endSession(hasProcessedAnyRef.current);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, queue, endSession, user.id, settings]);
 
   const enqueueMutation = useCallback((mutate: () => Promise<void>) => {
     mutationChainRef.current = mutationChainRef.current.then(mutate, mutate);
