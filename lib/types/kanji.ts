@@ -24,6 +24,8 @@ export interface KanjiDetailWord {
     other_meanings: string[][] | null;
     furiganas: string[] | null;
     jlpt_level: string | null;
+    /** get_kanji_detail_words (20261233_usually_kana_on_kanji_word_rpcs.sql) -- absent from an older DB. */
+    usually_kana?: boolean | null;
   };
 }
 

@@ -16,6 +16,7 @@ import { fetchStudentReviewLogsForDay } from "@/lib/data/adminStudentDetail";
 import { createClient } from "@/lib/supabase/client";
 import { ACHIEVEMENT_CATEGORIES } from "@/lib/achievements/registry";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
+import { showsKanaOnly } from "@/lib/study/furigana";
 import type { ProgressStatusCounts, ProgressSummaryResponse, StudentReviewLogEntry } from "@/lib/types";
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
@@ -63,7 +64,10 @@ function dayLabel(day: string): { start: string; end: string } {
 
 function reviewItemLabel(entry: StudentReviewLogEntry): string {
   if (entry.kanji) return entry.kanji.kanji;
-  if (entry.word) return entry.word.kana_reading ? `${entry.word.word} (${entry.word.kana_reading})` : entry.word.word;
+  if (entry.word) {
+    if (showsKanaOnly(entry.word)) return entry.word.kana_reading ?? entry.word.word;
+    return entry.word.kana_reading ? `${entry.word.word} (${entry.word.kana_reading})` : entry.word.word;
+  }
   if (entry.hiragana) return entry.hiragana.character;
   if (entry.katakana) return entry.katakana.character;
   return entry.exercise_type;

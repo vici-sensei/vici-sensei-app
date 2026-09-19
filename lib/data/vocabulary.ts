@@ -13,7 +13,7 @@ export async function fetchVocabularyDetail(id: number): Promise<VocabularyDetai
   const supabase = createClient();
   const { data, error } = await supabase
     .from("vocabulary")
-    .select("id, word, kana_reading, primary_meanings, other_meanings, parts_of_speech, jlpt_level, other_readings, furiganas, short_meaning")
+    .select("id, word, kana_reading, primary_meanings, other_meanings, parts_of_speech, jlpt_level, other_readings, furiganas, usually_kana, short_meaning")
     .eq("id", id)
     .eq("study_enabled", true)
     .maybeSingle();

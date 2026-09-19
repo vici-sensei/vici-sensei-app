@@ -34,4 +34,6 @@ export interface VocabularyDetailRow {
   jlpt_level: string | null;
   other_readings: string[] | null;
   furiganas: string[] | null;
+  /** Optional: a detail row cached before this field existed simply lacks it (counts as false). */
+  usually_kana?: boolean | null;
 }

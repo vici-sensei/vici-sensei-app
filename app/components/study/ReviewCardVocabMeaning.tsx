@@ -1,7 +1,7 @@
 "use client";
 
 import type { DueCard, Rating } from "@/lib/types";
-import { renderWordWithFurigana } from "@/lib/study/furigana";
+import { renderVocabularyWord } from "@/lib/study/furigana";
 import { useVocabMeaningReviewCard } from "./useVocabMeaningReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
@@ -30,7 +30,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
       accent="orange"
       prompt={
         <CardHeading furigana masked={!revealed}>
-          {card.word ? renderWordWithFurigana(card.word, card.furiganas) : card.word}
+          {card.word ? renderVocabularyWord({ ...card, word: card.word }) : card.word}
         </CardHeading>
       }
       subtitle={

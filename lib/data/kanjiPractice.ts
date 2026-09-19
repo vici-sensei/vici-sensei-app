@@ -21,6 +21,8 @@ export interface PracticeKanjiReadingCard {
   romajiReading: string | null;
   otherReadings: string[] | null;
   furiganas: string[] | null;
+  /** vocabulary.usually_kana -- the word is still shown in kanji here, marked with UsuallyKanaNote. */
+  usuallyKana: boolean;
   primaryWordMeanings: string[] | null;
 }
 
@@ -69,6 +71,7 @@ interface SeenKanjiReadingRow {
       romaji_reading: string | null;
       other_readings: string[] | null;
       furiganas: string[] | null;
+      usually_kana: boolean | null;
       primary_meanings: string[] | null;
       short_meaning: string | null;
       study_enabled: boolean;
@@ -91,7 +94,7 @@ export async function fetchSeenKanjiReading(
   const { data, error } = await supabase
     .from("user_kanji_reading_progress")
     .select(
-      "kanji_id, kanji_word_id, kanji:kanji_id(kanji, meanings, level), kanji_word:kanji_word_id(vocabulary:id_word(word, kana_reading, romaji_reading, other_readings, furiganas, primary_meanings, short_meaning, study_enabled))"
+      "kanji_id, kanji_word_id, kanji:kanji_id(kanji, meanings, level), kanji_word:kanji_word_id(vocabulary:id_word(word, kana_reading, romaji_reading, other_readings, furiganas, usually_kana, primary_meanings, short_meaning, study_enabled))"
     )
     .eq("user_id", userId)
     .neq("status", "suspended");
@@ -121,6 +124,7 @@ export async function fetchSeenKanjiReading(
         romajiReading: vocabulary.romaji_reading,
         otherReadings: vocabulary.other_readings,
         furiganas: vocabulary.furiganas,
+        usuallyKana: vocabulary.usually_kana === true,
         primaryWordMeanings: vocabulary.short_meaning
           ? [vocabulary.short_meaning, ...(vocabulary.primary_meanings ?? [])]
           : vocabulary.primary_meanings,

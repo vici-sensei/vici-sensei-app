@@ -7,6 +7,12 @@ function Chevron({ open }: { open: boolean }) {
   return <FaChevronDown className={`shrink-0 text-[0.6rem] transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />;
 }
 
+/** Whether OtherMeaningsToggle renders anything for these other_meanings (its "Show other meanings"
+ * button is visible) -- for callers that lay out neighbouring content differently when it is. */
+export function hasOtherMeanings(otherMeanings: string[][] | null | undefined): otherMeanings is string[][] {
+  return !!otherMeanings && otherMeanings.length > 0;
+}
+
 interface Props {
   /** public.vocabulary.other_meanings -- one array of glosses per JMdict sense not already
    * covered by primary_meanings (see 20261130_vocabulary_primary_other_meanings.sql). Renders
@@ -32,7 +38,7 @@ interface Props {
  */
 export function OtherMeaningsToggle({ otherMeanings, className }: Props) {
   const [open, setOpen] = useState(false);
-  if (!otherMeanings || otherMeanings.length === 0) return null;
+  if (!hasOtherMeanings(otherMeanings)) return null;
 
   return (
     <div className={className}>

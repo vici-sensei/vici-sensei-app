@@ -1,4 +1,5 @@
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
+import { UsuallyKanaNote } from "@/app/components/ui/UsuallyKanaNote";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 import type { NewKanjiIntroWord } from "@/lib/types";
 
@@ -12,7 +13,9 @@ export function WordPreviewRow({ vocabulary }: { vocabulary: NewKanjiIntroWord["
       <div className="min-w-0 flex-1">
         <div className="leading-[1.4] text-text-muted">{vocabulary.primary_meanings?.join(", ")}</div>
         {vocabulary.usually_kana && (
-          <div className="mt-1 text-xs font-semibold italic text-accent-blue/70">usually written in kana</div>
+          <div className="mt-1.5">
+            <UsuallyKanaNote />
+          </div>
         )}
       </div>
       {vocabulary.jlpt_level && <LevelBadge level={vocabulary.jlpt_level} size="sm" className="shrink-0" />}

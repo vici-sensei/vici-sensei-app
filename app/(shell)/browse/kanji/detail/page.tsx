@@ -6,10 +6,11 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { useKanjiDetail } from "@/lib/client-data/kanji";
 import { useKanjiProgress } from "@/lib/client-data/progress";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
+import { UsuallyKanaNote } from "@/app/components/ui/UsuallyKanaNote";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
-import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
+import { OtherMeaningsToggle, hasOtherMeanings } from "@/app/components/browse/OtherMeaningsToggle";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 function NotFound() {
@@ -201,14 +202,30 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       <div className="grid grid-cols-1 gap-3 text-left">
         {kanji.words.map((w) => (
           <div
-            className="flex flex-wrap items-center gap-x-8 gap-y-1.5 rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-3"
+            // gap-y only matters once the meaning block wraps below the word (narrow screens): a
+            // usually-kana row gets a bit more room there, so the note doesn't touch the word.
+            className={`flex flex-wrap items-center gap-x-8 rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-3 ${
+              w.vocabulary.usually_kana ? "gap-y-3" : "gap-y-1.5"
+            }`}
             key={w.id}
           >
             <div className="pt-[0.6em] text-3xl leading-none">
               {renderWordWithFurigana(w.vocabulary.word, w.vocabulary.furiganas, "text-base text-accent-blue", "bg-accent-blue/10")}
             </div>
             <div>
+              {/* With the "Show other meanings" toggle under the meaning, the note goes above the
+                  meaning instead of between the two. */}
+              {w.vocabulary.usually_kana && hasOtherMeanings(w.vocabulary.other_meanings) && (
+                <div className="mb-1.5">
+                  <UsuallyKanaNote />
+                </div>
+              )}
               <div className="text-[0.85rem] text-text-muted">{w.vocabulary.primary_meanings?.join(", ")}</div>
+              {w.vocabulary.usually_kana && !hasOtherMeanings(w.vocabulary.other_meanings) && (
+                <div className="mt-1.5">
+                  <UsuallyKanaNote />
+                </div>
+              )}
               <OtherMeaningsToggle otherMeanings={w.vocabulary.other_meanings} className="mt-2" />
             </div>
             <LevelBadge level={w.vocabulary.jlpt_level} size="md" className="ml-auto shrink-0" />
@@ -258,6 +275,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                   {r.kanji_word?.vocabulary?.kana_reading && (
                     <span className="font-semibold text-text-muted"> ({r.kanji_word.vocabulary.kana_reading})</span>
                   )}
+                  {r.kanji_word?.vocabulary?.usually_kana && <UsuallyKanaNote className="ml-2 align-middle" />}
                 </>
               }
               status={r.status}

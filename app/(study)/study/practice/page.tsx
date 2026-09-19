@@ -15,10 +15,12 @@ import { UndoPill } from "@/app/components/study/UndoPill";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
+import { UsuallyKanaNote } from "@/app/components/ui/UsuallyKanaNote";
 import { FaArrowRotateRight } from "react-icons/fa6";
 import type { DueCard, Rating } from "@/lib/types";
 import type { PracticeMissedCard } from "@/lib/study/practicePool";
 import { practiceCardKey } from "@/lib/study/practicePool";
+import { vocabularyDisplayText } from "@/lib/study/furigana";
 
 /** Dispatches to the right review card for whatever exercise_type toDueCard built (see
  * usePracticeQueue.ts) -- every one of them is forced into drill_mode there, so this always
@@ -38,7 +40,7 @@ function PracticeCard({ card, onRate }: { card: DueCard; onRate: (card: DueCard,
 }
 
 /** What the "done" summary's missed-cards table shows for one card, regardless of kind. */
-function missedRowContent(item: PracticeMissedCard): { prompt: string; correct: string } {
+function missedRowContent(item: PracticeMissedCard): { prompt: string; correct: string; usuallyKanaNote?: boolean } {
   switch (item.kind) {
     case "hiragana":
     case "katakana":
@@ -46,9 +48,13 @@ function missedRowContent(item: PracticeMissedCard): { prompt: string; correct: 
     case "kanji_meaning":
       return { prompt: item.kanjiChar, correct: item.meanings.join(", ") };
     case "kanji_reading":
-      return { prompt: item.word, correct: item.kanaReading ?? item.romajiReading ?? "" };
+      // Shown in kanji (the exercise needs it), so a usually_kana word gets the note instead of being swapped for kana.
+      return { prompt: item.word, correct: item.kanaReading ?? item.romajiReading ?? "", usuallyKanaNote: item.usuallyKana };
     case "vocab_meaning":
-      return { prompt: item.word, correct: item.primaryMeanings.join(", ") };
+      return {
+        prompt: vocabularyDisplayText({ word: item.word, kana_reading: item.kanaReading, usually_kana: item.usuallyKana }),
+        correct: item.primaryMeanings.join(", "),
+      };
   }
 }
 
@@ -178,12 +184,18 @@ export default function PracticePage() {
                 <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Correct</div>
                 <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">You wrote</div>
                 {wrongAnswers.map((item) => {
-                  const { prompt, correct: correctAnswer } = missedRowContent(item);
+                  const { prompt, correct: correctAnswer, usuallyKanaNote } = missedRowContent(item);
                   return (
                     <Fragment key={practiceCardKey(item)}>
                       <div className="text-center font-bold text-white">{prompt}</div>
                       <div className="text-center text-accent-green">{correctAnswer}</div>
                       <div className="text-center text-accent-red">{item.userAnswer || "—"}</div>
+                      {/* Own full-width row: the columns are too narrow for the pill. */}
+                      {usuallyKanaNote && (
+                        <div className="col-span-3 text-center">
+                          <UsuallyKanaNote />
+                        </div>
+                      )}
                     </Fragment>
                   );
                 })}

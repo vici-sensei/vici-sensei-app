@@ -157,6 +157,7 @@ function toDueCard(item: PracticePoolCard): DueCard {
         romaji_reading: item.romajiReading,
         other_readings: item.otherReadings,
         furiganas: item.furiganas,
+        usually_kana: item.usuallyKana,
         primary_word_meanings: item.primaryWordMeanings,
       };
     case "vocab_meaning":
@@ -167,6 +168,7 @@ function toDueCard(item: PracticePoolCard): DueCard {
         word: item.word,
         kana_reading: item.kanaReading,
         furiganas: item.furiganas,
+        usually_kana: item.usuallyKana,
         primary_word_meanings: item.primaryMeanings,
         all_primary_word_meanings: item.allPrimaryMeanings,
       };

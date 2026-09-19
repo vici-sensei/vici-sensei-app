@@ -54,6 +54,36 @@ export function renderWordWithFurigana(
   );
 }
 
+interface VocabularyWordFields {
+  word: string;
+  kana_reading: string | null;
+  furiganas?: string[] | null;
+  /** Missing (an older cached row, or an RPC not yet exposing it) counts as false. */
+  usually_kana?: boolean | null;
+}
+
+/** True when a vocabulary word is flagged usually_kana (JMdict "uk") and has a kana reading to show instead. */
+export function showsKanaOnly(v: Pick<VocabularyWordFields, "kana_reading" | "usually_kana">): boolean {
+  return v.usually_kana === true && !!v.kana_reading;
+}
+
+/** Plain-text counterpart of renderVocabularyWord, for places that can't render ruby markup. */
+export function vocabularyDisplayText(v: Pick<VocabularyWordFields, "word" | "kana_reading" | "usually_kana">): string {
+  return showsKanaOnly(v) ? (v.kana_reading as string) : v.word;
+}
+
+/** A usually_kana word is shown as its kana reading with no furigana -- nobody reads it written in
+ * kanji -- anything else goes through renderWordWithFurigana. The optional args are its own. */
+export function renderVocabularyWord(
+  v: VocabularyWordFields,
+  furiganaClassName?: string,
+  furiganaBgClassName?: string,
+  furiganaSelectable?: boolean
+): ReactNode {
+  if (showsKanaOnly(v)) return v.kana_reading;
+  return renderWordWithFurigana(v.word, v.furiganas, furiganaClassName, furiganaBgClassName, furiganaSelectable);
+}
+
 // Shows furigana above every kanji in the word except the one being tested
 // (so the target's reading isn't given away before the user answers) and
 // except any "sibling" kanji the server has flagged as known (known_kanji_chars) --

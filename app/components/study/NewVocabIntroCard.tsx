@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import type { NewVocabCandidate } from "@/lib/types";
 import { Button } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
-import { renderWordWithFurigana } from "@/lib/study/furigana";
+import { renderVocabularyWord } from "@/lib/study/furigana";
 import { StudyCardShell } from "./StudyCardShell";
 import { CardHeading } from "./CardHeading";
 import { InfoChip } from "./InfoChip";
@@ -16,8 +16,6 @@ interface Props {
 }
 
 export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
-  const isUsuallyKana = candidate.usually_kana === true;
-
   useEffect(() => {
     if (disabled) return;
     function handleKeyDown(event: KeyboardEvent) {
@@ -32,9 +30,7 @@ export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
 
   return (
     <StudyCardShell label="New word" accent="gold">
-      <CardHeading furigana>
-        {isUsuallyKana ? candidate.kana_reading : renderWordWithFurigana(candidate.word, candidate.furiganas)}
-      </CardHeading>
+      <CardHeading furigana>{renderVocabularyWord(candidate)}</CardHeading>
 
       <div className="mb-2.5 text-[1.3rem] font-bold text-white">{candidate.primary_meanings?.join(", ")}</div>
 

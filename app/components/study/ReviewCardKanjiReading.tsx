@@ -6,6 +6,7 @@ import { renderTargetWord } from "@/lib/study/furigana";
 import { useKanjiReadingReviewCard } from "./useKanjiReadingReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
+import { UsuallyKanaNote } from "@/app/components/ui/UsuallyKanaNote";
 import { Accent } from "./Accent";
 import { AnswerForm } from "./AnswerForm";
 import { TokenDiffList } from "./TokenDiffList";
@@ -29,11 +30,18 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
       label="Word reading"
       accent="blue"
       prompt={
-        <CardHeading furigana masked={!revealed}>
-          {card.word
-            ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas, card.known_kanji_chars)
-            : card.kanji_char}
-        </CardHeading>
+        <>
+          <CardHeading furigana masked={!revealed}>
+            {card.word
+              ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas, card.known_kanji_chars)
+              : card.kanji_char}
+          </CardHeading>
+          {card.usually_kana && (
+            <div className="mt-1.5">
+              <UsuallyKanaNote />
+            </div>
+          )}
+        </>
       }
       subtitle={
         askingForAnother ? (

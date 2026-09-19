@@ -35,7 +35,7 @@ export interface StudentReviewLogEntry {
   correct: boolean | null;
   reviewed_at: string;
   kanji: { kanji: string } | null;
-  word: { word: string; kana_reading: string | null } | null;
+  word: { word: string; kana_reading: string | null; usually_kana: boolean | null } | null;
   hiragana: { character: string } | null;
   katakana: { character: string } | null;
 }

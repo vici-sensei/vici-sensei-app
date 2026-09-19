@@ -45,6 +45,9 @@ export interface DueCard {
   romaji_reading: string | null;
   other_readings: string[] | null;
   furiganas: string[] | null;
+  /** vocabulary.usually_kana -- get_due_cards/complete_vocab_batch (20261230_usually_kana_on_review_cards.sql).
+   * Absent on a practice-built card that never carries it, or from a DB that predates that migration. */
+  usually_kana?: boolean | null;
   primary_word_meanings: string[] | null;
   /** Meanings from every vocabulary row sharing this word -- the student can't tell which row a card was built from. */
   all_primary_word_meanings: string[] | null;

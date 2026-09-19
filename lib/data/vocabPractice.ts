@@ -8,6 +8,8 @@ export interface PracticeVocabCard {
   word: string;
   kanaReading: string | null;
   furiganas: string[] | null;
+  /** vocabulary.usually_kana -- shown as kana, no furigana (see renderVocabularyWord). */
+  usuallyKana: boolean;
   primaryMeanings: string[];
   /** primary_meanings + other_meanings from every vocabulary row sharing this word's word AND
    * kana_reading (see get_vocab_meaning_pool, 20261210_vocab_meaning_pool_includes_other_meanings.sql)
@@ -25,6 +27,8 @@ interface SeenVocabMeaningRow {
   primary_meanings: string[] | null;
   all_primary_word_meanings: string[] | null;
   jlpt_level: string | null;
+  /** Absent until 20261230_usually_kana_on_review_cards.sql is applied. */
+  usually_kana?: boolean | null;
 }
 
 /** Every vocabulary word this user has ever been introduced to (any non-suspended, non-pending
@@ -53,6 +57,7 @@ export async function fetchSeenVocabMeaning(
     word: row.word,
     kanaReading: row.kana_reading,
     furiganas: row.furiganas,
+    usuallyKana: row.usually_kana === true,
     primaryMeanings: row.primary_meanings ?? [],
     allPrimaryMeanings: row.all_primary_word_meanings ?? [],
   }));

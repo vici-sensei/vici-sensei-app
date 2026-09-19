@@ -79,7 +79,7 @@ export async function fetchStudentReviewLogsForDay(
   const { data, error } = await supabase
     .from("review_logs")
     .select(
-      "id, exercise_type, correct, reviewed_at, kanji:kanji_id(kanji), word:word_id(word, kana_reading), hiragana:hiragana_id(character), katakana:katakana_id(character)"
+      "id, exercise_type, correct, reviewed_at, kanji:kanji_id(kanji), word:word_id(word, kana_reading, usually_kana), hiragana:hiragana_id(character), katakana:katakana_id(character)"
     )
     .eq("user_id", studentId)
     .eq("undone", false)

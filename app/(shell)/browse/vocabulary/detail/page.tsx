@@ -10,7 +10,7 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
-import { renderWordWithFurigana } from "@/lib/study/furigana";
+import { renderVocabularyWord, vocabularyDisplayText } from "@/lib/study/furigana";
 
 function NotFound() {
   return (
@@ -133,7 +133,7 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="min-w-55 flex-1">
           <div className="pt-[0.6em] text-5xl leading-[1.1] mb-3">
-            {renderWordWithFurigana(word.word, word.furiganas, "text-lg text-accent-blue", "bg-accent-blue/10", true)}
+            {renderVocabularyWord(word, "text-lg text-accent-blue", "bg-accent-blue/10", true)}
           </div>
           <div className="mb-3 text-[1.35rem] font-bold">{word.primary_meanings?.join(", ")}</div>
           <OtherMeaningsToggle otherMeanings={word.other_meanings} className="mb-3" />
@@ -159,7 +159,7 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
       <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
       {progress ? (
         <ProgressCardRow
-          title={<>Meaning — &quot;{word.primary_meanings?.[0] ?? word.word}&quot;</>}
+          title={<>Meaning — &quot;{word.primary_meanings?.[0] ?? vocabularyDisplayText(word)}&quot;</>}
           status={progress.status}
           dueAt={progress.due_at}
           cardType="vocab"
