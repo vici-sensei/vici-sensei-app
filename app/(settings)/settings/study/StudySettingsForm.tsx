@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { LevelGrid } from "@/app/components/ui/LevelGrid";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Toggle } from "@/app/components/ui/Toggle";
-import { Stepper, stepperButtonClass, stepperValueClass } from "@/app/components/ui/Stepper";
+import {
+  Stepper,
+  stepperButtonClass,
+  stepperValueClass,
+} from "@/app/components/ui/Stepper";
 import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -17,8 +21,18 @@ import {
 } from "@/lib/client-data/studySettings";
 import { fetchReadingTestPassedStatus } from "@/lib/client-data/readingTest";
 import { useToast } from "@/app/components/ui/Toast";
-import type { LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
-import { JLPT_LEVELS, mostAdvancedLevel, leastAdvancedLevel, levelsInRange, type JlptLevel } from "@/lib/srs/constants";
+import type {
+  LeaderboardAlias,
+  StudySettings,
+  StudySettingsPatch,
+} from "@/lib/types";
+import {
+  JLPT_LEVELS,
+  mostAdvancedLevel,
+  leastAdvancedLevel,
+  levelsInRange,
+  type JlptLevel,
+} from "@/lib/srs/constants";
 import { FaLink, FaMinus, FaPlus } from "react-icons/fa6";
 import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
 
@@ -97,23 +111,46 @@ export function StudySettingsForm({
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const [newKanjiPerDay, setNewKanjiPerDay] = useState(initial.new_kanji_per_day);
-  const [newVocabPerDay, setNewVocabPerDay] = useState(initial.new_vocab_per_day);
-  const [newHiraganaPerDay, setNewHiraganaPerDay] = useState(initial.new_hiragana_per_day);
-  const [newKatakanaPerDay, setNewKatakanaPerDay] = useState(initial.new_katakana_per_day);
-  const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(initial.max_reviews_per_day);
-  const [level, setLevel] = useState<JlptLevel>(mostAdvancedLevel(initial.enabled_levels));
-  const [floor, setFloor] = useState<JlptLevel>(leastAdvancedLevel(initial.enabled_levels));
+  const [newKanjiPerDay, setNewKanjiPerDay] = useState(
+    initial.new_kanji_per_day,
+  );
+  const [newVocabPerDay, setNewVocabPerDay] = useState(
+    initial.new_vocab_per_day,
+  );
+  const [newHiraganaPerDay, setNewHiraganaPerDay] = useState(
+    initial.new_hiragana_per_day,
+  );
+  const [newKatakanaPerDay, setNewKatakanaPerDay] = useState(
+    initial.new_katakana_per_day,
+  );
+  const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(
+    initial.max_reviews_per_day,
+  );
+  const [level, setLevel] = useState<JlptLevel>(
+    mostAdvancedLevel(initial.enabled_levels),
+  );
+  const [floor, setFloor] = useState<JlptLevel>(
+    leastAdvancedLevel(initial.enabled_levels),
+  );
   const [studyKanji, setStudyKanji] = useState(initial.study_kanji);
-  const [studyVocabulary, setStudyVocabulary] = useState(initial.study_vocabulary);
+  const [studyVocabulary, setStudyVocabulary] = useState(
+    initial.study_vocabulary,
+  );
   const [studyHiragana, setStudyHiragana] = useState(initial.study_hiragana);
   const [studyKatakana, setStudyKatakana] = useState(initial.study_katakana);
   // Coerced to a definite boolean here -- null (onboarding not yet chosen) shouldn't reach this
   // page in practice, since /onboarding gates access before it, but the toggle itself is binary.
-  const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initial.leaderboard_anonymous ?? false);
-  const [kanaPracticeEnabled, setKanaPracticeEnabled] = useState(initial.kana_practice_enabled);
-  const [extendedRomajiEnabled, setExtendedRomajiEnabled] = useState(initial.extended_romaji_enabled ?? false);
-  const [leaderboardAlias, setLeaderboardAlias] = useState<LeaderboardAlias | null>(initial.leaderboard_alias);
+  const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(
+    initial.leaderboard_anonymous ?? false,
+  );
+  const [kanaPracticeEnabled, setKanaPracticeEnabled] = useState(
+    initial.kana_practice_enabled,
+  );
+  const [extendedRomajiEnabled, setExtendedRomajiEnabled] = useState(
+    initial.extended_romaji_enabled ?? false,
+  );
+  const [leaderboardAlias, setLeaderboardAlias] =
+    useState<LeaderboardAlias | null>(initial.leaderboard_alias);
   // Not part of the autosaved Snapshot below -- only ever changed by handleCrossTrack's own
   // atomic save, never by the periodic autosave.
   const [studyTrack, setStudyTrack] = useState(initial.study_track);
@@ -122,7 +159,9 @@ export function StudySettingsForm({
   // so the katakana toggle never flashes enabled before this resolves. Fetched once per mount
   // rather than re-synced on every settings change, since a user isn't studying hiragana to
   // completion in the middle of a Settings visit.
-  const [hiraganaMastered, setHiraganaMastered] = useState<boolean | null>(null);
+  const [hiraganaMastered, setHiraganaMastered] = useState<boolean | null>(
+    null,
+  );
   // Same "null while unknown, treated as not-yet-there" contract as hiraganaMastered above --
   // katakana now needs BOTH before its toggle unlocks (20260915_reading_test_gates_katakana.sql).
   const [testPassed, setTestPassed] = useState<boolean | null>(null);
@@ -130,7 +169,9 @@ export function StudySettingsForm({
   // toggling the other one (crossing from the kana track turns both on together). Purely a
   // live UI cue for the toggle that got flipped "for free" -- never persisted, and cleared
   // below the moment that toggle turns off or locks, so a page reload never resurrects it.
-  const [justCrossedPartner, setJustCrossedPartner] = useState<"kanji" | "vocabulary" | null>(null);
+  const [justCrossedPartner, setJustCrossedPartner] = useState<
+    "kanji" | "vocabulary" | null
+  >(null);
   // Mirrors justCrossedPartner for the opposite direction: whichever of hiragana/katakana was
   // on when the user crossed to the standard track (by turning on kanji or vocabulary) got
   // turned off as a side effect, not by a direct click on it. Cleared the moment that toggle
@@ -141,7 +182,8 @@ export function StudySettingsForm({
   // kanji/vocabulary was on when the user crossed to the kana track (by turning on hiragana or
   // katakana) got turned off as a side effect. Same live-only, cleared-on-turn-back-on contract.
   const [kanjiJustCrossedOff, setKanjiJustCrossedOff] = useState(false);
-  const [vocabularyJustCrossedOff, setVocabularyJustCrossedOff] = useState(false);
+  const [vocabularyJustCrossedOff, setVocabularyJustCrossedOff] =
+    useState(false);
   // Set when crossing from the standard track to kana turns katakana on together with hiragana,
   // because hiragana was already fully mastered from a previous stint on the kana track (the
   // backend's hiragana_auto_activate_katakana_trigger only fires on a hiragana review-progress
@@ -228,14 +270,16 @@ export function StudySettingsForm({
 
   useEffect(() => {
     function sync() {
-      if (studyHiragana && hiraganaJustCrossedOff) setHiraganaJustCrossedOff(false);
+      if (studyHiragana && hiraganaJustCrossedOff)
+        setHiraganaJustCrossedOff(false);
     }
     sync();
   }, [studyHiragana, hiraganaJustCrossedOff]);
 
   useEffect(() => {
     function sync() {
-      if (studyKatakana && katakanaJustCrossedOff) setKatakanaJustCrossedOff(false);
+      if (studyKatakana && katakanaJustCrossedOff)
+        setKatakanaJustCrossedOff(false);
     }
     sync();
   }, [studyKatakana, katakanaJustCrossedOff]);
@@ -249,7 +293,8 @@ export function StudySettingsForm({
 
   useEffect(() => {
     function sync() {
-      if (studyVocabulary && vocabularyJustCrossedOff) setVocabularyJustCrossedOff(false);
+      if (studyVocabulary && vocabularyJustCrossedOff)
+        setVocabularyJustCrossedOff(false);
     }
     sync();
   }, [studyVocabulary, vocabularyJustCrossedOff]);
@@ -274,7 +319,9 @@ export function StudySettingsForm({
   }
 
   function adjustReviews(delta: number) {
-    setMaxReviewsPerDay((v) => Math.max(REVIEWS_STEP, v + delta * REVIEWS_STEP));
+    setMaxReviewsPerDay((v) =>
+      Math.max(REVIEWS_STEP, v + delta * REVIEWS_STEP),
+    );
   }
 
   function adjustHiragana(delta: number) {
@@ -291,7 +338,8 @@ export function StudySettingsForm({
     // Otherwise, just keep the floor from ever sitting above the newly picked level.
     const wasOff = floor === level;
     setLevel(nextLevel);
-    if (wasOff || JLPT_LEVELS.indexOf(floor) > JLPT_LEVELS.indexOf(nextLevel)) setFloor(nextLevel);
+    if (wasOff || JLPT_LEVELS.indexOf(floor) > JLPT_LEVELS.indexOf(nextLevel))
+      setFloor(nextLevel);
   }
 
   function toggleLowerLevels() {
@@ -366,7 +414,8 @@ export function StudySettingsForm({
     // Hiragana was already fully mastered on a previous stint on the kana track -- there's no
     // reason to make the user flip katakana on by hand too, so turn it on together and explain
     // why via the autoEnabledKatakana cue.
-    const autoEnableKatakana = !studyKatakana && Boolean(hiraganaMastered) && Boolean(testPassed);
+    const autoEnableKatakana =
+      !studyKatakana && Boolean(hiraganaMastered) && Boolean(testPassed);
     void handleCrossTrack(
       {
         study_track: "kana",
@@ -434,7 +483,10 @@ export function StudySettingsForm({
       const alias = await rerollLeaderboardAlias();
       setLeaderboardAlias(alias);
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not reroll your name.", "error");
+      showToast(
+        err instanceof ApiError ? err.message : "Could not reroll your name.",
+        "error",
+      );
     }
   }
 
@@ -465,10 +517,14 @@ export function StudySettingsForm({
       // above are the freshly confirmed values, so the "clear" effect (keyed on those same
       // state vars) never races against this and wipes the cue before it can render.
       if (cues?.crossedPartner) setJustCrossedPartner(cues.crossedPartner);
-      if (cues?.crossedOffKana?.includes("hiragana")) setHiraganaJustCrossedOff(true);
-      if (cues?.crossedOffKana?.includes("katakana")) setKatakanaJustCrossedOff(true);
-      if (cues?.crossedOffStandard?.includes("kanji")) setKanjiJustCrossedOff(true);
-      if (cues?.crossedOffStandard?.includes("vocabulary")) setVocabularyJustCrossedOff(true);
+      if (cues?.crossedOffKana?.includes("hiragana"))
+        setHiraganaJustCrossedOff(true);
+      if (cues?.crossedOffKana?.includes("katakana"))
+        setKatakanaJustCrossedOff(true);
+      if (cues?.crossedOffStandard?.includes("kanji"))
+        setKanjiJustCrossedOff(true);
+      if (cues?.crossedOffStandard?.includes("vocabulary"))
+        setVocabularyJustCrossedOff(true);
       if (cues?.autoEnabledKatakana) setKatakanaAutoEnabled(true);
       // Crossing to kana resets enabled_levels server-side to N5 (see the patches above) --
       // resync local level/floor from the response so the (disabled, but still visible) JLPT
@@ -489,7 +545,12 @@ export function StudySettingsForm({
       }));
       onSaved();
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Could not update your study settings.", "error");
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : "Could not update your study settings.",
+        "error",
+      );
     }
   }
 
@@ -540,10 +601,14 @@ export function StudySettingsForm({
         // 20260902_harden_new_card_introduction.sql caps each at how much content actually exists) --
         // resync from its response rather than trusting `current` outright, so a value this component
         // requested but the database silently reduced doesn't keep showing as if it had been saved.
-        if (updated.new_kanji_per_day !== current.newKanjiPerDay) setNewKanjiPerDay(updated.new_kanji_per_day);
-        if (updated.new_vocab_per_day !== current.newVocabPerDay) setNewVocabPerDay(updated.new_vocab_per_day);
-        if (updated.new_hiragana_per_day !== current.newHiraganaPerDay) setNewHiraganaPerDay(updated.new_hiragana_per_day);
-        if (updated.new_katakana_per_day !== current.newKatakanaPerDay) setNewKatakanaPerDay(updated.new_katakana_per_day);
+        if (updated.new_kanji_per_day !== current.newKanjiPerDay)
+          setNewKanjiPerDay(updated.new_kanji_per_day);
+        if (updated.new_vocab_per_day !== current.newVocabPerDay)
+          setNewVocabPerDay(updated.new_vocab_per_day);
+        if (updated.new_hiragana_per_day !== current.newHiraganaPerDay)
+          setNewHiraganaPerDay(updated.new_hiragana_per_day);
+        if (updated.new_katakana_per_day !== current.newKatakanaPerDay)
+          setNewKatakanaPerDay(updated.new_katakana_per_day);
         setSaved({
           ...current,
           newKanjiPerDay: updated.new_kanji_per_day,
@@ -561,7 +626,12 @@ export function StudySettingsForm({
         }
         onSaved();
       } catch (err) {
-        showToast(err instanceof ApiError ? err.message : "Could not save your settings.", "error");
+        showToast(
+          err instanceof ApiError
+            ? err.message
+            : "Could not save your settings.",
+          "error",
+        );
         revertTo(saved);
       }
     }, AUTOSAVE_DELAY_MS);
@@ -641,12 +711,15 @@ export function StudySettingsForm({
               onDecrement={() => adjustKanji(-1)}
               onIncrement={() => adjustKanji(1)}
               decrementDisabled={newKanjiPerDay <= 1}
-              incrementDisabled={newCardCaps != null && newKanjiPerDay + 1 > newCardCaps.kanjiMax}
+              incrementDisabled={
+                newCardCaps != null && newKanjiPerDay + 1 > newCardCaps.kanjiMax
+              }
               disabled={disabled}
               hint={
                 <div className="mt-2.5 flex items-center gap-2 text-sm text-accent-blue [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0">
                   <FaLink />
-                  Linked 1:6 with new vocabulary — changing one updates the other.
+                  Linked 1:6 with new vocabulary — changing one updates the
+                  other.
                 </div>
               }
             />
@@ -656,7 +729,9 @@ export function StudySettingsForm({
               onDecrement={() => adjustVocab(-1)}
               onIncrement={() => adjustVocab(1)}
               decrementDisabled={newVocabPerDay <= 6}
-              incrementDisabled={newCardCaps != null && newVocabPerDay + 6 > newCardCaps.vocabMax}
+              incrementDisabled={
+                newCardCaps != null && newVocabPerDay + 6 > newCardCaps.vocabMax
+              }
               disabled={disabled}
             />
           </GlassCard>
@@ -671,8 +746,8 @@ export function StudySettingsForm({
               disabled={disabled}
               hint={
                 <div className={fieldHint}>
-                  How many cards you already know you review per day, oldest first. Cards from new-card packs are never
-                  limited.
+                  How many cards you already know you review per day, oldest
+                  first. Cards from new-card packs are never limited.
                 </div>
               }
             />
@@ -688,7 +763,10 @@ export function StudySettingsForm({
               onDecrement={() => adjustHiragana(-1)}
               onIncrement={() => adjustHiragana(1)}
               decrementDisabled={newHiraganaPerDay <= KANA_MIN}
-              incrementDisabled={newCardCaps != null && newHiraganaPerDay + KANA_STEP > newCardCaps.hiraganaMax}
+              incrementDisabled={
+                newCardCaps != null &&
+                newHiraganaPerDay + KANA_STEP > newCardCaps.hiraganaMax
+              }
               disabled={disabled}
             />
             <Stepper
@@ -697,7 +775,10 @@ export function StudySettingsForm({
               onDecrement={() => adjustKatakana(-1)}
               onIncrement={() => adjustKatakana(1)}
               decrementDisabled={newKatakanaPerDay <= KANA_MIN}
-              incrementDisabled={newCardCaps != null && newKatakanaPerDay + KANA_STEP > newCardCaps.katakanaMax}
+              incrementDisabled={
+                newCardCaps != null &&
+                newKatakanaPerDay + KANA_STEP > newCardCaps.katakanaMax
+              }
               disabled={disabled}
             />
           </GlassCard>
@@ -712,8 +793,8 @@ export function StudySettingsForm({
               disabled={disabled}
               hint={
                 <div className={fieldHint}>
-                  How many cards you already know you review per day, oldest first. Cards from new-card packs are never
-                  limited.
+                  How many cards you already know you review per day, oldest
+                  first. Cards from new-card packs are never limited.
                 </div>
               }
             />
@@ -726,8 +807,16 @@ export function StudySettingsForm({
           popping in and out whenever the track switches. */}
       <GlassCard padding="lg" className="mb-5.5">
         <label className={`${fieldLabel} mb-3.5`}>Enabled JLPT levels</label>
-        <LevelGrid value={level} onChange={handleLevelChange} cascade={floor} size="sm" disabled={disabled || studyTrack === "kana"} />
-        <div className={fieldHint}>Studying {includedLevels.slice().reverse().join(", ")}.</div>
+        <LevelGrid
+          value={level}
+          onChange={handleLevelChange}
+          cascade={floor}
+          size="sm"
+          disabled={disabled || studyTrack === "kana"}
+        />
+        <div className={fieldHint}>
+          Studying {includedLevels.slice().reverse().join(", ")}.
+        </div>
 
         {/* N5 is the lowest JLPT level -- with nothing below it to include, this toggle
             (and the stepper below it) would have nothing to do. Always mounted (rather than
@@ -735,19 +824,27 @@ export function StudySettingsForm({
             smoothly instead of popping in and out. */}
         <div
           className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-300 ease-out ${
-            level !== "N5" ? "mt-5 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+            level !== "N5"
+              ? "mt-5 grid-rows-[1fr] opacity-100"
+              : "mt-0 grid-rows-[0fr] opacity-0"
           }`}
         >
           <div className="min-h-0 overflow-hidden">
             <div className="flex items-center justify-between gap-5 border-t border-border-soft pt-4">
               <div>
-                <div className="mb-0.5 text-[0.95rem] font-bold">Also study lower levels</div>
+                <div className="mb-0.5 text-[0.95rem] font-bold">
+                  Also study lower levels
+                </div>
                 <div className="text-sm text-text-muted">
-                  Include new and review cards from levels below {level} too. Your progress on lower-level cards is kept
-                  either way.
+                  Include new and review cards from levels below {level} too.
+                  Your progress on lower-level cards is kept either way.
                 </div>
               </div>
-              <Toggle checked={floor !== level} onChange={toggleLowerLevels} disabled={disabled || studyTrack === "kana"} />
+              <Toggle
+                checked={floor !== level}
+                onChange={toggleLowerLevels}
+                disabled={disabled || studyTrack === "kana"}
+              />
             </div>
           </div>
         </div>
@@ -767,15 +864,24 @@ export function StudySettingsForm({
           <div className="min-h-0 overflow-hidden">
             <div className="flex items-center justify-between gap-5 border-t border-border-soft pt-4">
               <div>
-                <div className="mb-0.5 text-[0.95rem] font-bold">Lowest level to include</div>
-                <div className="text-sm text-text-muted">You&apos;ll study everything from here up to your current level.</div>
+                <div className="mb-0.5 text-[0.95rem] font-bold">
+                  Lowest level to include
+                </div>
+                <div className="text-sm text-text-muted">
+                  You&apos;ll study everything from here up to your current
+                  level.
+                </div>
               </div>
               <div className="flex shrink-0 items-center gap-2.5">
                 <button
                   type="button"
                   className={stepperButtonClass}
                   onClick={() => adjustFloor(-1)}
-                  disabled={disabled || studyTrack === "kana" || JLPT_LEVELS.indexOf(floor) <= 0}
+                  disabled={
+                    disabled ||
+                    studyTrack === "kana" ||
+                    JLPT_LEVELS.indexOf(floor) <= 0
+                  }
                 >
                   <FaMinus />
                 </button>
@@ -784,7 +890,11 @@ export function StudySettingsForm({
                   type="button"
                   className={stepperButtonClass}
                   onClick={() => adjustFloor(1)}
-                  disabled={disabled || studyTrack === "kana" || JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level)}
+                  disabled={
+                    disabled ||
+                    studyTrack === "kana" ||
+                    JLPT_LEVELS.indexOf(floor) >= JLPT_LEVELS.indexOf(level)
+                  }
                 >
                   <FaPlus />
                 </button>
@@ -798,69 +908,115 @@ export function StudySettingsForm({
         <div className="border-b border-border-soft py-4 last:border-b-0">
           <div className="flex items-center justify-between gap-5">
             <div>
-              <div className="mb-0.5 text-[0.95rem] font-bold">Study hiragana</div>
-              <div className="text-sm text-text-muted">Include hiragana reading cards in your queue.</div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">
+                Study hiragana
+              </div>
+              <div className="text-sm text-text-muted">
+                Include hiragana reading cards in your queue.
+              </div>
             </div>
-            <Toggle checked={studyHiragana} onChange={toggleStudyHiragana} disabled={disabled || (studyHiragana && !studyKatakana)} />
+            <Toggle
+              checked={studyHiragana}
+              onChange={toggleStudyHiragana}
+              disabled={disabled || (studyHiragana && !studyKatakana)}
+            />
           </div>
           <div
             className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-300 ease-out ${
-              hiraganaMessage ? "mt-2.5 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+              hiraganaMessage
+                ? "mt-2.5 grid-rows-[1fr] opacity-100"
+                : "mt-0 grid-rows-[0fr] opacity-0"
             }`}
           >
-            <div className="min-h-0 overflow-hidden text-xs text-amber-400">{hiraganaMessage}</div>
+            <div className="min-h-0 overflow-hidden text-xs text-amber-400">
+              {hiraganaMessage}
+            </div>
           </div>
         </div>
         <div className="border-b border-border-soft py-4 last:border-b-0">
           <div className="flex items-center justify-between gap-5">
             <div>
-              <div className="mb-0.5 text-[0.95rem] font-bold">Study katakana</div>
-              <div className="text-sm text-text-muted">Include katakana reading cards in your queue.</div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">
+                Study katakana
+              </div>
+              <div className="text-sm text-text-muted">
+                Include katakana reading cards in your queue.
+              </div>
             </div>
             <Toggle
               checked={studyKatakana && Boolean(hiraganaMastered && testPassed)}
               onChange={toggleStudyKatakana}
-              disabled={disabled || (studyKatakana && !studyHiragana) || !(hiraganaMastered && testPassed)}
+              disabled={
+                disabled ||
+                (studyKatakana && !studyHiragana) ||
+                !(hiraganaMastered && testPassed)
+              }
             />
           </div>
           <div
             className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-300 ease-out ${
-              katakanaMessage ? "mt-2.5 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+              katakanaMessage
+                ? "mt-2.5 grid-rows-[1fr] opacity-100"
+                : "mt-0 grid-rows-[0fr] opacity-0"
             }`}
           >
-            <div className="min-h-0 overflow-hidden text-xs text-amber-400">{katakanaMessage}</div>
+            <div className="min-h-0 overflow-hidden text-xs text-amber-400">
+              {katakanaMessage}
+            </div>
           </div>
         </div>
         <div className="border-b border-border-soft py-4 last:border-b-0">
           <div className="flex items-center justify-between gap-5">
             <div>
               <div className="mb-0.5 text-[0.95rem] font-bold">Study kanji</div>
-              <div className="text-sm text-text-muted">Include kanji meaning &amp; word reading cards in your queue.</div>
+              <div className="text-sm text-text-muted">
+                Include kanji meaning &amp; word reading cards in your queue.
+              </div>
             </div>
-            <Toggle checked={studyKanji} onChange={toggleStudyKanji} disabled={disabled || (studyKanji && !studyVocabulary)} />
+            <Toggle
+              checked={studyKanji}
+              onChange={toggleStudyKanji}
+              disabled={disabled || (studyKanji && !studyVocabulary)}
+            />
           </div>
           <div
             className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-300 ease-out ${
-              kanjiMessage ? "mt-2.5 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+              kanjiMessage
+                ? "mt-2.5 grid-rows-[1fr] opacity-100"
+                : "mt-0 grid-rows-[0fr] opacity-0"
             }`}
           >
-            <div className="min-h-0 overflow-hidden text-xs text-amber-400">{kanjiMessage}</div>
+            <div className="min-h-0 overflow-hidden text-xs text-amber-400">
+              {kanjiMessage}
+            </div>
           </div>
         </div>
         <div className="border-b border-border-soft py-4 last:border-b-0">
           <div className="flex items-center justify-between gap-5">
             <div>
-              <div className="mb-0.5 text-[0.95rem] font-bold">Study vocabulary</div>
-              <div className="text-sm text-text-muted">Include vocabulary meaning cards in your queue.</div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">
+                Study vocabulary
+              </div>
+              <div className="text-sm text-text-muted">
+                Include vocabulary meaning cards in your queue.
+              </div>
             </div>
-            <Toggle checked={studyVocabulary} onChange={toggleStudyVocabulary} disabled={disabled || (studyVocabulary && !studyKanji)} />
+            <Toggle
+              checked={studyVocabulary}
+              onChange={toggleStudyVocabulary}
+              disabled={disabled || (studyVocabulary && !studyKanji)}
+            />
           </div>
           <div
             className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-300 ease-out ${
-              vocabularyMessage ? "mt-2.5 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+              vocabularyMessage
+                ? "mt-2.5 grid-rows-[1fr] opacity-100"
+                : "mt-0 grid-rows-[0fr] opacity-0"
             }`}
           >
-            <div className="min-h-0 overflow-hidden text-xs text-amber-400">{vocabularyMessage}</div>
+            <div className="min-h-0 overflow-hidden text-xs text-amber-400">
+              {vocabularyMessage}
+            </div>
           </div>
         </div>
       </GlassCard>
@@ -868,10 +1024,12 @@ export function StudySettingsForm({
       <GlassCard padding="lg" className="mt-5.5">
         <div className="flex items-center justify-between gap-5 py-1">
           <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Extended romaji</div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">
+              Extended romaji
+            </div>
             <div className="text-sm text-text-muted">
-              Also accept other common romaji spellings when you type readings. When off, only the standard romaji
-              counts.
+              Also accept other common romaji spellings when you type readings.
+              When off, only the standard romaji counts.
             </div>
           </div>
           <Toggle
@@ -886,13 +1044,20 @@ export function StudySettingsForm({
         <GlassCard padding="lg" className="mt-5.5">
           <div className="flex items-center justify-between gap-5 py-1">
             <div>
-              <div className="mb-0.5 text-[0.95rem] font-bold">Practice mode</div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">
+                Practice mode
+              </div>
               <div className="text-sm text-text-muted">
-                Show a Practice button on the dashboard to freely go through every hiragana and katakana
-                you&apos;ve learned. Just for fun — it never affects your progress or schedule.
+                Show a Practice button on the dashboard to freely go through
+                every hiragana and katakana you&apos;ve learned. Just for fun —
+                it never affects your progress or schedule.
               </div>
             </div>
-            <Toggle checked={kanaPracticeEnabled} onChange={() => setKanaPracticeEnabled(!kanaPracticeEnabled)} disabled={disabled} />
+            <Toggle
+              checked={kanaPracticeEnabled}
+              onChange={() => setKanaPracticeEnabled(!kanaPracticeEnabled)}
+              disabled={disabled}
+            />
           </div>
         </GlassCard>
       )}
@@ -900,12 +1065,19 @@ export function StudySettingsForm({
       <GlassCard padding="lg" className="mt-5.5">
         <div className="flex items-center justify-between gap-5 py-1">
           <div>
-            <div className="mb-0.5 text-[0.95rem] font-bold">Appear anonymously on leaderboard</div>
+            <div className="mb-0.5 text-[0.95rem] font-bold">
+              Appear anonymously on leaderboard
+            </div>
             <div className="text-sm text-text-muted">
-              Your rank stays visible, but with a random name, no photo, and no country flag.
+              Your rank stays visible, but with a random name, no photo, and no
+              country flag.
             </div>
           </div>
-          <Toggle checked={leaderboardAnonymous} onChange={() => setLeaderboardAnonymous(!leaderboardAnonymous)} disabled={disabled} />
+          <Toggle
+            checked={leaderboardAnonymous}
+            onChange={() => setLeaderboardAnonymous(!leaderboardAnonymous)}
+            disabled={disabled}
+          />
         </div>
 
         {leaderboardAnonymous ? (
@@ -915,10 +1087,15 @@ export function StudySettingsForm({
                 Your random name
               </div>
               <div className="text-[1.05rem] font-extrabold">
-                {leaderboardAlias ? `${leaderboardAlias.adjective} ${leaderboardAlias.noun}` : "…"}
+                {leaderboardAlias
+                  ? `${leaderboardAlias.adjective} ${leaderboardAlias.noun}`
+                  : "…"}
               </div>
             </div>
-            <LeaderboardAliasDice onReroll={handleReroll} disabled={disabled || !leaderboardAlias} />
+            <LeaderboardAliasDice
+              onReroll={handleReroll}
+              disabled={disabled || !leaderboardAlias}
+            />
           </div>
         ) : null}
       </GlassCard>
