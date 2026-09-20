@@ -40,7 +40,9 @@ function PracticeCard({ card, onRate }: { card: DueCard; onRate: (card: DueCard,
 }
 
 /** What the "done" summary's missed-cards table shows for one card, regardless of kind. */
-function missedRowContent(item: PracticeMissedCard): { prompt: string; correct: string; usuallyKanaNote?: boolean } {
+function missedRowContent(
+  item: PracticeMissedCard
+): { prompt: string; correct: string; usuallyKanaNote?: boolean; meaning?: string } {
   switch (item.kind) {
     case "hiragana":
     case "katakana":
@@ -49,7 +51,12 @@ function missedRowContent(item: PracticeMissedCard): { prompt: string; correct: 
       return { prompt: item.kanjiChar, correct: item.meanings.join(", ") };
     case "kanji_reading":
       // Shown in kanji (the exercise needs it), so a usually_kana word gets the note instead of being swapped for kana.
-      return { prompt: item.word, correct: item.kanaReading ?? item.romajiReading ?? "", usuallyKanaNote: item.usuallyKana };
+      return {
+        prompt: item.word,
+        correct: item.kanaReading ?? item.romajiReading ?? "",
+        usuallyKanaNote: item.usuallyKana,
+        meaning: item.primaryWordMeanings?.join(", "),
+      };
     case "vocab_meaning":
       return {
         prompt: vocabularyDisplayText({ word: item.word, kana_reading: item.kanaReading, usually_kana: item.usuallyKana }),
@@ -184,12 +191,14 @@ export default function PracticePage() {
                 <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">Correct</div>
                 <div className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.5px] text-text-muted">You wrote</div>
                 {wrongAnswers.map((item) => {
-                  const { prompt, correct: correctAnswer, usuallyKanaNote } = missedRowContent(item);
+                  const { prompt, correct: correctAnswer, usuallyKanaNote, meaning } = missedRowContent(item);
                   return (
                     <Fragment key={practiceCardKey(item)}>
                       <div className="text-center font-bold text-white">{prompt}</div>
                       <div className="text-center text-accent-green">{correctAnswer}</div>
                       <div className="text-center text-accent-red">{item.userAnswer || "—"}</div>
+                      {/* Own full-width row, like the pill below: the columns are too narrow for a meaning list. */}
+                      {meaning && <div className="col-span-3 text-center text-sm italic text-text-muted">{meaning}</div>}
                       {/* Own full-width row: the columns are too narrow for the pill. */}
                       {usuallyKanaNote && (
                         <div className="col-span-3 text-center">

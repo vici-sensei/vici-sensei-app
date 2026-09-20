@@ -24,6 +24,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
     useKanjiReadingReviewCard(card, disabled, onRate, onCancelableChange, card.drill_mode);
 
   const askingForAnother = confirmedAlternates.length > 0 && !revealed;
+  const meanings = card.primary_word_meanings ?? [];
 
   return (
     <ReviewCardShell
@@ -36,6 +37,11 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
               ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas, card.known_kanji_chars)
               : card.kanji_char}
           </CardHeading>
+          {/* Shown once the answer is revealed, right or wrong -- a wrong answer is exactly when
+              the student most needs to know which word they just missed. */}
+          {revealed && meanings.length > 0 && (
+            <p className="text-center text-sm italic text-text-muted">{meanings.join(", ")}</p>
+          )}
           {card.usually_kana && (
             <div className="mt-1.5">
               <UsuallyKanaNote />
@@ -84,9 +90,6 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
                 {result.correct && <FaCheck className="text-accent-green" />}
                 <span>{card.kana_reading}</span>
               </div>
-            )}
-            {result.correct && card.primary_word_meanings && card.primary_word_meanings.length > 0 && (
-              <p className="text-center text-sm italic text-text-muted">{card.primary_word_meanings.join(", ")}</p>
             )}
             {!result.correct && (
               <TokenDiffList
