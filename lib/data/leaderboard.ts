@@ -8,6 +8,20 @@ const RPC_BY_METRIC: Record<LeaderboardMetric, string> = {
   streak: "get_leaderboard_streak",
 };
 
+/** When the viewer's current `period` ends: the next study-day boundary (6 a.m. in `timezone`) of the
+ * day, week, month or year they are in -- computed by leaderboard_period_end, the same study day the
+ * boards themselves score each row on. Null for "all_time", which never resets. */
+export async function fetchLeaderboardPeriodEnd(
+  supabase: AppSupabaseClient,
+  period: LeaderboardPeriod,
+  timezone: string
+): Promise<string | null> {
+  if (period === "all_time") return null;
+  const { data, error } = await supabase.rpc("leaderboard_period_end", { p_period: period, p_timezone: timezone });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
+}
+
 export async function fetchLeaderboard(
   supabase: AppSupabaseClient,
   metric: LeaderboardMetric,

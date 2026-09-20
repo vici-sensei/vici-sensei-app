@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
-import { fetchLeaderboard } from "@/lib/data/leaderboard";
+import { fetchLeaderboard, fetchLeaderboardPeriodEnd } from "@/lib/data/leaderboard";
 import { readStoredMetric, readStoredPeriod } from "@/lib/leaderboard/storage";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
@@ -51,6 +51,11 @@ export function useLeaderboard(user: User | null, metric: LeaderboardMetric, per
   }, [refetch, user, metric, period]);
 
   return { data, status, error, refetch };
+}
+
+/** When this viewer's current `period` ends, in the browser's timezone -- see fetchLeaderboardPeriodEnd. */
+export function getLeaderboardPeriodEnd(period: LeaderboardPeriod): Promise<string | null> {
+  return fetchLeaderboardPeriodEnd(createClient(), period, Intl.DateTimeFormat().resolvedOptions().timeZone);
 }
 
 /** Fire-and-forget: called on hover/focus/touchstart of the Leaderboard nav entry point, well
