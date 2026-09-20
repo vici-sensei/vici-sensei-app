@@ -7,6 +7,7 @@ import { fetchStudySettings } from "@/lib/data/studySettings";
 import { JLPT_LEVELS } from "@/lib/srs/constants";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { clearCache, readCache, writeCache } from "@/lib/client-data/localCache";
+import { deviceTimeZone, setActiveTimeZone } from "@/lib/timezone";
 import type { JlptLevel } from "@/lib/srs/constants";
 import type { AsyncStatus, LeaderboardAlias, StudySettings, StudySettingsPatch } from "@/lib/types";
 
@@ -35,6 +36,9 @@ interface StudySettingsUpdatedDetail {
 
 function announceStudySettingsUpdate(userId: string, settings: StudySettings) {
   if (typeof window === "undefined") return;
+  // Published before the event goes out (not from a listener), so a request fired right after the
+  // save already uses the new "Custom timezone" pick -- see lib/timezone.ts.
+  setActiveTimeZone(settings);
   window.dispatchEvent(
     new CustomEvent<StudySettingsUpdatedDetail>(STUDY_SETTINGS_UPDATED_EVENT, { detail: { userId, settings } })
   );
@@ -54,6 +58,7 @@ export function useStudySettings(user: User | null) {
     try {
       const supabase = createClient();
       const settings = await fetchStudySettings(supabase, user.id);
+      setActiveTimeZone(settings);
       setData(settings);
       setStatus("loaded");
       writeCache(studySettingsCacheKey(user.id), settings);
@@ -64,13 +69,17 @@ export function useStudySettings(user: User | null) {
   }, [user]);
 
   useIsomorphicLayoutEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setActiveTimeZone(null);
+      return;
+    }
     // Hydrate synchronously from cache the moment we have a user -- see useUserProfile for why.
     // useLayoutEffect (not useEffect) so this lands before the browser paints, avoiding a
     // flash of the wrong content (e.g. BrowseTabs briefly showing all 4 tabs before settling
     // on the cached study_track's set) on every mount.
     const cached = readCache<StudySettings>(studySettingsCacheKey(user.id));
     if (cached) {
+      setActiveTimeZone(cached);
       setData(cached);
       setStatus("loaded");
     }
@@ -177,6 +186,19 @@ export async function updateStudySettings(userId: string, patch: StudySettingsPa
   }
   announceStudySettingsUpdate(userId, data);
   return data;
+}
+
+/** Points user_study_settings.timezone back at the device's timezone right after "Custom timezone"
+ * is switched off -- while it was on, the database kept that column equal to the pick, and it would
+ * otherwise stay there until the next dashboard poll's own sync (studyStats.ts). Fire-and-forget:
+ * a failure just leaves that poll to do it. */
+export function syncDeviceTimeZone(userId: string): void {
+  void createClient()
+    .rpc("set_user_timezone", { p_user_id: userId, p_timezone: deviceTimeZone() })
+    .then(
+      () => undefined,
+      () => undefined
+    );
 }
 
 /** Whether every hiragana character is already mastered (status review/relearning) --

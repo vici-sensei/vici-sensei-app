@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LevelGrid } from "@/app/components/ui/LevelGrid";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Toggle } from "@/app/components/ui/Toggle";
+import { Collapsible } from "@/app/components/ui/Collapsible";
 import {
   Stepper,
   stepperButtonClass,
@@ -17,6 +18,7 @@ import {
   rerollLeaderboardAlias,
   fetchHiraganaMastered,
   fetchNewCardCaps,
+  syncDeviceTimeZone,
   type NewCardCaps,
 } from "@/lib/client-data/studySettings";
 import { fetchReadingTestPassedStatus } from "@/lib/client-data/readingTest";
@@ -35,6 +37,7 @@ import {
 } from "@/lib/srs/constants";
 import { FaLink, FaMinus, FaPlus } from "react-icons/fa6";
 import { LeaderboardAliasDice } from "./LeaderboardAliasDice";
+import { TimezonePreferenceCard, type TimezonePreference } from "./TimezonePreferenceCard";
 
 const REVIEWS_STEP = 10;
 const KANA_STEP = 5;
@@ -56,6 +59,8 @@ type Snapshot = {
   leaderboardAnonymous: boolean;
   kanaPracticeEnabled: boolean;
   extendedRomajiEnabled: boolean;
+  timezonePreferenceEnabled: boolean;
+  preferredTimezone: string | null;
 };
 
 function snapshotFrom(settings: StudySettings): Snapshot {
@@ -76,6 +81,9 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     // `?? false`: a settings object hydrated from a localStorage cache written before this
     // column existed has no such key at all -- treated as the column's own default.
     extendedRomajiEnabled: settings.extended_romaji_enabled ?? false,
+    // Same `??` reasoning as above -- a cache written before these columns existed has neither key.
+    timezonePreferenceEnabled: settings.timezone_preference_enabled ?? false,
+    preferredTimezone: settings.preferred_timezone ?? null,
   };
 }
 
@@ -94,7 +102,9 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
     a.studyKatakana === b.studyKatakana &&
     a.leaderboardAnonymous === b.leaderboardAnonymous &&
     a.kanaPracticeEnabled === b.kanaPracticeEnabled &&
-    a.extendedRomajiEnabled === b.extendedRomajiEnabled
+    a.extendedRomajiEnabled === b.extendedRomajiEnabled &&
+    a.timezonePreferenceEnabled === b.timezonePreferenceEnabled &&
+    a.preferredTimezone === b.preferredTimezone
   );
 }
 
@@ -148,6 +158,12 @@ export function StudySettingsForm({
   );
   const [extendedRomajiEnabled, setExtendedRomajiEnabled] = useState(
     initial.extended_romaji_enabled ?? false,
+  );
+  const [timezonePreferenceEnabled, setTimezonePreferenceEnabled] = useState(
+    initial.timezone_preference_enabled ?? false,
+  );
+  const [preferredTimezone, setPreferredTimezone] = useState(
+    initial.preferred_timezone ?? null,
   );
   const [leaderboardAlias, setLeaderboardAlias] =
     useState<LeaderboardAlias | null>(initial.leaderboard_alias);
@@ -476,6 +492,13 @@ export function StudySettingsForm({
     setLeaderboardAnonymous(snapshot.leaderboardAnonymous);
     setKanaPracticeEnabled(snapshot.kanaPracticeEnabled);
     setExtendedRomajiEnabled(snapshot.extendedRomajiEnabled);
+    setTimezonePreferenceEnabled(snapshot.timezonePreferenceEnabled);
+    setPreferredTimezone(snapshot.preferredTimezone);
+  }
+
+  function handleTimezonePreferenceChange(next: TimezonePreference) {
+    setTimezonePreferenceEnabled(next.enabled);
+    setPreferredTimezone(next.timeZone);
   }
 
   async function handleReroll() {
@@ -575,6 +598,8 @@ export function StudySettingsForm({
       leaderboardAnonymous,
       kanaPracticeEnabled,
       extendedRomajiEnabled,
+      timezonePreferenceEnabled,
+      preferredTimezone,
     };
     if (sameSnapshot(current, saved)) return;
 
@@ -594,9 +619,17 @@ export function StudySettingsForm({
         leaderboard_anonymous: current.leaderboardAnonymous,
         kana_practice_enabled: current.kanaPracticeEnabled,
         extended_romaji_enabled: current.extendedRomajiEnabled,
+        timezone_preference_enabled: current.timezonePreferenceEnabled,
+        preferred_timezone: current.preferredTimezone,
       };
       try {
         const updated = await updateStudySettings(user.id, body);
+        // While the preference was on, the database kept user_study_settings.timezone equal to the
+        // pick; now that it's off, hand that column back to the device's timezone right away rather
+        // than leaving it on the old pick until the next dashboard poll.
+        if (saved.timezonePreferenceEnabled && !current.timezonePreferenceEnabled) {
+          syncDeviceTimeZone(user.id);
+        }
         // The server can clamp any of the four "per day" fields down (clamp_new_card_caps_trigger,
         // 20260902_harden_new_card_introduction.sql caps each at how much content actually exists) --
         // resync from its response rather than trusting `current` outright, so a value this component
@@ -653,6 +686,8 @@ export function StudySettingsForm({
     leaderboardAnonymous,
     kanaPracticeEnabled,
     extendedRomajiEnabled,
+    timezonePreferenceEnabled,
+    preferredTimezone,
     saved,
     user,
   ]);
@@ -1040,6 +1075,13 @@ export function StudySettingsForm({
         </div>
       </GlassCard>
 
+      <TimezonePreferenceCard
+        enabled={timezonePreferenceEnabled}
+        timeZone={preferredTimezone}
+        disabled={disabled}
+        onChange={handleTimezonePreferenceChange}
+      />
+
       {studyTrack === "kana" && (
         <GlassCard padding="lg" className="mt-5.5">
           <div className="flex items-center justify-between gap-5 py-1">
@@ -1080,8 +1122,14 @@ export function StudySettingsForm({
           />
         </div>
 
-        {leaderboardAnonymous ? (
-          <div className="mt-5 flex items-center justify-between gap-5 border-t border-border-soft pt-4">
+        {/* Unmounts its content once closed (unlike the toggle rows above) so the die's endless
+            idle spin isn't running while nothing shows it. */}
+        <Collapsible
+          open={leaderboardAnonymous}
+          openClassName="mt-5"
+          unmountWhenClosed
+        >
+          <div className="flex items-center justify-between gap-5 border-t border-border-soft pt-4">
             <div>
               <div className="mb-0.5 text-sm font-bold uppercase tracking-[0.6px] text-text-muted">
                 Your random name
@@ -1097,7 +1145,7 @@ export function StudySettingsForm({
               disabled={disabled || !leaderboardAlias}
             />
           </div>
-        ) : null}
+        </Collapsible>
       </GlassCard>
     </div>
   );

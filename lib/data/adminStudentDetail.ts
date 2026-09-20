@@ -41,7 +41,7 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
     supabase
       .from("user_study_settings")
       .select(
-        "study_track, enabled_levels, new_kanji_per_day, new_vocab_per_day, new_hiragana_per_day, new_katakana_per_day, max_reviews_per_day, extended_romaji_enabled, kana_practice_enabled, timezone"
+        "study_track, enabled_levels, new_kanji_per_day, new_vocab_per_day, new_hiragana_per_day, new_katakana_per_day, max_reviews_per_day, extended_romaji_enabled, kana_practice_enabled, timezone, timezone_preference_enabled"
       )
       .eq("user_id", studentId)
       .maybeSingle(),
@@ -81,6 +81,7 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
     extended_romaji_enabled: settings?.extended_romaji_enabled ?? null,
     kana_practice_enabled: settings?.kana_practice_enabled ?? null,
     timezone: settings?.timezone ?? null,
+    timezone_preference_enabled: settings?.timezone_preference_enabled ?? null,
   };
 }
 

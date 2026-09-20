@@ -119,4 +119,7 @@ export interface StudentDetail {
    *  callers needing a study-day boundary should fall back to 'UTC', same as every server-side
    *  study_day/study_day_bounds call does. */
   timezone: string | null;
+  /** user_study_settings.timezone_preference_enabled -- true when `timezone` above is the student's own
+   *  "Custom timezone" pick rather than the one their browser reported; null when there's no settings row. */
+  timezone_preference_enabled: boolean | null;
 }

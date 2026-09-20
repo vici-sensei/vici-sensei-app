@@ -8,6 +8,7 @@ import { readStoredMetric, readStoredPeriod } from "@/lib/leaderboard/storage";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import { getErrorMessage } from "@/lib/api/client";
+import { getActiveTimeZone } from "@/lib/timezone";
 import type { AsyncStatus, LeaderboardEntry, LeaderboardMetric, LeaderboardPeriod } from "@/lib/types";
 
 function leaderboardCacheKey(metric: LeaderboardMetric, period: LeaderboardPeriod): string {
@@ -53,9 +54,10 @@ export function useLeaderboard(user: User | null, metric: LeaderboardMetric, per
   return { data, status, error, refetch };
 }
 
-/** When this viewer's current `period` ends, in the browser's timezone -- see fetchLeaderboardPeriodEnd. */
+/** When this viewer's current `period` ends, in their study timezone (their "Custom timezone" pick,
+ * else the browser's) -- see fetchLeaderboardPeriodEnd. */
 export function getLeaderboardPeriodEnd(period: LeaderboardPeriod): Promise<string | null> {
-  return fetchLeaderboardPeriodEnd(createClient(), period, Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return fetchLeaderboardPeriodEnd(createClient(), period, getActiveTimeZone());
 }
 
 /** Fire-and-forget: called on hover/focus/touchstart of the Leaderboard nav entry point, well

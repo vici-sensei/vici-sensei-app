@@ -1,6 +1,8 @@
 /**
- * Best-effort IANA timezone -> ISO 3166-1 country code, used only to
- * preselect a default country at onboarding. Several timezones are shared
+ * Best-effort IANA timezone -> ISO 3166-1 country code, used to
+ * preselect a default country at onboarding and (inverted, see
+ * timezonesForCountry below) to list a country's timezones in Settings ->
+ * Study's "Custom timezone" card. Several timezones are shared
  * by multiple countries with identical civil time rules (e.g. Africa/Abidjan
  * covers Ivory Coast, Ghana, Mali, Senegal, ...); those map to one
  * representative country. This is a starting point the user can change
@@ -60,6 +62,9 @@ const TIMEZONE_TO_COUNTRY: Record<string, string> = {
   "Africa/Kampala": "UG",
   "Africa/Lusaka": "ZM",
   "Africa/Harare": "ZW",
+  "Africa/Ouagadougou": "BF",
+  "Africa/Porto-Novo": "BJ",
+  "Africa/Banjul": "GM",
 
   // Asia
   "Asia/Kabul": "AF",
@@ -253,11 +258,47 @@ const TIMEZONE_TO_COUNTRY: Record<string, string> = {
   "Pacific/Efate": "VU",
 };
 
+/** Kosovo has no IANA zone of its own (tzdata files it under Europe/Belgrade, which the map above
+ * credits to Serbia) -- listed here so its country picker isn't empty. */
+const EXTRA_COUNTRY_TIMEZONES: Record<string, string[]> = { XK: ["Europe/Belgrade"] };
+
+/** Older spellings of a zone that browsers and Postgres both still accept. They stay in the map so a
+ * browser reporting one still resolves to a country, but pickers hide them so a country doesn't list
+ * the same place twice. */
+const ALIAS_TIMEZONES = new Set(["Europe/Kiev"]);
+
+let countryToTimezones: Map<string, string[]> | null = null;
+
+function timezonesByCountry(): Map<string, string[]> {
+  if (countryToTimezones) return countryToTimezones;
+  const byCountry = new Map<string, string[]>();
+  // Insertion order is the map's own, which lists each country's main zone first (America/New_York
+  // before America/Chicago, Europe/Moscow before Europe/Samara, ...).
+  for (const [timeZone, country] of Object.entries(TIMEZONE_TO_COUNTRY)) {
+    if (ALIAS_TIMEZONES.has(timeZone)) continue;
+    byCountry.set(country, [...(byCountry.get(country) ?? []), timeZone]);
+  }
+  for (const [country, zones] of Object.entries(EXTRA_COUNTRY_TIMEZONES)) {
+    byCountry.set(country, [...(byCountry.get(country) ?? []), ...zones]);
+  }
+  countryToTimezones = byCountry;
+  return byCountry;
+}
+
+/** The country an IANA timezone belongs to, or null if it isn't mapped. */
+export function countryForTimeZone(timeZone: string | null | undefined): string | null {
+  return (timeZone && TIMEZONE_TO_COUNTRY[timeZone]) || null;
+}
+
+/** Every timezone offered for a country, its main one first. Empty for an unknown or unset country. */
+export function timezonesForCountry(country: string | null | undefined): string[] {
+  return (country && timezonesByCountry().get(country)) || [];
+}
+
 /** Guesses the user's country from their browser/OS timezone. Returns null if detection fails or the timezone isn't mapped. */
 export function guessCountryFromTimezone(): string | null {
   try {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return TIMEZONE_TO_COUNTRY[timeZone] ?? null;
+    return countryForTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   } catch {
     return null;
   }

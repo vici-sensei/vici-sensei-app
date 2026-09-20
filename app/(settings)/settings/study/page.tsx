@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS: StudySettings = {
   new_katakana_per_day: 15,
   kana_practice_enabled: false,
   extended_romaji_enabled: false,
+  timezone_preference_enabled: false,
+  preferred_timezone: null,
   updated_at: "",
   onboarding_completed: true,
   onboarding_step: 0,

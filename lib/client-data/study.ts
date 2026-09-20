@@ -25,6 +25,7 @@ import { recordHiraganaDrillResult, recordKatakanaDrillResult, type KanaDrillRes
 import { checkJlptLevelUp as checkJlptLevelUpData } from "@/lib/data/jlptLevel";
 import { acknowledgeAchievements as acknowledgeAchievementsData } from "@/lib/data/achievements";
 import { writeFirstCardCache } from "@/lib/study/firstCardCache";
+import { getActiveTimeZone, resolveTimeZone } from "@/lib/timezone";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
   DueCard,
@@ -41,9 +42,8 @@ import type {
 // The study day (and with it the daily "Max reviews per day" limit) is counted per timezone, so
 // every get_due_cards/get_today_activity_counts/get_next_due call has to send the same one --
 // otherwise /study and the dashboard would disagree about how much of today's limit is left.
-function browserTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
+// That's the student's "Custom timezone" pick when they've set one, otherwise the browser's --
+// see lib/timezone.ts. Calls that already hold the settings row resolve it from that directly.
 
 async function requireUserId(): Promise<string> {
   const supabase = createClient();
@@ -61,7 +61,7 @@ async function requireUserId(): Promise<string> {
 // card the user sees.
 export async function getFirstDueCard(userId: string, settings: StudySettings): Promise<DueCard | null> {
   const supabase = createClient();
-  return fetchFirstDueCard(supabase, userId, settings, browserTimeZone());
+  return fetchFirstDueCard(supabase, userId, settings, resolveTimeZone(settings));
 }
 
 export async function getStudyQueue(
@@ -70,7 +70,7 @@ export async function getStudyQueue(
   onKanjiWordsReady?: (wordsByKanjiId: Map<number, NewKanjiIntroWord[]>) => void
 ): Promise<StudyQueueResponse> {
   const supabase = createClient();
-  return fetchStudyQueue(supabase, userId, browserTimeZone(), settings, onKanjiWordsReady);
+  return fetchStudyQueue(supabase, userId, resolveTimeZone(settings), settings, onKanjiWordsReady);
 }
 
 /** Fire-and-forget: called on hover/focus of a "Start studying" entry point, well before
@@ -82,7 +82,7 @@ export const prefetchFirstDueCard = createPrefetcher(async (userId: string) => {
   const supabase = createClient();
   const settings = await fetchStudySettings(supabase, userId);
   if (!settings) return;
-  const card = await fetchFirstDueCard(supabase, userId, settings, browserTimeZone());
+  const card = await fetchFirstDueCard(supabase, userId, settings, resolveTimeZone(settings));
   if (card) writeFirstCardCache(userId, card);
 });
 
@@ -113,7 +113,7 @@ export async function startSession(userId: string): Promise<StudySessionStart> {
 export async function endSession(sessionId: number): Promise<StudySessionEnd> {
   const supabase = createClient();
   const userId = await requireUserId();
-  return endStudySession(supabase, userId, sessionId, browserTimeZone());
+  return endStudySession(supabase, userId, sessionId, getActiveTimeZone());
 }
 
 export async function getSessionProgress(sessionId: number): Promise<number> {
@@ -133,7 +133,7 @@ export async function acknowledgeAchievements(keys: string[]): Promise<void> {
 async function introduce(kind: IntroduceKind, itemId: number, sessionId?: number): Promise<void> {
   const supabase = createClient();
   const userId = await requireUserId();
-  await introduceCardData(supabase, kind, userId, itemId, browserTimeZone(), sessionId);
+  await introduceCardData(supabase, kind, userId, itemId, getActiveTimeZone(), sessionId);
 }
 
 export function introduceKanji(kanjiId: number, sessionId?: number): Promise<void> {
@@ -172,28 +172,28 @@ export async function completeVocabBatch(): Promise<DueCard[]> {
 export async function introduceHiragana(hiraganaId: number, sessionId?: number): Promise<KanaPackResult> {
   const supabase = createClient();
   const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = getActiveTimeZone();
   return introduceHiraganaCharacterData(supabase, userId, hiraganaId, timezone, sessionId);
 }
 
 export async function introduceKatakana(katakanaId: number, sessionId?: number): Promise<KanaPackResult> {
   const supabase = createClient();
   const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = getActiveTimeZone();
   return introduceKatakanaCharacterData(supabase, userId, katakanaId, timezone, sessionId);
 }
 
 export async function introduceHiraganaRule(hiraganaId: number, sessionId?: number): Promise<number[]> {
   const supabase = createClient();
   const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = getActiveTimeZone();
   return introduceHiraganaRuleData(supabase, userId, hiraganaId, timezone, sessionId);
 }
 
 export async function introduceKatakanaRule(katakanaId: number, sessionId?: number): Promise<number[]> {
   const supabase = createClient();
   const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = getActiveTimeZone();
   return introduceKatakanaRuleData(supabase, userId, katakanaId, timezone, sessionId);
 }
 
@@ -215,13 +215,13 @@ export async function getKatakanaReadingCards(katakanaIds: number[]): Promise<Du
 export async function submitHiraganaDrillResult(hiraganaId: number, correct: boolean): Promise<KanaDrillResult> {
   const supabase = createClient();
   const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = getActiveTimeZone();
   return recordHiraganaDrillResult(supabase, userId, hiraganaId, correct, timezone);
 }
 
 export async function submitKatakanaDrillResult(katakanaId: number, correct: boolean): Promise<KanaDrillResult> {
   const supabase = createClient();
   const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = getActiveTimeZone();
   return recordKatakanaDrillResult(supabase, userId, katakanaId, correct, timezone);
 }

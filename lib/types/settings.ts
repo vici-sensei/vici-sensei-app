@@ -32,6 +32,12 @@ export interface StudySettings {
    * katakana.extended_romaji as correct answers on top of romaji; when false (default) only
    * romaji counts. Applies on both tracks -- see ReviewCardKanaReading. */
   extended_romaji_enabled: boolean;
+  /** "Custom timezone" toggle -- when true the study day, daily limits, streak and leaderboards
+   * follow `preferred_timezone` instead of the timezone the browser reports (see lib/timezone.ts). */
+  timezone_preference_enabled: boolean;
+  /** IANA name picked in Settings -> Study. Kept while the toggle is off so turning it back on
+   * restores the pick; only takes effect while `timezone_preference_enabled` is true. */
+  preferred_timezone: string | null;
   /** The exact step the user was on -- updated on every navigation, so a refresh resumes here. */
   onboarding_step: number;
   /** The furthest step ever reached -- only grows, used for the progress bar (which steps are clickable/dimmed). */
@@ -64,4 +70,6 @@ export interface StudySettingsPatch {
   new_katakana_per_day?: number;
   kana_practice_enabled?: boolean;
   extended_romaji_enabled?: boolean;
+  timezone_preference_enabled?: boolean;
+  preferred_timezone?: string | null;
 }

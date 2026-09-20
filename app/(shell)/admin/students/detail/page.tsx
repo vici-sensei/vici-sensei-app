@@ -208,6 +208,17 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
               <div className="font-semibold">{student.country ?? "—"}</div>
             </div>
             <div>
+              <div className="text-xs text-text-muted">Timezone</div>
+              <div className="font-semibold break-all">
+                {student.timezone ?? "—"}
+                {student.timezone_preference_enabled && (
+                  <span className="ml-2 rounded-full border border-accent-blue/30 bg-accent-blue/10 px-2 py-0.5 align-middle text-xs font-bold text-accent-blue">
+                    Custom
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
               <div className="text-xs text-text-muted">Account status</div>
               <div className="font-semibold">{student.pending_deletion_at ? "Pending deletion" : "Active"}</div>
             </div>
