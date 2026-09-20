@@ -882,6 +882,21 @@ export function StudySettingsForm({
         </div>
       </GlassCard>
 
+      {studyTrack === "kana" && (
+        <GlassCard padding="lg" className="mt-5.5">
+          <div className="flex items-center justify-between gap-5 py-1">
+            <div>
+              <div className="mb-0.5 text-[0.95rem] font-bold">Practice mode</div>
+              <div className="text-sm text-text-muted">
+                Show a Practice button on the dashboard to freely go through every hiragana and katakana
+                you&apos;ve learned. Just for fun — it never affects your progress or schedule.
+              </div>
+            </div>
+            <Toggle checked={kanaPracticeEnabled} onChange={() => setKanaPracticeEnabled(!kanaPracticeEnabled)} disabled={disabled} />
+          </div>
+        </GlassCard>
+      )}
+
       <GlassCard padding="lg" className="mt-5.5">
         <div className="flex items-center justify-between gap-5 py-1">
           <div>
@@ -907,21 +922,6 @@ export function StudySettingsForm({
           </div>
         ) : null}
       </GlassCard>
-
-      {studyTrack === "kana" && (
-        <GlassCard padding="lg" className="mt-5.5">
-          <div className="flex items-center justify-between gap-5 py-1">
-            <div>
-              <div className="mb-0.5 text-[0.95rem] font-bold">Practice mode</div>
-              <div className="text-sm text-text-muted">
-                Show a Practice button on the dashboard to freely go through every hiragana and katakana
-                you&apos;ve learned. Just for fun — it never affects your progress or schedule.
-              </div>
-            </div>
-            <Toggle checked={kanaPracticeEnabled} onChange={() => setKanaPracticeEnabled(!kanaPracticeEnabled)} disabled={disabled} />
-          </div>
-        </GlassCard>
-      )}
     </div>
   );
 }
