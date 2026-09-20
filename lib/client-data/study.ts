@@ -38,6 +38,13 @@ import type {
   SubmitReviewResult,
 } from "@/lib/types";
 
+// The study day (and with it the daily "Max reviews per day" limit) is counted per timezone, so
+// every get_due_cards/get_today_activity_counts/get_next_due call has to send the same one --
+// otherwise /study and the dashboard would disagree about how much of today's limit is left.
+function browserTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 async function requireUserId(): Promise<string> {
   const supabase = createClient();
   const {
@@ -54,7 +61,7 @@ async function requireUserId(): Promise<string> {
 // card the user sees.
 export async function getFirstDueCard(userId: string, settings: StudySettings): Promise<DueCard | null> {
   const supabase = createClient();
-  return fetchFirstDueCard(supabase, userId, settings);
+  return fetchFirstDueCard(supabase, userId, settings, browserTimeZone());
 }
 
 export async function getStudyQueue(
@@ -63,8 +70,7 @@ export async function getStudyQueue(
   onKanjiWordsReady?: (wordsByKanjiId: Map<number, NewKanjiIntroWord[]>) => void
 ): Promise<StudyQueueResponse> {
   const supabase = createClient();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return fetchStudyQueue(supabase, userId, timezone, settings, onKanjiWordsReady);
+  return fetchStudyQueue(supabase, userId, browserTimeZone(), settings, onKanjiWordsReady);
 }
 
 /** Fire-and-forget: called on hover/focus of a "Start studying" entry point, well before
@@ -76,7 +82,7 @@ export const prefetchFirstDueCard = createPrefetcher(async (userId: string) => {
   const supabase = createClient();
   const settings = await fetchStudySettings(supabase, userId);
   if (!settings) return;
-  const card = await fetchFirstDueCard(supabase, userId, settings);
+  const card = await fetchFirstDueCard(supabase, userId, settings, browserTimeZone());
   if (card) writeFirstCardCache(userId, card);
 });
 
@@ -107,7 +113,7 @@ export async function startSession(userId: string): Promise<StudySessionStart> {
 export async function endSession(sessionId: number): Promise<StudySessionEnd> {
   const supabase = createClient();
   const userId = await requireUserId();
-  return endStudySession(supabase, userId, sessionId);
+  return endStudySession(supabase, userId, sessionId, browserTimeZone());
 }
 
 export async function getSessionProgress(sessionId: number): Promise<number> {
@@ -127,8 +133,7 @@ export async function acknowledgeAchievements(keys: string[]): Promise<void> {
 async function introduce(kind: IntroduceKind, itemId: number, sessionId?: number): Promise<void> {
   const supabase = createClient();
   const userId = await requireUserId();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  await introduceCardData(supabase, kind, userId, itemId, timezone, sessionId);
+  await introduceCardData(supabase, kind, userId, itemId, browserTimeZone(), sessionId);
 }
 
 export function introduceKanji(kanjiId: number, sessionId?: number): Promise<void> {

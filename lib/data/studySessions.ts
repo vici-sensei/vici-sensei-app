@@ -58,10 +58,13 @@ type EndStudySessionRow = {
   duration_seconds: number;
 };
 
+// `timezone` picks the study day get_next_due measures "later today" in (and, through the daily
+// review limit, how many old cards are left in it) -- the same one every other study call sends.
 export async function endStudySession(
   supabase: AppSupabaseClient,
   userId: string,
-  sessionId: number
+  sessionId: number,
+  timezone?: string
 ): Promise<StudySessionEnd> {
   const { data, error } = await supabase.rpc("end_study_session", {
     p_user_id: userId,
@@ -72,7 +75,7 @@ export async function endStudySession(
   const row = ((data ?? []) as EndStudySessionRow[])[0];
   if (!row) throw new ApiError(404, "Study session not found.");
 
-  const nextDue = await getNextDue(supabase, userId);
+  const nextDue = await getNextDue(supabase, userId, timezone);
   if (nextDue.error !== null) throw new ApiError(500, nextDue.error);
 
   return {

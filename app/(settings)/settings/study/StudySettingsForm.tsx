@@ -669,7 +669,12 @@ export function StudySettingsForm({
               onIncrement={() => adjustReviews(1)}
               decrementDisabled={maxReviewsPerDay <= REVIEWS_STEP}
               disabled={disabled}
-              hint={<div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>}
+              hint={
+                <div className={fieldHint}>
+                  How many cards you already know you review per day, oldest first. Cards from new-card packs are never
+                  limited.
+                </div>
+              }
             />
           </GlassCard>
         </>
@@ -705,7 +710,12 @@ export function StudySettingsForm({
               onIncrement={() => adjustReviews(1)}
               decrementDisabled={maxReviewsPerDay <= REVIEWS_STEP}
               disabled={disabled}
-              hint={<div className={fieldHint}>A hard cap on how many due cards you&apos;ll see in one session.</div>}
+              hint={
+                <div className={fieldHint}>
+                  How many cards you already know you review per day, oldest first. Cards from new-card packs are never
+                  limited.
+                </div>
+              }
             />
           </GlassCard>
         </>

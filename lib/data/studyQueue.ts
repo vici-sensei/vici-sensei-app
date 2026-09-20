@@ -53,15 +53,23 @@ function toDueCard(row: DueCardRow): DueCard {
   };
 }
 
+// A plain upper bound on one get_due_cards call. The daily "Max reviews per day" limit is applied
+// inside get_due_cards itself (see get_servable_due_rows) and only ever to already-learned cards;
+// cards that belong to a pack are deliberately never limited -- so this must stay far above
+// anything a day can produce, or it would cut a pack in half.
+const DUE_CARDS_FETCH_LIMIT = 1000;
+
 /** Just enough to render the very first card the user sees: one due card, nothing else --
  * no next-due time, no new-material candidates, no daily counts. `fetchStudyQueue` fetches
  * the real queue in parallel/background and merges it in without disturbing this card once
  * it's on screen. `settings` is the caller's already-loaded copy (StudyLayout only renders
- * once onboarding settings are fetched), so this is a single round trip, not two. */
+ * once onboarding settings are fetched), so this is a single round trip, not two. `timezone`
+ * is what tells get_due_cards which 6 a.m. study day the daily review limit is counted in. */
 export async function fetchFirstDueCard(
   supabase: AppSupabaseClient,
   userId: string,
-  settings: StudySettings
+  settings: StudySettings,
+  timezone?: string
 ): Promise<DueCard | null> {
   const { data, error } = await supabase.rpc("get_due_cards", {
     p_user_id: userId,
@@ -71,6 +79,7 @@ export async function fetchFirstDueCard(
     p_include_hiragana: settings.study_hiragana,
     p_include_katakana: settings.study_katakana,
     p_limit: 1,
+    p_timezone: timezone ?? "UTC",
   });
 
   if (error) throw new Error(error.message);
@@ -233,7 +242,8 @@ export async function fetchStudyQueue(
       p_include_vocab: settings.study_vocabulary,
       p_include_hiragana: settings.study_hiragana,
       p_include_katakana: settings.study_katakana,
-      p_limit: settings.max_reviews_per_day,
+      p_limit: DUE_CARDS_FETCH_LIMIT,
+      p_timezone: timezone ?? "UTC",
     }),
     getNextDue(supabase, userId, timezone),
     supabase.rpc("get_today_activity_counts", { p_user_id: userId, p_timezone: timezone ?? "UTC" }).single(),
