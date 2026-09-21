@@ -801,6 +801,9 @@ export function useStudyQueue() {
           attemptedKeysRef.current
         );
         const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
+        // Nothing to add to an already-empty queue: keep the same array so the "queue just emptied"
+        // effect below isn't needlessly re-run (and its in-flight check cancelled) by a poll.
+        if (prev.length === 0 && additions.length === 0) return prev;
         return groupIntroBundles(mergeKeepingCurrent(prev, additions));
       });
     } catch {
@@ -1090,6 +1093,14 @@ export function useStudyQueue() {
 
     return () => {
       cancelled = true;
+      // The cancelled run above returns before it ever reaches `checkingEmptyRef.current = false`,
+      // and this effect's dependencies (`queue`, `settings`, ...) can change while its
+      // getFirstDueCard is still in flight -- refreshQueue's setQueue hands back a fresh `[]` even
+      // when nothing was added. The re-run this cleanup is about to be followed by would then see
+      // the guard still set, bail out, and never start a check: queue stays empty, status stays
+      // "ready", and StudyPage shows its loading skeleton forever. Releasing the guard here lets
+      // that re-run start its own check; the cancelled one can no longer touch the ref.
+      checkingEmptyRef.current = false;
     };
   }, [status, queue, endSession, user.id, settings]);
 
