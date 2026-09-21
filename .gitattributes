@@ -1,0 +1,3 @@
+# Migration SQL must keep LF endings on every machine: with core.autocrlf=true a fresh checkout on Windows
+# would turn the baseline into CRLF, and `db push` would then create functions whose bodies contain \r.
+supabase/migrations/*.sql text eol=lf
