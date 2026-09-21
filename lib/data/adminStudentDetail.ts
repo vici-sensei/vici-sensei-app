@@ -32,13 +32,13 @@ function activityItemLabel(entry: {
 }
 
 export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId: string): Promise<StudentDetail | null> {
-  const [userResult, statsResult, settingsResult, retentionResult] = await Promise.all([
+  const [userResult, statsResult, settingsResult, retentionResult, streaksResult] = await Promise.all([
     supabase
       .from("users")
       .select("id, display_name, email, avatar_url, country, is_premium, created_at, pending_deletion_at")
       .eq("id", studentId)
       .maybeSingle(),
-    supabase.from("leaderboard_stats").select("current_streak, longest_streak, last_active_date").eq("user_id", studentId).maybeSingle(),
+    supabase.from("leaderboard_stats").select("last_active_date").eq("user_id", studentId).maybeSingle(),
     supabase
       .from("user_study_settings")
       .select(
@@ -47,6 +47,12 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
       .eq("user_id", studentId)
       .maybeSingle(),
     supabase.rpc("get_retention_rate", { p_user_id: studentId, p_window_days: 30 }),
+    // get_admin_student_streaks (20261246_admin_students_show_live_streak.sql): the same two
+    // numbers the student's own dashboard shows -- the current streak after the free-day rule
+    // (leaderboard_stats.current_streak alone goes stale once a streak breaks) and the best run
+    // of consecutive active days (not leaderboard_stats.longest_streak, which counts straight
+    // through a free day).
+    supabase.rpc("get_admin_student_streaks", { p_user_id: studentId }).single(),
   ]);
 
   if (userResult.error) throw new Error(userResult.error.message);
@@ -54,10 +60,12 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
   if (statsResult.error) throw new Error(statsResult.error.message);
   if (settingsResult.error) throw new Error(settingsResult.error.message);
   if (retentionResult.error) throw new Error(retentionResult.error.message);
+  if (streaksResult.error) throw new Error(streaksResult.error.message);
 
   const user = userResult.data;
   const stats = statsResult.data;
   const settings = settingsResult.data;
+  const streaks = streaksResult.data as { current_streak: number; longest_streak: number };
 
   return {
     id: user.id,
@@ -68,8 +76,8 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
     is_premium: user.is_premium,
     created_at: user.created_at,
     pending_deletion_at: user.pending_deletion_at,
-    current_streak: stats?.current_streak ?? 0,
-    longest_streak: stats?.longest_streak ?? 0,
+    current_streak: streaks.current_streak,
+    longest_streak: streaks.longest_streak,
     last_active_date: stats?.last_active_date ?? null,
     retention_rate: retentionResult.data,
     study_track: settings?.study_track ?? null,
