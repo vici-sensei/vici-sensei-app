@@ -36,6 +36,23 @@ export interface StudentDailyActivity {
   xp_points: number;
 }
 
+/** The four kinds of "new card" -- one per progress table a leaderboard new-card bump fires on
+ *  (see get_student_new_card_progress, 20261245). Same names get_level_progress uses. */
+export type NewCardCategory = "kanji" | "vocabulary" | "hiragana_reading" | "katakana_reading";
+
+/** get_student_new_card_progress (20261245_student_new_card_progress_rpc.sql): everything the
+ *  "New cards progress" chart needs. Every date is already a study day in `timezone`. */
+export interface StudentNewCardProgress {
+  timezone: string;
+  join_day: string;
+  today: string;
+  /** Every card ever introduced, including ones later undone/deleted -- so it can exceed the sum of `history`. */
+  counter_total: number;
+  history: { day: string; category: NewCardCategory; level: string | null; count: number }[];
+  pool: { category: NewCardCategory; level: string | null; total: number }[];
+  tests: { day: string; test_type: "hiragana" | "katakana"; attempt_number: number; percent: number }[];
+}
+
 export interface StudentReviewLogEntry {
   id: number;
   exercise_type: string;

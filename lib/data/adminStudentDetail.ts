@@ -5,6 +5,7 @@ import type {
   StudentActivityEntry,
   StudentDailyActivity,
   StudentDetail,
+  StudentNewCardProgress,
   StudentPracticeLogEntry,
   StudentReviewLogEntry,
   StudentTestResult,
@@ -97,6 +98,16 @@ export async function fetchStudentDailyActivity(supabase: AppSupabaseClient, stu
 
   if (error) throw new Error(error.message);
   return data;
+}
+
+/** get_student_new_card_progress (20261245_student_new_card_progress_rpc.sql): the per-day new-card
+ *  history (by category and JLPT level), the size of every pool, and the reading tests -- all
+ *  already bucketed by the student's own study day -- for the "New cards progress" chart. */
+export async function fetchStudentNewCardProgress(supabase: AppSupabaseClient, studentId: string): Promise<StudentNewCardProgress> {
+  const { data, error } = await supabase.rpc("get_student_new_card_progress", { p_user_id: studentId });
+
+  if (error) throw new Error(error.message);
+  return data as StudentNewCardProgress;
 }
 
 /** On-demand drill-down for one calendar day -- every individual item behind that day's

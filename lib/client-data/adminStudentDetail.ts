@@ -6,6 +6,7 @@ import {
   fetchStudentAchievements,
   fetchStudentDailyActivity,
   fetchStudentDetail,
+  fetchStudentNewCardProgress,
   fetchStudentTestResults,
 } from "@/lib/data/adminStudentDetail";
 import { fetchProgressSummary } from "@/lib/data/progress";
@@ -16,6 +17,7 @@ import type {
   StudentAchievement,
   StudentDailyActivity,
   StudentDetail,
+  StudentNewCardProgress,
   StudentTestResult,
 } from "@/lib/types";
 
@@ -58,6 +60,31 @@ export function useStudentDailyActivity(studentId: string | null) {
       setStatus("loaded");
     } catch (err) {
       setError(getErrorMessage(err, "Failed to load activity."));
+      setStatus("error");
+    }
+  }, [studentId]);
+
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  return { data, status, error, refetch };
+}
+
+export function useStudentNewCardProgress(studentId: string | null) {
+  const [status, setStatus] = useState<AsyncStatus>("loading");
+  const [data, setData] = useState<StudentNewCardProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(async () => {
+    if (!studentId) return;
+    setStatus((prev) => (prev === "loaded" ? prev : "loading"));
+    try {
+      const result = await fetchStudentNewCardProgress(createClient(), studentId);
+      setData(result);
+      setStatus("loaded");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load new-card progress."));
       setStatus("error");
     }
   }, [studentId]);

@@ -9,6 +9,7 @@ import {
   useStudentAchievements,
   useStudentDailyActivity,
   useStudentDetail,
+  useStudentNewCardProgress,
   useStudentProgressSummary,
   useStudentTestResults,
 } from "@/lib/client-data/adminStudentDetail";
@@ -24,6 +25,7 @@ import { Badge } from "@/app/components/ui/Badge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { AchievementCard } from "@/app/components/ui/AchievementCard";
 import { ActivityHeatmap } from "./ActivityHeatmap";
+import { NewCardsProgress } from "./NewCardsProgress";
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
@@ -60,6 +62,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
 
   const { data: student, status: studentStatus } = useStudentDetail(ready ? studentId : null);
   const { data: dailyActivity, status: activityStatus } = useStudentDailyActivity(ready ? studentId : null);
+  const { data: newCardProgress, status: newCardStatus, error: newCardError } = useStudentNewCardProgress(ready ? studentId : null);
   const { data: knowledge } = useStudentProgressSummary(ready ? studentId : null);
   const { data: testResults, status: testStatus } = useStudentTestResults(ready ? studentId : null);
   const { data: achievements } = useStudentAchievements(ready ? studentId : null);
@@ -185,8 +188,8 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
               <div className="text-xs text-text-muted">Daily targets</div>
               <div className="font-semibold">
                 {student.study_track === "kana"
-                  ? `${student.new_hiragana_per_day ?? 0}H / ${student.new_katakana_per_day ?? 0}K new`
-                  : `${student.new_kanji_per_day ?? 0}漢 / ${student.new_vocab_per_day ?? 0}語 new`}
+                  ? `${student.new_hiragana_per_day ?? 0}Hi / ${student.new_katakana_per_day ?? 0}Ka new`
+                  : `${student.new_kanji_per_day ?? 0}K / ${student.new_vocab_per_day ?? 0}V new`}
                 {" · "}
                 {student.max_reviews_per_day ?? 0} max reviews
               </div>
@@ -230,6 +233,81 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
           </div>
         )}
       </GlassCard>
+
+      {/* Knowledge */}
+      <section>
+        <h2 className="mb-3 text-lg font-bold">What they know</h2>
+        {!knowledge ? (
+          <GlassCard>
+            <Skeleton className="h-20 w-full" />
+          </GlassCard>
+        ) : knowledgeBlocks.length === 0 ? (
+          <GlassCard>
+            <p className="text-text-muted">No progress yet.</p>
+          </GlassCard>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {knowledgeBlocks.map((block) => {
+              const counts = knowledge[block.key];
+              const blockTotal = total(counts);
+              return (
+                <GlassCard key={block.key} padding="sm">
+                  <div className="mb-2 flex flex-wrap items-center gap-3">
+                    <h3 className="m-0 font-bold">{block.title}</h3>
+                    <span className="text-sm text-text-muted">{blockTotal} total</span>
+                  </div>
+                  <div className="mb-2.5 flex h-3 overflow-hidden rounded-lg bg-white/[0.04]">
+                    {PROGRESS_STATUSES.map((status) => {
+                      const pct = blockTotal > 0 ? (counts[status] / blockTotal) * 100 : 0;
+                      return <div key={status} style={{ width: `${pct}%`, background: STATUS_COLORS[status] }} />;
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs text-text-muted">
+                    {PROGRESS_STATUSES.map((status) => (
+                      <span key={status} className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ background: STATUS_COLORS[status] }} />
+                        {STATUS_LABELS[status]} <b className="text-white">{counts[status]}</b>
+                      </span>
+                    ))}
+                  </div>
+                </GlassCard>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Tests */}
+      <section>
+        <h2 className="mb-3 text-lg font-bold">Tests</h2>
+        <GlassCard padding="sm">
+          {testStatus === "loading" ? (
+            <Skeleton className="h-16 w-full" />
+          ) : (testResults ?? []).length === 0 ? (
+            <p className="p-2 text-text-muted">No tests taken yet.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {(testResults ?? []).map((result) => (
+                <div
+                  key={result.id}
+                  className="flex items-center justify-between border-b border-border-soft/50 px-2 py-2.5 last:border-0"
+                >
+                  <div>
+                    <span className="font-semibold capitalize">{result.test_type}</span>
+                    <span className="ml-2 text-sm text-text-muted">attempt #{result.attempt_number}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-text-muted">{dateFormatter.format(new Date(result.earned_at))}</span>
+                    <Badge color={result.percent >= 80 ? "blue" : result.percent >= 50 ? "gold" : "red"}>
+                      {result.percent}%
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassCard>
+      </section>
 
       {/* Daily activity */}
       <section>
@@ -358,80 +436,8 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
         </GlassCard>
       </section>
 
-      {/* Knowledge */}
-      <section>
-        <h2 className="mb-3 text-lg font-bold">What they know</h2>
-        {!knowledge ? (
-          <GlassCard>
-            <Skeleton className="h-20 w-full" />
-          </GlassCard>
-        ) : knowledgeBlocks.length === 0 ? (
-          <GlassCard>
-            <p className="text-text-muted">No progress yet.</p>
-          </GlassCard>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {knowledgeBlocks.map((block) => {
-              const counts = knowledge[block.key];
-              const blockTotal = total(counts);
-              return (
-                <GlassCard key={block.key} padding="sm">
-                  <div className="mb-2 flex flex-wrap items-center gap-3">
-                    <h3 className="m-0 font-bold">{block.title}</h3>
-                    <span className="text-sm text-text-muted">{blockTotal} total</span>
-                  </div>
-                  <div className="mb-2.5 flex h-3 overflow-hidden rounded-lg bg-white/[0.04]">
-                    {PROGRESS_STATUSES.map((status) => {
-                      const pct = blockTotal > 0 ? (counts[status] / blockTotal) * 100 : 0;
-                      return <div key={status} style={{ width: `${pct}%`, background: STATUS_COLORS[status] }} />;
-                    })}
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-xs text-text-muted">
-                    {PROGRESS_STATUSES.map((status) => (
-                      <span key={status} className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ background: STATUS_COLORS[status] }} />
-                        {STATUS_LABELS[status]} <b className="text-white">{counts[status]}</b>
-                      </span>
-                    ))}
-                  </div>
-                </GlassCard>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Tests */}
-      <section>
-        <h2 className="mb-3 text-lg font-bold">Tests</h2>
-        <GlassCard padding="sm">
-          {testStatus === "loading" ? (
-            <Skeleton className="h-16 w-full" />
-          ) : (testResults ?? []).length === 0 ? (
-            <p className="p-2 text-text-muted">No tests taken yet.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {(testResults ?? []).map((result) => (
-                <div
-                  key={result.id}
-                  className="flex items-center justify-between border-b border-border-soft/50 px-2 py-2.5 last:border-0"
-                >
-                  <div>
-                    <span className="font-semibold capitalize">{result.test_type}</span>
-                    <span className="ml-2 text-sm text-text-muted">attempt #{result.attempt_number}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-text-muted">{dateFormatter.format(new Date(result.earned_at))}</span>
-                    <Badge color={result.percent >= 80 ? "blue" : result.percent >= 50 ? "gold" : "red"}>
-                      {result.percent}%
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </GlassCard>
-      </section>
+      {/* New cards progress */}
+      <NewCardsProgress student={student} progress={newCardProgress} status={newCardStatus} error={newCardError} />
 
       {/* Achievements */}
       {achievementsByCategory.length > 0 && (
