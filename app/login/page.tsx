@@ -20,12 +20,17 @@ import {
 } from "@/lib/supabase/regions";
 
 function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) => void }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
 
   useEffect(() => {
     const error = searchParams.get("error");
     if (!error) return;
+    // Consume the ?error param immediately: onWrongRegion/showToast are new references on
+    // every LoginPage re-render (e.g. the geo-IP effect resolving), which would otherwise
+    // re-run this effect and re-show the toast indefinitely as long as the param lingers.
+    router.replace("/login", { scroll: false });
     if (error === "wrong_region") {
       // Set by app/auth/callback/page.tsx when the multi-region "Before User Created" hook
       // rejects a signup whose email already belongs to the other region.
@@ -35,12 +40,12 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
         regionParam
           ? `Your account is registered in the ${regionParam.toUpperCase()} region. Retrying from there.`
           : "Your account is registered in a different region. Please try again from there.",
-        "error"
+        "info"
       );
       return;
     }
     showToast("Couldn't sign you in. Only @gmail.com Google accounts are supported.", "error");
-  }, [searchParams, showToast, onWrongRegion]);
+  }, [searchParams, showToast, onWrongRegion, router]);
 
   return null;
 }

@@ -27,7 +27,10 @@ function AuthCallbackInner() {
     // Settings instead of bouncing an already-logged-in user out to /login.
     const errorCodeParam = searchParams.get("error_code");
     const errorDescription = searchParams.get("error_description");
-    const errorCode = errorCodeParam ?? errorDescription ?? searchParams.get("error");
+    // `||`, not `??`: GoTrue sends error_code=<empty> (present but blank) when a hook rejection
+    // carries no structured code, only a message in error_description -- "" is falsy but not
+    // nullish, so `??` would stop there instead of falling through to error_description.
+    const errorCode = errorCodeParam || errorDescription || searchParams.get("error");
     if (errorCode) {
       supabase.auth.getSession().then(({ data }) => {
         if (data.session) {

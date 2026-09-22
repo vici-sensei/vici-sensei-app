@@ -1,9 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
-import { FaCheck, FaTriangleExclamation } from "react-icons/fa6";
+import { FaCheck, FaCircleInfo, FaTriangleExclamation } from "react-icons/fa6";
 
-type ToastType = "success" | "error";
+type ToastType = "success" | "error" | "info";
 
 interface ToastContextValue {
   showToast: (message: string, type?: ToastType) => void;
@@ -22,8 +22,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setMessage(msg);
     setType(toastType);
     setVisible(true);
-    // Errors linger a bit longer than confirmations — still a toast, not a takeover.
-    timeoutRef.current = setTimeout(() => setVisible(false), toastType === "error" ? 3600 : 2200);
+    // Errors and info notices linger a bit longer than confirmations — still a toast, not a takeover.
+    timeoutRef.current = setTimeout(() => setVisible(false), toastType === "success" ? 2200 : 3600);
   }, []);
 
   return (
@@ -36,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         role="status"
         aria-live="polite"
       >
-        {type === "error" ? <FaTriangleExclamation /> : <FaCheck />}
+        {type === "error" ? <FaTriangleExclamation /> : type === "info" ? <FaCircleInfo /> : <FaCheck />}
         <span>{message}</span>
       </div>
     </ToastContext.Provider>
