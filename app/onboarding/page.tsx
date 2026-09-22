@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCountries } from "@/lib/client-data/countries";
 import { guessCountryFromTimezone } from "@/lib/timezoneCountry";
-import { guessServerRegion, type ServerRegion } from "@/lib/serverRegion";
 import { JLPT_LEVELS, mostAdvancedLevel, type JlptLevel } from "@/lib/srs/constants";
 import { enabledLevelsFor } from "@/app/components/ui/LevelGrid";
 import { Button } from "@/app/components/ui/Button";
@@ -30,11 +29,10 @@ import { OnboardingProgress } from "./OnboardingProgress";
 import { StepKana } from "./steps/StepKana";
 import { StepLevel } from "./steps/StepLevel";
 import { StepCountry } from "./steps/StepCountry";
-import { StepRegion } from "./steps/StepRegion";
 import { StepProfile } from "./steps/StepProfile";
 import { StepLeaderboard } from "./steps/StepLeaderboard";
 
-const STEPS = ["kana", "level", "country", "region", "profile", "leaderboard"] as const;
+const STEPS = ["kana", "level", "country", "profile", "leaderboard"] as const;
 type Step = (typeof STEPS)[number];
 
 /** One field's local draft, mirrored to localStorage under `onboarding:{field}:{userId}` so a
@@ -90,9 +88,7 @@ const levelDraft = localDraft<JlptLevel>("level", (raw) => ((JLPT_LEVELS as read
  * DB immediately, but the draft avoids waiting on that fetch to resume it, and stops the
  * timezone guess from ever showing again once a real pick exists. */
 const countryDraft = localDraft<string>("country", (raw) => raw);
-/** The server region picked on Step 3 -- same reasoning as the country draft above. */
-const regionDraft = localDraft<ServerRegion>("region", (raw) => (raw === "America" || raw === "Europe" ? raw : null));
-/** The toggle picked on Step 5, mirrored here so a refresh doesn't lose it -- unlike the other
+/** The toggle picked on the last step, mirrored here so a refresh doesn't lose it -- unlike the other
  * fields above, this one's saved to the DB immediately too, but the draft still avoids waiting
  * on that fetch to resume it. */
 const anonymousDraft = localDraft<boolean>("leaderboard-anonymous", toBoolean);
@@ -132,8 +128,6 @@ export default function OnboardingPage() {
   const [knowsKana, setKnowsKana] = useState<boolean | null>(null);
   const [level, setLevel] = useState<JlptLevel | null>(null);
   const [country, setCountry] = useState<string | null>(null);
-  const [recommendedRegion, setRecommendedRegion] = useState<ServerRegion>("Europe");
-  const [region, setRegion] = useState<ServerRegion>("Europe");
   const [displayName, setDisplayName] = useState("");
   const [savedName, setSavedName] = useState("");
   const [nameStatus, setNameStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -164,7 +158,6 @@ export default function OnboardingPage() {
   const scheduleKanaSave = useRef(debounce(350)).current;
   const scheduleLevelSave = useRef(debounce(350)).current;
   const scheduleCountrySave = useRef(debounce(350)).current;
-  const scheduleRegionSave = useRef(debounce(350)).current;
   const scheduleAnonymousSave = useRef(debounce(350)).current;
 
   // Keeps this tab's furthest-reached bookkeeping in sync with progress made in ANOTHER tab of
@@ -201,13 +194,6 @@ export default function OnboardingPage() {
       if (!countryDraft.read(user.id)) {
         const guessedCountry = guessCountryFromTimezone();
         if (guessedCountry) setCountry(guessedCountry);
-      }
-      // `recommendedRegion` is just display metadata (ordering/badge), not a selection, so it's
-      // always recomputed. `region` is the actual pick -- same guard as country above.
-      const guessedRegion = guessServerRegion();
-      setRecommendedRegion(guessedRegion);
-      if (!regionDraft.read(user.id)) {
-        setRegion(guessedRegion);
       }
     }
     sync();
@@ -309,15 +295,6 @@ export default function OnboardingPage() {
         } else if (resumeFurthest > 1 && studySettings.enabled_levels) {
           setLevel(mostAdvancedLevel(studySettings.enabled_levels));
         }
-        // Same cache-first idea as the level above. This is null in the DB until the user
-        // actually picks one -- so a saved value here should win over the timezone guess, not the
-        // other way.
-        const cachedRegion = regionDraft.read(user.id);
-        if (cachedRegion) {
-          setRegion(cachedRegion);
-        } else if (studySettings.preferred_server_region) {
-          setRegion(studySettings.preferred_server_region);
-        }
         // Same cache-first idea as the others. leaderboard_anonymous is nullable specifically so
         // this DB fallback is trustworthy -- null really does mean "never chosen" now, not just
         // "defaulted to false", so resuming on a different device/browser (no local cache) still
@@ -367,13 +344,8 @@ export default function OnboardingPage() {
     if (!user) return;
     const patch: StudySettingsPatch = { ...extra };
     // The kana and level steps' choices are saved immediately by handleKnowsKanaChange/
-    // handleLevelChange below (not deferred to here) -- same as country/region/leaderboard --
-    // so there's nothing left to persist for them on leaving the step.
-    // This step has no real effect yet (no multi-region infra) -- it's just remembered so a
-    // refresh keeps whatever the user picked instead of re-guessing.
-    if (fromStep === "region") {
-      patch.preferred_server_region = region;
-    }
+    // handleLevelChange below (not deferred to here) -- same as country/leaderboard -- so
+    // there's nothing left to persist for them on leaving the step.
     if (Object.keys(patch).length > 0) {
       updateStudySettings(user.id, patch).catch(() => {
         showToast("Couldn't save your progress.", "error");
@@ -484,24 +456,6 @@ export default function OnboardingPage() {
     });
   }
 
-  // Saved immediately (not just on leaving the step) so it survives a refresh right away, and
-  // cached so the timezone guess never gets a chance to reappear once a real pick exists. This
-  // step has no real effect yet (no multi-region infra) -- the pick is just remembered.
-  function handleRegionChange(next: ServerRegion) {
-    setRegion(next);
-    if (!user) return;
-    regionDraft.write(user.id, next);
-    const userId = user.id;
-    scheduleRegionSave(() => {
-      updateStudySettings(userId, { preferred_server_region: next })
-        .then(() => clearSaveError("region"))
-        .catch(() => {
-          markSaveError("region");
-          showToast("Couldn't save your region.", "error");
-        });
-    });
-  }
-
   // Saved immediately (not just at the final step) because turning this on is what makes the
   // DB actually assign a real random alias (assign_leaderboard_alias trigger) -- the preview
   // needs that real alias, not a placeholder, to show what the user will actually appear as.
@@ -600,9 +554,6 @@ export default function OnboardingPage() {
           {step === "kana" && <StepKana knowsKana={knowsKana} onChange={handleKnowsKanaChange} />}
           {step === "level" && <StepLevel level={level} onChange={handleLevelChange} knowsKana={knowsKana} />}
           {step === "country" && <StepCountry country={country} onChange={handleCountryChange} />}
-          {step === "region" && (
-            <StepRegion region={region} recommended={recommendedRegion} onChange={handleRegionChange} />
-          )}
           {step === "profile" && (
             <StepProfile
               userId={user.id}

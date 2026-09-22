@@ -9,8 +9,28 @@ import { useToast } from "@/app/components/ui/Toast";
 import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import { RegionSelector } from "@/app/components/ui/RegionSelector";
 import { guessServerRegion, type ServerRegion } from "@/lib/serverRegion";
+import { getActiveRegion, isMultiRegionEnabled } from "@/lib/supabase/regions";
 
-export function ServerRegionSettings() {
+const REGION_NAME = { eu: "Europe", us: "the Americas" } as const;
+
+/** Behind NEXT_PUBLIC_MULTI_REGION, the region a signed-in user is in is a real, settled fact
+ * (decided at login -- see app/login/page.tsx -- and enforced by the "Before User Created" hook),
+ * not a preference to edit here. Self-service moving between regions is a later phase; for now
+ * this is read-only, matching Decision 7. `getActiveRegion()` reflects whichever project
+ * createClient() is actually talking to for this session. */
+function ActiveRegionDisplay() {
+  const region = getActiveRegion();
+  return (
+    <div>
+      <SettingsHeader title="Server region" description="Automatically set to the region closest to you." />
+      <p className="max-w-sm text-left text-sm text-text-muted">
+        Your account is in <span className="font-semibold text-white">{REGION_NAME[region]}</span>.
+      </p>
+    </div>
+  );
+}
+
+function LegacyServerRegionSettings() {
   const { user } = useAuth();
   const { data: settings, refetch } = useStudySettingsContext();
   const { showToast } = useToast();
@@ -60,4 +80,8 @@ export function ServerRegionSettings() {
       />
     </div>
   );
+}
+
+export function ServerRegionSettings() {
+  return isMultiRegionEnabled() ? <ActiveRegionDisplay /> : <LegacyServerRegionSettings />;
 }

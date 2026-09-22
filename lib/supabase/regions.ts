@@ -66,8 +66,8 @@ export function regionForContinent(continent: string | null | undefined): Region
 
 const ACTIVE_REGION_STORAGE_KEY = "vici-active-region";
 
-function isRegion(value: string | null): value is Region {
-  return (REGIONS as readonly string[]).includes(value ?? "");
+export function isRegion(value: unknown): value is Region {
+  return typeof value === "string" && (REGIONS as readonly string[]).includes(value);
 }
 
 /** Best-effort guess, reusing the same timezone heuristic `serverRegion.ts` already has for the
@@ -99,5 +99,17 @@ export function setActiveRegion(region: Region): void {
     window.localStorage.setItem(ACTIVE_REGION_STORAGE_KEY, region);
   } catch {
     // Ignore -- private browsing / storage disabled.
+  }
+}
+
+/** True once a region has been explicitly persisted (a prior visit, a wrong_region retry, a
+ * manual pick) rather than only guessed. The login page uses this to decide whether it's worth
+ * refining the initial guess with the Worker's real geo-IP lookup (/api/geo) -- not worth doing
+ * for a returning visitor who already has a settled region. */
+export function hasStoredActiveRegion(): boolean {
+  try {
+    return isRegion(window.localStorage.getItem(ACTIVE_REGION_STORAGE_KEY));
+  } catch {
+    return false;
   }
 }
