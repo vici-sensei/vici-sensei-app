@@ -23,8 +23,8 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          # Multi-region client (lib/supabase/regions.ts), behind NEXT_PUBLIC_MULTI_REGION -- not
-          # set here, so it stays off in production until Phase 7 turns it on deliberately.
+          # Multi-region client (lib/supabase/regions.ts) -- Phase 7 turns it on deliberately.
+          NEXT_PUBLIC_MULTI_REGION: ${{ secrets.NEXT_PUBLIC_MULTI_REGION }}
           NEXT_PUBLIC_SUPABASE_URL_EU: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_EU }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY_EU: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_EU }}
           NEXT_PUBLIC_SUPABASE_URL_US: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_US }}
