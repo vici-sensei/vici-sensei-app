@@ -3,8 +3,10 @@ import { PostgrestClient } from '@supabase/postgrest-js'
 import { StorageClient } from '@supabase/storage-js'
 import { FunctionsClient } from '@supabase/functions-js'
 import type { AppSupabaseClient } from './types'
+import { getActiveRegion, isMultiRegionEnabled, regionConfig, type Region } from './regions'
 
 let client: AppSupabaseClient | null = null
+const regionalClients = new Map<Region, AppSupabaseClient>()
 
 /** Attaches the anon key / session bearer token to a request, unless the caller already set one. */
 function createAuthedFetch(
@@ -22,6 +24,9 @@ function createAuthedFetch(
 
 /**
  * Singleton browser client — session lives in localStorage, no server ever needs to share it via cookies.
+ * With `NEXT_PUBLIC_MULTI_REGION` unset (the default), this is the only branch that ever runs: one
+ * client, built once, for `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` — unchanged from before regions.ts
+ * existed. Behind the flag, it's one cached client per region instead (see ./regions.ts).
  *
  * Hand-assembled from the granular `@supabase/*-js` packages instead of `@supabase/supabase-js`, whose
  * `SupabaseClient` constructor unconditionally pulls in `@supabase/realtime-js` (~115KB uncompressed)
@@ -29,10 +34,22 @@ function createAuthedFetch(
  * "standalone import for bundle-sensitive environments" pattern for auth/postgrest/storage/functions.
  */
 export function createClient(): AppSupabaseClient {
-  if (client) return client
+  if (isMultiRegionEnabled()) {
+    const region = getActiveRegion()
+    const cached = regionalClients.get(region)
+    if (cached) return cached
+    const { url, anonKey } = regionConfig(region)
+    const created = buildClient(url, anonKey)
+    regionalClients.set(region, created)
+    return created
+  }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  if (client) return client
+  client = buildClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  return client
+}
+
+function buildClient(supabaseUrl: string, supabaseKey: string): AppSupabaseClient {
   const baseUrl = new URL(supabaseUrl.endsWith('/') ? supabaseUrl : `${supabaseUrl}/`)
 
   // GoTrueClient manages its own token switching internally, so it alone gets a static
@@ -67,12 +84,11 @@ export function createClient(): AppSupabaseClient {
     customFetch: authedFetch,
   })
 
-  client = {
+  return {
     auth,
     from: rest.from.bind(rest),
     rpc: rest.rpc.bind(rest),
     storage,
     functions,
   }
-  return client
 }
