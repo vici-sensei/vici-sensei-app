@@ -7,9 +7,9 @@ import {
   fetchStudentDailyActivity,
   fetchStudentDetail,
   fetchStudentNewCardProgress,
+  fetchStudentProgressSummary,
   fetchStudentTestResults,
 } from "@/lib/data/adminStudentDetail";
-import { fetchProgressSummary } from "@/lib/data/progress";
 import { getErrorMessage } from "@/lib/api/client";
 import type {
   AsyncStatus,
@@ -130,7 +130,7 @@ export function useStudentProgressSummary(studentId: string | null) {
     if (!studentId) return;
     setStatus((prev) => (prev === "loaded" ? prev : "loading"));
     try {
-      const result = await fetchProgressSummary(createClient(), studentId);
+      const result = await fetchStudentProgressSummary(createClient(), studentId);
       setData(result);
       setStatus("loaded");
     } catch (err) {

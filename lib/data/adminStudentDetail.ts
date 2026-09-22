@@ -1,6 +1,9 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
+import { isMultiRegionEnabled } from "@/lib/supabase/regions";
+import { fetchProgressSummary } from "@/lib/data/progress";
 import { showsKanaOnly } from "@/lib/study/furigana";
 import type {
+  ProgressSummaryResponse,
   StudentAchievement,
   StudentActivityEntry,
   StudentDailyActivity,
@@ -11,9 +14,30 @@ import type {
   StudentTestResult,
 } from "@/lib/types";
 
+/**
+ * Every fetcher below has two implementations, picked by the same NEXT_PUBLIC_MULTI_REGION flag
+ * createClient() branches on:
+ *
+ * - Off (today, in production): exactly the original queries -- raw `.from()` reads plus the
+ *   original get_retention_rate/get_admin_student_streaks/get_student_daily_activity/
+ *   get_student_new_card_progress RPCs, all against public.* on the still-live old project.
+ * - On: a single `admin_get_student_*` RPC (multi-region Phase 6), reading admin_all.* -- a
+ *   per-table UNION ALL of public.* (this project's own students) and mirror_us.* (a one-way
+ *   logical-replication copy of the US project's students, since the admin account only exists in
+ *   EU). Each is SECURITY DEFINER with its own explicit is_admin() check, not RLS -- mirror_us has
+ *   no RLS policies at all, so a plain function relying on RLS the way the originals do would let
+ *   any authenticated caller read a mirrored student's real data by guessing their id.
+ *
+ * The admin_get_student_* functions only exist on the new EU/US projects, not the old live one
+ * this app still talks to with the flag off -- hence the branch, same reason lib/data/
+ * adminStudents.ts and adminDashboard.ts branch on it too.
+ */
+
 /** Shared label for a review_logs/practice_logs row -- both are joined to the same
  * kanji/word/hiragana/katakana shape, differing only in which table (and timestamp column) they
- * came from. */
+ * came from. Only used by the flag-off path below (the flag-on RPC labels server-side, since
+ * mirror_us.review_logs/practice_logs deliberately have no FK to public.kanji/vocabulary/... for
+ * PostgREST to embed through). */
 function activityItemLabel(entry: {
   exercise_type: string;
   kanji: { kanji: string } | null;
@@ -32,6 +56,12 @@ function activityItemLabel(entry: {
 }
 
 export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId: string): Promise<StudentDetail | null> {
+  if (isMultiRegionEnabled()) {
+    const { data, error } = await supabase.rpc("admin_get_student_detail", { p_user_id: studentId }).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data as StudentDetail | null;
+  }
+
   const [userResult, statsResult, settingsResult, retentionResult, streaksResult] = await Promise.all([
     supabase
       .from("users")
@@ -95,14 +125,15 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
 }
 
 /** get_student_daily_activity (20261235_kana_graduated_at_and_student_daily_activity.sql;
- *  test_count moved onto leaderboard_daily_stats itself -- a running counter bumped on every
- *  reading-test answer, retries included, same as reviews_count/new_cards_count -- by
- *  20261237_test_count_on_leaderboard_stats.sql) folds every activity type -- reviews, new cards,
- *  kana drill graduations, free practice, reading test answers -- into one per-day row, bucketed
- *  by the student's own study day (same 6am-local rollover leaderboard_daily_stats.day already
- *  uses), not a naive UTC calendar date. */
+ *  test_count moved onto leaderboard_daily_stats itself by 20261237_test_count_on_leaderboard_stats.sql)
+ *  folds every activity type -- reviews, new cards, kana drill graduations, free practice, reading
+ *  test answers -- into one per-day row, bucketed by the student's own study day (same 6am-local
+ *  rollover leaderboard_daily_stats.day already uses), not a naive UTC calendar date. */
 export async function fetchStudentDailyActivity(supabase: AppSupabaseClient, studentId: string): Promise<StudentDailyActivity[]> {
-  const { data, error } = await supabase.rpc("get_student_daily_activity", { p_user_id: studentId });
+  const { data, error } = await supabase.rpc(
+    isMultiRegionEnabled() ? "admin_get_student_daily_activity" : "get_student_daily_activity",
+    { p_user_id: studentId }
+  );
 
   if (error) throw new Error(error.message);
   return data;
@@ -112,7 +143,10 @@ export async function fetchStudentDailyActivity(supabase: AppSupabaseClient, stu
  *  history (by category and JLPT level), the size of every pool, and the reading tests -- all
  *  already bucketed by the student's own study day -- for the "New cards progress" chart. */
 export async function fetchStudentNewCardProgress(supabase: AppSupabaseClient, studentId: string): Promise<StudentNewCardProgress> {
-  const { data, error } = await supabase.rpc("get_student_new_card_progress", { p_user_id: studentId });
+  const { data, error } = await supabase.rpc(
+    isMultiRegionEnabled() ? "admin_get_student_new_card_progress" : "get_student_new_card_progress",
+    { p_user_id: studentId }
+  );
 
   if (error) throw new Error(error.message);
   return data as StudentNewCardProgress;
@@ -132,6 +166,16 @@ export async function fetchStudentActivityForDay(
   day: string,
   timezone: string
 ): Promise<StudentActivityEntry[]> {
+  if (isMultiRegionEnabled()) {
+    const { data, error } = await supabase.rpc("admin_get_student_activity_for_day", {
+      p_user_id: studentId,
+      p_day: day,
+      p_timezone: timezone,
+    });
+    if (error) throw new Error(error.message);
+    return (data as StudentActivityEntry[]) ?? [];
+  }
+
   const { data: range, error: rangeError } = await supabase
     .rpc("study_day_range", { p_day: day, p_timezone: timezone })
     .single();
@@ -248,6 +292,12 @@ export async function fetchStudentActivityForDay(
 }
 
 export async function fetchStudentTestResults(supabase: AppSupabaseClient, studentId: string): Promise<StudentTestResult[]> {
+  if (isMultiRegionEnabled()) {
+    const { data, error } = await supabase.rpc("admin_get_student_test_results", { p_user_id: studentId });
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
   const { data, error } = await supabase
     .from("test_status")
     .select("id, test_type, attempt_number, percent, earned_at")
@@ -259,6 +309,12 @@ export async function fetchStudentTestResults(supabase: AppSupabaseClient, stude
 }
 
 export async function fetchStudentAchievements(supabase: AppSupabaseClient, studentId: string): Promise<StudentAchievement[]> {
+  if (isMultiRegionEnabled()) {
+    const { data, error } = await supabase.rpc("admin_get_student_achievements", { p_user_id: studentId });
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
   const { data, error } = await supabase
     .from("user_achievements")
     .select("achievement_key, earned_at")
@@ -267,4 +323,18 @@ export async function fetchStudentAchievements(supabase: AppSupabaseClient, stud
 
   if (error) throw new Error(error.message);
   return data;
+}
+
+/** Admin-only equivalent of fetchProgressSummary (lib/data/progress.ts) -- that one is also used
+ *  by a student's own progress page, so it's called as-is here for the flag-off path too, rather
+ *  than duplicating its query; the flag-on path goes through admin_get_student_progress_summary
+ *  (admin_all.*) instead, for the same reason every other fetcher here branches. */
+export async function fetchStudentProgressSummary(supabase: AppSupabaseClient, studentId: string): Promise<ProgressSummaryResponse> {
+  if (isMultiRegionEnabled()) {
+    const { data, error } = await supabase.rpc("admin_get_student_progress_summary", { p_user_id: studentId });
+    if (error) throw new Error(error.message);
+    return data as ProgressSummaryResponse;
+  }
+
+  return fetchProgressSummary(supabase, studentId);
 }
