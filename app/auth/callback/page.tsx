@@ -44,7 +44,19 @@ function AuthCallbackInner() {
           const switchError = isOwnIdentity ? "identity_already_own_account" : errorCode;
           router.replace(`/settings/profile?switchError=${encodeURIComponent(switchError)}`);
         } else {
-          router.replace("/login?error=auth_callback_failed");
+          // The multi-region "Before User Created" hook (worker/index.ts) rejects a brand-new
+          // signup whose email is already claimed by the other region with error_description
+          // exactly "wrong_region:<region>" -- that message lands here verbatim (GoTrue copies
+          // a hook's `message` straight into error_description), NOT in error_code, which is
+          // some generic GoTrue string for "a hook rejected this" and carries no region info.
+          // Only ever reachable once NEXT_PUBLIC_MULTI_REGION is on (Phase 7) -- a signup can't
+          // hit the wrong region's hook before then.
+          const wrongRegionMatch = errorDescription?.match(/^wrong_region:(eu|us)$/);
+          if (wrongRegionMatch) {
+            router.replace(`/login?error=wrong_region&region=${wrongRegionMatch[1]}`);
+          } else {
+            router.replace("/login?error=auth_callback_failed");
+          }
         }
       });
       return;

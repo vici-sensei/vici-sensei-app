@@ -16,9 +16,23 @@ function LoginErrorNotice() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    if (searchParams.get("error")) {
-      showToast("Couldn't sign you in. Only @gmail.com Google accounts are supported.", "error");
+    const error = searchParams.get("error");
+    if (!error) return;
+    if (error === "wrong_region") {
+      // Set by app/auth/callback/page.tsx when the multi-region "Before User Created" hook
+      // rejects a signup whose email already belongs to the other region. There's no automatic
+      // region switch yet (that's the login region selector, Phase 7) -- just naming the region
+      // beats the generic message below, which would otherwise misleadingly blame the account.
+      const region = searchParams.get("region");
+      showToast(
+        region
+          ? `Your account is registered in the ${region.toUpperCase()} region. Please sign in from there.`
+          : "Your account is registered in a different region. Please try again from there.",
+        "error"
+      );
+      return;
     }
+    showToast("Couldn't sign you in. Only @gmail.com Google accounts are supported.", "error");
   }, [searchParams, showToast]);
 
   return null;
