@@ -2,7 +2,33 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vici-sensei-app",
   "compatibility_date": "2026-01-01",
+  "main": "worker/index.ts",
   "assets": {
-    "directory": "out"
+    "directory": "out",
+    // Only /api/* goes to the Worker below; everything else (the static export) is served
+    // by Cloudflare's Asset Worker directly, same as before this file had a "main" at all.
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "ACCOUNTS_DB",
+      "database_name": "vici-sensei-accounts",
+      "database_id": "d25a5332-b73d-4fb5-9398-4ab3582bac67"
+    }
+  ],
+  "triggers": {
+    // Both crons hit the same `scheduled()` handler in worker/index.ts, which branches on
+    // `event.cron` -- daily keep-alive ping (Free-plan projects pause after 7 days idle) and
+    // weekly D1-vs-auth.users reconciliation.
+    "crons": ["0 3 * * *", "0 4 * * 1"]
+  },
+  // Not secret (see .env.local / lib/supabase/regions.ts, which use the same values) -- safe as
+  // plain vars. The AUTH_HOOK_SECRET_EU/US and SUPABASE_SERVICE_ROLE_KEY_EU/US this Worker also
+  // reads are genuine secrets, set with `wrangler secret put <name>` instead (never committed).
+  "vars": {
+    "SUPABASE_URL_EU": "https://zrgcullndfhouencqqqc.supabase.co",
+    "SUPABASE_ANON_KEY_EU": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyZ2N1bGxuZGZob3VlbmNxcXFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMzk0MjIsImV4cCI6MjEwNTYxNTQyMn0.id3Lgeln24nnviUnvXi102yb_rtPGCQrxLpOsXgDukk",
+    "SUPABASE_URL_US": "https://wftwdbiqnlqsvgpeypmb.supabase.co",
+    "SUPABASE_ANON_KEY_US": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmdHdkYmlxbmxxc3ZncGV5cG1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwNDUzNzgsImV4cCI6MjEwNTYyMTM3OH0.aj8LM_elsVQ05dtmWH1-UrE4MnL0swTYKQXlKKLeu1E"
   }
 }
