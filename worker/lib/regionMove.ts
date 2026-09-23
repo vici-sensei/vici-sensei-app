@@ -229,6 +229,15 @@ async function stepSyncProfile(env: Env, row: RegionMoveRow): Promise<void> {
     delete sourceUser.is_premium;
     delete sourceUser.admin;
     delete sourceUser.pending_deletion_at;
+    // The target row isn't always freshly created by the trigger -- stepCreateTargetUser's
+    // recovery path can resolve `target_user_id` to a PRE-EXISTING auth.users row for this email
+    // (a prior move back-and-forth left one retired there). Force-clear any stale retirement
+    // state on it explicitly: without this, a target reused from an old retired account keeps
+    // its old pending_deletion_at, which both RLS-blocks the user immediately (confirmed live --
+    // the target account's own SELECT/UPDATE policies require pending_deletion_at IS NULL) and
+    // would let process-scheduled-deletions delete the now-active account on the OLD schedule.
+    sourceUser.pending_deletion_at = null;
+    sourceUser.retired_to_region = null;
     await pgUpdateWhere(targetCfg, "users", { id: `eq.${row.target_user_id}` }, sourceUser);
   }
 
