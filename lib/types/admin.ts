@@ -155,4 +155,8 @@ export interface StudentDetail {
    *  admin_get_student_detail (multi-region only, see 20260923044546_admin_leads_mirror_and_student_region_eu.sql);
    *  null when NEXT_PUBLIC_MULTI_REGION is off, since there's only one project to be in. */
   region: Region | null;
+  /** users.premium_until -- NULL = Pro with no end date (or never had an end date). A past date on
+   *  a Free student = their trial ran out. Always null when NEXT_PUBLIC_MULTI_REGION is off: the
+   *  old project predates Pro end dates. */
+  premium_until: string | null;
 }

@@ -122,6 +122,8 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
     timezone: settings?.timezone ?? null,
     timezone_preference_enabled: settings?.timezone_preference_enabled ?? null,
     region: null,
+    // The old project predates Pro end dates.
+    premium_until: null,
   };
 }
 

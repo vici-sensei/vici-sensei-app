@@ -24,6 +24,9 @@ import { GlassCard } from "@/app/components/ui/GlassCard";
 import { Badge } from "@/app/components/ui/Badge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { AchievementCard } from "@/app/components/ui/AchievementCard";
+import { useStudyStats } from "@/lib/study/StudyStatsContext";
+import { useClientClock } from "@/lib/useClientClock";
+import { formatTimeLeft } from "../rosterView";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { NewCardsProgress } from "./NewCardsProgress";
 
@@ -71,6 +74,11 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   const [dayEntries, setDayEntries] = useState<Record<string, StudentActivityEntry[]>>({});
   const [loadingDay, setLoadingDay] = useState<string | null>(null);
 
+  // Server time, not the device clock, same as the roster's Pro column: premium-trial-expiry ends
+  // Pro by the server's clock, and formatTimeLeft rounds up.
+  const { clockOffsetMs } = useStudyStats();
+  const now = useClientClock(60_000, { offsetMs: clockOffsetMs, active: !!student?.premium_until });
+
   async function toggleDay(day: string) {
     if (expandedDay === day) {
       setExpandedDay(null);
@@ -104,6 +112,12 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
       </div>
     );
   }
+
+  // premium-trial-expiry only runs every 5 minutes -- a lapsed end date is already Free here, same
+  // as the roster's proState. A past end date on a Free student = their trial (or admin-set Pro) ran out.
+  const proUntil = student?.premium_until ?? null;
+  const proEndedAt = proUntil !== null && now !== null && Date.parse(proUntil) <= now ? proUntil : null;
+  const isPro = !!student?.is_premium && proEndedAt === null;
 
   const daysWithActivity = (dailyActivity ?? []).slice(0, 90);
   const knowledgeBlocks = KNOWLEDGE_BLOCKS.filter((b) => knowledge?.[b.key] && total(knowledge[b.key]) > 0);
@@ -154,9 +168,18 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
             </div>
             <div>
               <div className="text-xs text-text-muted">Plan</div>
-              <div className={`font-semibold ${student.is_premium ? "text-accent-gold" : ""}`}>
-                {student.is_premium ? "Pro" : "Free"}
-              </div>
+              <div className={`font-semibold ${isPro ? "text-accent-gold" : ""}`}>{isPro ? "Pro" : "Free"}</div>
+              {isPro ? (
+                <div className="text-xs text-text-muted">
+                  {proUntil
+                    ? `Until ${dateFormatter.format(new Date(proUntil))}${now !== null ? ` · ${formatTimeLeft(proUntil, now)}` : ""}`
+                    : "No end date"}
+                </div>
+              ) : (
+                proEndedAt && (
+                  <div className="text-xs text-text-muted">Pro ended {dateFormatter.format(new Date(proEndedAt))}</div>
+                )
+              )}
             </div>
             <div>
               <div className="text-xs text-text-muted">Joined</div>

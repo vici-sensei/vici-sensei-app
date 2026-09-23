@@ -42,6 +42,8 @@ Nu toate migrațiile se aplică identic pe ambele proiecte active — unele sunt
 | `20260923152732_premium_trial_admin_us.sql` | — | — | ✅ | oglindă a fișierului de mai sus, `mirror_eu`/`mirror_eu_fdw`, etichete 'us'/'eu' inversate |
 | `20260923153630_avatar_storage_gc.sql` | — | ✅ | ✅ | text identic pe ambele: schema `avatar_gc` — trigger pe `public.users` (AFTER DELETE) care șterge folderul `avatars/<user_id>/` prin Storage API (pg_net), `avatar_gc.collect()` (sweep pentru fișiere nereferențiate, dry run implicit) + limite pe bucket-ul `avatars` (5MB, webp/jpeg/png). Are nevoie de secretul vault `project_url` + cronul `avatar-gc` — setup operațional în comentariile de la finalul fișierului |
 | `20260923155526_kanji_detail_words_exclude_shared_furigana.sql` | — | ✅ | ✅ | text identic pe ambele: `rebuild_kanji_detail_words()` nu mai alege cuvinte în care furigana kanji-ului e comună cu un kanji vecin (jukujikun/ateji: 今日, 大人, 田舎) decât ca rezervă pentru un kanji fără alte cuvinte; include `select rebuild_kanji_detail_words()` (5202 → 5191 rânduri pe ambele) |
+| `20260923165827_admin_student_detail_premium_until_eu.sql` | — | ✅ | — | `admin_get_student_detail` întoarce și `premium_until` (coloană nouă la final), pentru data de sfârșit a Pro-ului pe pagina de detaliu a elevului |
+| `20260923165828_admin_student_detail_premium_until_us.sql` | — | — | ✅ | oglindă a fișierului de mai sus, `mirror_eu` în loc de `mirror_us`, etichete 'us'/'eu' inversate |
 
 **Regulă pentru orice migrație nouă:** decide explicit domeniul (ambele proiecte active / doar EU /
 doar US) înainte de a scrie fișierul, scrie decizia într-un comentariu pe primul rând al fișierului
