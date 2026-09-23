@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
 import { useAvatarSrc } from "@/app/components/ui/useAvatarSrc";
 import { ProBadge } from "@/app/components/ui/ProBadge";
+import { ProTimeLeft } from "@/app/components/ui/ProTimeLeft";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaUser, FaShieldHalved, FaRightFromBracket } from "react-icons/fa6";
 
@@ -105,6 +106,7 @@ export function ProfileMenu({ user, loaded = true }: { user: UserProfile; loaded
               className="h-16 w-16 shrink-0 text-[1.3rem]"
             />
           </Link>
+          <ProTimeLeft user={user} />
           <div className="min-w-0">
             {loaded ? (
               <>
