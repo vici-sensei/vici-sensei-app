@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { NewKanjiCandidate } from "@/lib/types";
-import { prefetchKanjiInfo } from "@/lib/client-data/kanji";
+import type { KanjiInfo, NewKanjiCandidate } from "@/lib/types";
+import { fetchKanjiInfoByCharacters } from "@/lib/data/kanji";
 import { isKanjiChar } from "@/lib/study/furigana";
+import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { Button } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { StudyCardShell } from "./StudyCardShell";
@@ -24,19 +25,37 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
   const words = candidate.words;
   const { ref: listRef, showFade, isScrollable, hasScrolledToBottom } = useScrollHint<HTMLDivElement>();
   const nextDisabled = disabled || (isScrollable && !hasScrolledToBottom);
+  const { user } = useStudyOnboarding();
+
+  // Word-list kanji that open KanjiInfoModal on long-press, by character: every one the kanji
+  // table knows, except the kanji this card introduces and any whose meaning the user has already
+  // learned. Empty -- nothing pressable -- until the lookup lands, and stays that way if it fails.
+  const [pressableKanji, setPressableKanji] = useState<Map<string, KanjiInfo>>(new Map());
   // The kanji long-pressed in the word list, shown in KanjiInfoModal until it's dismissed.
-  const [inspectedKanji, setInspectedKanji] = useState<string | null>(null);
-  const longPressProps = useKanjiLongPress(setInspectedKanji);
+  const [inspectedKanji, setInspectedKanji] = useState<KanjiInfo | null>(null);
+  const longPressProps = useKanjiLongPress((char) => setInspectedKanji(pressableKanji.get(char) ?? null));
 
   // Words arrive after the card may already be on screen (see fetchStudyQueue's
   // onKanjiWordsReady), so this re-runs once they do -- one query for every kanji in the list.
-  const wordKanjiKey = words
-    .flatMap((w) => Array.from(w.vocabulary.word))
-    .filter(isKanjiChar)
+  // Fetched fresh per card rather than cached: "already learned" changes as the user studies.
+  const wordKanjiKey = [...new Set(words.flatMap((w) => Array.from(w.vocabulary.word)))]
+    .filter((char) => isKanjiChar(char) && char !== candidate.kanji)
     .join("");
   useEffect(() => {
-    if (wordKanjiKey) prefetchKanjiInfo(Array.from(wordKanjiKey));
-  }, [wordKanjiKey]);
+    if (!wordKanjiKey) return;
+    let cancelled = false;
+    fetchKanjiInfoByCharacters(user.id, Array.from(wordKanjiKey))
+      .then((rows) => {
+        if (cancelled) return;
+        setPressableKanji(new Map(rows.filter((row) => !row.meaning_learned).map((row) => [row.kanji, row])));
+      })
+      .catch(() => {
+        // Nothing becomes pressable -- the card itself works exactly as it would without this.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, wordKanjiKey]);
 
   useEffect(() => {
     // Enter behind an open KanjiInfoModal would otherwise advance the card underneath it.
@@ -91,7 +110,11 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
               className="h-full max-h-full overflow-y-auto divide-y divide-border-soft rounded-xl border border-border-soft bg-white/[0.03] text-left"
             >
               {words.map((w) => (
-                <WordPreviewRow key={w.id} vocabulary={w.vocabulary} />
+                <WordPreviewRow
+                  key={w.id}
+                  vocabulary={w.vocabulary}
+                  isKanjiPressable={(char) => pressableKanji.has(char)}
+                />
               ))}
             </div>
             <div
@@ -108,7 +131,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
           </Button>
         </div>
       </StudyCardShell>
-      {inspectedKanji && <KanjiInfoModal kanji={inspectedKanji} onClose={() => setInspectedKanji(null)} />}
+      {inspectedKanji && <KanjiInfoModal info={inspectedKanji} onClose={() => setInspectedKanji(null)} />}
     </>
   );
 }
