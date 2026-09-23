@@ -1,28 +1,9 @@
+import { type Env, projectConfig } from "./lib/env";
 import { emailKey, isRegion, regionFromCfContinent, type Region } from "./lib/region";
+import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
 import { verifyStandardWebhook } from "./lib/webhooks";
 
-export interface Env {
-  ACCOUNTS_DB: D1Database;
-  SUPABASE_URL_EU: string;
-  SUPABASE_ANON_KEY_EU: string;
-  SUPABASE_URL_US: string;
-  SUPABASE_ANON_KEY_US: string;
-  // Secrets (`wrangler secret put <name>`) -- unset until Phase 4 configures each project's
-  // "Before User Created" hook in the Dashboard, which is when Supabase generates them.
-  AUTH_HOOK_SECRET_EU?: string;
-  AUTH_HOOK_SECRET_US?: string;
-  // Secrets. Set with `wrangler secret put <name>` run by the user directly, never pasted in
-  // chat -- these bypass RLS entirely, more sensitive than anything else this Worker touches.
-  // Reconciliation no-ops until both are set.
-  SUPABASE_SERVICE_ROLE_KEY_EU?: string;
-  SUPABASE_SERVICE_ROLE_KEY_US?: string;
-}
-
-function projectConfig(env: Env, region: Region) {
-  return region === "eu"
-    ? { url: env.SUPABASE_URL_EU, anonKey: env.SUPABASE_ANON_KEY_EU, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY_EU }
-    : { url: env.SUPABASE_URL_US, anonKey: env.SUPABASE_ANON_KEY_US, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY_US };
-}
+export type { Env };
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -231,6 +212,16 @@ const worker: ExportedHandler<Env> = {
       const region = claimMatch[1];
       if (!isRegion(region)) return json({ error: { http_code: 400, message: "unknown_region" } }, 400);
       return handleAuthHookClaim(request, env, region);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/region-move/start") {
+      return handleRegionMoveStart(request, env);
+    }
+    if (request.method === "POST" && url.pathname === "/api/region-move/continue") {
+      return handleRegionMoveContinue(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/region-move/status") {
+      return handleRegionMoveStatus(request, env);
     }
 
     return json({ error: "not_found" }, 404);

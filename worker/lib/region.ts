@@ -13,6 +13,10 @@ export function isRegion(value: string | null | undefined): value is Region {
   return value === "eu" || value === "us";
 }
 
+export function otherRegion(region: Region): Region {
+  return region === "eu" ? "us" : "eu";
+}
+
 /**
  * Cloudflare's 2-letter `request.cf.continent` codes -- see
  * https://developers.cloudflare.com/workers/runtime-apis/request/#incomingrequestcfproperties.

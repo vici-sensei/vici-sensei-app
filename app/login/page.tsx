@@ -44,6 +44,21 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
       );
       return;
     }
+    if (error === "account_moved") {
+      // Set by app/auth/callback/page.tsx when check_account_moved() finds this account was
+      // self-service moved to the other region (Settings -> Server region) -- logging into the
+      // OLD region again (stale bookmark, another device) must not look like a normal failure,
+      // and must point the picker at the region their data actually lives in now.
+      const regionParam = searchParams.get("region");
+      if (isRegion(regionParam)) onWrongRegion(regionParam);
+      showToast(
+        regionParam
+          ? `Your account has moved to the ${regionParam.toUpperCase()} region. Please sign in from there.`
+          : "Your account has moved to a different region. Please sign in from there.",
+        "info"
+      );
+      return;
+    }
     showToast("Couldn't sign you in. Only @gmail.com Google accounts are supported.", "error");
   }, [searchParams, showToast, onWrongRegion, router]);
 

@@ -30,6 +30,7 @@ Nu toate migrațiile se aplică identic pe ambele proiecte active — unele sunt
 | `20260922203531_admin_mirror_us_functions.sql` | — | ✅ | — | idem |
 | `20260922222732_grant_users_self_edit_columns.sql` | — | ✅ | ✅ | vechiul avea deja aceste GRANT-uri de coloană |
 | `20260923003744_fix_mirror_us_replication.sql` | — | ✅ | — | înlocuiește `mirror_us_sub` (replicare logică, stricată) cu `postgres_fdw` + `pg_cron` — vezi secțiunea de mai jos |
+| `20260923012239_region_move_retirement.sql` | — | ⬜ | ⬜ | `retired_to_region` pe `public.users` + gardă în `cancel_pending_account_deletion()` + `check_account_moved()` — pentru mutarea self-service între regiuni, NEAPLICATĂ încă (scrisă, nu și rulată) |
 
 **Regulă pentru orice migrație nouă:** decide explicit domeniul (ambele proiecte active / doar EU /
 doar US) înainte de a scrie fișierul, scrie decizia într-un comentariu pe primul rând al fișierului

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { switchGoogleAccount, cancelPendingAccountDeletion } from "@/lib/client-data/account";
+import { switchGoogleAccount, cancelPendingAccountDeletion, checkAccountMoved } from "@/lib/client-data/account";
 import { ApiError } from "@/lib/api/client";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { useToast } from "@/app/components/ui/Toast";
@@ -137,6 +137,16 @@ function AuthCallbackInner() {
           return;
         }
         await dropStrayEmailIdentity();
+        // A region-moved account must never fall through to cancelPendingAccountDeletion() below
+        // -- that would silently "reactivate" a stale duplicate the user has no reason to expect
+        // (see the region_move_retirement migration). Check this FIRST, before anything else that
+        // touches pending_deletion_at.
+        const movedTo = await checkAccountMoved();
+        if (movedTo) {
+          await supabase.auth.signOut();
+          router.replace(`/login?error=account_moved&region=${movedTo}`);
+          return;
+        }
         // Best-effort: if this account had requested deletion, logging back in
         // cancels it. cancelPendingAccountDeletion() never throws.
         const reactivated = await cancelPendingAccountDeletion();
