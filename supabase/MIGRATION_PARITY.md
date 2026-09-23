@@ -34,6 +34,8 @@ Nu toate migrațiile se aplică identic pe ambele proiecte active — unele sunt
 | `20260923024343_admin_mirror_eu_schema_views_functions.sql` | — | — | ✅ | oglindă a celor 3 fișiere ale Fazei 6 (schema+views+cele 13 funcții `admin_*`), dar `mirror_eu` în loc de `mirror_us` — panoul Teacher funcționează acum și cu contul admin mutat pe US |
 | `20260923024501_admin_mirror_eu_fdw_setup.sql` | — | — | ✅ | `postgres_fdw` (EU→US) + `pg_cron`, oglindă a fix-ului de mai sus dar în sens invers |
 | `20260923043228_admin_roster_exclude_pending_deletion.sql` | — | ✅ | ✅ | `admin_get_student_roster`/`admin_get_dashboard_stats` exclud acum `pending_deletion_at is not null` — altfel un cont retras printr-o mutare de regiune rămânea vizibil dublat în panoul Teacher până expira grace period-ul de 30 zile |
+| `20260923044546_admin_leads_mirror_and_student_region_eu.sql` | — | ✅ | — | `free_lesson_leads` intră în oglinda cross-region (`mirror_us`/`admin_all`, RPC nou `admin_get_free_lesson_leads`/`admin_update_lead_contacted`, `admin_get_dashboard_stats` citește leads din `admin_all` acum) + `admin_get_student_detail` întoarce și `region` ('eu'/'us') |
+| `20260923044623_admin_leads_mirror_and_student_region_us.sql` | — | — | ✅ | oglindă a fișierului de mai sus, `mirror_eu`/`mirror_eu_fdw` în loc de `mirror_us`/`mirror_us_fdw`, etichete 'us'/'eu' inversate |
 
 **Regulă pentru orice migrație nouă:** decide explicit domeniul (ambele proiecte active / doar EU /
 doar US) înainte de a scrie fișierul, scrie decizia într-un comentariu pe primul rând al fișierului

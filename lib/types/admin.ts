@@ -1,3 +1,5 @@
+import type { Region } from "@/lib/supabase/regions";
+
 export interface FreeLessonLead {
   id: number;
   name: string;
@@ -139,4 +141,8 @@ export interface StudentDetail {
   /** user_study_settings.timezone_preference_enabled -- true when `timezone` above is the student's own
    *  "Custom timezone" pick rather than the one their browser reported; null when there's no settings row. */
   timezone_preference_enabled: boolean | null;
+  /** Which Supabase project this student's own row actually lives in -- 'eu'/'us' from
+   *  admin_get_student_detail (multi-region only, see 20260923044546_admin_leads_mirror_and_student_region_eu.sql);
+   *  null when NEXT_PUBLIC_MULTI_REGION is off, since there's only one project to be in. */
+  region: Region | null;
 }

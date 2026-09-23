@@ -225,6 +225,12 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
               <div className="text-xs text-text-muted">Account status</div>
               <div className="font-semibold">{student.pending_deletion_at ? "Pending deletion" : "Active"}</div>
             </div>
+            {student.region && (
+              <div>
+                <div className="text-xs text-text-muted">Server region</div>
+                <div className="font-semibold">{student.region === "eu" ? "Europe" : "Americas"}</div>
+              </div>
+            )}
             {student.pending_deletion_at && (
               <div className="col-span-full">
                 <Badge color="red">Account pending deletion</Badge>

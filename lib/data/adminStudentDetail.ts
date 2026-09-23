@@ -121,6 +121,7 @@ export async function fetchStudentDetail(supabase: AppSupabaseClient, studentId:
     kana_practice_enabled: settings?.kana_practice_enabled ?? null,
     timezone: settings?.timezone ?? null,
     timezone_preference_enabled: settings?.timezone_preference_enabled ?? null,
+    region: null,
   };
 }
 
