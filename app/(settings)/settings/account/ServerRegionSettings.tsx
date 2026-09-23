@@ -100,7 +100,10 @@ function ActiveRegionDisplay() {
 
   return (
     <div>
-      <SettingsHeader title="Server region" />
+      <SettingsHeader
+        title="Server region"
+        description="For the best speed, pick whichever region is closest to you. Switching regions can take a few minutes."
+      />
       <div className="flex max-w-sm flex-col gap-3 text-left">
         {(Object.keys(REGION_META) as Region[]).map((option) => {
           const { label, description, icon: Icon } = REGION_META[option];
