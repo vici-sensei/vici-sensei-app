@@ -127,7 +127,7 @@ export async function moveToOtherRegion(
     if (result.done) break;
   }
 
-  if (!result.email || !result.signInTokenHash) {
+  if (!result.signInTokenHash) {
     throw new ApiError(500, "Your account was moved, but we couldn't sign you in automatically. Please sign in again.");
   }
 
@@ -137,8 +137,9 @@ export async function moveToOtherRegion(
   // see @supabase/auth-js's GoTrueClient.verifyOtp doc comment ("magiclink"/"signup" types are
   // deprecated for verification; generateLink's own `type` on the Worker side is unrelated and
   // still "magiclink" there, that's the link-generation purpose, not the verification method).
+  // email must NOT be sent alongside token_hash -- confirmed live against GoTrue's /auth/v1/verify,
+  // which rejects that combination with "Only the token_hash and type should be provided".
   const { error: verifyError } = await targetClient.auth.verifyOtp({
-    email: result.email,
     token_hash: result.signInTokenHash,
     type: "email",
   });
