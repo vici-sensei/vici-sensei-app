@@ -15,6 +15,19 @@ export function isMultiRegionEnabled(): boolean {
   return process.env.NEXT_PUBLIC_MULTI_REGION === "true";
 }
 
+/**
+ * Empty in production -- `/api/*` is same-origin there (wrangler.jsonc's `run_worker_first`
+ * routes it to this same Worker). `next dev` (:3000) has no `/api/*` of its own (`output:
+ * "export"` forbids rewrites even in dev, see next.config.ts and next's static-exports doc), so
+ * `.env.development.local` points this at the deployed Worker instead -- calls made while
+ * developing locally act on the real live EU/US projects, same as production. The Worker only
+ * echoes back a matching `Access-Control-Allow-Origin` for `http://localhost:3000` (see
+ * worker/index.ts), so this has no effect unless that env var is set.
+ */
+export function workerOrigin(): string {
+  return process.env.NEXT_PUBLIC_WORKER_ORIGIN ?? "";
+}
+
 interface RegionConfig {
   url: string;
   anonKey: string;

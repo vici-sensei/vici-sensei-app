@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { ApiError, extractFunctionErrorMessage, getErrorMessage } from "@/lib/api/client";
-import { setActiveRegion, type Region } from "@/lib/supabase/regions";
+import { setActiveRegion, workerOrigin, type Region } from "@/lib/supabase/regions";
 
 export async function deleteAccount(): Promise<{ pendingDeletionAt: string }> {
   const supabase = createClient();
@@ -64,7 +64,7 @@ async function currentAccessToken(): Promise<string> {
 async function regionMoveFetch(path: string, sourceRegion: Region, body?: Record<string, unknown>): Promise<unknown> {
   const token = await currentAccessToken();
   const method = body === undefined && path.includes("status") ? "GET" : "POST";
-  const url = method === "GET" ? `${path}?sourceRegion=${sourceRegion}` : path;
+  const url = `${workerOrigin()}${method === "GET" ? `${path}?sourceRegion=${sourceRegion}` : path}`;
   let res: Response;
   try {
     res = await fetch(url, {

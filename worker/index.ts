@@ -199,32 +199,68 @@ async function listAllUserEmails(env: Env, region: Region): Promise<string[]> {
   return emails;
 }
 
+/**
+ * Local-dev-only CORS: `next dev` (:3000) has no `/api/*` of its own (`output: "export"` forbids
+ * rewrites even in dev), so `lib/supabase/regions.ts`'s `workerOrigin()` points those calls
+ * straight at this deployed Worker, cross-origin, when `NEXT_PUBLIC_WORKER_ORIGIN` is set (see
+ * `.env.development.local`). In production `/api/*` is same-origin (wrangler.jsonc's
+ * `run_worker_first`), so no real browser request ever carries a matching `Origin` header here --
+ * this is inert there. Not a wildcard: only this one known local dev origin is ever echoed back.
+ */
+const DEV_ORIGINS = new Set(["http://localhost:3000", "http://127.0.0.1:3000"]);
+
+function allowedDevOrigin(request: Request): string | null {
+  const origin = request.headers.get("Origin");
+  return origin && DEV_ORIGINS.has(origin) ? origin : null;
+}
+
+function devCorsHeaders(origin: string): HeadersInit {
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  };
+}
+
+async function route(request: Request, env: Env, url: URL): Promise<Response> {
+  if (request.method === "GET" && url.pathname === "/api/geo") {
+    return handleGeo(request);
+  }
+
+  const claimMatch = url.pathname.match(/^\/api\/auth-hook\/([a-z]+)\/claim$/);
+  if (request.method === "POST" && claimMatch) {
+    const region = claimMatch[1];
+    if (!isRegion(region)) return json({ error: { http_code: 400, message: "unknown_region" } }, 400);
+    return handleAuthHookClaim(request, env, region);
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/region-move/start") {
+    return handleRegionMoveStart(request, env);
+  }
+  if (request.method === "POST" && url.pathname === "/api/region-move/continue") {
+    return handleRegionMoveContinue(request, env);
+  }
+  if (request.method === "GET" && url.pathname === "/api/region-move/status") {
+    return handleRegionMoveStatus(request, env);
+  }
+
+  return json({ error: "not_found" }, 404);
+}
+
 const worker: ExportedHandler<Env> = {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const devOrigin = allowedDevOrigin(request);
 
-    if (request.method === "GET" && url.pathname === "/api/geo") {
-      return handleGeo(request);
-    }
-
-    const claimMatch = url.pathname.match(/^\/api\/auth-hook\/([a-z]+)\/claim$/);
-    if (request.method === "POST" && claimMatch) {
-      const region = claimMatch[1];
-      if (!isRegion(region)) return json({ error: { http_code: 400, message: "unknown_region" } }, 400);
-      return handleAuthHookClaim(request, env, region);
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: devOrigin ? devCorsHeaders(devOrigin) : {} });
     }
 
-    if (request.method === "POST" && url.pathname === "/api/region-move/start") {
-      return handleRegionMoveStart(request, env);
+    const response = await route(request, env, url);
+    if (devOrigin) {
+      for (const [name, value] of Object.entries(devCorsHeaders(devOrigin))) response.headers.set(name, value);
     }
-    if (request.method === "POST" && url.pathname === "/api/region-move/continue") {
-      return handleRegionMoveContinue(request, env);
-    }
-    if (request.method === "GET" && url.pathname === "/api/region-move/status") {
-      return handleRegionMoveStatus(request, env);
-    }
-
-    return json({ error: "not_found" }, 404);
+    return response;
   },
 
   async scheduled(event, env) {

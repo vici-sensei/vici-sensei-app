@@ -16,6 +16,7 @@ import {
   isMultiRegionEnabled,
   isRegion,
   setActiveRegion,
+  workerOrigin,
   type Region,
 } from "@/lib/supabase/regions";
 
@@ -128,7 +129,7 @@ export default function LoginPage() {
     if (hasStoredActiveRegion()) return;
 
     let cancelled = false;
-    fetch("/api/geo")
+    fetch(`${workerOrigin()}/api/geo`)
       .then((res) => res.json())
       .then((body: { region?: unknown }) => {
         if (cancelled || !isRegion(body.region) || body.region === initial) return;
