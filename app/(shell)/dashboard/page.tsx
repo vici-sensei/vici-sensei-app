@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
@@ -13,7 +12,6 @@ import { SakuraPetals } from "@/app/components/ui/SakuraPetals";
 import { AnimatedRingStroke, RingTrack } from "@/app/components/ui/AnimatedRing";
 import { DashboardHero } from "./DashboardHero";
 import { NextCardCountdown } from "./NextCardCountdown";
-import { CheckoutBanner } from "./CheckoutBanner";
 import { WeekStreak } from "./WeekStreak";
 import { LevelProgressCard } from "./LevelProgressCard";
 import { FaBook, FaArrowRight, FaArrowsRotate, FaTrophy, FaSnowflake } from "react-icons/fa6";
@@ -28,13 +26,6 @@ function TargetFillIcon({ className }: { className?: string }) {
       <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10s10-4.477 10-10c0-.895-.12-1.763-.34-2.589l-2.124 2.124a3 3 0 0 1-.537.422L19 12a7 7 0 1 1-7-7l.043.001c.12-.192.259-.374.422-.537l2.124-2.124C13.763 2.12 12.895 2 12 2m-.414 5.018a5 5 0 1 0 5.395 5.396h-2.395q-.084 0-.167-.005l-.54.54a2 2 0 0 1-2.828-2.828l.54-.54a3 3 0 0 1-.005-.167zm6.918-4.892a1 1 0 0 0-1.09.217L13.88 5.879a1 1 0 0 0-.293.707V9l-1.83 1.828a1 1 0 0 0 1.416 1.414L15 10.414h2.414a1 1 0 0 0 .707-.293l3.535-3.535a1 1 0 0 0-.707-1.707h-1.828v-1.83a1 1 0 0 0-.617-.923" />
     </svg>
   );
-}
-
-function CheckoutBannerFromQuery() {
-  const searchParams = useSearchParams();
-  const checkout = searchParams.get("checkout");
-  if (checkout !== "success" && checkout !== "cancel") return null;
-  return <CheckoutBanner status={checkout} />;
 }
 
 // Placeholder week -- all flames unlit, so today reads as the same faded red WeekStreak
@@ -399,10 +390,6 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <Suspense fallback={null}>
-        <CheckoutBannerFromQuery />
-      </Suspense>
-
       <div className="grid grid-cols-12 gap-5">
         <div className="grid-item" style={gridArea(LAYOUT.hero)}>
           <DashboardHero />

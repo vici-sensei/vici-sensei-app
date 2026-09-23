@@ -10,7 +10,7 @@ import { useAvatarSrc } from "@/app/components/ui/useAvatarSrc";
 import { ProBadge } from "@/app/components/ui/ProBadge";
 import { ProTimeLeft } from "@/app/components/ui/ProTimeLeft";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { FaUser, FaShieldHalved, FaRightFromBracket } from "react-icons/fa6";
+import { FaUser, FaCrown, FaShieldHalved, FaRightFromBracket } from "react-icons/fa6";
 
 function Avatar({
   user,
@@ -129,6 +129,10 @@ export function ProfileMenu({ user, loaded = true }: { user: UserProfile; loaded
         <Link href="/settings/profile" className={menuItemClasses} onClick={() => setOpen(false)}>
           <FaUser />
           Profile
+        </Link>
+        <Link href="/settings/billing" className={menuItemClasses} onClick={() => setOpen(false)}>
+          <FaCrown className="text-accent-gold" />
+          Billing
         </Link>
         <Link href="/settings/account" className={menuItemClasses} onClick={() => setOpen(false)}>
           <FaShieldHalved />
