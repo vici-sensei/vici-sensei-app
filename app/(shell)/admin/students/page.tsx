@@ -10,6 +10,7 @@ import { updateStudentPremium, useStudentRoster } from "@/lib/client-data/adminS
 import { useCountries } from "@/lib/client-data/countries";
 import { getErrorMessage } from "@/lib/api/client";
 import { isMultiRegionEnabled } from "@/lib/supabase/regions";
+import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { Collapsible } from "@/app/components/ui/Collapsible";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
@@ -100,11 +101,15 @@ function AdminStudents() {
   // (with a toast) if the write fails.
   const [overrides, setOverrides] = useState<Record<string, PremiumOverride>>({});
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
-  const [now, setNow] = useState(() => Date.now());
+  const [deviceNow, setDeviceNow] = useState(() => Date.now());
+  // Server time, not the device clock: premium-trial-expiry ends Pro by the server's clock, and
+  // formatTimeLeft rounds up, so an admin clock half an hour behind shows a fresh 7-day trial as "8d left".
+  const { clockOffsetMs } = useStudyStats();
+  const now = deviceNow + clockOffsetMs;
 
   // Keeps "5d left" and the time-based filters current on a page left open.
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    const timer = setInterval(() => setDeviceNow(Date.now()), 60_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -142,11 +147,16 @@ function AdminStudents() {
     updateView({ ...view, filters: { ...view.filters, ...patch } });
   }
 
-  async function handlePremiumChange(student: StudentRosterRow, isPremium: boolean, premiumUntil: string | null) {
+  async function handlePremiumChange(
+    student: StudentRosterRow,
+    isPremium: boolean,
+    premiumUntil: string | null,
+    pickedAt?: number
+  ) {
     if (pendingIds.has(student.id)) return;
-    // A just-picked end date is measured from the real clock, but `now` can be up to a minute old --
+    // A just-picked end date is measured from the click, but `now` can be up to a minute old --
     // without this, "7 days" reads as 7d + a few seconds away and formatTimeLeft rounds it up to "8d left".
-    setNow(Date.now());
+    if (pickedAt !== undefined) setDeviceNow(pickedAt);
     const previous = overrides[student.id];
     setOverrides((prev) => ({
       ...prev,
@@ -270,7 +280,9 @@ function AdminStudents() {
                       now={now}
                       pending={pendingIds.has(student.id)}
                       editable={multiRegion}
-                      onChange={(isPremium, premiumUntil) => handlePremiumChange(student, isPremium, premiumUntil)}
+                      onChange={(isPremium, premiumUntil, pickedAt) =>
+                        handlePremiumChange(student, isPremium, premiumUntil, pickedAt)
+                      }
                     />
                   </td>
                   <td className="max-w-[220px] break-words px-3 py-3">

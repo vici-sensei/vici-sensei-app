@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { FaChevronDown } from "react-icons/fa6";
 import { Toggle } from "@/app/components/ui/Toggle";
+import { useStudyStats } from "@/lib/study/StudyStatsContext";
 import type { StudentRosterRow } from "@/lib/types";
 import { endsWithin, formatTimeLeft, proState, trialEndedAt } from "./rosterView";
 
@@ -44,7 +45,8 @@ export function ProAccessCell({
   pending: boolean;
   /** False when the Pro RPC doesn't exist (NEXT_PUBLIC_MULTI_REGION off). */
   editable: boolean;
-  onChange: (isPremium: boolean, premiumUntil: string | null) => void;
+  /** `pickedAt`: the device-clock time a preset end date was counted from, so the page can refresh its `now`. */
+  onChange: (isPremium: boolean, premiumUntil: string | null, pickedAt?: number) => void;
 }) {
   const state = proState(student, now);
   const name = student.display_name || student.email;
@@ -73,7 +75,7 @@ export function ProAccessCell({
         aria-label={isPro ? `Turn off Pro for ${name}` : `Turn on Pro for ${name}`}
       />
       {isPro && editable ? (
-        <ProUntilPicker student={student} now={now} disabled={pending} onPick={(until) => onChange(true, until)} />
+        <ProUntilPicker student={student} now={now} disabled={pending} onPick={(until, pickedAt) => onChange(true, until, pickedAt)} />
       ) : endedAt ? (
         <span className="whitespace-nowrap text-xs text-text-muted" title={`Pro ended ${dateFormatter.format(new Date(endedAt))}`}>
           Ended {dateFormatter.format(new Date(endedAt))}
@@ -92,12 +94,15 @@ function ProUntilPicker({
   student: StudentRosterRow;
   now: number;
   disabled: boolean;
-  onPick: (until: string | null) => void;
+  onPick: (until: string | null, pickedAt?: number) => void;
 }) {
   const panelId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [custom, setCustom] = useState("");
+  // Presets count from server time, not the admin's device clock -- a clock an hour behind would
+  // otherwise make "7 days" an hour short. (`now` can't be used: it's up to a minute old.)
+  const { clockOffsetMs } = useStudyStats();
 
   const until = student.premium_until;
   const expiringSoon = until !== null && endsWithin(until, now, 3);
@@ -147,9 +152,9 @@ function ProUntilPicker({
     };
   }, []);
 
-  function pick(value: string | null) {
+  function pick(value: string | null, pickedAt?: number) {
     panelRef.current?.hidePopover();
-    onPick(value);
+    onPick(value, pickedAt);
   }
 
   function pickCustom() {
@@ -196,7 +201,10 @@ function ProUntilPicker({
               key={preset.label}
               type="button"
               className={PRESET_CLASS}
-              onClick={() => pick(preset.until(new Date()).toISOString())}
+              onClick={() => {
+                const pickedAt = Date.now();
+                pick(preset.until(new Date(pickedAt + clockOffsetMs)).toISOString(), pickedAt);
+              }}
             >
               {preset.label}
             </button>
