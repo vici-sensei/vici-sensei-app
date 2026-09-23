@@ -89,6 +89,11 @@ async function handleAuthHookClaim(request: Request, env: Env, region: Region): 
   }
 }
 
+// Consecutive daily keep-alive failures that trigger a flag row in `reconciliation_log`. No
+// outbound alert channel exists (explicit user choice) -- this only makes a sustained outage
+// easy to spot when someone looks at D1, instead of having to scroll `keepalive_log` by hand.
+const KEEPALIVE_ALERT_THRESHOLD = 3;
+
 async function runKeepalive(env: Env): Promise<void> {
   for (const region of ["eu", "us"] as const) {
     const { url, anonKey } = projectConfig(env, region);
@@ -110,7 +115,38 @@ async function runKeepalive(env: Env): Promise<void> {
     )
       .bind(region, ok ? 1 : 0, statusCode, error)
       .run();
+
+    if (!ok) await flagIfConsecutiveFailures(env, region);
   }
+}
+
+/** Fires exactly once per outage, the day the failure streak first reaches the threshold -- not
+ * on every subsequent day it keeps failing (that would just be daily-repeated noise in the same
+ * log a human has to scroll through, same problem this is meant to solve). Detects "first day at
+ * threshold" by checking that the run just before the streak either doesn't exist or wasn't
+ * itself a failure. */
+async function flagIfConsecutiveFailures(env: Env, region: Region): Promise<void> {
+  const recent = await env.ACCOUNTS_DB.prepare(
+    "SELECT ok, checked_at FROM keepalive_log WHERE region = ?1 ORDER BY checked_at DESC LIMIT ?2"
+  )
+    .bind(region, KEEPALIVE_ALERT_THRESHOLD + 1)
+    .all<{ ok: number; checked_at: string }>();
+
+  const rows = recent.results;
+  if (rows.length < KEEPALIVE_ALERT_THRESHOLD) return;
+
+  const streak = rows.slice(0, KEEPALIVE_ALERT_THRESHOLD);
+  if (!streak.every((row) => row.ok === 0)) return;
+
+  const rowBeforeStreak = rows[KEEPALIVE_ALERT_THRESHOLD];
+  if (rowBeforeStreak && rowBeforeStreak.ok === 0) return; // already flagged on an earlier day
+
+  await env.ACCOUNTS_DB.prepare("INSERT INTO reconciliation_log (status, detail) VALUES (?1, ?2)")
+    .bind(
+      "keepalive_alert",
+      JSON.stringify({ region, consecutive_failures: KEEPALIVE_ALERT_THRESHOLD, since: streak[streak.length - 1].checked_at })
+    )
+    .run();
 }
 
 /** Compares the D1 ledger against each project's real auth.users (Admin API, needs the
