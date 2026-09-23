@@ -144,6 +144,9 @@ function AdminStudents() {
 
   async function handlePremiumChange(student: StudentRosterRow, isPremium: boolean, premiumUntil: string | null) {
     if (pendingIds.has(student.id)) return;
+    // A just-picked end date is measured from the real clock, but `now` can be up to a minute old --
+    // without this, "7 days" reads as 7d + a few seconds away and formatTimeLeft rounds it up to "8d left".
+    setNow(Date.now());
     const previous = overrides[student.id];
     setOverrides((prev) => ({
       ...prev,
