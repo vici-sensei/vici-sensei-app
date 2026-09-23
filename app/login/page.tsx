@@ -87,7 +87,7 @@ function RegionPicker({ region }: { region: Region }) {
             setActiveRegion(option);
             window.location.reload();
           }}
-          className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-[0.5px] transition-colors ${
+          className={`rounded-full px-8 py-4 text-xs font-bold uppercase tracking-[0.5px] transition-colors ${
             option === region ? "bg-accent-red text-white" : "text-text-muted hover:text-white"
           }`}
         >

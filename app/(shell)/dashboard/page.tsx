@@ -101,8 +101,8 @@ function StreakCard() {
         {/* Discreet reminder that the weekly free-days budget (streak_free_days_per_week in
             supabase/migrations/20261128_streak_weekly_free_days.sql) exists -- easy to miss
             since it's applied silently, with no other UI surface explaining it. */}
-        <div className="flex w-full basis-full items-center justify-center gap-1 text-[0.6875rem] text-text-muted">
-          <FaSnowflake className="h-3 w-3 text-[#149BBB]" />
+        <div className="flex w-full basis-full justify-center gap-1 text-[0.6875rem] text-text-muted">
+          <FaSnowflake className="h-3 w-3 min-h-3 min-w-3 text-[#149BBB] mt-0.5" />
           <span>2 rest days a week are yours — no streak lost, promise.</span>
         </div>
       </div>
