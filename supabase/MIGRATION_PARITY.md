@@ -33,6 +33,7 @@ Nu toate migrațiile se aplică identic pe ambele proiecte active — unele sunt
 | `20260923012239_region_move_retirement.sql` | — | ✅ | ✅ | `retired_to_region` pe `public.users` + gardă în `cancel_pending_account_deletion()` + `check_account_moved()` — pentru mutarea self-service între regiuni |
 | `20260923024343_admin_mirror_eu_schema_views_functions.sql` | — | — | ✅ | oglindă a celor 3 fișiere ale Fazei 6 (schema+views+cele 13 funcții `admin_*`), dar `mirror_eu` în loc de `mirror_us` — panoul Teacher funcționează acum și cu contul admin mutat pe US |
 | `20260923024501_admin_mirror_eu_fdw_setup.sql` | — | — | ✅ | `postgres_fdw` (EU→US) + `pg_cron`, oglindă a fix-ului de mai sus dar în sens invers |
+| `20260923043228_admin_roster_exclude_pending_deletion.sql` | — | ✅ | ✅ | `admin_get_student_roster`/`admin_get_dashboard_stats` exclud acum `pending_deletion_at is not null` — altfel un cont retras printr-o mutare de regiune rămânea vizibil dublat în panoul Teacher până expira grace period-ul de 30 zile |
 
 **Regulă pentru orice migrație nouă:** decide explicit domeniul (ambele proiecte active / doar EU /
 doar US) înainte de a scrie fișierul, scrie decizia într-un comentariu pe primul rând al fișierului
