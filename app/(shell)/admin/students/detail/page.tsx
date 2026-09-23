@@ -153,6 +153,12 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
               <div className="font-semibold break-all">{student.email}</div>
             </div>
             <div>
+              <div className="text-xs text-text-muted">Plan</div>
+              <div className={`font-semibold ${student.is_premium ? "text-accent-gold" : ""}`}>
+                {student.is_premium ? "Pro" : "Free"}
+              </div>
+            </div>
+            <div>
               <div className="text-xs text-text-muted">Joined</div>
               <div className="font-semibold">{dateFormatter.format(new Date(student.created_at))}</div>
             </div>
