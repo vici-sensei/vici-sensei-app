@@ -30,7 +30,8 @@ export interface StudentRosterRow {
    *  Kept after expiry, so a past value on a non-Pro row means "trial ended". Always null when
    *  NEXT_PUBLIC_MULTI_REGION is off (the old project has no such column). */
   premium_until: string | null;
-  /** Pro comes from a Stripe subscription (stripe-webhook owns is_premium), not from an admin. */
+  /** Pro comes from a Stripe subscription, not from an admin. Stripe billing was removed from the app
+   *  on 2026-09-23 and no account has a Stripe customer anymore, so this is always false now. */
   has_stripe: boolean;
   /** Which project the student's row lives in; null when NEXT_PUBLIC_MULTI_REGION is off. */
   region: Region | null;

@@ -413,16 +413,6 @@ enabled = true
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 
-# Called by Stripe's servers, not the browser — no user JWT to verify.
-[functions.stripe-webhook]
-enabled = true
-verify_jwt = false
-
-# Called by the browser with the logged-in user's JWT.
-[functions.stripe-create-portal-session]
-enabled = true
-verify_jwt = true
-
 [functions.delete-account]
 enabled = true
 verify_jwt = true

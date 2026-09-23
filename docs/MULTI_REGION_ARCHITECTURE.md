@@ -109,13 +109,17 @@ viitoare între cele două proiecte:** `CREATE SUBSCRIPTION` funcționează DOAR
 EXACT același nume+schemă ca la sursă (cazul Fazei 5 de mai jos, unde funcționează corect) — altfel,
 `postgres_fdw` + refresh programat e calea corectă.
 
-## Auth — Google OAuth și Stripe
+## Auth — Google OAuth
 
 Fiecare proiect Supabase nou are Google OAuth configurat cu ACELAȘI client ID, dar dintr-un proiect
 Google Cloud SEPARAT de cel al proiectului vechi (`vici-sensei-multi-region`, cont
-`vici.sensei@gmail.com`) — External + Production, fără logo custom (evită verificarea Google). Stripe
-rămâne UN SINGUR cont (`acct_1SpvNAJGY73upoUl`, comun), dar cu o destinație de webhook separată per
-proiect Supabase nou (același `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` diferit per destinație).
+`vici.sensei@gmail.com`) — External + Production, fără logo custom (evită verificarea Google).
+
+Stripe a fost scos din aplicație pe 2026-09-23: Pro nu se mai vinde în app, vine odată cu înscrierea
+la cursuri (îl setează un admin din `/admin/students`). Funcțiile `stripe-webhook` și
+`stripe-create-portal-session` nu mai există în repo. `delete-account`, `process-scheduled-deletions`
+și pasul `stripe` din mutarea de regiune încă tratează un `stripe_customer_id` existent, dar niciun
+cont nu mai are unul.
 
 ## Flag-ul central
 

@@ -50,6 +50,6 @@ an equivalent `insert`. On EU-new/US-new: there's no `--linked` access, so inser
 **New project (clone).** `supabase db push --project-ref <NEW_REF>` on an EMPTY new project runs the
 baseline and builds the schema (always pass `--project-ref` explicitly — this repo's CLI link is the
 frozen project). Data, the vault secret, the `cron` job, Edge Functions, secrets, Auth settings, and
-everything from Phases 2-7 (Worker/D1, auth hooks, Google OAuth, Stripe webhooks, leaderboard
+everything from Phases 2-7 (Worker/D1, auth hooks, Google OAuth, leaderboard
 replication, admin mirror) are not in migrations: follow `RESTORE.md` in the user's backup folder
 (`Documents\vici-backups\`), including its multi-region section.
