@@ -60,6 +60,9 @@ Cloudflare Worker `vici-sensei-app`, servește `out/` (exportul static Next.js) 
   fără ele, no-op logat). Doar detectează divergențe (`reconciliation_log`), nu le repară automat —
   `switch-google-account` (schimbare email) și `process-scheduled-deletions` (ștergere cont) pot lăsa
   D1 neactualizat, decizie explicită de a nu rezolva asta la sursă încă.
+- **Cron orar** (`17 * * * *`) — `worker/lib/avatarMirror.ts`: copiază pozele de profil Google (`lh3.googleusercontent.com`, pe care Google le throttle-uiește cu HTTP 429 când sunt încărcate direct) în bucket-ul `avatars` al proiectului userului, ca perechea `avatar-<ts>.webp` + `_sm.webp` (512/128 px, cache 1 an) pe care o scrie și `uploadAvatar()` din app, apoi mută `users.avatar_url` pe copie. Max 4 useri/regiune/rulare; loghează în `reconciliation_log` doar când a avut ce face.
+
+Fișierele din `avatars` nu rămân orfane: la ștergerea unui cont, triggerul `on_user_deleted_remove_avatars` (migrația `20260923153630_avatar_storage_gc.sql`) șterge folderul userului prin Storage API, iar jobul `pg_cron` `avatar-gc` (zilnic 03:30, pe fiecare proiect) rulează `avatar_gc.collect(false)` pentru orice a scăpat. Ambele au nevoie de secretele vault `service_role_key` + `project_url`.
 
 D1 (`vici-sensei-accounts`, binding `ACCOUNTS_DB`) e SINGURA sursă de adevăr pentru email→regiune —
 nu există un query public care să dezvăluie regiunea unui email oarecare (ar fi o scurgere de

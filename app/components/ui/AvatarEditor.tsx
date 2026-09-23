@@ -6,7 +6,7 @@ import { FaPenToSquare, FaTrash, FaUser } from "react-icons/fa6";
 import { useToast } from "@/app/components/ui/Toast";
 import { ApiError } from "@/lib/api/client";
 import { uploadAvatar, removeAvatar } from "@/lib/client-data/userProfile";
-import { avatarSrc } from "@/lib/avatar";
+import { AVATAR_THUMB_SIZE, avatarSrc } from "@/lib/avatar";
 
 const AvatarCropModal = dynamic(
   () => import("@/app/(settings)/settings/profile/AvatarCropModal").then((m) => m.AvatarCropModal),
@@ -17,9 +17,9 @@ const ConfirmDialog = dynamic(() => import("@/app/components/ui/ConfirmDialog").
 });
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
-// Target side length for uploaded avatars: comfortably sharp at the size we display
-// them (including retina), without shipping multi-megabyte originals to storage.
-const AVATAR_TARGET_SIZE = 640;
+// Target side length for uploaded avatars: comfortably sharp at the largest size we display
+// them (the 160px bubble here, at up to 3x density), without shipping big originals to storage.
+const AVATAR_TARGET_SIZE = 512;
 
 const SIZE = {
   sm: {
@@ -94,7 +94,7 @@ export function AvatarEditor({
     setCropFile(file);
   }
 
-  async function handleAvatarCropped(cropped: Blob) {
+  async function handleAvatarCropped({ image: cropped, thumb }: { image: Blob; thumb: Blob }) {
     setCropFile(null);
     if (cropped.size > MAX_AVATAR_BYTES) {
       showToast("Image is too large. Please choose a smaller photo.", "error");
@@ -108,7 +108,7 @@ export function AvatarEditor({
 
     setUploadingAvatar(true);
     try {
-      const updated = await uploadAvatar(userId, cropped);
+      const updated = await uploadAvatar(userId, cropped, thumb);
       onAvatarChange(updated.avatar_url);
       showToast("Photo updated");
       onSaved?.();
@@ -199,6 +199,7 @@ export function AvatarEditor({
         <AvatarCropModal
           file={cropFile}
           outputSize={AVATAR_TARGET_SIZE}
+          thumbSize={AVATAR_THUMB_SIZE}
           onCancel={() => setCropFile(null)}
           onCropped={handleAvatarCropped}
         />

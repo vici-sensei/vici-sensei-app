@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import { FaMedal, FaUser } from "react-icons/fa6";
 import { FlagPlaceholder } from "@/app/components/ui/FlagPlaceholder";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { ProBadge } from "@/app/components/ui/ProBadge";
+import { useAvatarSrc } from "@/app/components/ui/useAvatarSrc";
 import { useFlagIconsCss } from "@/app/components/ui/useFlagIconsCss";
-import { avatarSrc } from "@/lib/avatar";
 import type { LeaderboardEntry, LeaderboardMetric } from "@/lib/types";
 
 const MEDAL_COLORS: Record<number, string> = {
@@ -71,19 +70,21 @@ function LeaderboardAvatar({
   avatarUrl: string | null;
   isPremium: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
-  const showAvatar = Boolean(avatarUrl) && !failed;
+  const { src, onError } = useAvatarSrc(avatarUrl, 96);
   return (
     <div className="relative h-10 w-10 shrink-0">
       <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 text-[0.85rem] font-extrabold text-white">
-        {showAvatar ? (
+        {src ? (
+          // Eager: every row of the list is on screen at once, so next/image's default lazy
+          // loading would only hold each request back until layout, at a lower priority.
           <Image
-            src={avatarSrc(avatarUrl as string, 96)}
+            src={src}
             alt=""
             fill
             sizes="40px"
+            loading="eager"
             className="object-cover"
-            onError={() => setFailed(true)}
+            onError={onError}
           />
         ) : (
           <FaUser className="h-[45%] w-[45%]" />

@@ -17,8 +17,27 @@ const AVATAR_EXT_BY_MIME: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
-  "image/gif": "gif",
 };
+// Every upload gets a fresh file name (see uploadAvatar), so a URL's bytes never change and the
+// browser/CDN can keep them for a year instead of re-checking on every leaderboard visit.
+const AVATAR_CACHE_SECONDS = "31536000";
+
+/** Deletes every file in the user's avatar folder except `keep`. Best effort on purpose: the
+ *  caller has already pointed users.avatar_url where it should, so a failed delete only leaves
+ *  unreferenced files, which the nightly `avatar-gc` job (avatar_gc.collect) sweeps up. */
+async function removeOtherAvatarFiles(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  keep: string[]
+): Promise<void> {
+  try {
+    const { data: existing } = await supabase.storage.from("avatars").list(userId);
+    const stale = (existing ?? []).map((f) => `${userId}/${f.name}`).filter((path) => !keep.includes(path));
+    if (stale.length > 0) await supabase.storage.from("avatars").remove(stale);
+  } catch {
+    // see above -- never fail an already-saved avatar change over cleanup
+  }
+}
 
 export function useUserProfile(user: User | null) {
   const [status, setStatus] = useState<AsyncStatus>("loading");
@@ -109,51 +128,56 @@ export async function updateShowCountryOnLeaderboard(userId: string, show: boole
   return data;
 }
 
-export async function uploadAvatar(userId: string, file: Blob): Promise<UserProfile> {
+/** Stores `file` plus its small copy `thumb` (same MIME type) as
+ *  "<userId>/avatar-<timestamp>.<ext>" and "..._sm.<ext>" -- lib/avatar.ts's avatarSrc() relies on
+ *  that naming to find the thumbnail. Order matters for never leaving a broken or orphaned file:
+ *  upload the new pair, point users.avatar_url at it, and only then delete the previous files. */
+export async function uploadAvatar(userId: string, file: Blob, thumb: Blob): Promise<UserProfile> {
   const ext = AVATAR_EXT_BY_MIME[file.type];
-  if (!ext) throw new ApiError(400, "Unsupported image type. Use PNG, JPEG, WEBP or GIF.");
+  if (!ext || thumb.type !== file.type) throw new ApiError(400, "Unsupported image type. Use PNG, JPEG or WEBP.");
   if (file.size > MAX_AVATAR_UPLOAD_BYTES) throw new ApiError(400, "Image is too large. Maximum size is 5MB.");
 
   const supabase = createClient();
+  const bucket = supabase.storage.from("avatars");
 
-  const { data: existing } = await supabase.storage.from("avatars").list(userId);
-  if (existing && existing.length > 0) {
-    await supabase.storage.from("avatars").remove(existing.map((f) => `${userId}/${f.name}`));
+  const base = `${userId}/avatar-${Date.now()}`;
+  const path = `${base}.${ext}`;
+  const thumbPath = `${base}_sm.${ext}`;
+  const options = { contentType: file.type, cacheControl: AVATAR_CACHE_SECONDS };
+  const [main, small] = await Promise.all([bucket.upload(path, file, options), bucket.upload(thumbPath, thumb, options)]);
+  const uploadError = main.error ?? small.error;
+  if (uploadError) {
+    await bucket.remove([path, thumbPath]);
+    throw new ApiError(500, uploadError.message);
   }
-
-  const path = `${userId}/avatar.${ext}`;
-  const { error: uploadError } = await supabase.storage
-    .from("avatars")
-    .upload(path, file, { contentType: file.type, upsert: true });
-  if (uploadError) throw new ApiError(500, uploadError.message);
 
   const {
     data: { publicUrl },
-  } = supabase.storage.from("avatars").getPublicUrl(path);
-  const avatarUrl = `${publicUrl}?v=${Date.now()}`;
+  } = bucket.getPublicUrl(path);
 
   const { data, error } = await supabase
     .from("users")
-    .update({ avatar_url: avatarUrl })
+    .update({ avatar_url: publicUrl })
     .eq("id", userId)
     .select(
       "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
     )
     .single();
 
-  if (error) throw new ApiError(500, error.message);
+  if (error) {
+    await bucket.remove([path, thumbPath]);
+    throw new ApiError(500, error.message);
+  }
   writeCache(profileCacheKey(userId), data);
+  await removeOtherAvatarFiles(supabase, userId, [path, thumbPath]);
   return data;
 }
 
 export async function removeAvatar(userId: string): Promise<UserProfile> {
   const supabase = createClient();
 
-  const { data: existing } = await supabase.storage.from("avatars").list(userId);
-  if (existing && existing.length > 0) {
-    await supabase.storage.from("avatars").remove(existing.map((f) => `${userId}/${f.name}`));
-  }
-
+  // Row first, files second: a failure in between leaves only unreferenced files (swept up
+  // later), never a profile pointing at a photo that's already gone.
   const { data, error } = await supabase
     .from("users")
     .update({ avatar_url: null })
@@ -165,5 +189,6 @@ export async function removeAvatar(userId: string): Promise<UserProfile> {
 
   if (error) throw new ApiError(500, error.message);
   writeCache(profileCacheKey(userId), data);
+  await removeOtherAvatarFiles(supabase, userId, []);
   return data;
 }

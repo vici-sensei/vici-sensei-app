@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Noto_Sans_JP } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
@@ -6,7 +7,15 @@ import { OfflineOverlay } from "@/app/components/shell/OfflineOverlay";
 import { OrientationOverlay } from "@/app/components/shell/OrientationOverlay";
 import { ToastProvider } from "@/app/components/ui/Toast";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
+import { isMultiRegionEnabled, regionConfig } from "@/lib/supabase/regions";
 import "./globals.css";
+
+// The Supabase project(s) this build actually talks to. With multi-region on, which one a visitor
+// uses is only decided client-side, so warm both -- NEXT_PUBLIC_SUPABASE_URL is then the old
+// single-region project that nothing calls anymore.
+const SUPABASE_ORIGINS = isMultiRegionEnabled()
+  ? [regionConfig("eu").url, regionConfig("us").url]
+  : [process.env.NEXT_PUBLIC_SUPABASE_URL];
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
@@ -89,8 +98,16 @@ export default function RootLayout({
         {/* AuthProvider fires its first Supabase request as soon as it mounts — warm the
             connection (DNS + TLS) while the JS bundle is still parsing so that request
             doesn't pay for handshake setup on top of the round trip. */}
-        <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+        {SUPABASE_ORIGINS.map((origin) => (
+          <Fragment key={origin}>
+            <link rel="preconnect" href={origin} crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href={origin} />
+          </Fragment>
+        ))}
+        {/* Most avatars (header menu, leaderboard) are Google profile photos -- one more origin
+            whose handshake would otherwise only start once the first <img> asks for it. No
+            crossOrigin: plain <img> requests don't use the CORS connection pool. */}
+        <link rel="preconnect" href="https://lh3.googleusercontent.com" />
       </head>
       <body translate="no" className="notranslate">
         <ServiceWorkerRegistration />

@@ -9,6 +9,7 @@ import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import { getErrorMessage } from "@/lib/api/client";
 import { getActiveTimeZone } from "@/lib/timezone";
+import { avatarSrc } from "@/lib/avatar";
 import type { AsyncStatus, LeaderboardEntry, LeaderboardMetric, LeaderboardPeriod } from "@/lib/types";
 
 function leaderboardCacheKey(metric: LeaderboardMetric, period: LeaderboardPeriod): string {
@@ -67,6 +68,14 @@ export function getLeaderboardPeriodEnd(period: LeaderboardPeriod): Promise<stri
 export const prefetchLeaderboard = createPrefetcher(async (userId: string) => {
   const metric = readStoredMetric("new_cards");
   const period = readStoredPeriod("weekly");
+  // Same on-demand stylesheet LeaderboardList loads on mount -- started here so the country flags
+  // aren't the last thing to pop in after navigating.
+  void import("flag-icons/css/flag-icons.min.css");
   const result = await fetchLeaderboard(createClient(), metric, period, userId);
   writeCache(leaderboardCacheKey(metric, period), result);
+  // Warm the browser's image cache with the exact URLs LeaderboardList will request (same
+  // avatarSrc size), so the avatars paint together with the cached rows instead of after them.
+  for (const entry of result) {
+    if (entry.avatar_url) new Image().src = avatarSrc(entry.avatar_url, 96);
+  }
 });

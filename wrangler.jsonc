@@ -17,10 +17,11 @@
     }
   ],
   "triggers": {
-    // Both crons hit the same `scheduled()` handler in worker/index.ts, which branches on
-    // `event.cron` -- daily keep-alive ping (Free-plan projects pause after 7 days idle) and
-    // weekly D1-vs-auth.users reconciliation.
-    "crons": ["0 3 * * *", "0 4 * * 1"]
+    // All crons hit the same `scheduled()` handler in worker/index.ts, which branches on
+    // `event.cron` -- daily keep-alive ping (Free-plan projects pause after 7 days idle), weekly
+    // D1-vs-auth.users reconciliation, and hourly copying of Google profile photos into Storage
+    // (worker/lib/avatarMirror.ts).
+    "crons": ["0 3 * * *", "0 4 * * 1", "17 * * * *"]
   },
   // Not secret (see .env.local / lib/supabase/regions.ts, which use the same values) -- safe as
   // plain vars. The AUTH_HOOK_SECRET_EU/US and SUPABASE_SERVICE_ROLE_KEY_EU/US this Worker also

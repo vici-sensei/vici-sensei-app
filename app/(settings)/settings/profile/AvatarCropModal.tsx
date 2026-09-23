@@ -15,11 +15,25 @@ interface Offset {
 interface AvatarCropModalProps {
   file: File;
   outputSize: number;
+  thumbSize: number;
   onCancel: () => void;
-  onCropped: (blob: Blob) => void;
+  /** `image` and `thumb` always share one MIME type (uploadAvatar names them alike). */
+  onCropped: (images: { image: Blob; thumb: Blob }) => void;
 }
 
-export function AvatarCropModal({ file, outputSize, onCancel, onCropped }: AvatarCropModalProps) {
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+function hasTransparency(ctx: CanvasRenderingContext2D, size: number): boolean {
+  const { data } = ctx.getImageData(0, 0, size, size);
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) return true;
+  }
+  return false;
+}
+
+export function AvatarCropModal({ file, outputSize, thumbSize, onCancel, onCropped }: AvatarCropModalProps) {
   const imgRef = useRef<HTMLImageElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; origin: Offset } | null>(null);
 
@@ -109,15 +123,34 @@ export function AvatarCropModal({ file, outputSize, onCancel, onCropped }: Avata
       canvas.height = outputSize;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      ctx.imageSmoothingQuality = "high";
 
       const sx = (0 - offset.x) / scale;
       const sy = (0 - offset.y) / scale;
       const sSide = VIEWPORT / scale;
       ctx.drawImage(imgRef.current, sx, sy, sSide, sSide, 0, 0, outputSize, outputSize);
 
-      const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, outputType, 0.9));
-      if (blob) onCropped(blob);
+      // The leaderboard and header render avatars at 40-64px, and nothing resizes Storage
+      // images on the way out, so a separate small copy is what those places load.
+      const thumbCanvas = document.createElement("canvas");
+      thumbCanvas.width = thumbSize;
+      thumbCanvas.height = thumbSize;
+      const thumbCtx = thumbCanvas.getContext("2d");
+      if (!thumbCtx) return;
+      thumbCtx.imageSmoothingQuality = "high";
+      thumbCtx.drawImage(canvas, 0, 0, thumbSize, thumbSize);
+
+      // WebP keeps transparency at a fraction of PNG's (or even JPEG's) size. Browsers that can't
+      // encode it from a canvas (Safari) quietly return a PNG instead -- fall back to JPEG there,
+      // unless the crop really has transparent pixels a JPEG would paint black.
+      let image = await canvasToBlob(canvas, "image/webp", 0.85);
+      let type = "image/webp";
+      if (image?.type !== type) {
+        type = hasTransparency(ctx, outputSize) ? "image/png" : "image/jpeg";
+        image = await canvasToBlob(canvas, type, 0.85);
+      }
+      const thumb = await canvasToBlob(thumbCanvas, type, 0.85);
+      if (image && thumb) onCropped({ image, thumb });
     } finally {
       setProcessing(false);
     }

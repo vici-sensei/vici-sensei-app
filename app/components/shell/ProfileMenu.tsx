@@ -6,29 +6,28 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
-import { avatarSrc } from "@/lib/avatar";
+import { useAvatarSrc } from "@/app/components/ui/useAvatarSrc";
 import { ProBadge } from "@/app/components/ui/ProBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaUser, FaShieldHalved, FaRightFromBracket } from "react-icons/fa6";
 
 function Avatar({
   user,
-  avatarFailed,
+  src,
   onAvatarError,
   className,
 }: {
   user: UserProfile;
-  avatarFailed: boolean;
+  src: string | null;
   onAvatarError: () => void;
   className: string;
 }) {
-  const showAvatar = Boolean(user.avatar_url) && !avatarFailed;
   return (
     <div className={`relative ${className}`}>
       <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-accent-blue/35 to-accent-red/35 font-extrabold text-white">
-        {showAvatar ? (
+        {src ? (
           <Image
-            src={avatarSrc(user.avatar_url as string, 128)}
+            src={src}
             alt=""
             fill
             sizes="64px"
@@ -47,7 +46,7 @@ function Avatar({
 export function ProfileMenu({ user, loaded = true }: { user: UserProfile; loaded?: boolean }) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [avatarFailed, setAvatarFailed] = useState(false);
+  const avatar = useAvatarSrc(user.avatar_url, 128);
   const router = useRouter();
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -86,8 +85,8 @@ export function ProfileMenu({ user, loaded = true }: { user: UserProfile; loaded
       >
         <Avatar
           user={user}
-          avatarFailed={avatarFailed}
-          onAvatarError={() => setAvatarFailed(true)}
+          src={avatar.src}
+          onAvatarError={avatar.onError}
           className="h-9 w-9 text-[0.9rem]"
         />
       </button>
@@ -101,8 +100,8 @@ export function ProfileMenu({ user, loaded = true }: { user: UserProfile; loaded
           <Link href="/settings/profile" onClick={() => setOpen(false)}>
             <Avatar
               user={user}
-              avatarFailed={avatarFailed}
-              onAvatarError={() => setAvatarFailed(true)}
+              src={avatar.src}
+              onAvatarError={avatar.onError}
               className="h-16 w-16 shrink-0 text-[1.3rem]"
             />
           </Link>

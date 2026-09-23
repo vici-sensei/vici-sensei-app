@@ -330,6 +330,36 @@ async function stepDrainTable(env: Env, row: RegionMoveRow, table: TableSpec): P
   await patchMove(env, row.id, { current_table: next, status: next ? `copied_${table.name}` : "data_copied" });
 }
 
+// Same naming rule as lib/avatar.ts in the app (not imported -- the Worker doesn't share the Next
+// app's modules): a photo uploaded as "avatar-<timestamp>.<ext>" has its small copy beside it as
+// "avatar-<timestamp>_sm.<ext>". Older "avatar.<ext>" uploads have none.
+const OWN_UPLOAD_FILENAME_RE = /^avatar-\d+\.[a-z]+$/;
+// Matches the app's uploadAvatar(): avatar file names are never reused for different bytes.
+const AVATAR_CACHE_CONTROL = "max-age=31536000";
+
+/** Copies one public avatar object between projects' `avatars` buckets. */
+async function copyAvatarObject(
+  sourceCfg: PostgrestConfig,
+  targetCfg: PostgrestConfig,
+  sourcePath: string,
+  targetPath: string
+): Promise<boolean> {
+  const bytesRes = await fetch(new URL(`storage/v1/object/public/avatars/${sourcePath}`, sourceCfg.url));
+  if (!bytesRes.ok) return false;
+  const uploadRes = await fetch(new URL(`storage/v1/object/avatars/${targetPath}`, targetCfg.url), {
+    method: "POST",
+    headers: {
+      apikey: targetCfg.serviceRoleKey,
+      Authorization: `Bearer ${targetCfg.serviceRoleKey}`,
+      "Content-Type": bytesRes.headers.get("content-type") ?? "application/octet-stream",
+      "cache-control": AVATAR_CACHE_CONTROL,
+      "x-upsert": "true",
+    },
+    body: await bytesRes.arrayBuffer(),
+  });
+  return uploadRes.ok;
+}
+
 async function stepAvatar(env: Env, row: RegionMoveRow): Promise<void> {
   const sourceCfg = restConfig(env, row.source_region);
   const targetCfg = restConfig(env, row.target_region);
@@ -341,33 +371,23 @@ async function stepAvatar(env: Env, row: RegionMoveRow): Promise<void> {
   const sourceStoragePrefix = new URL("storage/v1/object/public/avatars/", sourceCfg.url).toString();
 
   if (avatarUrl && avatarUrl.startsWith(sourceStoragePrefix)) {
-    const path = avatarUrl.slice(sourceStoragePrefix.length); // "<source_user_id>/<filename>"
-    const filename = path.split("/").pop() ?? "avatar";
-    const bytesRes = await fetch(avatarUrl);
-    if (bytesRes.ok) {
-      const bytes = await bytesRes.arrayBuffer();
-      const contentType = bytesRes.headers.get("content-type") ?? "application/octet-stream";
-      const uploadRes = await fetch(
-        new URL(`storage/v1/object/avatars/${row.target_user_id}/${filename}`, targetCfg.url),
-        {
-          method: "POST",
-          headers: {
-            apikey: targetCfg.serviceRoleKey,
-            Authorization: `Bearer ${targetCfg.serviceRoleKey}`,
-            "Content-Type": contentType,
-            "x-upsert": "true",
-          },
-          body: bytes,
-        }
-      );
-      if (uploadRes.ok) {
-        const newUrl = new URL(`storage/v1/object/public/avatars/${row.target_user_id}/${filename}`, targetCfg.url).toString();
-        await pgUpdateWhere(targetCfg, "users", { id: `eq.${row.target_user_id}` }, { avatar_url: newUrl });
+    const { pathname, search } = new URL(avatarUrl);
+    const path = decodeURIComponent(pathname).slice(new URL(sourceStoragePrefix).pathname.length); // "<source_user_id>/<filename>"
+    const [sourceFolder, filename] = path.split("/");
+    if (filename && (await copyAvatarObject(sourceCfg, targetCfg, path, `${row.target_user_id}/${filename}`))) {
+      if (OWN_UPLOAD_FILENAME_RE.test(filename)) {
+        // Best effort: the app falls back to the full-size file when a thumbnail is missing.
+        const thumb = filename.replace(/(\.[a-z]+)$/, "_sm$1");
+        await copyAvatarObject(sourceCfg, targetCfg, `${sourceFolder}/${thumb}`, `${row.target_user_id}/${thumb}`);
       }
-      // A failed upload isn't fatal to the move -- the target row already has the original
-      // (still-valid, cross-project) avatar_url from stepCreateTargetUser's user_metadata. Leave
-      // it as-is and move on rather than blocking the whole move over a cosmetic asset.
+      const newUrl = new URL(`storage/v1/object/public/avatars/${row.target_user_id}/${filename}`, targetCfg.url);
+      newUrl.search = search; // an older upload's "?v=" cache-buster keeps working
+      await pgUpdateWhere(targetCfg, "users", { id: `eq.${row.target_user_id}` }, { avatar_url: newUrl.toString() });
     }
+    // A failed copy isn't fatal to the move -- the target row already has the original
+    // (still-valid, cross-project) avatar_url from stepCreateTargetUser's user_metadata. Leave
+    // it as-is and move on rather than blocking the whole move over a cosmetic asset.
+    // The source's own files go when its retired row is finally deleted (avatar_gc trigger).
   }
 
   await patchMove(env, row.id, { avatar_done: 1, status: "avatar_done" });

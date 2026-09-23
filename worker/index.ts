@@ -1,3 +1,4 @@
+import { mirrorGoogleAvatars } from "./lib/avatarMirror";
 import { type Env, projectConfig } from "./lib/env";
 import { emailKey, isRegion, regionFromCfContinent, type Region } from "./lib/region";
 import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
@@ -268,6 +269,8 @@ const worker: ExportedHandler<Env> = {
       await runKeepalive(env);
     } else if (event.cron === "0 4 * * 1") {
       await runReconciliation(env);
+    } else if (event.cron === "17 * * * *") {
+      await mirrorGoogleAvatars(env);
     }
   },
 };
