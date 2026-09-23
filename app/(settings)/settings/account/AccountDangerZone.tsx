@@ -58,7 +58,6 @@ export function AccountDangerZone() {
           <ul className="list-disc pl-5 text-[0.9rem] leading-[1.8] text-text-muted">
             <li>All kanji, reading, and vocabulary progress</li>
             <li>Your full review history and study sessions</li>
-            <li>Your active Premium subscription (cancelled right away, so you won&apos;t be charged during the wait)</li>
           </ul>
         </div>
 
