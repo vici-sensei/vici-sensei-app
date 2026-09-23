@@ -5,8 +5,8 @@ Din 2026-09-22 există trei proiecte `public` cu schemă înrudită, nu unul:
 | Proiect | Ref | Regiune | Stare |
 |---|---|---|---|
 | **vechi/live** | `hmbemylaqnkiamvhcdcd` | eu-west-1 | **ÎNGHEȚAT** — sursă de adevăr pentru cei 8 utilizatori reali originali, DOAR citit. Nicio migrație nouă nu se mai aplică aici niciodată. |
-| **EU-nou** | `zrgcullndfhouencqqqc` | eu-central-1 | Activ, primește trafic real (login EU). Are `mirror_us` + `admin_all` (Faza 6, doar aici). |
-| **US-nou** | `wftwdbiqnlqsvgpeypmb` | us-east-1 | Activ, primește trafic real (login Americas). Publică cele 16 tabele pentru `mirror_us` (Faza 6). |
+| **EU-nou** | `zrgcullndfhouencqqqc` | eu-central-1 | Activ, primește trafic real (login EU). Are `mirror_us` + `admin_all` (Faza 6). |
+| **US-nou** | `wftwdbiqnlqsvgpeypmb` | us-east-1 | Activ, primește trafic real (login Americas). Are și el `mirror_eu` + `admin_all` (2026-09-23, oglindă simetrică — un admin se poate muta liber, panoul Teacher funcționează pe oricare regiune). |
 
 Riscul real: cineva scrie o migrație, o aplică pe un singur proiect din cele două active, uită de
 celălalt, și schema diverge silențios — PostgREST nu dă nicio eroare vizibilă până cineva lovește
@@ -31,6 +31,8 @@ Nu toate migrațiile se aplică identic pe ambele proiecte active — unele sunt
 | `20260922222732_grant_users_self_edit_columns.sql` | — | ✅ | ✅ | vechiul avea deja aceste GRANT-uri de coloană |
 | `20260923003744_fix_mirror_us_replication.sql` | — | ✅ | — | înlocuiește `mirror_us_sub` (replicare logică, stricată) cu `postgres_fdw` + `pg_cron` — vezi secțiunea de mai jos |
 | `20260923012239_region_move_retirement.sql` | — | ✅ | ✅ | `retired_to_region` pe `public.users` + gardă în `cancel_pending_account_deletion()` + `check_account_moved()` — pentru mutarea self-service între regiuni |
+| `20260923024343_admin_mirror_eu_schema_views_functions.sql` | — | — | ✅ | oglindă a celor 3 fișiere ale Fazei 6 (schema+views+cele 13 funcții `admin_*`), dar `mirror_eu` în loc de `mirror_us` — panoul Teacher funcționează acum și cu contul admin mutat pe US |
+| `20260923024501_admin_mirror_eu_fdw_setup.sql` | — | — | ✅ | `postgres_fdw` (EU→US) + `pg_cron`, oglindă a fix-ului de mai sus dar în sens invers |
 
 **Regulă pentru orice migrație nouă:** decide explicit domeniul (ambele proiecte active / doar EU /
 doar US) înainte de a scrie fișierul, scrie decizia într-un comentariu pe primul rând al fișierului

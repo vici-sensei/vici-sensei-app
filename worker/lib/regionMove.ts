@@ -242,7 +242,9 @@ async function stepSyncProfile(env: Env, row: RegionMoveRow): Promise<void> {
     delete sourceUser.email;
     delete sourceUser.stripe_customer_id;
     delete sourceUser.is_premium;
-    delete sourceUser.admin;
+    // `admin` IS copied (an admin who moves stays admin -- the Teacher panel is now deployed on
+    // both projects, see 20260923024343/24501_admin_mirror_eu_*.sql, mirroring EU into US the same
+    // way mirror_us mirrors US into EU).
     delete sourceUser.pending_deletion_at;
     // The target row isn't always freshly created by the trigger -- stepCreateTargetUser's
     // recovery path can resolve `target_user_id` to a PRE-EXISTING auth.users row for this email
@@ -566,11 +568,10 @@ export async function handleRegionMoveStart(request: Request, env: Env): Promise
   const targetRegion = targetRegionRaw;
 
   const sourceCfg = restConfig(env, sourceRegion);
-  const profile = await pgSelectOne<{ admin: boolean; pending_deletion_at: string | null }>(sourceCfg, "users", {
+  const profile = await pgSelectOne<{ pending_deletion_at: string | null }>(sourceCfg, "users", {
     id: `eq.${sourceUserId}`,
-    select: "admin,pending_deletion_at",
+    select: "pending_deletion_at",
   });
-  if (profile?.admin) return json({ error: "admin_accounts_cannot_move" }, 403);
   if (profile?.pending_deletion_at) return json({ error: "account_pending_deletion" }, 409);
 
   const key = emailKey(email);

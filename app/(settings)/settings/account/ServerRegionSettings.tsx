@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { FaCheck, FaEarthAmericas, FaEarthEurope } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useIsAdmin } from "@/lib/auth/useIsAdmin";
 import { updateStudySettings } from "@/lib/client-data/studySettings";
 import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import { getRegionMoveStatus, moveToOtherRegion, type RegionMoveProgress } from "@/lib/client-data/account";
@@ -60,8 +59,6 @@ function ProgressRing({ percent }: { percent: number }) {
  * does the actual work and is safe to resume, which is what happens automatically on mount if a
  * previous attempt was left mid-flight (tab closed, etc). */
 function ActiveRegionDisplay() {
-  const { user } = useAuth();
-  const isAdmin = useIsAdmin(user);
   const { showToast } = useToast();
   const region = getActiveRegion();
 
@@ -114,10 +111,10 @@ function ActiveRegionDisplay() {
               key={option}
               type="button"
               onClick={() => {
-                if (moving || selected || isAdmin === "admin") return;
+                if (moving || selected) return;
                 runMove(option);
               }}
-              disabled={moving || isAdmin === "admin"}
+              disabled={moving}
               className={`relative flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 disabled:cursor-not-allowed ${
                 moving && !isTarget ? "opacity-50" : ""
               } ${
