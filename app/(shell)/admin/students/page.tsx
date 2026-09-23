@@ -42,7 +42,7 @@ function formatLastActive(date: string | null): string {
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "pro", label: "Pro" },
   { key: "name", label: "Name" },
-  { key: "last_active", label: "Last active" },
+  { key: "last_active", label: "Last activity" },
   { key: "streak", label: "Streak" },
   { key: "reviews", label: "Reviews" },
   { key: "new", label: "New" },

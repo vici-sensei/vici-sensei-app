@@ -165,7 +165,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
               <div className="font-semibold">{student.longest_streak} days</div>
             </div>
             <div>
-              <div className="text-xs text-text-muted">Last active</div>
+              <div className="text-xs text-text-muted">Last activity</div>
               <div className="font-semibold">
                 {student.last_active_date ? dateFormatter.format(new Date(student.last_active_date)) : "Never"}
               </div>
