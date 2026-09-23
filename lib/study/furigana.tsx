@@ -98,12 +98,13 @@ export function renderVocabularyWord(
 // except any "sibling" kanji the server has flagged as known (known_kanji_chars) --
 // either its exact reading is already mastered, or its own JLPT level is lower
 // than the level of the kanji being tested. If every character in a segment is
-// known, that segment's furigana is hidden too.
+// known, that segment's furigana is hidden too. `renderText` works as in renderWordWithFurigana.
 export function renderTargetWord(
   word: string,
   target: string,
   furiganas: string[] | null | undefined,
-  knownKanjiChars?: string[] | null
+  knownKanjiChars?: string[] | null,
+  renderText: (text: string) => ReactNode = (text) => text
 ): ReactNode {
   const idx = target ? word.indexOf(target) : -1;
   const segments = buildFuriganaSegments(word, furiganas);
@@ -127,19 +128,19 @@ export function renderTargetWord(
           const after = segment.text.slice(Math.min(idx + target.length, segEnd) - segStart);
           return (
             <span key={i}>
-              {before}
-              {mid}
-              {after}
+              {renderText(before)}
+              {renderText(mid)}
+              {renderText(after)}
             </span>
           );
         }
         if (isKnownSibling) {
-          return <span key={i}>{segment.text}</span>;
+          return <span key={i}>{renderText(segment.text)}</span>;
         }
         if (segment.furigana) {
           return (
             <ruby key={i} className={i === lastFuriganaIndex ? "" : "mr-[0.2em]"}>
-              {segment.text}
+              {renderText(segment.text)}
               <rt
                 className={`mb-[0.5em] select-none text-base font-normal text-text-muted ${
                   segment.text.length > 1 ? "rounded-md bg-white/5 px-1 pb-1" : ""
@@ -150,7 +151,7 @@ export function renderTargetWord(
             </ruby>
           );
         }
-        return <span key={i}>{segment.text}</span>;
+        return <span key={i}>{renderText(segment.text)}</span>;
       })}
     </>
   );

@@ -4,6 +4,7 @@ import type { DueCard, Rating } from "@/lib/types";
 import { FaCheck } from "react-icons/fa6";
 import { renderTargetWord } from "@/lib/study/furigana";
 import { useKanjiReadingReviewCard } from "./useKanjiReadingReviewCard";
+import { usePressableKanji } from "./usePressableKanji";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
 import { UsuallyKanaNote } from "@/app/components/ui/UsuallyKanaNote";
@@ -26,17 +27,26 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
   const askingForAnother = confirmedAlternates.length > 0 && !revealed;
   const meanings = card.primary_word_meanings ?? [];
 
+  // The word's other kanji open KanjiInfoModal on long-press -- never the one being tested.
+  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen } = usePressableKanji(card.word ?? "", card.kanji_char);
+  // While the modal is open the card counts as disabled: that switches off ReviewCardShell's
+  // Enter/1/2/3 shortcuts, which would otherwise answer the card underneath it, and AnswerForm's
+  // input -- which then refocuses itself once the modal closes, bringing the keyboard back.
+  const shellDisabled = disabled || kanjiModalOpen;
+
   return (
     <ReviewCardShell
       label="Word reading"
       accent="blue"
       prompt={
         <>
-          <CardHeading furigana masked={!revealed}>
-            {card.word
-              ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas, card.known_kanji_chars)
-              : card.kanji_char}
-          </CardHeading>
+          <div {...longPressProps}>
+            <CardHeading furigana masked={!revealed}>
+              {card.word
+                ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas, card.known_kanji_chars, renderKanji)
+                : card.kanji_char}
+            </CardHeading>
+          </div>
           {/* Shown once the answer is revealed, right or wrong -- a wrong answer is exactly when
               the student most needs to know which word they just missed. */}
           {revealed && meanings.length > 0 && (
@@ -47,6 +57,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
               <UsuallyKanaNote />
             </div>
           )}
+          {kanjiModal}
         </>
       }
       subtitle={
@@ -63,7 +74,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
       revealed={revealed}
       checkDisabled={checkBlocked || !answer.trim()}
       correct={result?.correct ?? false}
-      disabled={disabled}
+      disabled={shellDisabled}
       ratingPreviews={card.rating_previews}
       onRate={handleRate}
       onContinue={handleContinue}
@@ -76,7 +87,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
             onAnswerChange={setAnswer}
             onSubmit={handleCheck}
             placeholder="Type the reading…"
-            disabled={disabled}
+            disabled={shellDisabled}
             accent="blue"
           />
         </div>

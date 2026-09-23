@@ -1,18 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { KanjiInfo, NewKanjiCandidate } from "@/lib/types";
-import { fetchKanjiInfoByCharacters } from "@/lib/data/kanji";
-import { isKanjiChar } from "@/lib/study/furigana";
-import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
+import { useEffect } from "react";
+import type { NewKanjiCandidate } from "@/lib/types";
 import { Button } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { StudyCardShell } from "./StudyCardShell";
 import { CardHeading } from "./CardHeading";
 import { InfoChip } from "./InfoChip";
-import { KanjiInfoModal } from "./KanjiInfoModal";
 import { WordPreviewRow } from "./WordPreviewRow";
-import { useKanjiLongPress } from "./useKanjiLongPress";
+import { usePressableKanji } from "./usePressableKanji";
 import { useScrollHint } from "./useScrollHint";
 
 interface Props {
@@ -25,41 +21,15 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
   const words = candidate.words;
   const { ref: listRef, showFade, isScrollable, hasScrolledToBottom } = useScrollHint<HTMLDivElement>();
   const nextDisabled = disabled || (isScrollable && !hasScrolledToBottom);
-  const { user } = useStudyOnboarding();
-
-  // Word-list kanji that open KanjiInfoModal on long-press, by character: every one the kanji
-  // table knows, except the kanji this card introduces and any whose meaning the user has already
-  // learned. Empty -- nothing pressable -- until the lookup lands, and stays that way if it fails.
-  const [pressableKanji, setPressableKanji] = useState<Map<string, KanjiInfo>>(new Map());
-  // The kanji long-pressed in the word list, shown in KanjiInfoModal until it's dismissed.
-  const [inspectedKanji, setInspectedKanji] = useState<KanjiInfo | null>(null);
-  const longPressProps = useKanjiLongPress((char) => setInspectedKanji(pressableKanji.get(char) ?? null));
-
-  // Words arrive after the card may already be on screen (see fetchStudyQueue's
-  // onKanjiWordsReady), so this re-runs once they do -- one query for every kanji in the list.
-  // Fetched fresh per card rather than cached: "already learned" changes as the user studies.
-  const wordKanjiKey = [...new Set(words.flatMap((w) => Array.from(w.vocabulary.word)))]
-    .filter((char) => isKanjiChar(char) && char !== candidate.kanji)
-    .join("");
-  useEffect(() => {
-    if (!wordKanjiKey) return;
-    let cancelled = false;
-    fetchKanjiInfoByCharacters(user.id, Array.from(wordKanjiKey))
-      .then((rows) => {
-        if (cancelled) return;
-        setPressableKanji(new Map(rows.filter((row) => !row.meaning_learned).map((row) => [row.kanji, row])));
-      })
-      .catch(() => {
-        // Nothing becomes pressable -- the card itself works exactly as it would without this.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user.id, wordKanjiKey]);
+  // The word list's kanji open KanjiInfoModal on long-press -- all but the one this card introduces.
+  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen } = usePressableKanji(
+    words.map((w) => w.vocabulary.word).join(""),
+    candidate.kanji
+  );
 
   useEffect(() => {
     // Enter behind an open KanjiInfoModal would otherwise advance the card underneath it.
-    if (nextDisabled || inspectedKanji) return;
+    if (nextDisabled || kanjiModalOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -68,7 +38,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nextDisabled, inspectedKanji, onConfirm]);
+  }, [nextDisabled, kanjiModalOpen, onConfirm]);
 
   return (
     <>
@@ -85,9 +55,9 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
       >
         <div className="shrink-0">
           <CardHeading>{candidate.kanji}</CardHeading>
-  
+
           <div className="mb-2 text-[1.3rem] font-bold text-white">{candidate.meanings?.join(", ")}</div>
-  
+
           <div className="flex flex-wrap justify-center gap-2">
             {candidate.kun_readings && candidate.kun_readings.length > 0 && (
               <InfoChip>
@@ -101,7 +71,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
             )}
           </div>
         </div>
-  
+
         {words.length > 0 && (
           <div className="relative mt-4 min-h-[130px]">
             <div
@@ -110,11 +80,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
               className="h-full max-h-full overflow-y-auto divide-y divide-border-soft rounded-xl border border-border-soft bg-white/[0.03] text-left"
             >
               {words.map((w) => (
-                <WordPreviewRow
-                  key={w.id}
-                  vocabulary={w.vocabulary}
-                  isKanjiPressable={(char) => pressableKanji.has(char)}
-                />
+                <WordPreviewRow key={w.id} vocabulary={w.vocabulary} renderKanji={renderKanji} />
               ))}
             </div>
             <div
@@ -131,7 +97,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
           </Button>
         </div>
       </StudyCardShell>
-      {inspectedKanji && <KanjiInfoModal info={inspectedKanji} onClose={() => setInspectedKanji(null)} />}
+      {kanjiModal}
     </>
   );
 }
