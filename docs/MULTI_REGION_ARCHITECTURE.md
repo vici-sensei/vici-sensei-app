@@ -80,6 +80,15 @@ reface exportul, `CREATE PUBLICATION`/`CREATE SUBSCRIPTION` îl trimite la celă
 subsetul de care oricum trebuie eliminat prin dedup. `lb_export` nu are niciun grant către
 `anon`/`authenticated` — nu e expus direct prin PostgREST, doar citit de funcțiile RPC de mai sus.
 
+Dedup-ul (2026-09-23, migrațiile `20260923170511`/`20260923171152`): un rând din export e ignorat
+dacă `user_id`-ul lui există local (activ sau nu — un cont local e afișat mereu din datele live,
+niciodată din cache) SAU dacă `email_key`-ul lui (sha256 din emailul normalizat, nu adresa în clar)
+aparține unui cont local ACTIV. A doua regulă acoperă mutarea de regiune, unde același om are două
+id-uri, câte unul pe fiecare proiect. Un trigger pe `public.users` (`lb_export_drop_pending_user`)
+scoate rândul din exportul propriu în momentul în care se setează `pending_deletion_at`, așa că un
+cont șters sau retras dispare și de pe celălalt continent în câteva secunde (replicarea), nu la
+următorul refresh.
+
 ## Panou admin — mirror US→EU (Faza 6, reparat 2026-09-23)
 
 Adminul există doar pe EU. Pentru ca acel cont să vadă și studenții din US fără un al doilea login:
