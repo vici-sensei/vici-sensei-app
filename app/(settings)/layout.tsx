@@ -23,6 +23,7 @@ const PLACEHOLDER_PROFILE: UserProfile = {
   country: null,
   show_country_on_leaderboard: true,
   is_premium: false,
+  premium_until: null,
   stripe_customer_id: null,
   created_at: "",
 };

@@ -21,7 +21,7 @@ export async function fetchUserProfile(supabase: AppSupabaseClient, userId: stri
     const { data, error } = await supabase
       .from("users")
       .select(
-        "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+        "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
       )
       .eq("id", userId)
       .single();

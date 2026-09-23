@@ -8,6 +8,8 @@ export interface UserProfile {
   country: string | null;
   show_country_on_leaderboard: boolean;
   is_premium: boolean;
+  /** When the premium-trial-expiry cron flips is_premium back off. null = no end date. */
+  premium_until: string | null;
   stripe_customer_id: string | null;
   created_at: string;
 }

@@ -87,7 +87,7 @@ export async function updateDisplayName(userId: string, displayName: string): Pr
     .update({ display_name: displayName })
     .eq("id", userId)
     .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
     )
     .single();
 
@@ -103,7 +103,7 @@ export async function updateCountry(userId: string, country: string): Promise<Us
     .update({ country })
     .eq("id", userId)
     .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
     )
     .single();
 
@@ -119,7 +119,7 @@ export async function updateShowCountryOnLeaderboard(userId: string, show: boole
     .update({ show_country_on_leaderboard: show })
     .eq("id", userId)
     .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
     )
     .single();
 
@@ -160,7 +160,7 @@ export async function uploadAvatar(userId: string, file: Blob, thumb: Blob): Pro
     .update({ avatar_url: publicUrl })
     .eq("id", userId)
     .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
     )
     .single();
 
@@ -183,7 +183,7 @@ export async function removeAvatar(userId: string): Promise<UserProfile> {
     .update({ avatar_url: null })
     .eq("id", userId)
     .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, stripe_customer_id, created_at"
+      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
     )
     .single();
 

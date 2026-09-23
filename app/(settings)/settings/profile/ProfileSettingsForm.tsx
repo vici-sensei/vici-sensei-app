@@ -16,6 +16,7 @@ import { AvatarEditor } from "@/app/components/ui/AvatarEditor";
 import { fieldLabel, fieldHint } from "@/app/components/ui/formClasses";
 import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
 import { ProBadge } from "@/app/components/ui/ProBadge";
+import { ProTimeLeft } from "./ProTimeLeft";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
 import { FaCheck } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
@@ -227,15 +228,18 @@ export function ProfileSettingsForm({
     <div>
       <GlassCard padding="lg" className="mb-5.5">
         <div className="mb-6.5 flex flex-col items-center gap-4 md:flex-row md:gap-5">
-          <AvatarEditor
-            userId={userId}
-            avatarUrl={avatarUrl}
-            onAvatarChange={(url) => setAvatarUrl(url ?? "")}
-            onSaved={onSaved}
-            size="lg"
-            badge={initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
-            loading={loading}
-          />
+          <div className="flex flex-col items-center gap-2.5">
+            <AvatarEditor
+              userId={userId}
+              avatarUrl={avatarUrl}
+              onAvatarChange={(url) => setAvatarUrl(url ?? "")}
+              onSaved={onSaved}
+              size="lg"
+              badge={initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
+              loading={loading}
+            />
+            {initial.is_premium && initial.premium_until && <ProTimeLeft until={initial.premium_until} />}
+          </div>
           <div className="w-full md:flex-1">
             <label className={fieldLabel}>Full name</label>
             <div className="relative">
