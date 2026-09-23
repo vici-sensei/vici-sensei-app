@@ -26,14 +26,18 @@ interface TableSpec {
 }
 
 // study_sessions MUST be first (its id remap depends on nothing else; the 8 session_id tables
-// depend on it having been fully drained already). Order among the rest doesn't matter.
+// depend on it having been fully drained already). user_achievements MUST be last: inserting rows
+// into review_logs/the progress tables can fire this project's normal achievement-awarding
+// triggers (confirmed live -- see the comment on stepSyncProfile below for the matching
+// leaderboard_stats issue), and its own delete-then-insert is what cleans up any triggered
+// duplicates, so nothing after it may re-trigger awards. Order among the remaining tables doesn't
+// matter.
 const COPY_TABLES: TableSpec[] = [
   { name: "study_sessions", hasIdentityId: true, hasSessionId: false },
   { name: "leaderboard_daily_stats", hasIdentityId: false, hasSessionId: false },
   { name: "practice_logs", hasIdentityId: true, hasSessionId: false },
   { name: "review_logs", hasIdentityId: true, hasSessionId: true },
   { name: "test_status", hasIdentityId: true, hasSessionId: false },
-  { name: "user_achievements", hasIdentityId: true, hasSessionId: false },
   { name: "user_hiragana_progress", hasIdentityId: true, hasSessionId: true },
   { name: "user_hiragana_rule_progress", hasIdentityId: true, hasSessionId: true },
   { name: "user_kanji_basics_progress", hasIdentityId: true, hasSessionId: true },
@@ -44,6 +48,7 @@ const COPY_TABLES: TableSpec[] = [
   { name: "user_reading_test_attempts", hasIdentityId: false, hasSessionId: false },
   { name: "user_reading_test_progress", hasIdentityId: true, hasSessionId: false },
   { name: "user_vocabulary_progress", hasIdentityId: true, hasSessionId: true },
+  { name: "user_achievements", hasIdentityId: true, hasSessionId: false },
 ];
 
 interface RegionMoveRow {
@@ -214,6 +219,16 @@ async function stepCreateTargetUser(env: Env, row: RegionMoveRow): Promise<void>
   await patchMove(env, row.id, { target_user_id: targetUserId, status: "target_created" });
 }
 
+/**
+ * Runs AFTER all 16 tables are drained, not right after target-user creation -- confirmed live
+ * that inserting rows into review_logs/the progress tables fires this project's normal
+ * achievement/leaderboard-count triggers (the same concern the reference-supabase-cli-and-live-db
+ * memory documents for direct restores: "re-inserting rows into progress/log tables fires
+ * triggers that re-award achievements and bump leaderboard counters"). PostgREST gives no way to
+ * set `session_replication_role = replica` per request the way a raw psql connection can, so
+ * instead this runs LAST and unconditionally overwrites leaderboard_stats/user_study_settings
+ * with the source's authoritative values, discarding whatever the triggers did in between.
+ */
 async function stepSyncProfile(env: Env, row: RegionMoveRow): Promise<void> {
   const sourceCfg = restConfig(env, row.source_region);
   const targetCfg = restConfig(env, row.target_region);
@@ -396,14 +411,13 @@ async function stepRetireSource(env: Env, row: RegionMoveRow): Promise<void> {
 }
 
 /** Issues a magic-link token for the target project so the frontend can call
- * `supabase.auth.verifyOtp({ email, token_hash, type: "magiclink" })` against a target-region
- * client and land the user in an established session immediately, instead of sending them back
- * through a manual "Continue with Google" click -- and, more importantly, without depending on
- * whether the target project's "Automatic Linking" Auth setting would even let a subsequent
- * Google sign-in attach to the admin-API-created auth.users row at all (unverified from code;
- * this sidesteps the question entirely rather than resting the whole re-auth flow on it).
- * NEEDS LIVE VERIFICATION: confirm `hashed_token`/`properties.hashed_token` is the field this
- * GoTrue version actually returns before shipping -- see the plan's verification section. */
+ * `supabase.auth.verifyOtp({ token_hash, type: "email" })` (NOT with `email` also set -- confirmed
+ * live that GoTrue's /auth/v1/verify rejects that combination) against a target-region client and
+ * land the user in an established session immediately, instead of sending them back through a
+ * manual "Continue with Google" click -- and, more importantly, without depending on whether the
+ * target project's "Automatic Linking" Auth setting would even let a subsequent Google sign-in
+ * attach to the admin-API-created auth.users row at all. Response field confirmed live:
+ * `properties.hashed_token`. */
 async function generateMagicLinkTokenHash(env: Env, region: Region, email: string): Promise<string | null> {
   const { url, serviceRoleKey } = projectConfig(env, region);
   const res = await fetch(new URL("auth/v1/admin/generate_link", url), {
@@ -431,12 +445,16 @@ interface StepResult {
 /** Runs exactly one step and returns whether the whole move is now complete. Never trust
  * `row.status` for branching -- only for display; the individual columns are the resume state. */
 async function runNextStep(env: Env, row: RegionMoveRow): Promise<StepResult> {
+  // Table drains run BEFORE profile_synced -- stepSyncProfile must have the last word on
+  // leaderboard_stats/user_study_settings, since draining review_logs/the progress tables can
+  // trigger this project's normal achievement/leaderboard-count triggers (see the comment on
+  // stepSyncProfile).
   const step = !row.target_user_id
     ? "create_target_user"
-    : !row.profile_synced
-      ? "sync_profile"
-      : row.current_table
-        ? `drain_${row.current_table}`
+    : row.current_table
+      ? `drain_${row.current_table}`
+      : !row.profile_synced
+        ? "sync_profile"
         : !row.avatar_done
           ? "avatar"
           : !row.stripe_done
