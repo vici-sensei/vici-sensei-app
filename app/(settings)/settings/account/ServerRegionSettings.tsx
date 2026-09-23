@@ -1,66 +1,81 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaCheck, FaEarthAmericas, FaEarthEurope } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useIsAdmin } from "@/lib/auth/useIsAdmin";
 import { updateStudySettings } from "@/lib/client-data/studySettings";
 import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
-import { getRegionMoveStatus, moveToOtherRegion, type RegionMoveStatus } from "@/lib/client-data/account";
+import { getRegionMoveStatus, moveToOtherRegion, type RegionMoveProgress } from "@/lib/client-data/account";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
 import { RegionSelector } from "@/app/components/ui/RegionSelector";
-import { Button } from "@/app/components/ui/Button";
-import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
-import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { guessServerRegion, type ServerRegion } from "@/lib/serverRegion";
 import { getActiveRegion, isMultiRegionEnabled, type Region } from "@/lib/supabase/regions";
 
-const REGION_NAME: Record<Region, string> = { eu: "Europe", us: "the Americas" };
-const OTHER_REGION: Record<Region, Region> = { eu: "us", us: "eu" };
+const REGION_META: Record<Region, { label: string; description: string; icon: typeof FaEarthEurope }> = {
+  eu: { label: "Europe", description: "Europe, Africa & Western Asia", icon: FaEarthEurope },
+  us: { label: "Americas", description: "North & South America", icon: FaEarthAmericas },
+};
+
+/** A ring that fills clockwise as `percent` climbs, replacing the plain checkmark on whichever
+ * card is currently being moved TO -- the only progress indicator this flow shows (no overlay, no
+ * modal, per the redesign). */
+function ProgressRing({ percent }: { percent: number }) {
+  const size = 40;
+  const stroke = 3;
+  const radius = (size - stroke) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference * (1 - percent / 100);
+  return (
+    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center">
+      <svg width={size} height={size} className="-rotate-90 text-accent-blue">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset 300ms ease" }}
+        />
+      </svg>
+      <span className="absolute text-[0.6rem] font-bold text-white">{percent}%</span>
+    </div>
+  );
+}
 
 /** Behind NEXT_PUBLIC_MULTI_REGION, the region a signed-in user is in is a real, settled fact
- * (decided at login -- see app/login/page.tsx -- and enforced by the "Before User Created" hook),
- * not a preference to edit here directly. Self-service moving between regions goes through
- * `moveToOtherRegion()` (lib/client-data/account.ts -> the Worker's /api/region-move/* -- see
- * worker/lib/regionMove.ts), not a simple field edit. `getActiveRegion()` reflects whichever
- * project createClient() is actually talking to for this session. */
+ * (decided at login -- see app/login/page.tsx -- and enforced by the "Before User Created" hook).
+ * Clicking the other region's card starts a self-service move immediately -- no confirmation step,
+ * matching this project's other account actions being one click (see AccountDangerZone for the
+ * one exception, which needs its heavier confirmation for a different reason). Progress shows only
+ * as the target card's own fill ring; there's no separate overlay. `moveToOtherRegion()`
+ * (lib/client-data/account.ts -> the Worker's /api/region-move/* -- see worker/lib/regionMove.ts)
+ * does the actual work and is safe to resume, which is what happens automatically on mount if a
+ * previous attempt was left mid-flight (tab closed, etc). */
 function ActiveRegionDisplay() {
   const { user } = useAuth();
   const isAdmin = useIsAdmin(user);
   const { showToast } = useToast();
   const region = getActiveRegion();
-  const targetRegion = OTHER_REGION[region];
 
-  const [moveStatus, setMoveStatus] = useState<RegionMoveStatus | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [moving, setMoving] = useState(false);
-  const [progress, setProgress] = useState<string | null>(null);
+  const [movingTo, setMovingTo] = useState<Region | null>(null);
+  const [percent, setPercent] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    getRegionMoveStatus(region)
-      .then((status) => {
-        if (!cancelled) setMoveStatus(status);
-      })
-      .catch(() => {
-        // A failed status check just means the button starts in its normal (non-resume) state --
-        // moveToOtherRegion() below would surface any real problem when actually clicked.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [region]);
-
-  async function handleConfirmMove() {
-    setConfirmOpen(false);
-    setMoving(true);
-    setProgress(null);
+  async function runMove(targetRegion: Region) {
+    setMovingTo(targetRegion);
+    setPercent(0);
     try {
-      await moveToOtherRegion(region, targetRegion, setProgress);
-      window.location.href = "/dashboard";
+      await moveToOtherRegion(region, targetRegion, (p: RegionMoveProgress) => setPercent(p.percent));
+      window.location.href = "/settings/account";
     } catch (err) {
-      setMoving(false);
+      setMovingTo(null);
       showToast(
         err instanceof ApiError ? err.message : getErrorMessage(err, "Could not move your account. Please try again."),
         "error"
@@ -68,42 +83,75 @@ function ActiveRegionDisplay() {
     }
   }
 
-  const resuming = moveStatus?.active === true;
+  useEffect(() => {
+    let cancelled = false;
+    getRegionMoveStatus(region)
+      .then((status) => {
+        if (!cancelled && status.active && status.targetRegion) runMove(status.targetRegion);
+      })
+      .catch(() => {
+        // No active move to resume, or the check itself failed -- either way just start clean.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Only re-check on region change; runMove is stable enough for this one-shot resume check.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [region]);
+
+  const moving = movingTo !== null;
 
   return (
     <div>
-      <SettingsHeader title="Server region" description="Automatically set to the region closest to you." />
-      <p className="max-w-sm text-left text-sm text-text-muted">
-        Your account is in <span className="font-semibold text-white">{REGION_NAME[region]}</span>.
-      </p>
-
-      {isAdmin !== "admin" && (
-        <div className="mt-4">
-          <Button variant="secondary" size="sm" onClick={() => setConfirmOpen(true)} disabled={moving}>
-            {resuming ? `Resume move to ${REGION_NAME[targetRegion]}` : `Move to ${REGION_NAME[targetRegion]}`}
-          </Button>
-        </div>
-      )}
-
-      {confirmOpen && (
-        <ConfirmDialog
-          title={`Move your account to ${REGION_NAME[targetRegion]}?`}
-          description={`Your progress, streak, and subscription will be copied to ${REGION_NAME[targetRegion]} and you'll be signed in there automatically. Your current account keeps working for a few minutes while this runs, then stops -- it's kept for 30 days as a safety net, but you won't be able to use it after the move completes.`}
-          confirmLabel="Move my account"
-          onConfirm={handleConfirmMove}
-          onCancel={() => setConfirmOpen(false)}
-        />
-      )}
-
-      {moving && (
-        <div className="fixed inset-0 z-50 bg-bg-primary/95">
-          <FullScreenLoader />
-          <p className="absolute inset-x-0 bottom-[35%] px-6 text-center text-sm text-text-muted">
-            {progress ? `Moving your account (${progress})…` : "Moving your account…"} This can take a minute, please
-            don&apos;t close this tab.
-          </p>
-        </div>
-      )}
+      <SettingsHeader title="Server region" />
+      <div className="flex max-w-sm flex-col gap-3 text-left">
+        {(Object.keys(REGION_META) as Region[]).map((option) => {
+          const { label, description, icon: Icon } = REGION_META[option];
+          const selected = option === region;
+          const isTarget = movingTo === option;
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => {
+                if (moving || selected || isAdmin === "admin") return;
+                runMove(option);
+              }}
+              disabled={moving || isAdmin === "admin"}
+              className={`relative flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 disabled:cursor-not-allowed ${
+                moving && !isTarget ? "opacity-50" : ""
+              } ${
+                selected
+                  ? "border-accent-blue bg-accent-blue/[0.08] shadow-[0_0_20px_rgba(0,210,255,0.35)]"
+                  : "border-border-soft bg-white/[0.03] enabled:hover:border-white/20"
+              }`}
+            >
+              <div
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${
+                  selected ? "bg-accent-blue text-black" : "bg-white/[0.06] text-text-muted"
+                }`}
+              >
+                <Icon />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[1.05rem] font-extrabold text-white">{label}</span>
+                <p className="mt-0.5 text-[0.8rem] text-text-muted">{description}</p>
+              </div>
+              {isTarget ? (
+                <ProgressRing percent={percent} />
+              ) : (
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                    selected ? "border-accent-blue bg-accent-blue text-black" : "border-white/20 text-transparent"
+                  }`}
+                >
+                  <FaCheck className="h-3 w-3" />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

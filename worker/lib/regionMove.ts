@@ -440,7 +440,22 @@ interface StepResult {
   targetRegion?: Region;
   email?: string;
   signInTokenHash?: string | null;
+  completedSteps: number;
+  totalSteps: number;
 }
+
+// Fixed step order, for the frontend's percent-complete display only -- must stay in sync with the
+// branches in runNextStep() below by hand (nothing enforces it), since it doesn't affect the actual
+// resume logic (that's driven by the row's own columns, not this list).
+const ALL_STEP_NAMES = [
+  "create_target_user",
+  ...COPY_TABLES.map((t) => `drain_${t.name}`),
+  "sync_profile",
+  "avatar",
+  "stripe",
+  "update_ledger",
+  "retire_source",
+];
 
 /** Runs exactly one step and returns whether the whole move is now complete. Never trust
  * `row.status` for branching -- only for display; the individual columns are the resume state. */
@@ -470,7 +485,15 @@ async function runNextStep(env: Env, row: RegionMoveRow): Promise<StepResult> {
     // issue a fresh token rather than failing, generate_link has no meaningful "already done"
     // state of its own to be idempotent against.
     const signInTokenHash = await generateMagicLinkTokenHash(env, row.target_region, row.email);
-    return { done: true, status: "completed", targetRegion: row.target_region, email: row.email, signInTokenHash };
+    return {
+      done: true,
+      status: "completed",
+      targetRegion: row.target_region,
+      email: row.email,
+      signInTokenHash,
+      completedSteps: ALL_STEP_NAMES.length,
+      totalSteps: ALL_STEP_NAMES.length,
+    };
   }
 
   try {
@@ -492,11 +515,21 @@ async function runNextStep(env: Env, row: RegionMoveRow): Promise<StepResult> {
     throw err;
   }
 
+  const completedSteps = ALL_STEP_NAMES.indexOf(step) + 1;
+
   if (step === "retire_source") {
     const signInTokenHash = await generateMagicLinkTokenHash(env, row.target_region, row.email);
-    return { done: true, status: "completed", targetRegion: row.target_region, email: row.email, signInTokenHash };
+    return {
+      done: true,
+      status: "completed",
+      targetRegion: row.target_region,
+      email: row.email,
+      signInTokenHash,
+      completedSteps,
+      totalSteps: ALL_STEP_NAMES.length,
+    };
   }
-  return { done: false, status: step };
+  return { done: false, status: step, completedSteps, totalSteps: ALL_STEP_NAMES.length };
 }
 
 // ---------------------------------------------------------------------------

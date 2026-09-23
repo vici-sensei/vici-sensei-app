@@ -101,6 +101,13 @@ interface ContinueResult {
   targetRegion?: Region;
   email?: string;
   signInTokenHash?: string | null;
+  completedSteps?: number;
+  totalSteps?: number;
+}
+
+export interface RegionMoveProgress {
+  status: string;
+  percent: number;
 }
 
 /**
@@ -115,7 +122,7 @@ interface ContinueResult {
 export async function moveToOtherRegion(
   sourceRegion: Region,
   targetRegion: Region,
-  onProgress?: (status: string) => void
+  onProgress?: (progress: RegionMoveProgress) => void
 ): Promise<{ targetRegion: Region }> {
   await regionMoveFetch("/api/region-move/start", sourceRegion, { targetRegion });
 
@@ -123,7 +130,9 @@ export async function moveToOtherRegion(
   for (;;) {
     result = (await regionMoveFetch("/api/region-move/continue", sourceRegion)) as ContinueResult;
     if (result.error) throw new ApiError(500, result.error);
-    onProgress?.(result.status);
+    const percent =
+      result.totalSteps && result.totalSteps > 0 ? Math.round(((result.completedSteps ?? 0) / result.totalSteps) * 100) : 0;
+    onProgress?.({ status: result.status, percent });
     if (result.done) break;
   }
 
