@@ -44,6 +44,7 @@ Nu toate migrațiile se aplică identic pe ambele proiecte active — unele sunt
 | `20260923155526_kanji_detail_words_exclude_shared_furigana.sql` | — | ✅ | ✅ | text identic pe ambele: `rebuild_kanji_detail_words()` nu mai alege cuvinte în care furigana kanji-ului e comună cu un kanji vecin (jukujikun/ateji: 今日, 大人, 田舎) decât ca rezervă pentru un kanji fără alte cuvinte; include `select rebuild_kanji_detail_words()` (5202 → 5191 rânduri pe ambele) |
 | `20260923165827_admin_student_detail_premium_until_eu.sql` | — | ✅ | — | `admin_get_student_detail` întoarce și `premium_until` (coloană nouă la final), pentru data de sfârșit a Pro-ului pe pagina de detaliu a elevului |
 | `20260923165828_admin_student_detail_premium_until_us.sql` | — | — | ✅ | oglindă a fișierului de mai sus, `mirror_eu` în loc de `mirror_us`, etichete 'us'/'eu' inversate |
+| `20260923170511_leaderboard_peer_excludes_all_local_users.sql` | — | ✅ | ✅ | text identic pe ambele: cele 4 `get_leaderboard_*` exclud din ramura `peer` (cache-ul `lb_export`) orice `user_id` care există local, nu doar pe cei rămași după filtrul `pending_deletion_at is null` — altfel un cont abia șters/retras reapărea până la 5 min pe leaderboard-ul propriei regiuni, din rândul vechi al propriului cache |
 
 **Regulă pentru orice migrație nouă:** decide explicit domeniul (ambele proiecte active / doar EU /
 doar US) înainte de a scrie fișierul, scrie decizia într-un comentariu pe primul rând al fișierului
