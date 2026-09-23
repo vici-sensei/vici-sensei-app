@@ -132,7 +132,7 @@ export function ProfileMenu({ user, loaded = true }: { user: UserProfile; loaded
         </Link>
         <Link href="/settings/billing" className={menuItemClasses} onClick={() => setOpen(false)}>
           <FaCrown className="text-accent-gold" />
-          Billing
+          Courses
         </Link>
         <Link href="/settings/account" className={menuItemClasses} onClick={() => setOpen(false)}>
           <FaShieldHalved />

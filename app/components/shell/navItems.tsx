@@ -74,7 +74,7 @@ export const NAV_ITEMS: NavItem[] = [
       },
       {
         href: "/settings/billing",
-        label: "Billing",
+        label: "Courses",
         isActive: (p) => p.startsWith("/settings/billing"),
         icon: <FaCrown className="text-accent-gold" />,
       },

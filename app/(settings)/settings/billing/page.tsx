@@ -12,7 +12,7 @@ export default function SettingsBillingPage() {
 
   return (
     <div>
-      <SettingsHeader title="Billing" description="Your Vici Sensei Pro access." />
+      <SettingsHeader title="Courses" description="Your Vici Sensei Pro access." />
 
       {!loaded ? <BillingSkeleton /> : <BillingPanel user={profile} />}
     </div>
