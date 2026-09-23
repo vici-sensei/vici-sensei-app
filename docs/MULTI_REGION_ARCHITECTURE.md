@@ -77,12 +77,11 @@ reface exportul, `CREATE PUBLICATION`/`CREATE SUBSCRIPTION` îl trimite la celă
 subsetul de care oricum trebuie eliminat prin dedup. `lb_export` nu are niciun grant către
 `anon`/`authenticated` — nu e expus direct prin PostgREST, doar citit de funcțiile RPC de mai sus.
 
-## Panou admin — mirror US→EU (Faza 6)
+## Panou admin — mirror US→EU (Faza 6, reparat 2026-09-23)
 
 Adminul există doar pe EU. Pentru ca acel cont să vadă și studenții din US fără un al doilea login:
 16 tabele US (progres per kanji/vocabular/hiragana/katakana, XP, streak, recenzii — lista completă în
-`supabase/migrations/20260922194231_admin_mirror_us_publication.sql`) sunt publicate de US și mirror-ate
-continuu (nu la 5 min ca leaderboard-ul — replicare directă de rânduri, fără agregare) în schema
+`supabase/migrations/20260922194231_admin_mirror_us_publication.sql`) ajung mirror-ate în schema
 `mirror_us` de pe EU. `admin_all.<table>` = `UNION ALL` între `public.<table>` (local) și
 `mirror_us.<table>`. Fiecare funcție folosită de admin (`admin_get_student_*`, 13 la număr) e nouă,
 `SECURITY DEFINER`, cu propriul `IF NOT is_admin() THEN RAISE EXCEPTION` — NU s-a atins nicio funcție
@@ -90,6 +89,22 @@ existentă folosită și de studenți pentru statisticile proprii (unele dintre 
 `SECURITY DEFINER`, se bazează pe RLS; redirectarea lor ar fi permis oricui să citească date mirror-ate
 ale altcuiva). `mirror_us` nu are niciun grant/RLS policy către `anon`/`authenticated` — acces zero în
 afara funcțiilor `admin_*`, ca apărare suplimentară.
+
+**Mecanismul real (`postgres_fdw` + `pg_cron`, nu replicare logică):** varianta inițială (Faza 6)
+folosea `CREATE SUBSCRIPTION mirror_us_sub` pe EU, abonată la o publicație de pe US. S-a dovedit
+stricată: replicarea logică nativă Postgres potrivește tabelul țintă STRICT după numele calificat cu
+schemă publicat de sursă (`public.users`) — nu există remapare de schemă în Postgres standard (doar
+în extensia `pglogical`, indisponibilă pe Supabase). Rezultat: subscripția scria de fapt direct în
+`public.users`/`public.leaderboard_stats`/etc. de pe EU — tabelele LIVE ale aplicației — nu în
+`mirror_us.*`. Confirmat cu date reale 2026-09-23 (primul utilizator real de pe US a apărut ca rând
+"EU" autentic) și reparat cu `supabase/migrations/20260923003744_fix_mirror_us_replication.sql`:
+`CREATE SERVER`/`postgres_fdw` (extensie standard, fără constrângerea de nume) + foreign tables
+(`mirror_us_fdw.<table>`, citind live din US) + `mirror_us.refresh_all()` rulat de `pg_cron` la 5 min
+(`TRUNCATE` + `INSERT INTO mirror_us.<table> SELECT * FROM mirror_us_fdw.<table>`, într-o singură
+tranzacție per refresh). Subscripția stricată a fost ștearsă. **De reținut pentru orice replicare
+viitoare între cele două proiecte:** `CREATE SUBSCRIPTION` funcționează DOAR când tabelul țintă are
+EXACT același nume+schemă ca la sursă (cazul Fazei 5 de mai jos, unde funcționează corect) — altfel,
+`postgres_fdw` + refresh programat e calea corectă.
 
 ## Auth — Google OAuth și Stripe
 

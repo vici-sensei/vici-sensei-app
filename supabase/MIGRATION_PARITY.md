@@ -29,6 +29,7 @@ Nu toate migrațiile se aplică identic pe ambele proiecte active — unele sunt
 | `20260922203511_admin_mirror_us_views.sql` | — | ✅ | — | idem |
 | `20260922203531_admin_mirror_us_functions.sql` | — | ✅ | — | idem |
 | `20260922222732_grant_users_self_edit_columns.sql` | — | ✅ | ✅ | vechiul avea deja aceste GRANT-uri de coloană |
+| `20260923003744_fix_mirror_us_replication.sql` | — | ✅ | — | înlocuiește `mirror_us_sub` (replicare logică, stricată) cu `postgres_fdw` + `pg_cron` — vezi secțiunea de mai jos |
 
 **Regulă pentru orice migrație nouă:** decide explicit domeniul (ambele proiecte active / doar EU /
 doar US) înainte de a scrie fișierul, scrie decizia într-un comentariu pe primul rând al fișierului
@@ -47,32 +48,38 @@ Compară lista cu coloana relevantă din tabelul de mai sus (EU sau US). Orice `
 apare în rezultat = migrație aplicată pe disc dar nu pe acel proiect (sau aplicată dar neînregistrată
 în ledger — vezi gap-ul de mai jos).
 
-## Gap cunoscut, de verificat și reparat
+## Gap găsit și reparat (2026-09-23)
 
-Migrațiile de după baseline (toate cele 9 din tabel) au fost aplicate pe EU-nou/US-nou prin `psql`
-direct sau din SQL Editor — **nu prin `supabase db push`**, singura cale prin care ledger-ul
-(`supabase_migrations.schema_migrations`) se completează automat. Nu există nicio confirmare că
-aceste 9 migrații au fost și înregistrate manual în ledger pe cele două proiecte noi. Cel mai probabil
-ledger-ul de pe EU-nou/US-nou are DOAR rândul baseline-ului.
+Confirmat prin `psql` direct (citire): ledger-ul de pe EU-nou/US-nou avea DOAR baseline +
+`fix_new_project_bootstrap_grants` — celelalte 7 migrații fuseseră aplicate (schema verificată direct:
+`lb_export`/`mirror_us`/`admin_all` există, cele 9 funcții `admin_get_student_*` există, publicația
+`mirror_us_pub` există pe US) dar niciodată înregistrate, exact din cauza de mai sus (`psql` direct,
+nu `supabase db push`). Ledger-ul a fost completat pe ambele proiecte (`insert ... on conflict do
+nothing`, backfill din tabelul de scop de mai sus) — acum are exact rândurile așteptate din coloanele
+EU/US ale tabelului. Dacă apare din nou acest gap la o migrație viitoare, aceleași `insert`-uri
+(un rând per `version`/`name`) rezolvă problema.
 
-Dacă interogarea de mai sus confirmă că lipsesc, completează-l (pe fiecare proiect, doar coloanele lui
-`✅` din tabel):
+## Bug găsit și reparat (2026-09-23): `mirror_us_sub` replica în `public`, nu în `mirror_us`
 
-```sql
-insert into supabase_migrations.schema_migrations (version, name) values
-  ('20260922011720', 'fix_new_project_bootstrap_grants'),
-  ('20260922200515', 'leaderboard_cross_region_export'),
-  ('20260922200735', 'leaderboard_cross_region_union'),
-  ('20260922200900', 'leaderboard_replication_setup'),
-  ('20260922222732', 'grant_users_self_edit_columns')
-on conflict (version) do nothing;
--- + pe EU-nou, în plus:
-  -- ('20260922203458', 'admin_mirror_us_schema'),
-  -- ('20260922203511', 'admin_mirror_us_views'),
-  -- ('20260922203531', 'admin_mirror_us_functions')
--- + pe US-nou, în plus:
-  -- ('20260922194231', 'admin_mirror_us_publication')
-```
+Verificare directă (`pg_subscription_rel`, schema rezolvată explicit) a confirmat că subscripția
+`mirror_us_sub` de pe EU (Faza 6) scria de fapt în tabelele LIVE `public.*`, nu în `mirror_us.*` cum
+era proiectat — replicarea logică nativă Postgres potrivește tabelul țintă STRICT după numele
+calificat cu schemă publicat de sursă (`public.users`), fără nicio opțiune de remapare (asta există
+doar în extensia `pglogical`, indisponibilă pe Supabase). Confirmat cu date reale: primul utilizator
+real de pe US (`bluekitsunebi@gmail.com`, semnat 2026-09-22 22:38, testul live din Faza 7) apărea ca
+rând autentic în `public.users`/`public.leaderboard_stats`/`public.user_study_settings` de pe EU.
+
+**Reparat** cu `20260923003744_fix_mirror_us_replication.sql`: `postgres_fdw` (server + foreign
+tables `mirror_us_fdw.<table>`, citind live din US) + `pg_cron` la 5 min (`mirror_us.refresh_all()`)
+care populează `mirror_us.<table>` din foreign tables — fără constrângerea de nume, spre deosebire de
+replicarea logică. Subscripția stricată a fost ștearsă (`DROP SUBSCRIPTION mirror_us_sub`), rândul
+contaminat șters din `public.*`. Detalii tehnice complete în `docs/MULTI_REGION_ARCHITECTURE.md`.
+
+**De reținut pentru orice replicare viitoare între cele două proiecte:** replicarea logică nativă
+funcționează DOAR când tabelul țintă are exact același nume+schemă ca la sursă (cazul Fazei 5,
+`lb_export.eu_entries`/`us_entries`, identice pe ambele proiecte). Când numele diferă (cazul unui
+mirror într-o schemă cu alt nume), soluția e `postgres_fdw` + refresh programat, nu
+`CREATE SUBSCRIPTION`.
 
 ## De ce nu e (încă) un script automat
 
