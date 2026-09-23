@@ -9,10 +9,11 @@ import { KanjiInfoModal } from "./KanjiInfoModal";
 import { useKanjiLongPress } from "./useKanjiLongPress";
 
 /** Long-press-to-see-meaning for the kanji of the word(s) a /study card shows -- the "New kanji"
- * card's word list and the "Word reading" / "New word" card's word. Pressable: every kanji in
- * `text` the kanji table knows, except `excludedKanji` (the one the card itself is about, if any)
- * and any whose meaning the user has already learned. Nothing is pressable until the lookup lands,
- * and it stays that way if the lookup fails -- the card then works exactly as it would without this.
+ * card's word list and the "Word reading" / "New word" / "Vocabulary" card's word. Pressable:
+ * every kanji in `text` the kanji table knows, except `excludedKanji` (the one the card itself is
+ * about, if any) and any whose meaning the user has already learned. Nothing is pressable until the
+ * lookup lands, and it stays that way if the lookup fails -- the card then works exactly as it
+ * would without this.
  *
  * Returns `renderKanji` (pass as renderWordWithFurigana/renderTargetWord's `renderText`), which
  * wraps each pressable kanji in the `data-kanji` span useKanjiLongPress looks for;

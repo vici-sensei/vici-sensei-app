@@ -1,8 +1,9 @@
 "use client";
 
 import type { DueCard, Rating } from "@/lib/types";
-import { renderVocabularyWord } from "@/lib/study/furigana";
+import { renderVocabularyWord, vocabularyDisplayText } from "@/lib/study/furigana";
 import { useVocabMeaningReviewCard } from "./useVocabMeaningReviewCard";
+import { usePressableKanji } from "./usePressableKanji";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
 import { Accent } from "./Accent";
@@ -24,14 +25,31 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
 
   const askingForAnother = confirmedAlternates.length > 0 && !revealed;
 
+  // The word's kanji open KanjiInfoModal on long-press -- but only in a word of more than one
+  // character: a single kanji's own meaning is the very answer this card asks for.
+  const displayedWord = card.word ? vocabularyDisplayText({ ...card, word: card.word }) : "";
+  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen } = usePressableKanji(
+    Array.from(displayedWord).length > 1 ? displayedWord : "",
+    null
+  );
+  // While the modal is open the card counts as disabled -- see ReviewCardKanjiReading.
+  const shellDisabled = disabled || kanjiModalOpen;
+
   return (
     <ReviewCardShell
       label="Vocabulary"
       accent="orange"
       prompt={
-        <CardHeading furigana masked={!revealed}>
-          {card.word ? renderVocabularyWord({ ...card, word: card.word }) : card.word}
-        </CardHeading>
+        <>
+          <div {...longPressProps}>
+            <CardHeading furigana masked={!revealed}>
+              {card.word
+                ? renderVocabularyWord({ ...card, word: card.word }, undefined, undefined, undefined, renderKanji)
+                : card.word}
+            </CardHeading>
+          </div>
+          {kanjiModal}
+        </>
       }
       subtitle={
         askingForAnother ? (
@@ -45,9 +63,9 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
         )
       }
       revealed={revealed}
-      checkDisabled={disabled || !answer.trim()}
+      checkDisabled={shellDisabled || !answer.trim()}
       correct={result?.correct ?? false}
-      disabled={disabled}
+      disabled={shellDisabled}
       ratingPreviews={card.rating_previews}
       onRate={handleRate}
       onContinue={handleContinue}
@@ -60,7 +78,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
             onAnswerChange={setAnswer}
             onSubmit={handleCheck}
             placeholder="Type a meaning…"
-            disabled={disabled}
+            disabled={shellDisabled}
             accent="orange"
           />
         </div>
