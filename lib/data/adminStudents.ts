@@ -16,11 +16,39 @@ import type { StudentRosterRow } from "@/lib/types";
  * already branches on, or this would 404 in production today.
  */
 export async function fetchStudentRoster(supabase: AppSupabaseClient): Promise<StudentRosterRow[]> {
-  const { data, error } = await supabase.rpc(isMultiRegionEnabled() ? "admin_get_student_roster" : "get_admin_student_roster");
+  if (isMultiRegionEnabled()) {
+    const { data, error } = await supabase.rpc("admin_get_student_roster");
+    if (error) throw new Error(error.message);
+    return data as StudentRosterRow[];
+  }
 
+  // The old project's get_admin_student_roster predates Pro end dates and regions.
+  const { data, error } = await supabase.rpc("get_admin_student_roster");
   if (error) throw new Error(error.message);
+  return (data as Omit<StudentRosterRow, "premium_until" | "has_stripe" | "region" | "study_track">[]).map((row) => ({
+    ...row,
+    premium_until: null,
+    has_stripe: false,
+    region: null,
+    study_track: null,
+  }));
+}
 
-  // Most-quiet-first (never-active sorts as "" which precedes any ISO date) -- that's who the
-  // teacher actually needs to see.
-  return (data as StudentRosterRow[]).sort((a, b) => (a.last_active_date ?? "").localeCompare(b.last_active_date ?? ""));
+/**
+ * admin_set_student_premium (multi-region only, 20260923152656/152732_premium_trial_admin_*.sql)
+ * writes through to whichever project the student lives in. `premiumUntil` null = no end date;
+ * ignored when turning Pro off. Refused for a student whose Pro comes from Stripe.
+ */
+export async function setStudentPremium(
+  supabase: AppSupabaseClient,
+  userId: string,
+  isPremium: boolean,
+  premiumUntil: string | null
+): Promise<void> {
+  const { error } = await supabase.rpc("admin_set_student_premium", {
+    p_user_id: userId,
+    p_is_premium: isPremium,
+    p_premium_until: premiumUntil,
+  });
+  if (error) throw new Error(error.message);
 }

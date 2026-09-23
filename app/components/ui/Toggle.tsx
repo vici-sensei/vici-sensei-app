@@ -5,13 +5,14 @@ interface ToggleProps {
   onChange: () => void;
   disabled?: boolean;
   className?: string;
-  color?: "red" | "blue";
+  color?: "red" | "blue" | "gold";
   "aria-label"?: string;
 }
 
 const CHECKED_COLOR = {
   red: "peer-checked:bg-accent-red",
   blue: "peer-checked:bg-accent-blue",
+  gold: "peer-checked:bg-accent-gold",
 };
 
 export function Toggle({ checked, onChange, disabled, className, color = "red", ...rest }: ToggleProps) {

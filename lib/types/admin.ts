@@ -26,6 +26,15 @@ export interface StudentRosterRow {
   practice_count: number;
   test_count: number;
   xp_points: number;
+  /** When is_premium stops being true (the premium-trial-expiry cron flips it). null = no end date.
+   *  Kept after expiry, so a past value on a non-Pro row means "trial ended". Always null when
+   *  NEXT_PUBLIC_MULTI_REGION is off (the old project has no such column). */
+  premium_until: string | null;
+  /** Pro comes from a Stripe subscription (stripe-webhook owns is_premium), not from an admin. */
+  has_stripe: boolean;
+  /** Which project the student's row lives in; null when NEXT_PUBLIC_MULTI_REGION is off. */
+  region: Region | null;
+  study_track: "kana" | "standard" | null;
 }
 
 export interface StudentDailyActivity {

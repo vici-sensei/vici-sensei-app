@@ -27,19 +27,28 @@ export function buildFuriganaSegments(word: string, furiganas: string[] | null |
   return segments;
 }
 
+/** True for a kanji character -- any Han-script char except 々, which only repeats the kanji
+ * before it and has no meaning of its own. */
+export function isKanjiChar(char: string): boolean {
+  return char !== "々" && /\p{Script=Han}/u.test(char);
+}
+
+/** `renderText`, when given, replaces each segment's plain base text (never the furigana) -- e.g.
+ * WordPreviewRow wraps every kanji in its own long-pressable span. */
 export function renderWordWithFurigana(
   word: string,
   furiganas: string[] | null | undefined,
   furiganaClassName = "text-base font-normal text-text-muted",
   furiganaBgClassName = "bg-white/5",
-  furiganaSelectable = false
+  furiganaSelectable = false,
+  renderText: (text: string) => ReactNode = (text) => text
 ): ReactNode {
   const segments = buildFuriganaSegments(word, furiganas);
   const lastFuriganaIndex = segments.reduce((acc, s, idx) => (s.furigana ? idx : acc), -1);
   return segments.map((segment, i) =>
     segment.furigana ? (
       <ruby key={i} className={i === lastFuriganaIndex ? "" : "mr-[0.2em]"}>
-        {segment.text}
+        {renderText(segment.text)}
         <rt
           className={`mb-[0.5em] ${furiganaSelectable ? "" : "select-none"} ${furiganaClassName} ${
             segment.text.length > 1 ? `rounded-md ${furiganaBgClassName} px-1 pb-1` : ""
@@ -49,7 +58,7 @@ export function renderWordWithFurigana(
         </rt>
       </ruby>
     ) : (
-      <span key={i}>{segment.text}</span>
+      <span key={i}>{renderText(segment.text)}</span>
     )
   );
 }

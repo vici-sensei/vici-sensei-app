@@ -7,6 +7,9 @@ export interface KanjiRow {
   on_readings: string[] | null;
 }
 
+/** Just enough of a kanji row for the /study word list's long-press popup (KanjiInfoModal). */
+export type KanjiInfo = Pick<KanjiRow, "kanji" | "meanings" | "level">;
+
 export interface KanjiListResponse {
   data: KanjiRow[];
   count: number;

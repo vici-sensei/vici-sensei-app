@@ -235,13 +235,15 @@ async function stepSyncProfile(env: Env, row: RegionMoveRow): Promise<void> {
 
   const sourceUser = await pgSelectOne<Record<string, unknown>>(sourceCfg, "users", { id: `eq.${row.source_user_id}` });
   if (sourceUser) {
-    // is_premium/stripe_customer_id are handled together in stepStripe, not here -- keep the
-    // "this account has an active subscription" state changing in one atomic-ish step, not split
-    // across two.
+    // For a Stripe customer, is_premium/stripe_customer_id are handled together in stepStripe, not
+    // here -- keep the "this account has an active subscription" state changing in one atomic-ish
+    // step, not split across two. Any other account's is_premium (trial, admin-granted, free) IS
+    // copied here, alongside premium_until: the target row was just created by handle_new_user
+    // with a fresh 7-day trial (20260923152640_premium_trial.sql), which must not survive the move.
     delete sourceUser.id;
     delete sourceUser.email;
+    if (sourceUser.stripe_customer_id) delete sourceUser.is_premium;
     delete sourceUser.stripe_customer_id;
-    delete sourceUser.is_premium;
     // `admin` IS copied (an admin who moves stays admin -- the Teacher panel is now deployed on
     // both projects, see 20260923024343/24501_admin_mirror_eu_*.sql, mirroring EU into US the same
     // way mirror_us mirrors US into EU).
