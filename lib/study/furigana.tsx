@@ -87,10 +87,11 @@ export function renderVocabularyWord(
   v: VocabularyWordFields,
   furiganaClassName?: string,
   furiganaBgClassName?: string,
-  furiganaSelectable?: boolean
+  furiganaSelectable?: boolean,
+  renderText?: (text: string) => ReactNode
 ): ReactNode {
   if (showsKanaOnly(v)) return v.kana_reading;
-  return renderWordWithFurigana(v.word, v.furiganas, furiganaClassName, furiganaBgClassName, furiganaSelectable);
+  return renderWordWithFurigana(v.word, v.furiganas, furiganaClassName, furiganaBgClassName, furiganaSelectable, renderText);
 }
 
 // Shows furigana above every kanji in the word except the one being tested
