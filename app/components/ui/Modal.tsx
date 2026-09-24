@@ -11,6 +11,9 @@ interface ModalProps {
    * Escape/backdrop-click. Opt-in per caller -- ConfirmDialog doesn't pass this, since it already
    * has its own Cancel button and doesn't need a second way to dismiss it. */
   showCloseButton?: boolean;
+  /** Which top corner that "x" button sits in -- "left" frees the top-right corner for the
+   * caller's own content (KanjiInfoModal's level badge). */
+  closeButtonSide?: "left" | "right";
   /** Edge-to-edge over the whole app viewport instead of a centered card -- for content (a full-
    * size image) that should fill the screen rather than sit in a bounded dialog box. Also grows
    * the close button to a size that's actually easy to tap on a phone. Rendered through a portal
@@ -33,7 +36,7 @@ const TRANSITION_MS = 200;
  * layer SakuraPetals behind their content inside this card, and both clip the petals to the
  * rounded corners and keep the card's own z-index comparisons (petals vs. content) from ever
  * being compared against anything outside the card. */
-export function Modal({ onClose, labelledBy, showCloseButton, fullScreen, children }: ModalProps) {
+export function Modal({ onClose, labelledBy, showCloseButton, closeButtonSide = "right", fullScreen, children }: ModalProps) {
   const [shown, setShown] = useState(false);
   const [closing, setClosing] = useState(false);
   const onCloseRef = useRef(onClose);
@@ -107,11 +110,11 @@ export function Modal({ onClose, labelledBy, showCloseButton, fullScreen, childr
             type="button"
             onClick={closeAnimated}
             aria-label="Close"
-            className={
+            className={`absolute top-4 ${closeButtonSide === "left" ? "left-4" : "right-4"} ${
               fullScreen
-                ? "absolute right-4 top-4 flex h-14 w-14 items-center justify-center text-white transition-opacity hover:opacity-70"
-                : "absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-border-soft text-text-muted transition-colors hover:text-white"
-            }
+                ? "flex h-14 w-14 items-center justify-center text-white transition-opacity hover:opacity-70"
+                : "flex h-9 w-9 items-center justify-center rounded-full border border-border-soft text-text-muted transition-colors hover:text-white"
+            }`}
           >
             <FaXmark className={fullScreen ? "text-3xl drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]" : "text-lg"} />
           </button>

@@ -29,11 +29,11 @@ export function KanjiInfoModal({ info, onClose }: Props) {
   // can't cancel that here: on Android the contextmenu event goes to this portal, outside the
   // element its props are spread on, and iOS doesn't fire one at all.
   return createPortal(
-    <Modal onClose={onClose} labelledBy="kanji-info-title" showCloseButton>
+    <Modal onClose={onClose} labelledBy="kanji-info-title" showCloseButton closeButtonSide="left">
       <div className="no-touch-callout select-none text-center">
-        {/* Top-right, just left of the Modal's close button (top-4 right-4, h-9): top-5 centers
-            the md badge's 28px on that 36px button, right-15 leaves a small gap before it. */}
-        {info.level && <LevelBadge level={info.level} className="absolute right-15 top-5" />}
+        {/* Top-right, mirroring the Modal's close button in the top-left (top-4 left-4, h-9):
+            top-5 centers the md badge's 28px on that 36px button's row. */}
+        {info.level && <LevelBadge level={info.level} className="absolute right-4 top-5" />}
         <div id="kanji-info-title" className="mt-2 text-7xl leading-none text-white">
           {info.kanji}
         </div>
