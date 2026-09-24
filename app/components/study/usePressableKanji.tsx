@@ -8,8 +8,8 @@ import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { KanjiInfoModal } from "./KanjiInfoModal";
 import { useKanjiLongPress } from "./useKanjiLongPress";
 
-/** Long-press-to-see-meaning for the kanji of the word(s) a /study card shows -- the "New kanji"
- * card's word list and the "Word reading" / "New word" / "Vocabulary" card's word. Pressable:
+/** Long-press-or-double-tap-to-see-meaning for the kanji of the word(s) a /study card shows -- the
+ * "New kanji" card's word list and the "Word reading" / "New word" / "Vocabulary" card's word. Pressable:
  * every kanji in `text` the kanji table knows, except `excludedKanji` (the one the card itself is
  * about, if any) and any whose meaning the user has already learned. Nothing is pressable until the
  * lookup lands, and it stays that way if the lookup fails -- the card then works exactly as it
@@ -47,7 +47,7 @@ export function usePressableKanji(text: string, excludedKanji: string | null) {
   }, [user.id, kanjiKey]);
 
   // select-none + no-touch-callout: holding the kanji would otherwise start a text selection /
-  // the iOS callout menu instead of the long-press.
+  // the iOS callout menu instead of the long-press (and double-tapping it would select it).
   function renderKanji(segment: string): ReactNode {
     return Array.from(segment).map((char, i) =>
       pressableKanji.has(char) ? (
