@@ -19,10 +19,14 @@ interface Props {
    * nothing when null/empty, which is most words. */
   otherMeanings: string[][] | null;
   className?: string;
+  /** Centers the button under centered text (KanjiInfoModal) instead of lining it up with a
+   * left-aligned list row. */
+  centered?: boolean;
 }
 
 /** "Show other meanings" toggle for a word's other_meanings, placed under its primary meanings on
- * /browse/vocabulary, /browse/vocabulary/detail, and /browse/kanji/detail's word list. Own local
+ * /browse/vocabulary, /browse/vocabulary/detail, and /browse/kanji/detail's word list -- and, with
+ * `centered`, under a kanji's first meaning in /study's KanjiInfoModal. Own local
  * state, so each row on a list page expands/collapses independently. stopPropagation +
  * preventDefault on click since /browse/vocabulary wraps each row in a Link to the detail page --
  * without them, clicking the toggle would also navigate away.
@@ -36,7 +40,7 @@ interface Props {
  * (touchscreens, via Tailwind's pointer-coarse: variant) -- a mouse/trackpad pointer sees the
  * original plain text link, unchanged.
  */
-export function OtherMeaningsToggle({ otherMeanings, className }: Props) {
+export function OtherMeaningsToggle({ otherMeanings, className, centered = false }: Props) {
   const [open, setOpen] = useState(false);
   if (!hasOtherMeanings(otherMeanings)) return null;
 
@@ -50,7 +54,9 @@ export function OtherMeaningsToggle({ otherMeanings, className }: Props) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="flex items-center gap-1.5 text-[0.72rem] font-semibold text-text-muted/80 transition-colors hover:text-white pointer-coarse:-mx-3 pointer-coarse:rounded-lg pointer-coarse:bg-white/[0.04] pointer-coarse:px-3 pointer-coarse:py-2.5 pointer-coarse:ml-0 pointer-coarse:text-[0.8rem] pointer-coarse:active:bg-white/10 pointer-coarse:active:text-white"
+        className={`flex items-center gap-1.5 text-[0.72rem] font-semibold text-text-muted/80 transition-colors hover:text-white pointer-coarse:rounded-lg pointer-coarse:bg-white/[0.04] pointer-coarse:px-3 pointer-coarse:py-2.5 pointer-coarse:text-[0.8rem] pointer-coarse:active:bg-white/10 pointer-coarse:active:text-white ${
+          centered ? "mx-auto w-fit" : "pointer-coarse:-mx-3 pointer-coarse:ml-0"
+        }`}
       >
         <Chevron open={open} />
         {open ? "Hide other meanings" : "Show other meanings"}

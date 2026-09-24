@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { Modal } from "@/app/components/ui/Modal";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
+import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import type { KanjiInfo } from "@/lib/types";
 
 interface Props {
@@ -12,8 +13,11 @@ interface Props {
 
 /** Quick look at one kanji (meaning + JLPT level), opened by long-pressing or double-tapping it on
  * a /study card -- see usePressableKanji, which only makes a kanji pressable once it already holds
- * its row, so there's nothing to load here. */
+ * its row, so there's nothing to load here. Only the first meaning shows up front; the rest (if
+ * any) sit behind a "Show other meanings" toggle, as one comma-separated line. */
 export function KanjiInfoModal({ info, onClose }: Props) {
+  const [firstMeaning, ...otherMeanings] = info.meanings ?? [];
+
   // Portaled because the word list this opens from sits inside StudyCardShell, whose backdrop-blur
   // makes it the containing block for any position:fixed descendant -- rendered in place, the
   // Modal's backdrop would only cover the card instead of the whole screen.
@@ -29,7 +33,8 @@ export function KanjiInfoModal({ info, onClose }: Props) {
         <div id="kanji-info-title" className="mt-2 text-7xl leading-none text-white">
           {info.kanji}
         </div>
-        <div className="mt-5 text-[1.3rem] font-bold text-white">{info.meanings?.join(", ")}</div>
+        {firstMeaning && <div className="mt-5 text-[1.3rem] font-bold text-white">{firstMeaning}</div>}
+        <OtherMeaningsToggle otherMeanings={otherMeanings.length > 0 ? [otherMeanings] : null} centered className="mt-2" />
         {info.level && (
           <div className="mt-4 flex justify-center">
             <LevelBadge level={info.level} />
