@@ -14,7 +14,8 @@ interface Props {
 /** Quick look at one kanji (meaning + JLPT level), opened by long-pressing or double-tapping it on
  * a /study card -- see usePressableKanji, which only makes a kanji pressable once it already holds
  * its row, so there's nothing to load here. Only the first meaning shows up front; the rest (if
- * any) sit behind a "Show other meanings" toggle, as one comma-separated line. */
+ * any) sit behind a "Show other meanings" toggle, one per row with the toggle's own hairline
+ * dividers between them. */
 export function KanjiInfoModal({ info, onClose }: Props) {
   const [firstMeaning, ...otherMeanings] = info.meanings ?? [];
 
@@ -30,16 +31,18 @@ export function KanjiInfoModal({ info, onClose }: Props) {
   return createPortal(
     <Modal onClose={onClose} labelledBy="kanji-info-title" showCloseButton>
       <div className="no-touch-callout select-none text-center">
+        {/* Top-right, just left of the Modal's close button (top-4 right-4, h-9): top-5 centers
+            the md badge's 28px on that 36px button, right-15 leaves a small gap before it. */}
+        {info.level && <LevelBadge level={info.level} className="absolute right-15 top-5" />}
         <div id="kanji-info-title" className="mt-2 text-7xl leading-none text-white">
           {info.kanji}
         </div>
         {firstMeaning && <div className="mt-5 text-[1.3rem] font-bold text-white">{firstMeaning}</div>}
-        <OtherMeaningsToggle otherMeanings={otherMeanings.length > 0 ? [otherMeanings] : null} centered className="mt-2" />
-        {info.level && (
-          <div className="mt-4 flex justify-center">
-            <LevelBadge level={info.level} />
-          </div>
-        )}
+        <OtherMeaningsToggle
+          otherMeanings={otherMeanings.length > 0 ? otherMeanings.map((meaning) => [meaning]) : null}
+          centered
+          className="mt-2"
+        />
       </div>
     </Modal>,
     document.body
