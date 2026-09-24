@@ -300,6 +300,12 @@ export function BrowseKanaListPage({ active, placeholder, accentClass, data, sta
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onFocus={scrollWindowToTopOnFocus}
+            onKeyDown={(e) => {
+              // Enter dismisses the phone keyboard; skip while an IME is composing (Japanese input).
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) e.currentTarget.blur();
+            }}
+            enterKeyHint="done"
+            autoCapitalize="none"
           />
         </div>
       </div>
