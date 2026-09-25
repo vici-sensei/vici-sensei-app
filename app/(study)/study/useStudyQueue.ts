@@ -1067,6 +1067,13 @@ export function useStudyQueue() {
     void (async () => {
       let card: DueCard | null = null;
       try {
+        // Wait for every queued submit to land first (same as endSession does). The queue empties
+        // RATING_PACING_MS after a rating, but that rating's submit_review can still be in flight
+        // then -- getFirstDueCard would read the card's OLD row (e.g. learning step 1, due within
+        // the grace window) and hand the just-answered card straight back, showing stale rating
+        // labels ("1d" again) while the server actually schedules from the new row (6d).
+        await mutationChainRef.current;
+        if (cancelled) return;
         card = await getFirstDueCard(user.id, settings);
       } catch {
         // Falls through to ending the session, same as any other transient fetch failure here --
