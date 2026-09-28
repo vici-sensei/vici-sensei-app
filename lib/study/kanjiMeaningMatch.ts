@@ -180,7 +180,14 @@ export type VocabMeaningOutcome =
  * one -- doesn't add a duplicate checkmark.
  */
 export function checkVocabMeaningAnswer(input: string, wordMeanings: string[], allWordMeanings: string[]): VocabMeaningOutcome {
-  const combinedResult = checkKanjiMeaningAnswer(input, allWordMeanings);
+  // A typed token can match several meanings at once when they differ only in their parenthetical
+  // qualifier (其処: "there (place just mentioned)" vs "there (place relatively near listener)" --
+  // both accept "there"). checkKanjiMeaningAnswer credits the FIRST matching meaning, and the pool
+  // comes from get_vocab_meaning_pool's array_agg(distinct ...), i.e. sorted alphabetically -- so a
+  // sibling sense could win the tie and the tested sense got reported as "alternate". Putting this
+  // row's own meanings first makes the tested sense always win a tie.
+  const orderedMeanings = [...wordMeanings, ...allWordMeanings.filter((m) => !wordMeanings.includes(m))];
+  const combinedResult = checkKanjiMeaningAnswer(input, orderedMeanings);
   if (!combinedResult.correct) {
     // At least one typed token isn't a valid meaning anywhere. A token that matches
     // nothing gets diffed against this row's own meanings, so the suggestion points
