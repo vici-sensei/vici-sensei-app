@@ -20,10 +20,11 @@ interface Props {
 }
 
 export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableChange }: Props) {
-  const { answer, setAnswer, result, revealed, confirmedAlternates, handleCheck, handleRate, handleContinue } =
+  const { answer, setAnswer, result, revealed, confirmedAlternates, lastAlternate, handleCheck, handleRate, handleContinue } =
     useVocabMeaningReviewCard(card, disabled, onRate, onCancelableChange, card.drill_mode);
 
-  const askingForAnother = confirmedAlternates.length > 0 && !revealed;
+  // The follow-up question depends on what the last checkmark was for.
+  const askingAgain = !revealed ? lastAlternate : null;
 
   // The word's kanji open KanjiInfoModal on long-press -- but only in a word of more than one
   // character: a single kanji's own meaning is the very answer this card asks for.
@@ -52,7 +53,15 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
         </>
       }
       subtitle={
-        askingForAnother ? (
+        askingAgain?.kind === "reading" ? (
+          <>
+            That&apos;s the reading. What does this <Accent accent="orange">word mean</Accent>?
+          </>
+        ) : askingAgain?.kind === "kanji_meaning" ? (
+          <>
+            That&apos;s what {askingAgain.note} means. What does the <Accent accent="orange">whole word</Accent> mean?
+          </>
+        ) : askingAgain ? (
           <>
             What <Accent accent="orange">other meaning</Accent> does this word have?
           </>

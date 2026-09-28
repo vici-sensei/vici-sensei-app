@@ -1,13 +1,12 @@
 import type { DueCard, Rating } from "@/lib/types";
-import { checkVocabMeaningAnswer } from "@/lib/study/kanjiMeaningMatch";
+import { checkVocabMeaningCard } from "@/lib/study/alternateAnswers";
+import { useExtendedRomajiUnits } from "@/lib/study/useExtendedRomajiUnits";
 import { useAlternateReviewCard } from "@/app/components/study/useAlternateReviewCard";
 
 /**
- * Mirrors useKanjiReadingReviewCard: a vocabulary card can accept a "sibling"
- * meaning of a homograph word (same word, any reading, different row) without
- * ending the review -- the student gets credit for it, but is then asked for
- * another meaning instead of moving on. This spans different readings, not just
- * different rows of the same reading. See checkVocabMeaningAnswer.
+ * A vocabulary card accepts, without ending the review, a sibling sense of the word (same word and
+ * reading, another sense -- see checkVocabMeaningAnswer), the word's own reading, or the meaning of
+ * one of its kanji: each gets a checkmark and the student is asked again. See checkVocabMeaningCard.
  */
 export function useVocabMeaningReviewCard(
   card: DueCard,
@@ -16,22 +15,24 @@ export function useVocabMeaningReviewCard(
   onCancelableChange?: (cancel: (() => void) | null) => void,
   drillMode?: boolean
 ) {
+  const units = useExtendedRomajiUnits();
   return useAlternateReviewCard(
     card,
     disabled,
     onRate,
-    (answer) => {
-      const outcome = checkVocabMeaningAnswer(answer, card.primary_word_meanings ?? [], card.all_primary_word_meanings ?? card.primary_word_meanings ?? []);
-      if (outcome.kind === "alternate") {
-        return { kind: "alternate", alternates: outcome.meanings };
-      }
-      return {
-        kind: "final",
-        result: outcome.result,
-        correct: outcome.result.correct,
-        alternates: outcome.siblingMeanings.length > 0 ? outcome.siblingMeanings : undefined,
-      };
-    },
+    (answer) =>
+      checkVocabMeaningCard(
+        answer,
+        {
+          primaryMeanings: card.primary_word_meanings ?? [],
+          allMeanings: card.all_primary_word_meanings ?? card.primary_word_meanings ?? [],
+          kanaReading: card.kana_reading,
+          romajiReading: card.romaji_reading,
+          otherReadings: card.other_readings,
+          wordKanji: card.word_kanji,
+        },
+        units
+      ),
     onCancelableChange,
     drillMode
   );

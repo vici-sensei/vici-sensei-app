@@ -1,14 +1,14 @@
 "use client";
 
 import type { DueCard, Rating } from "@/lib/types";
-import { checkKanjiMeaningAnswer } from "@/lib/study/kanjiMeaningMatch";
-import { useTypedReviewCard } from "./useTypedReviewCard";
+import { useKanjiMeaningReviewCard } from "./useKanjiMeaningReviewCard";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
 import { Accent } from "./Accent";
 import { AnswerForm } from "./AnswerForm";
 import { MeaningList } from "./MeaningList";
 import { TokenDiffList } from "./TokenDiffList";
+import { ConfirmedAnswersList } from "./ConfirmedAnswersList";
 
 interface Props {
   card: DueCard;
@@ -18,14 +18,11 @@ interface Props {
 }
 
 export function ReviewCardKanjiMeaning({ card, disabled, onRate, onCancelableChange }: Props) {
-  const { answer, setAnswer, result, revealed, handleCheck, handleRate, handleContinue } = useTypedReviewCard(
-    card,
-    disabled,
-    onRate,
-    (input) => checkKanjiMeaningAnswer(input, card.kanji_meanings ?? []),
-    onCancelableChange,
-    card.drill_mode
-  );
+  const { answer, setAnswer, result, revealed, confirmedAlternates, handleCheck, handleRate, handleContinue } =
+    useKanjiMeaningReviewCard(card, disabled, onRate, onCancelableChange, card.drill_mode);
+
+  // The only alternate this card has is one of the kanji's readings.
+  const askingAfterReading = confirmedAlternates.length > 0 && !revealed;
 
   return (
     <ReviewCardShell
@@ -37,9 +34,15 @@ export function ReviewCardKanjiMeaning({ card, disabled, onRate, onCancelableCha
         </CardHeading>
       }
       subtitle={
-        <>
-          What does this <Accent accent="violet">kanji mean</Accent>?
-        </>
+        askingAfterReading ? (
+          <>
+            That&apos;s a reading. What does it <Accent accent="violet">mean</Accent>?
+          </>
+        ) : (
+          <>
+            What does this <Accent accent="violet">kanji mean</Accent>?
+          </>
+        )
       }
       revealed={revealed}
       checkDisabled={disabled || !answer.trim()}
@@ -50,21 +53,25 @@ export function ReviewCardKanjiMeaning({ card, disabled, onRate, onCancelableCha
       onContinue={handleContinue}
       hideRatingOnCorrect={card.drill_mode}
       answerForm={
-        <AnswerForm
-          answer={answer}
-          onAnswerChange={setAnswer}
-          onSubmit={handleCheck}
-          placeholder="Type a meaning…"
-          disabled={disabled}
-          accent="violet"
-        />
+        <div className="flex flex-col gap-5">
+          <ConfirmedAnswersList answers={confirmedAlternates} />
+          <AnswerForm
+            answer={answer}
+            onAnswerChange={setAnswer}
+            onSubmit={handleCheck}
+            placeholder="Type a meaning…"
+            disabled={disabled}
+            accent="violet"
+          />
+        </div>
       }
       revealContent={
         result && (
-          <>
+          <div className="flex flex-col gap-3">
+            <ConfirmedAnswersList answers={confirmedAlternates} subdued />
             <MeaningList meanings={card.kanji_meanings ?? []} matchedMeanings={result.matchedMeanings} correct={result.correct} />
             {!result.correct && <TokenDiffList tokens={result.tokens} />}
-          </>
+          </div>
         )
       }
     />

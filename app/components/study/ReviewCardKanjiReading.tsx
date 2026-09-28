@@ -21,10 +21,11 @@ interface Props {
 }
 
 export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableChange }: Props) {
-  const { answer, setAnswer, result, revealed, confirmedAlternates, checkBlocked, handleCheck, handleRate, handleContinue } =
+  const { answer, setAnswer, result, revealed, confirmedAlternates, lastAlternate, checkBlocked, handleCheck, handleRate, handleContinue } =
     useKanjiReadingReviewCard(card, disabled, onRate, onCancelableChange, card.drill_mode);
 
-  const askingForAnother = confirmedAlternates.length > 0 && !revealed;
+  // The follow-up question depends on what the last checkmark was for.
+  const askingAgain = !revealed ? lastAlternate : null;
   const meanings = card.primary_word_meanings ?? [];
 
   // The word's other kanji open KanjiInfoModal on long-press -- never the one being tested.
@@ -61,7 +62,19 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
         </>
       }
       subtitle={
-        askingForAnother ? (
+        askingAgain?.kind === "meaning" ? (
+          <>
+            That&apos;s the meaning. How is this <Accent accent="blue">word read</Accent>?
+          </>
+        ) : askingAgain?.kind === "kanji_reading_part" ? (
+          <>
+            That&apos;s just {askingAgain.note}. How is the <Accent accent="blue">whole word</Accent> read?
+          </>
+        ) : askingAgain?.kind === "kanji_reading_elsewhere" ? (
+          <>
+            Not the reading used here. How is this <Accent accent="blue">word read</Accent>?
+          </>
+        ) : askingAgain ? (
           <>
             What <Accent accent="blue">other reading</Accent> does this word have?
           </>

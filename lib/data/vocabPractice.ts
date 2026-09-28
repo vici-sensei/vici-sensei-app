@@ -1,5 +1,6 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { JlptLevel } from "@/lib/srs/constants";
+import type { WordKanji } from "@/lib/types";
 
 export interface PracticeVocabCard {
   kind: "vocab_meaning";
@@ -17,6 +18,12 @@ export interface PracticeVocabCard {
    * give a /study vocab_meaning card, now also given here so a practice-mode card doesn't silently
    * skip homonym-sibling/other_meanings credit that /study already grants. */
   allPrimaryMeanings: string[];
+  /** The rest of what get_seen_vocab_meaning_cards returns since
+   * 20260928225158_review_card_alternate_answers.sql -- the word's reading typed as romaji, and the
+   * meanings of its kanji, count as alternates on the card. Null against a DB without it. */
+  romajiReading: string | null;
+  otherReadings: string[] | null;
+  wordKanji: WordKanji[] | null;
 }
 
 interface SeenVocabMeaningRow {
@@ -29,6 +36,10 @@ interface SeenVocabMeaningRow {
   jlpt_level: string | null;
   /** Absent until 20261230_usually_kana_on_review_cards.sql is applied. */
   usually_kana?: boolean | null;
+  /** Absent until 20260928225158_review_card_alternate_answers.sql is applied. */
+  romaji_reading?: string | null;
+  other_readings?: string[] | null;
+  word_kanji?: WordKanji[] | null;
 }
 
 /** Every vocabulary word this user has ever been introduced to (any non-suspended, non-pending
@@ -60,5 +71,8 @@ export async function fetchSeenVocabMeaning(
     usuallyKana: row.usually_kana === true,
     primaryMeanings: row.primary_meanings ?? [],
     allPrimaryMeanings: row.all_primary_word_meanings ?? [],
+    romajiReading: row.romaji_reading ?? null,
+    otherReadings: row.other_readings ?? null,
+    wordKanji: row.word_kanji ?? null,
   }));
 }

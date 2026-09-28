@@ -5,6 +5,7 @@ import { matchesExtendedRomaji } from "@/lib/study/extendedRomajiMatch";
 import { useExtendedRomajiEnabled } from "@/lib/study/useExtendedRomajiEnabled";
 import { useKanaExtendedRomaji } from "@/lib/client-data/kana";
 import { fetchSiblingReadingPairs } from "@/lib/data/vocabulary";
+import { checkKanjiReadingCardExtras } from "@/lib/study/alternateAnswers";
 import { useAlternateReviewCard } from "@/app/components/study/useAlternateReviewCard";
 
 function normalizeReading(value: string): string {
@@ -22,6 +23,8 @@ function hasSiblingReadings(card: DueCard): boolean {
  * Kanji reading cards can accept a "sibling" reading of a homograph word
  * without ending the review (see checkKanjiReadingAnswer) -- the student gets
  * credit for it, but is then asked for another reading instead of moving on.
+ * The same goes for just the tested kanji's part of the reading, another
+ * reading of that kanji, or the word's meaning (see checkKanjiReadingCardExtras).
  * That multi-step exchange is handled by the shared useAlternateReviewCard,
  * this hook just supplies the reading-specific checkAnswer and the romaji
  * sibling lookup.
@@ -94,7 +97,23 @@ export function useKanjiReadingReviewCard(
       );
       if (outcome.kind === "alternate") {
         const display = romajiToKana.get(normalizeReading(outcome.display)) ?? outcome.display;
-        return { kind: "alternate", alternates: [display] };
+        return { kind: "alternate", alternates: [{ text: display, kind: "sibling" }] };
+      }
+      if (outcome.kind === "wrong") {
+        // Not a reading of this word -- but maybe only the tested kanji's part of it, another
+        // reading of that kanji, or the word's meaning: each is a checkmark and a second try.
+        const extra = checkKanjiReadingCardExtras(
+          answer,
+          {
+            kanjiChar: card.kanji_char,
+            word: card.word,
+            furiganas: card.furiganas,
+            kanjiReadings: card.kanji_readings,
+            wordMeanings: card.all_primary_word_meanings ?? card.primary_word_meanings ?? [],
+          },
+          extendedEnabled && kanaExtended ? kanaExtended.units : null
+        );
+        if (extra) return { kind: "alternate", alternates: [extra] };
       }
       return { kind: "final", result: outcome.result, correct: outcome.result.correct };
     },

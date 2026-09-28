@@ -143,6 +143,7 @@ function toDueCard(item: PracticePoolCard): DueCard {
         kanji_id: item.id,
         kanji_char: item.kanjiChar,
         kanji_meanings: item.meanings,
+        kanji_readings: item.readings ?? null,
       };
     case "kanji_reading":
       return {
@@ -159,6 +160,7 @@ function toDueCard(item: PracticePoolCard): DueCard {
         furiganas: item.furiganas,
         usually_kana: item.usuallyKana,
         primary_word_meanings: item.primaryWordMeanings,
+        kanji_readings: item.kanjiReadings ?? null,
       };
     case "vocab_meaning":
       return {
@@ -171,6 +173,9 @@ function toDueCard(item: PracticePoolCard): DueCard {
         usually_kana: item.usuallyKana,
         primary_word_meanings: item.primaryMeanings,
         all_primary_word_meanings: item.allPrimaryMeanings,
+        romaji_reading: item.romajiReading ?? null,
+        other_readings: item.otherReadings ?? null,
+        word_kanji: item.wordKanji ?? null,
       };
   }
 }

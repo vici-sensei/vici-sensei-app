@@ -7,6 +7,8 @@ export interface PracticeKanjiMeaningCard {
   id: number;
   kanjiChar: string;
   meanings: string[];
+  /** kanji.kun_readings + on_readings -- a reading typed on the card counts as an alternate. */
+  readings: string[];
 }
 
 export interface PracticeKanjiReadingCard {
@@ -24,11 +26,26 @@ export interface PracticeKanjiReadingCard {
   /** vocabulary.usually_kana -- the word is still shown in kanji here, marked with UsuallyKanaNote. */
   usuallyKana: boolean;
   primaryWordMeanings: string[] | null;
+  /** kanji.kun_readings + on_readings of the tested kanji -- another of its readings typed on the
+   * card counts as an alternate. */
+  kanjiReadings: string[];
+}
+
+interface KanjiEmbed {
+  kanji: string;
+  meanings: string[] | null;
+  level: string | null;
+  kun_readings: string[] | null;
+  on_readings: string[] | null;
+}
+
+function kanjiReadingsOf(kanji: KanjiEmbed): string[] {
+  return [...(kanji.kun_readings ?? []), ...(kanji.on_readings ?? [])];
 }
 
 interface SeenKanjiMeaningRow {
   kanji_id: number;
-  kanji: { kanji: string; meanings: string[] | null; level: string | null } | null;
+  kanji: KanjiEmbed | null;
 }
 
 /** Every kanji this user has ever been introduced to (any non-suspended status), scoped to the
@@ -43,7 +60,7 @@ export async function fetchSeenKanjiMeaning(
 ): Promise<PracticeKanjiMeaningCard[]> {
   const { data, error } = await supabase
     .from("user_kanji_meaning_progress")
-    .select("kanji_id, kanji:kanji_id(kanji, meanings, level)")
+    .select("kanji_id, kanji:kanji_id(kanji, meanings, level, kun_readings, on_readings)")
     .eq("user_id", userId)
     .neq("status", "suspended");
   if (error) throw new Error(error.message);
@@ -57,13 +74,14 @@ export async function fetchSeenKanjiMeaning(
       id: row.kanji_id,
       kanjiChar: row.kanji.kanji,
       meanings: row.kanji.meanings ?? [],
+      readings: kanjiReadingsOf(row.kanji),
     }));
 }
 
 interface SeenKanjiReadingRow {
   kanji_id: number;
   kanji_word_id: number;
-  kanji: { kanji: string; meanings: string[] | null; level: string | null } | null;
+  kanji: KanjiEmbed | null;
   kanji_word: {
     vocabulary: {
       word: string;
@@ -94,7 +112,7 @@ export async function fetchSeenKanjiReading(
   const { data, error } = await supabase
     .from("user_kanji_reading_progress")
     .select(
-      "kanji_id, kanji_word_id, kanji:kanji_id(kanji, meanings, level), kanji_word:kanji_word_id(vocabulary:id_word(word, kana_reading, romaji_reading, other_readings, furiganas, usually_kana, primary_meanings, short_meaning, study_enabled))"
+      "kanji_id, kanji_word_id, kanji:kanji_id(kanji, meanings, level, kun_readings, on_readings), kanji_word:kanji_word_id(vocabulary:id_word(word, kana_reading, romaji_reading, other_readings, furiganas, usually_kana, primary_meanings, short_meaning, study_enabled))"
     )
     .eq("user_id", userId)
     .neq("status", "suspended");
@@ -128,6 +146,7 @@ export async function fetchSeenKanjiReading(
         primaryWordMeanings: vocabulary.short_meaning
           ? [vocabulary.short_meaning, ...(vocabulary.primary_meanings ?? [])]
           : vocabulary.primary_meanings,
+        kanjiReadings: kanjiReadingsOf(kanji),
       };
     });
 }

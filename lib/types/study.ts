@@ -30,6 +30,12 @@ export interface TodayActivityCounts {
   new_katakana_today: number;
 }
 
+/** One kanji of a vocabulary word -- see public.vocabulary_word_kanji. */
+export interface WordKanji {
+  kanji: string;
+  meanings: string[] | null;
+}
+
 export interface DueCard {
   exercise_type: ExerciseType;
   progress_id: number;
@@ -53,6 +59,14 @@ export interface DueCard {
   all_primary_word_meanings: string[] | null;
   /** Readings (kana/romaji/other) from every vocabulary row sharing this word -- same reasoning. */
   all_word_readings: string[] | null;
+  /** kanji.kun_readings || kanji.on_readings, raw (ひと.つ, -り, イチ...) -- kanji_meaning and
+   * kanji_reading cards (20260928225158_review_card_alternate_answers.sql). Lets a reading typed on
+   * a Kanji meaning card, or another reading of the kanji typed on a Word reading card, count as an
+   * alternate (lib/study/alternateAnswers.ts). Absent from a DB without that migration. */
+  kanji_readings?: string[] | null;
+  /** Each kanji of the word with its meanings, in order -- vocab_meaning cards (same migration), so
+   * a kanji's meaning typed on a Vocab meaning card counts as an alternate. */
+  word_kanji?: WordKanji[] | null;
   /** Sibling kanji (not the target) in this word whose furigana can be hidden -- either because
    * the student has already mastered that specific reading, or because the sibling's own JLPT
    * level is lower (easier/earlier in the N5->N1 progression) than the level of the kanji this

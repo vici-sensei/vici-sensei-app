@@ -1,37 +1,38 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { DueCard, Rating } from "@/lib/types";
+import type { AlternateOutcome, ConfirmedAlternate } from "@/lib/study/alternateAnswers";
 
-export type AlternateCheckOutcome<TResult> =
-  | { kind: "alternate"; alternates: string[] }
-  // `correct` is duplicated out of `result` (rather than read off it directly) so drillMode's
-  // Continue-vs-grid decision below doesn't need a `{ correct: boolean }` constraint on TResult
-  // -- adding one previously made TS give up inferring the real TResult from this nested-in-a-
-  // union return position and silently fall back to the constraint itself.
-  | { kind: "final"; result: TResult; correct: boolean; alternates?: string[] };
+export type { AlternateOutcome as AlternateCheckOutcome } from "@/lib/study/alternateAnswers";
+
+// Same pause useTypedReviewCard gives a drill-mode card before handing it on -- drill-mode rates
+// (the post-introduction kana drill, and every /study/practice card) never go through
+// useStudyQueue's own pacing, so without it a correct answer would vanish the instant it's rated.
+const FLASH_DELAY_MS = 350;
 
 /**
- * Shared base for review cards where an answer can name a "sibling" alternate
- * (a homograph word's other reading/meaning) without ending the review -- the
- * student gets credit for it, but is then prompted for another answer instead
- * of moving on. Mirrors useTypedReviewCard's single check-then-reveal shape,
- * plus the confirmedAlternates bookkeeping both useKanjiReadingReviewCard and
- * useVocabMeaningReviewCard need.
+ * Shared base for review cards where an answer can be an "alternate" (see
+ * lib/study/alternateAnswers.ts: a homograph's sibling meaning/reading, a reading typed on a
+ * meaning card, a meaning typed on a reading card, ...) without ending the review -- it gets a
+ * checkmark, and the student is then prompted again instead of moving on. Mirrors
+ * useTypedReviewCard's single check-then-reveal shape, plus the confirmedAlternates bookkeeping.
+ * Used by ReviewCardKanjiMeaning, ReviewCardKanjiReading and ReviewCardVocabMeaning.
  */
 export function useAlternateReviewCard<TResult>(
   card: DueCard,
   disabled: boolean,
-  onRate: (card: DueCard, rating: Rating, confirmedAlternates?: string[]) => void,
-  checkAnswer: (answer: string) => AlternateCheckOutcome<TResult>,
+  // userAnswer: the trimmed text of the answer that ended the review -- /study/practice shows it
+  // next to the correct answer in its "done" summary; /study's rate() ignores it.
+  onRate: (card: DueCard, rating: Rating, userAnswer?: string) => void,
+  checkAnswer: (answer: string) => AlternateOutcome<TResult>,
   onCancelableChange?: (cancel: (() => void) | null) => void,
-  // Set by /study/practice's free-practice mode (ReviewCardKanjiReading/ReviewCardVocabMeaning's
-  // drillMode, mirroring useTypedReviewCard's own drillMode): a correct check skips the
-  // Hard/Good/Easy picker entirely and, once the user presses Continue, rates 2 (the "correct"
-  // threshold rate() already uses to decide pass/fail for these cards) instead of the 0 a wrong
-  // answer's Continue uses.
+  // Set by /study/practice's free-practice mode (mirroring useTypedReviewCard's own drillMode): a
+  // correct check skips the Hard/Good/Easy picker entirely and, once the user presses Continue,
+  // rates 2 (the "correct" threshold rate() already uses to decide pass/fail for these cards)
+  // instead of the 0 a wrong answer's Continue uses.
   drillMode?: boolean
 ) {
   const [answer, setAnswer] = useState("");
-  const [confirmedAlternates, setConfirmedAlternates] = useState<string[]>([]);
+  const [confirmedAlternates, setConfirmedAlternates] = useState<ConfirmedAlternate[]>([]);
   const [result, setResult] = useState<TResult | null>(null);
   const [resultCorrect, setResultCorrect] = useState(false);
   const [committed, setCommitted] = useState(false);
@@ -39,11 +40,11 @@ export function useAlternateReviewCard<TResult>(
   const revealed = result !== null;
   const inProgress = revealed || confirmedAlternates.length > 0;
 
-  // One checkmark per alternate, even when several are confirmed at once --
-  // only ones not already confirmed are added.
-  function addConfirmedAlternates(alternates: string[]) {
+  // One checkmark per alternate, even when several are confirmed at once -- only ones not already
+  // confirmed are added.
+  function addConfirmedAlternates(alternates: ConfirmedAlternate[]) {
     setConfirmedAlternates((prev) => {
-      const fresh = alternates.filter((a) => !prev.includes(a));
+      const fresh = alternates.filter((a) => !prev.some((p) => p.kind === a.kind && p.text === a.text));
       return fresh.length > 0 ? [...prev, ...fresh] : prev;
     });
   }
@@ -57,7 +58,7 @@ export function useAlternateReviewCard<TResult>(
       setAnswer("");
       return;
     }
-    // "final" can still name a sibling alongside the target/wrong answer -- show it as
+    // "final" can still name an alternate alongside the target/wrong answer -- show it as
     // confirmed either way.
     if (outcome.alternates && outcome.alternates.length > 0) addConfirmedAlternates(outcome.alternates);
     setResult(outcome.result);
@@ -69,18 +70,22 @@ export function useAlternateReviewCard<TResult>(
     setConfirmedAlternates([]);
   }
 
-  // Calls onRate right away instead of delaying it here -- useStudyQueue's rate() now owns the
-  // pacing pause itself (RATING_PACING_MS), timed to start after the server submit rather than
-  // before it, so an achievement unlock has a chance to land before the queue actually swaps.
-  function handleRate(rating: Rating) {
+  function deliver(rating: Rating) {
     setCommitted(true);
-    onRate(card, rating, confirmedAlternates);
+    const typed = answer.trim();
+    if (drillMode) setTimeout(() => onRate(card, rating, typed), FLASH_DELAY_MS);
+    else onRate(card, rating, typed);
+  }
+
+  // Outside drill mode onRate is called right away -- useStudyQueue's rate() owns the pacing pause
+  // itself (RATING_PACING_MS), timed to start after the server submit rather than before it, so an
+  // achievement unlock has a chance to land before the queue actually swaps.
+  function handleRate(rating: Rating) {
+    deliver(rating);
   }
 
   function handleContinue() {
-    setCommitted(true);
-    const rating = drillMode && resultCorrect ? 2 : 0;
-    onRate(card, rating, confirmedAlternates);
+    deliver(drillMode && resultCorrect ? 2 : 0);
   }
 
   useEffect(() => {
@@ -89,5 +94,7 @@ export function useAlternateReviewCard<TResult>(
     return () => onCancelableChange(null);
   }, [inProgress, committed, onCancelableChange]);
 
-  return { answer, setAnswer, result, revealed, confirmedAlternates, handleCheck, handleRate, handleContinue };
+  const lastAlternate = confirmedAlternates.length > 0 ? confirmedAlternates[confirmedAlternates.length - 1] : null;
+
+  return { answer, setAnswer, result, revealed, confirmedAlternates, lastAlternate, handleCheck, handleRate, handleContinue };
 }
