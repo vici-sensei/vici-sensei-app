@@ -1,17 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FaArrowRotateLeft, FaChevronDown, FaChevronRight } from "react-icons/fa6";
+import { FaArrowRotateLeft, FaChevronDown, FaChevronRight, FaMinus, FaPlus } from "react-icons/fa6";
 import { Collapsible } from "@/app/components/ui/Collapsible";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { PillSelector } from "@/app/components/ui/PillSelector";
 import { Skeleton } from "@/app/components/ui/Skeleton";
+import { stepperButtonClass } from "@/app/components/ui/Stepper";
 import { JLPT_LEVELS } from "@/lib/srs/constants";
 import {
   KANA_CATEGORIES,
   RECENT_AVERAGE_DAYS,
   STANDARD_CATEGORIES,
   projectNewCards,
+  type CategoryPace,
   type PaceSource,
   type PredictionStart,
   type Track,
@@ -27,7 +29,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", 
 // A prediction can run for years; the table starts with the first year and offers the rest on request.
 const TABLE_ROW_LIMIT = 366;
 
-type NewPaceKey = "settings" | "average" | "5" | "10" | "20" | "30" | "50";
+type PaceMode = "settings" | "average" | "custom";
 type ReviewKey = "settings" | "20" | "50" | "100" | "150" | "200" | "none";
 
 const VIEW_OPTIONS: { value: ChartView; label: string }[] = [
@@ -42,7 +44,24 @@ const START_OPTIONS: { value: PredictionStart; label: string }[] = [
 // What "Reset" returns the filters to. Track and levels come from the student, so they're derived per student below.
 const DEFAULT_VIEW: ChartView = "cumulative";
 const DEFAULT_START: PredictionStart = "ideal";
-const DEFAULT_NEW_PACE: NewPaceKey = "settings";
+const DEFAULT_PACE_MODE: PaceMode = "settings";
+
+const PACE_OPTIONS: { value: PaceMode; label: string }[] = [
+  { value: "settings", label: "Student settings" },
+  { value: "average", label: "Recent average" },
+  { value: "custom", label: "Custom" },
+];
+// Same lock the app keeps between the two limits (sync_new_vocab_per_day_trigger): 6 new words per kanji.
+const VOCAB_PER_KANJI = 6;
+const MAX_CUSTOM_PER_DAY = 999;
+
+const clampPerDay = (n: number) => Math.min(MAX_CUSTOM_PER_DAY, Math.max(1, Math.round(n)));
+
+function toCategoryPace(mode: PaceMode, custom: number): CategoryPace {
+  if (mode === "settings") return { kind: "settings" };
+  if (mode === "average") return { kind: "average" };
+  return { kind: "fixed", perDay: custom };
+}
 const DEFAULT_REVIEW_KEY: ReviewKey = "settings";
 
 function initialLevels(enabled: string[]): string[] {
@@ -92,6 +111,84 @@ function FilterRow({ label, hint, children }: { label: string; hint?: string; ch
   );
 }
 
+/** −/value/+ with a typeable value: the draft is only applied (and normalized by the caller, e.g.
+ * rounded to a multiple of 6) on Enter or when the field loses focus, so typing "2" on the way to
+ * "20" doesn't jump around. */
+function NumberField({
+  label,
+  value,
+  step,
+  min,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  step: number;
+  min: number;
+  onChange: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft == null) return;
+    const n = Number(draft);
+    setDraft(null);
+    if (draft !== "" && Number.isFinite(n)) onChange(n);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        aria-label={`Fewer ${label}`}
+        className={stepperButtonClass}
+        disabled={value - step < min}
+        onClick={() => onChange(value - step)}
+      >
+        <FaMinus />
+      </button>
+      <input
+        aria-label={label}
+        inputMode="numeric"
+        className="h-9 w-16 rounded-lg border border-border-soft bg-white/[0.04] text-center text-[0.95rem] font-extrabold tabular-nums text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+        value={draft ?? String(value)}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+      />
+      <button
+        type="button"
+        aria-label={`More ${label}`}
+        className={stepperButtonClass}
+        disabled={value + step > MAX_CUSTOM_PER_DAY}
+        onClick={() => onChange(value + step)}
+      >
+        <FaPlus />
+      </button>
+    </div>
+  );
+}
+
+/** A pace row: Student settings / Recent average / Custom, plus the number field while Custom is on. */
+function PaceControl({
+  mode,
+  onModeChange,
+  custom,
+  field,
+}: {
+  mode: PaceMode;
+  onModeChange: (mode: PaceMode) => void;
+  custom: number;
+  field: { label: string; step: number; min: number; onChange: (value: number) => void };
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <PillSelector variant="compact" active={mode} onChange={onModeChange} options={PACE_OPTIONS} />
+      {mode === "custom" && <NumberField value={custom} {...field} />}
+    </div>
+  );
+}
+
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div>
@@ -133,7 +230,18 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   const [levels, setLevels] = useState<string[]>(defaultLevels);
   const [view, setView] = useState<ChartView>(DEFAULT_VIEW);
   const [start, setStart] = useState<PredictionStart>(DEFAULT_START);
-  const [newPace, setNewPace] = useState<NewPaceKey>(DEFAULT_NEW_PACE);
+  // Standard: kanji and vocabulary always share one mode, and a custom vocabulary pace is always
+  // VOCAB_PER_KANJI x the custom kanji pace -- the same 1:6 lock the app itself keeps. Kana: the
+  // two scripts are independent, like their own settings.
+  const defaultCustomKanji = clampPerDay(student.new_kanji_per_day || 1);
+  const defaultCustomHiragana = clampPerDay(student.new_hiragana_per_day || 5);
+  const defaultCustomKatakana = clampPerDay(student.new_katakana_per_day || 5);
+  const [standardMode, setStandardMode] = useState<PaceMode>(DEFAULT_PACE_MODE);
+  const [customKanji, setCustomKanji] = useState(defaultCustomKanji);
+  const [hiraganaMode, setHiraganaMode] = useState<PaceMode>(DEFAULT_PACE_MODE);
+  const [customHiragana, setCustomHiragana] = useState(defaultCustomHiragana);
+  const [katakanaMode, setKatakanaMode] = useState<PaceMode>(DEFAULT_PACE_MODE);
+  const [customKatakana, setCustomKatakana] = useState(defaultCustomKatakana);
   const [reviewKey, setReviewKey] = useState<ReviewKey>(DEFAULT_REVIEW_KEY);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showTable, setShowTable] = useState(false);
@@ -145,7 +253,9 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
     levels.join() === defaultLevels.join() &&
     view === DEFAULT_VIEW &&
     start === DEFAULT_START &&
-    newPace === DEFAULT_NEW_PACE &&
+    standardMode === DEFAULT_PACE_MODE &&
+    hiraganaMode === DEFAULT_PACE_MODE &&
+    katakanaMode === DEFAULT_PACE_MODE &&
     reviewKey === DEFAULT_REVIEW_KEY;
 
   function resetFilters() {
@@ -153,7 +263,12 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
     setLevels(defaultLevels);
     setView(DEFAULT_VIEW);
     setStart(DEFAULT_START);
-    setNewPace(DEFAULT_NEW_PACE);
+    setStandardMode(DEFAULT_PACE_MODE);
+    setCustomKanji(defaultCustomKanji);
+    setHiraganaMode(DEFAULT_PACE_MODE);
+    setCustomHiragana(defaultCustomHiragana);
+    setKatakanaMode(DEFAULT_PACE_MODE);
+    setCustomKatakana(defaultCustomKatakana);
     setReviewKey(DEFAULT_REVIEW_KEY);
   }
 
@@ -175,15 +290,26 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
     }),
     [student]
   );
-  const pace: PaceSource = newPace === "settings" ? { kind: "settings" } : newPace === "average" ? { kind: "average" } : { kind: "fixed", perDay: Number(newPace) };
+  const customVocabulary = customKanji * VOCAB_PER_KANJI;
+  const pace: PaceSource = useMemo(
+    () =>
+      track === "standard"
+        ? {
+            kanji: toCategoryPace(standardMode, customKanji),
+            vocabulary: toCategoryPace(standardMode, customKanji * VOCAB_PER_KANJI),
+          }
+        : {
+            hiragana_reading: toCategoryPace(hiraganaMode, customHiragana),
+            katakana_reading: toCategoryPace(katakanaMode, customKatakana),
+          },
+    [track, standardMode, customKanji, hiraganaMode, customHiragana, katakanaMode, customKatakana]
+  );
   const reviewCap = reviewKey === "settings" ? (student.max_reviews_per_day ?? null) : reviewKey === "none" ? null : Number(reviewKey);
   const accuracy = Math.min(1, Math.max(0, student.retention_rate ?? 1));
 
   const result = useMemo(
     () => projectNewCards({ track, levels, progress, settingsCaps, pace, reviewCap, accuracy, start }),
-    // `pace` is rebuilt every render from `newPace`, so that key is what identifies it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [track, levels, progress, settingsCaps, newPace, reviewCap, accuracy, start]
+    [track, levels, progress, settingsCaps, pace, reviewCap, accuracy, start]
   );
 
   const seenByTrack = useMemo(() => {
@@ -201,12 +327,19 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   const percent = summary.poolTotal > 0 ? Math.round((summary.seen / summary.poolTotal) * 100) : 0;
 
   const levelSummary = JLPT_LEVELS.filter((level) => levels.includes(level)).join("+");
+  const kanaPaceLabel = (script: string, mode: PaceMode, custom: number) =>
+    `${script} ${mode === "settings" ? "from settings" : mode === "average" ? "at recent average" : `${fmt(custom)}/day`}`;
   const paceSummary =
-    newPace === "settings"
-      ? `Student settings (${settingsPaceLabel(track, settingsCaps)})`
-      : newPace === "average"
-        ? `Recent average (${fmtDecimal(summary.recentAverage)}/day)`
-        : `${newPace}/day`;
+    track === "standard"
+      ? standardMode === "settings"
+        ? `Student settings (${settingsPaceLabel(track, settingsCaps)})`
+        : standardMode === "average"
+          ? `Recent average (${fmtDecimal(summary.recentAverage)}/day)`
+          : `${fmt(customKanji)} kanji + ${fmt(customVocabulary)} vocabulary/day`
+      : hiraganaMode === "settings" && katakanaMode === "settings"
+        ? `Student settings (${settingsPaceLabel(track, settingsCaps)})`
+        : [kanaPaceLabel("Hiragana", hiraganaMode, customHiragana), kanaPaceLabel("katakana", katakanaMode, customKatakana)].join(", ");
+  const usesAverage = track === "standard" ? standardMode === "average" : hiraganaMode === "average" || katakanaMode === "average";
   const reviewSummary = reviewCap == null ? "No review limit" : `${fmt(reviewCap)} reviews/day`;
   const summaryLine = [
     track === "standard" ? "Standard" : "Kana",
@@ -219,7 +352,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
 
   let emptyMessage: string | null = null;
   if (summary.poolTotal === 0) emptyMessage = "There are no cards to learn for these filters.";
-  else if (!predicted && newPace === "average") {
+  else if (!predicted && usesAverage) {
     emptyMessage = `The student hasn't seen any new cards in the last ${RECENT_AVERAGE_DAYS} days, so a prediction from their recent average isn't possible.`;
   } else if (!predicted) emptyMessage = "No daily new-card target is set for these filters, so there is nothing to predict.";
   else if (predicted.completionIdx == null) emptyMessage = "At this pace the last new card isn't reached within 5 years.";
@@ -296,29 +429,56 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
           <FilterRow label="Prediction">
             <PillSelector variant="compact" active={start} onChange={setStart} options={START_OPTIONS} />
           </FilterRow>
-          <FilterRow
-            label="New cards per day"
-            hint={
-              track === "kana"
-                ? "Applies to the script being learned: hiragana first, then katakana."
-                : "Fixed values are a kanji + vocabulary total, split the way the student's own settings split it."
-            }
-          >
-            <PillSelector
-              variant="compact"
-              active={newPace}
-              onChange={setNewPace}
-              options={[
-                { value: "settings", label: "Student settings" },
-                { value: "average", label: "Recent average" },
-                { value: "5", label: "5" },
-                { value: "10", label: "10" },
-                { value: "20", label: "20" },
-                { value: "30", label: "30" },
-                { value: "50", label: "50" },
-              ]}
-            />
-          </FilterRow>
+          {track === "standard" ? (
+            <>
+              <FilterRow label="New kanji per day">
+                <PaceControl
+                  mode={standardMode}
+                  onModeChange={setStandardMode}
+                  custom={customKanji}
+                  field={{ label: "kanji per day", step: 1, min: 1, onChange: (n) => setCustomKanji(clampPerDay(n)) }}
+                />
+              </FilterRow>
+              <FilterRow
+                label="New vocabulary per day"
+                hint={`Always ${VOCAB_PER_KANJI} words per kanji, like in the app: changing one changes the other, and any number is rounded to a multiple of ${VOCAB_PER_KANJI}.`}
+              >
+                <PaceControl
+                  mode={standardMode}
+                  onModeChange={setStandardMode}
+                  custom={customVocabulary}
+                  field={{
+                    label: "words per day",
+                    step: VOCAB_PER_KANJI,
+                    min: VOCAB_PER_KANJI,
+                    onChange: (n) => setCustomKanji(clampPerDay(n / VOCAB_PER_KANJI)),
+                  }}
+                />
+              </FilterRow>
+            </>
+          ) : (
+            <>
+              <FilterRow label="New hiragana per day">
+                <PaceControl
+                  mode={hiraganaMode}
+                  onModeChange={setHiraganaMode}
+                  custom={customHiragana}
+                  field={{ label: "hiragana per day", step: 1, min: 1, onChange: (n) => setCustomHiragana(clampPerDay(n)) }}
+                />
+              </FilterRow>
+              <FilterRow
+                label="New katakana per day"
+                hint="Hiragana is learned first, then katakana. Recent average is the pace of whichever script the student was on."
+              >
+                <PaceControl
+                  mode={katakanaMode}
+                  onModeChange={setKatakanaMode}
+                  custom={customKatakana}
+                  field={{ label: "katakana per day", step: 1, min: 1, onChange: (n) => setCustomKatakana(clampPerDay(n)) }}
+                />
+              </FilterRow>
+            </>
+          )}
           <FilterRow
             label="Max reviews per day"
             hint="Counts reviews of already-learned cards only. On a day the reviews due reach this number, the prediction adds no new cards."

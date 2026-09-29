@@ -17,7 +17,12 @@ export const PROJECTION_HORIZON_DAYS = 365 * 5;
 
 export type Track = "standard" | "kana";
 export type PredictionStart = "ideal" | "today";
-export type PaceSource = { kind: "settings" } | { kind: "average" } | { kind: "fixed"; perDay: number };
+/** Where one category's daily new-card target comes from: the student's own setting, what they
+ * really averaged over the last RECENT_AVERAGE_DAYS days, or a fixed number. */
+export type CategoryPace = { kind: "settings" } | { kind: "average" } | { kind: "fixed"; perDay: number };
+/** One CategoryPace per category of the track being projected; a missing category falls back to
+ * the student's settings. */
+export type PaceSource = Partial<Record<NewCardCategory, CategoryPace>>;
 
 export const STANDARD_CATEGORIES: readonly NewCardCategory[] = ["kanji", "vocabulary"];
 export const KANA_CATEGORIES: readonly NewCardCategory[] = ["hiragana_reading", "katakana_reading"];
@@ -269,23 +274,16 @@ function resolveTargets(
   todayIdx: number
 ): Record<string, number> {
   const targets: Record<string, number> = {};
-  if (pace.kind === "settings") {
-    for (const c of categories) targets[c] = settingsCaps[c] ?? 0;
-  } else if (pace.kind === "fixed") {
-    if (track === "kana") {
-      for (const c of categories) targets[c] = pace.perDay;
-    } else {
-      const k = settingsCaps.kanji ?? 0;
-      const v = settingsCaps.vocabulary ?? 0;
-      const kanjiShare = k + v > 0 ? k / (k + v) : 1 / 7;
-      targets.kanji = pace.perDay * kanjiShare;
-      targets.vocabulary = pace.perDay - targets.kanji;
-    }
-  } else if (track === "kana") {
-    const combined = categories.reduce((sum, c) => sum + windowAverage(actualByCat[c], todayIdx), 0);
-    for (const c of categories) targets[c] = combined;
-  } else {
-    for (const c of categories) targets[c] = windowAverage(actualByCat[c], todayIdx);
+  // Kana scripts are learned one after the other, so a script's own recent average says nothing
+  // about how fast the student will take the next one: "Recent average" on the kana track is the
+  // pace of whichever script they were on, used for both.
+  const kanaAverage =
+    track === "kana" ? categories.reduce((sum, c) => sum + windowAverage(actualByCat[c], todayIdx), 0) : 0;
+  for (const c of categories) {
+    const source = pace[c] ?? { kind: "settings" };
+    if (source.kind === "settings") targets[c] = settingsCaps[c] ?? 0;
+    else if (source.kind === "fixed") targets[c] = Math.max(0, source.perDay);
+    else targets[c] = track === "kana" ? kanaAverage : windowAverage(actualByCat[c], todayIdx);
   }
   return targets;
 }
