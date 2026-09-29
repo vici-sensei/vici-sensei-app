@@ -103,53 +103,74 @@ function vocabGroupSize(settings: StudySettings): number {
   return Number.isFinite(ratio) && ratio > 0 ? ratio : 0;
 }
 
-// Ties each vocab candidate to the new-kanji candidate its group is queued right behind, so a
-// standard-track student gets "1 kanji bundle, then its own N-word vocab group" repeated through
-// the day instead of every kanji first and all of the day's vocabulary only at the very end --
-// answering several brand-new kanji meanings/readings back to back, then a whole day's worth of
-// brand-new words, is too much unfamiliar material in one uninterrupted stretch. groupSize is
-// fixed rather than recomputed from however many candidates are actually left: if the curriculum
-// runs low, the LAST group is simply smaller, instead of spreading the shortfall evenly across
-// every group and making all of them uneven.
+// batchKanjiId of the "open" word group: the words still owed to a kanji introduced EARLIER
+// (today, before this queue was built -- see arrangeKanjiVocab), with no new-kanji item of their own
+// in the queue to key them to. Never a real kanji id (those are positive).
+const OPEN_VOCAB_GROUP = -1;
+
+type NewKanjiItem = QueueItem & { kind: "new_kanji" };
+type NewVocabItem = QueueItem & { kind: "new_vocab" };
+
+// Lays new kanji and new words out as "1 kanji bundle, then its own N-word vocab group", repeated
+// through the day, instead of every kanji first and all of the day's vocabulary only at the very
+// end -- answering several brand-new kanji back to back, then a whole day's worth of brand-new
+// words, is too much unfamiliar material in one uninterrupted stretch.
 //
-// Deliberately keyed by the preceding kanji candidate's own (immutable) id instead of a plain
-// positional index: a mid-session settings change that unlocks brand-new candidates recomputes
-// this from a shrunken candidate list (already-introduced kanji/words no longer appear in it),
-// which would shift what a plain 0,1,2... counter means between calls -- a stable id can't
-// collide with a group computed from an earlier, larger fetch the way a reset-to-zero counter
-// could (see mergeKeepingCurrent's existingKeys dedup, which is what shields every already-queued
-// item from ever being reassigned a fresh one of these in the first place).
+// `openWords` is how many words are still owed to a kanji already introduced (today's counts:
+// new_kanji_today * groupSize - new_vocab_today, minus anything already pinned on screen). They go
+// first, in group `openBatchId`, so the NEXT "New kanji" never comes before the previous kanji's
+// words are done -- which is what used to happen when a daily limit was raised mid-day, or the page
+// was reloaded mid-group: groups were computed only from the fresh candidate list, with no idea how
+// many of today's words had already been introduced. groupSize is fixed rather than recomputed from
+// however many candidates are left: if the curriculum runs low, the LAST group is simply smaller.
+// Words left once every kanji has its group form one trailing group (batchKanjiId null) -- e.g. the
+// kanji side ran out before the vocab side did, or kanji aren't rationed at all (groupSize 0).
+//
+// Every word's batchKanjiId is (re)assigned here, from its position -- introduceVocab reveals a
+// group's review batch on the last tap sharing that id, so ids only need to be consistent within
+// one arrangement, never stable across them.
+function arrangeKanjiVocab(
+  kanji: NewKanjiItem[],
+  words: NewVocabItem[],
+  groupSize: number,
+  openWords: number,
+  openBatchId: number | null
+): QueueItem[] {
+  const items: QueueItem[] = [];
+  let next = 0;
+  const take = (count: number, batchKanjiId: number | null) => {
+    for (const word of words.slice(next, next + count)) items.push({ ...word, batchKanjiId });
+    next = Math.min(words.length, next + count);
+  };
+
+  if (groupSize > 0) take(Math.max(0, openWords), openBatchId);
+  for (const k of kanji) {
+    items.push(k);
+    if (groupSize > 0) take(groupSize, k.candidate.id);
+  }
+  take(words.length - next, null);
+  return items;
+}
+
 function interleaveNewMaterial(
   kanjiCandidates: NewKanjiCandidate[],
   vocabCandidates: NewVocabCandidate[],
-  groupSize: number
+  groupSize: number,
+  kanjiToday: number,
+  vocabToday: number
 ): QueueItem[] {
-  const items: QueueItem[] = [];
-  let vocabIndex = 0;
-
-  const pushVocabGroup = (count: number, batchKanjiId: number | null) => {
-    for (const candidate of vocabCandidates.slice(vocabIndex, vocabIndex + count)) {
-      items.push({ key: newVocabKey(candidate.id), kind: "new_vocab", candidate, batchKanjiId });
-    }
-    vocabIndex += count;
-  };
-
-  if (kanjiCandidates.length === 0 || groupSize <= 0) {
-    // Nothing to interleave with (kanji disabled/exhausted, or vocab isn't rationed per kanji at
-    // all) -- every candidate lands in one trailing group, same as before this change existed.
-    pushVocabGroup(vocabCandidates.length, null);
-    return items;
-  }
-
-  for (const candidate of kanjiCandidates) {
-    items.push({ key: newKanjiKey(candidate.id), kind: "new_kanji", candidate });
-    pushVocabGroup(groupSize, candidate.id);
-  }
-  // Vocab left over once every kanji candidate has claimed its own group -- e.g. the kanji side
-  // of the curriculum ran out for the day/level before the vocab side did. Nothing left to
-  // interleave with, so it's one trailing group, same as the no-kanji branch above.
-  pushVocabGroup(vocabCandidates.length - vocabIndex, null);
-  return items;
+  const kanji: NewKanjiItem[] = kanjiCandidates.map((candidate) => ({
+    key: newKanjiKey(candidate.id),
+    kind: "new_kanji",
+    candidate,
+  }));
+  const words: NewVocabItem[] = vocabCandidates.map((candidate) => ({
+    key: newVocabKey(candidate.id),
+    kind: "new_vocab",
+    candidate,
+    batchKanjiId: null,
+  }));
+  return arrangeKanjiVocab(kanji, words, groupSize, kanjiToday * groupSize - vocabToday, OPEN_VOCAB_GROUP);
 }
 
 function buildQueue(data: StudyQueueResponse, groupSize: number): QueueItem[] {
@@ -167,7 +188,15 @@ function buildQueue(data: StudyQueueResponse, groupSize: number): QueueItem[] {
       candidates: data.new_kanji_basics_to_introduce,
     });
   }
-  items.push(...interleaveNewMaterial(data.new_kanji_to_introduce, data.new_vocab_to_introduce, groupSize));
+  items.push(
+    ...interleaveNewMaterial(
+      data.new_kanji_to_introduce,
+      data.new_vocab_to_introduce,
+      groupSize,
+      data.new_kanji_today ?? 0,
+      data.new_vocab_today ?? 0
+    )
+  );
 
   const hiraganaEntries: { sortOrder: number; item: QueueItem }[] = [
     ...data.new_hiragana_to_introduce.map((candidate) => ({
@@ -280,7 +309,14 @@ function newKanaPackKey(item: QueueItem): string | null {
 // kanji bundle's own review cards need no equivalent handling here: by the time this merge can
 // ever run with one of them as `current`, groupIntroBundles' own kanji-id grouping (introBundleKey)
 // already keeps its remaining siblings pinned right behind it, same as always.
-function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueItem[] {
+//
+// `arrangement` (from a fresh fetch -- see arrangementFrom): when this merge brings in NEW kanji or
+// word candidates (a daily limit was raised mid-session), the queued-but-untouched kanji/word items
+// are laid out again with arrangeKanjiVocab -- appending the newcomers at the end, as before, put
+// the new kanji right behind each other, since the words meant to sit between them were already
+// queued in front. Nothing already pinned above (the current card, its vocab group or kana pack)
+// moves.
+function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[], arrangement?: KanjiVocabArrangement): QueueItem[] {
   if (prev.length === 0) return reviewsFirst(additions);
   const [current, ...rest] = prev;
   const currentPackKey = newKanaPackKey(current);
@@ -294,7 +330,67 @@ function mergeKeepingCurrent(prev: QueueItem[], additions: QueueItem[]): QueueIt
   const restOtherNew = restNew.filter((i) => !restSamePack.includes(i) && !restSameVocabGroup.includes(i));
   const addReviews = shuffle(additions.filter((i) => i.kind === "review"));
   const addNew = additions.filter((i) => i.kind !== "review");
-  return [current, ...restReviews, ...restSamePack, ...restSameVocabGroup, ...addReviews, ...restOtherNew, ...addNew];
+  let otherNew: QueueItem[] = [...restOtherNew, ...addNew];
+  if (arrangement && addNew.some(isKanjiOrVocabNew)) {
+    otherNew = rearrangeKanjiVocab(otherNew, current, restSameVocabGroup.length, arrangement);
+  }
+  return [current, ...restReviews, ...restSamePack, ...restSameVocabGroup, ...addReviews, ...otherNew];
+}
+
+interface KanjiVocabArrangement {
+  /** Queue key -> position in the fresh fetch's own buildQueue order (candidate order). */
+  order: Map<string, number>;
+  groupSize: number;
+  kanjiToday: number;
+  vocabToday: number;
+}
+
+function isKanjiOrVocabNew(item: QueueItem): item is NewKanjiItem | NewVocabItem {
+  return item.kind === "new_kanji" || item.kind === "new_vocab";
+}
+
+function arrangementFrom(data: StudyQueueResponse, incoming: QueueItem[], groupSize: number): KanjiVocabArrangement {
+  return {
+    order: new Map(incoming.map((item, index) => [item.key, index])),
+    groupSize,
+    kanjiToday: data.new_kanji_today ?? 0,
+    vocabToday: data.new_vocab_today ?? 0,
+  };
+}
+
+// Re-lays out every not-yet-pinned new kanji/word item (see mergeKeepingCurrent). Kanji and words
+// keep the fresh fetch's candidate order; anything the fetch no longer lists (e.g. a limit was
+// lowered) is kept, after the rest, rather than silently dropped. `current`, when it is itself a
+// "New kanji" or "New vocabulary" tap, counts as already introduced: a New kanji on screen is
+// followed by its own word group first, and a word group being tapped is topped up to groupSize
+// before the next kanji.
+function rearrangeKanjiVocab(
+  items: QueueItem[],
+  current: QueueItem,
+  pinnedGroupSiblings: number,
+  arrangement: KanjiVocabArrangement
+): QueueItem[] {
+  const rank = (item: QueueItem) => arrangement.order.get(item.key) ?? Number.POSITIVE_INFINITY;
+  const kv = items.filter(isKanjiOrVocabNew).sort((a, b) => rank(a) - rank(b));
+  const kanji = kv.filter((i): i is NewKanjiItem => i.kind === "new_kanji");
+  const words = kv.filter((i): i is NewVocabItem => i.kind === "new_vocab");
+
+  let kanjiToday = arrangement.kanjiToday;
+  let wordsPlaced = arrangement.vocabToday;
+  let openBatchId: number | null = OPEN_VOCAB_GROUP;
+  if (current.kind === "new_kanji") {
+    kanjiToday += 1;
+    openBatchId = current.candidate.id;
+  } else if (current.kind === "new_vocab") {
+    wordsPlaced += 1 + pinnedGroupSiblings;
+    openBatchId = current.batchKanjiId;
+  }
+  const g = arrangement.groupSize;
+  const arranged = arrangeKanjiVocab(kanji, words, g, kanjiToday * g - wordsPlaced, openBatchId);
+
+  const basics = items.filter((i) => i.kind === "new_kanji_basics");
+  const rest = items.filter((i) => !isKanjiOrVocabNew(i) && i.kind !== "new_kanji_basics");
+  return [...basics, ...arranged, ...rest];
 }
 
 // A hiragana_reading/katakana_reading card still in the post-introduction drill (card.drill_mode
@@ -728,6 +824,11 @@ export function useStudyQueue() {
   // "New vocabulary" card in the queue) is currently in flight -- there's only ever one vocab
   // batch at a time, so a boolean is enough (unlike kanjiInFlightRef's per-kanji Set).
   const vocabBatchInFlightRef = useRef(false);
+  // How many plain "New vocabulary" taps (introduceCard) haven't reached the server yet. While any
+  // intro is still settling, a fetch's new_kanji_today/new_vocab_today may not count it yet, so
+  // refreshQueue/init (their `settling` check) hold back brand-new kanji/word candidates for that round (the next poll adds
+  // them) rather than arrange them from counts that are off by the in-flight taps.
+  const introMutationsInFlightRef = useRef(0);
   // See QueueItem.renderKey -- incremented each time submitDrillAnswer reshows a held card
   // after a not-yet-graduated result, so its React key differs from the previous attempt.
   const drillRetryCounterRef = useRef(0);
@@ -783,7 +884,8 @@ export function useStudyQueue() {
       const data = await getStudyQueue(user.id, settings, (wordsByKanjiId) => {
         setQueue((prev) => patchKanjiWords(prev, wordsByKanjiId));
       });
-      const incoming = buildQueue(data, vocabGroupSize(settings));
+      const groupSize = vocabGroupSize(settings);
+      const incoming = buildQueue(data, groupSize);
       setNextDueAt(data.next_due_at);
       setNextDueStatus(data.next_due_status);
       setPredictedTotal((t) => Math.max(t, adjustedPredictedTotal(data, attemptedKeysRef.current)));
@@ -800,11 +902,21 @@ export function useStudyQueue() {
           ),
           attemptedKeysRef.current
         );
-        const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
+        const settling = introMutationsInFlightRef.current > 0 || kanjiInFlightRef.current.size > 0 || vocabBatchInFlightRef.current;
+        const additions = poolExtraDrillCards(
+          settling ? rawAdditions.filter((i) => !isKanjiOrVocabNew(i)) : rawAdditions,
+          prev,
+          hiraganaDrillPoolRef.current,
+          katakanaDrillPoolRef.current,
+          hiraganaInFlightRef.current,
+          katakanaInFlightRef.current
+        );
         // Nothing to add to an already-empty queue: keep the same array so the "queue just emptied"
         // effect below isn't needlessly re-run (and its in-flight check cancelled) by a poll.
         if (prev.length === 0 && additions.length === 0) return prev;
-        return groupIntroBundles(mergeKeepingCurrent(prev, additions));
+        return groupIntroBundles(
+          mergeKeepingCurrent(prev, additions, settling ? undefined : arrangementFrom(data, incoming, groupSize))
+        );
       });
     } catch {
       // periodic refresh failures shouldn't interrupt an active session
@@ -941,7 +1053,8 @@ export function useStudyQueue() {
           setQueue((prev) => patchKanjiWords(prev, wordsByKanjiId));
         });
         if (cancelledRef.current) return;
-        const items = reviewsFirst(buildQueue(data, vocabGroupSize(settings)));
+        const groupSize = vocabGroupSize(settings);
+        const items = reviewsFirst(buildQueue(data, groupSize));
         setNextDueAt(data.next_due_at);
         setNextDueStatus(data.next_due_status);
         setUndoDisabled(data.undo_disabled);
@@ -961,8 +1074,18 @@ export function useStudyQueue() {
               ),
               attemptedKeysRef.current
             );
-            const additions = poolExtraDrillCards(rawAdditions, prev, hiraganaDrillPoolRef.current, katakanaDrillPoolRef.current, hiraganaInFlightRef.current, katakanaInFlightRef.current);
-            return groupIntroBundles(mergeKeepingCurrent(prev, additions));
+            const settling = introMutationsInFlightRef.current > 0 || kanjiInFlightRef.current.size > 0 || vocabBatchInFlightRef.current;
+            const additions = poolExtraDrillCards(
+              settling ? rawAdditions.filter((i) => !isKanjiOrVocabNew(i)) : rawAdditions,
+              prev,
+              hiraganaDrillPoolRef.current,
+              katakanaDrillPoolRef.current,
+              hiraganaInFlightRef.current,
+              katakanaInFlightRef.current
+            );
+            return groupIntroBundles(
+              mergeKeepingCurrent(prev, additions, settling ? undefined : arrangementFrom(data, items, groupSize))
+            );
           });
           return;
         }
@@ -1466,6 +1589,7 @@ export function useStudyQueue() {
       hasProcessedAnyRef.current = true;
       setCompletedCount((c) => c + 1);
       setQueue((prev) => prev.filter((i) => i.key !== item.key));
+      introMutationsInFlightRef.current += 1;
 
       enqueueMutation(async () => {
         try {
@@ -1475,6 +1599,8 @@ export function useStudyQueue() {
           setCompletedCount((c) => Math.max(0, c - 1));
           setQueue((prev) => [item, ...prev]);
           showToast(err instanceof ApiError ? err.message : `Could not introduce this ${noun}. Please try again.`, "error");
+        } finally {
+          introMutationsInFlightRef.current = Math.max(0, introMutationsInFlightRef.current - 1);
         }
       });
     },

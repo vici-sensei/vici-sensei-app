@@ -406,6 +406,8 @@ export async function fetchStudyQueue(
     new_kanji_basics_to_introduce: newKanjiBasicsToIntroduce,
     new_kanji_to_introduce: newKanjiToIntroduce,
     new_vocab_to_introduce: vocabCandidates,
+    new_kanji_today: counts.new_kanji_today ?? 0,
+    new_vocab_today: counts.new_vocab_today ?? 0,
     new_hiragana_to_introduce: hiraganaCandidates,
     new_katakana_to_introduce: katakanaCandidates,
     new_hiragana_rules_to_introduce: hiraganaRuleCandidates,

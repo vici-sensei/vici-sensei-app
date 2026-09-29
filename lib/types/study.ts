@@ -306,6 +306,13 @@ export interface StudyQueueResponse {
   new_kanji_basics_to_introduce: NewKanjiBasicsCandidate[];
   new_kanji_to_introduce: NewKanjiCandidate[];
   new_vocab_to_introduce: NewVocabCandidate[];
+  /** get_today_activity_counts' new_kanji_today/new_vocab_today as of this fetch -- how many
+   * kanji and words the student already introduced today. buildQueue/arrangeKanjiVocab use them
+   * to finish the word group of today's last kanji before the next "New kanji" card, so a limit
+   * raised mid-day (or a reload mid-group) keeps "1 kanji, then its N words" instead of queueing
+   * kanji back to back. */
+  new_kanji_today: number;
+  new_vocab_today: number;
   new_hiragana_to_introduce: NewHiraganaCandidate[];
   new_katakana_to_introduce: NewKatakanaCandidate[];
   new_hiragana_rules_to_introduce: NewHiraganaRuleCandidate[];
