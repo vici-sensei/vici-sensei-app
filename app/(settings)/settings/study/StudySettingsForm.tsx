@@ -208,14 +208,17 @@ export function StudySettingsForm({
   // Live UI-only, cleared the moment studyKatakana turns off, same contract as the cues above.
   const [katakanaAutoEnabled, setKatakanaAutoEnabled] = useState(false);
   // How high each "New X per day" stepper can go right now (fetchNewCardCaps -- same numbers
-  // clamp_new_card_caps_trigger enforces server-side, see 20260902_harden_new_card_introduction.sql).
+  // clamp_new_card_caps_trigger enforces server-side, see 20260929193114_new_card_caps_by_level.sql):
+  // counted at the levels currently picked, so it's refetched whenever the level range changes.
   // null while unknown -- left undisabled until this resolves rather than guessing, since the
-  // server-side clamp is the real backstop either way.
+  // server-side clamp is the real backstop either way (it also lowers a saved limit that no longer
+  // fits a newly picked level, which the autosave's resync then shows with its "Capped" toast).
   const [newCardCaps, setNewCardCaps] = useState<NewCardCaps | null>(null);
+  const capsLevelsKey = levelsInRange(floor, level).join(",");
 
   useEffect(() => {
     let cancelled = false;
-    fetchNewCardCaps()
+    fetchNewCardCaps(capsLevelsKey ? capsLevelsKey.split(",") : undefined)
       .then((caps) => {
         if (!cancelled) setNewCardCaps(caps);
       })
@@ -225,7 +228,7 @@ export function StudySettingsForm({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [capsLevelsKey]);
 
   useEffect(() => {
     if (!user) return;

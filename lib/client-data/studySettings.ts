@@ -236,15 +236,19 @@ export interface NewCardCaps {
   katakanaMax: number;
 }
 
-/** How high each "New X per day" stepper can go right now -- get_new_card_caps
- * (20260902_harden_new_card_introduction.sql) derives all four straight from how much content
- * currently exists in kanji/vocabulary/hiragana/katakana, the same numbers
- * clamp_new_card_caps_trigger enforces server-side on save. Fetched so StudySettingsForm can
- * disable each "+" before the user ever hits that server-side clamp, instead of only finding out
- * after an autosave silently reduces the value. */
-export async function fetchNewCardCaps(): Promise<NewCardCaps> {
+/** How high each "New X per day" stepper can go right now -- get_new_card_caps_for_levels
+ * (20260929193114_new_card_caps_by_level.sql) derives all four from how much content exists at
+ * `levels` (the JLPT levels the student has picked; kanji/vocabulary only -- kana has no levels),
+ * the same numbers clamp_new_card_caps_trigger enforces server-side on save. Fetched so
+ * StudySettingsForm can disable each "+" before the user ever hits that server-side clamp,
+ * instead of only finding out after an autosave silently reduces the value. Falls back to the
+ * all-levels get_new_card_caps against a database that doesn't have the per-level function yet. */
+export async function fetchNewCardCaps(levels?: readonly string[]): Promise<NewCardCaps> {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("get_new_card_caps").single();
+  let { data, error } = levels
+    ? await supabase.rpc("get_new_card_caps_for_levels", { p_levels: [...levels] }).single()
+    : await supabase.rpc("get_new_card_caps").single();
+  if (error && levels) ({ data, error } = await supabase.rpc("get_new_card_caps").single());
   if (error) throw new ApiError(500, error.message);
   const row = data as { kanji_max: number; vocab_max: number; hiragana_max: number; katakana_max: number };
   return { kanjiMax: row.kanji_max, vocabMax: row.vocab_max, hiraganaMax: row.hiragana_max, katakanaMax: row.katakana_max };

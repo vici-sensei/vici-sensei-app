@@ -55,7 +55,7 @@ const PACE_OPTIONS: { value: PaceMode; label: string }[] = [
 const VOCAB_PER_KANJI = 6;
 const MAX_CUSTOM_PER_DAY = 999;
 
-const clampPerDay = (n: number) => Math.min(MAX_CUSTOM_PER_DAY, Math.max(1, Math.round(n)));
+const clampPerDay = (n: number, max = MAX_CUSTOM_PER_DAY) => Math.min(Math.max(1, max), Math.max(1, Math.round(n)));
 
 function toCategoryPace(mode: PaceMode, custom: number): CategoryPace {
   if (mode === "settings") return { kind: "settings" };
@@ -119,12 +119,14 @@ function NumberField({
   value,
   step,
   min,
+  max,
   onChange,
 }: {
   label: string;
   value: number;
   step: number;
   min: number;
+  max: number;
   onChange: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -160,7 +162,7 @@ function NumberField({
         type="button"
         aria-label={`More ${label}`}
         className={stepperButtonClass}
-        disabled={value + step > MAX_CUSTOM_PER_DAY}
+        disabled={value + step > max}
         onClick={() => onChange(value + step)}
       >
         <FaPlus />
@@ -179,7 +181,7 @@ function PaceControl({
   mode: PaceMode;
   onModeChange: (mode: PaceMode) => void;
   custom: number;
-  field: { label: string; step: number; min: number; onChange: (value: number) => void };
+  field: { label: string; step: number; min: number; max: number; onChange: (value: number) => void };
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -290,19 +292,39 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
     }),
     [student]
   );
-  const customVocabulary = customKanji * VOCAB_PER_KANJI;
+  // Custom paces can't go past how much there is to learn: kanji and vocabulary at the levels ticked
+  // above (held to 1:6 the same way get_new_card_caps_for_levels holds the student's own settings),
+  // hiragana/katakana at their whole script. A value that no longer fits after unticking a level is
+  // shown and used at the new maximum; ticking the level again brings the typed value back.
+  const customCaps = useMemo(() => {
+    const total = (category: NewCardCategory, atLevels: boolean) =>
+      progress.pool
+        .filter((row) => row.category === category && (!atLevels || (row.level != null && levels.includes(row.level))))
+        .reduce((sum, row) => sum + row.total, 0);
+    const kanji = Math.max(1, Math.min(total("kanji", true), Math.floor(total("vocabulary", true) / VOCAB_PER_KANJI)));
+    return {
+      kanji,
+      vocabulary: kanji * VOCAB_PER_KANJI,
+      hiragana: Math.max(1, total("hiragana_reading", false)),
+      katakana: Math.max(1, total("katakana_reading", false)),
+    };
+  }, [progress, levels]);
+  const kanjiPace = Math.min(customKanji, customCaps.kanji);
+  const hiraganaPace = Math.min(customHiragana, customCaps.hiragana);
+  const katakanaPace = Math.min(customKatakana, customCaps.katakana);
+  const customVocabulary = kanjiPace * VOCAB_PER_KANJI;
   const pace: PaceSource = useMemo(
     () =>
       track === "standard"
         ? {
-            kanji: toCategoryPace(standardMode, customKanji),
-            vocabulary: toCategoryPace(standardMode, customKanji * VOCAB_PER_KANJI),
+            kanji: toCategoryPace(standardMode, kanjiPace),
+            vocabulary: toCategoryPace(standardMode, kanjiPace * VOCAB_PER_KANJI),
           }
         : {
-            hiragana_reading: toCategoryPace(hiraganaMode, customHiragana),
-            katakana_reading: toCategoryPace(katakanaMode, customKatakana),
+            hiragana_reading: toCategoryPace(hiraganaMode, hiraganaPace),
+            katakana_reading: toCategoryPace(katakanaMode, katakanaPace),
           },
-    [track, standardMode, customKanji, hiraganaMode, customHiragana, katakanaMode, customKatakana]
+    [track, standardMode, kanjiPace, hiraganaMode, hiraganaPace, katakanaMode, katakanaPace]
   );
   const reviewCap = reviewKey === "settings" ? (student.max_reviews_per_day ?? null) : reviewKey === "none" ? null : Number(reviewKey);
   const accuracy = Math.min(1, Math.max(0, student.retention_rate ?? 1));
@@ -335,10 +357,10 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
         ? `Student settings (${settingsPaceLabel(track, settingsCaps)})`
         : standardMode === "average"
           ? `Recent average (${fmtDecimal(summary.recentAverage)}/day)`
-          : `${fmt(customKanji)} kanji + ${fmt(customVocabulary)} vocabulary/day`
+          : `${fmt(kanjiPace)} kanji + ${fmt(customVocabulary)} vocabulary/day`
       : hiraganaMode === "settings" && katakanaMode === "settings"
         ? `Student settings (${settingsPaceLabel(track, settingsCaps)})`
-        : [kanaPaceLabel("Hiragana", hiraganaMode, customHiragana), kanaPaceLabel("katakana", katakanaMode, customKatakana)].join(", ");
+        : [kanaPaceLabel("Hiragana", hiraganaMode, hiraganaPace), kanaPaceLabel("katakana", katakanaMode, katakanaPace)].join(", ");
   const usesAverage = track === "standard" ? standardMode === "average" : hiraganaMode === "average" || katakanaMode === "average";
   const reviewSummary = reviewCap == null ? "No review limit" : `${fmt(reviewCap)} reviews/day`;
   const summaryLine = [
@@ -435,13 +457,19 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
                 <PaceControl
                   mode={standardMode}
                   onModeChange={setStandardMode}
-                  custom={customKanji}
-                  field={{ label: "kanji per day", step: 1, min: 1, onChange: (n) => setCustomKanji(clampPerDay(n)) }}
+                  custom={kanjiPace}
+                  field={{
+                    label: "kanji per day",
+                    step: 1,
+                    min: 1,
+                    max: customCaps.kanji,
+                    onChange: (n) => setCustomKanji(clampPerDay(n, customCaps.kanji)),
+                  }}
                 />
               </FilterRow>
               <FilterRow
                 label="New vocabulary per day"
-                hint={`Always ${VOCAB_PER_KANJI} words per kanji, like in the app: changing one changes the other, and any number is rounded to a multiple of ${VOCAB_PER_KANJI}.`}
+                hint={`Always ${VOCAB_PER_KANJI} words per kanji, like in the app: changing one changes the other, and any number is rounded to a multiple of ${VOCAB_PER_KANJI}. Custom goes up to ${fmt(customCaps.kanji)} kanji / ${fmt(customCaps.vocabulary)} words, what the ticked levels hold.`}
               >
                 <PaceControl
                   mode={standardMode}
@@ -451,7 +479,8 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
                     label: "words per day",
                     step: VOCAB_PER_KANJI,
                     min: VOCAB_PER_KANJI,
-                    onChange: (n) => setCustomKanji(clampPerDay(n / VOCAB_PER_KANJI)),
+                    max: customCaps.vocabulary,
+                    onChange: (n) => setCustomKanji(clampPerDay(n / VOCAB_PER_KANJI, customCaps.kanji)),
                   }}
                 />
               </FilterRow>
@@ -462,8 +491,14 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
                 <PaceControl
                   mode={hiraganaMode}
                   onModeChange={setHiraganaMode}
-                  custom={customHiragana}
-                  field={{ label: "hiragana per day", step: 1, min: 1, onChange: (n) => setCustomHiragana(clampPerDay(n)) }}
+                  custom={hiraganaPace}
+                  field={{
+                    label: "hiragana per day",
+                    step: 1,
+                    min: 1,
+                    max: customCaps.hiragana,
+                    onChange: (n) => setCustomHiragana(clampPerDay(n, customCaps.hiragana)),
+                  }}
                 />
               </FilterRow>
               <FilterRow
@@ -473,8 +508,14 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
                 <PaceControl
                   mode={katakanaMode}
                   onModeChange={setKatakanaMode}
-                  custom={customKatakana}
-                  field={{ label: "katakana per day", step: 1, min: 1, onChange: (n) => setCustomKatakana(clampPerDay(n)) }}
+                  custom={katakanaPace}
+                  field={{
+                    label: "katakana per day",
+                    step: 1,
+                    min: 1,
+                    max: customCaps.katakana,
+                    onChange: (n) => setCustomKatakana(clampPerDay(n, customCaps.katakana)),
+                  }}
                 />
               </FilterRow>
             </>
