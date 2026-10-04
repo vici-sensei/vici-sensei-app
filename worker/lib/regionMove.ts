@@ -154,7 +154,8 @@ async function createTargetAuthUser(
   targetRegion: Region,
   email: string,
   fullName: string | null,
-  avatarUrl: string | null
+  avatarUrl: string | null,
+  password: string | null
 ): Promise<string> {
   const { url, serviceRoleKey } = projectConfig(env, targetRegion);
   const res = await fetch(new URL("auth/v1/admin/users", url), {
@@ -168,6 +169,10 @@ async function createTargetAuthUser(
       email,
       email_confirm: true,
       user_metadata: { full_name: fullName, avatar_url: avatarUrl },
+      // Only for accounts that sign in with a password: the Admin API can't read the source's hash,
+      // so the person re-enters it in the move flow (the client re-authenticated it first). Used
+      // right here, never stored -- not in D1, not in the step log.
+      ...(password ? { password } : {}),
     }),
   });
   if (res.ok) {
@@ -203,7 +208,7 @@ async function findUserIdByEmail(env: Env, region: Region, email: string): Promi
 // Step machine
 // ---------------------------------------------------------------------------
 
-async function stepCreateTargetUser(env: Env, row: RegionMoveRow): Promise<void> {
+async function stepCreateTargetUser(env: Env, row: RegionMoveRow, password: string | null): Promise<void> {
   const sourceCfg = restConfig(env, row.source_region);
   const profile = await pgSelectOne<{ display_name: string | null; avatar_url: string | null }>(sourceCfg, "users", {
     id: `eq.${row.source_user_id}`,
@@ -214,7 +219,8 @@ async function stepCreateTargetUser(env: Env, row: RegionMoveRow): Promise<void>
     row.target_region,
     row.email,
     profile?.display_name ?? null,
-    profile?.avatar_url ?? null
+    profile?.avatar_url ?? null,
+    password
   );
   await patchMove(env, row.id, { target_user_id: targetUserId, status: "target_created" });
 }
@@ -483,7 +489,7 @@ const ALL_STEP_NAMES = [
 
 /** Runs exactly one step and returns whether the whole move is now complete. Never trust
  * `row.status` for branching -- only for display; the individual columns are the resume state. */
-async function runNextStep(env: Env, row: RegionMoveRow): Promise<StepResult> {
+async function runNextStep(env: Env, row: RegionMoveRow, password: string | null): Promise<StepResult> {
   // Table drains run BEFORE profile_synced -- stepSyncProfile must have the last word on
   // leaderboard_stats/user_study_settings, since draining review_logs/the progress tables can
   // trigger this project's normal achievement/leaderboard-count triggers (see the comment on
@@ -521,7 +527,7 @@ async function runNextStep(env: Env, row: RegionMoveRow): Promise<StepResult> {
   }
 
   try {
-    if (step === "create_target_user") await stepCreateTargetUser(env, row);
+    if (step === "create_target_user") await stepCreateTargetUser(env, row, password);
     else if (step === "sync_profile") await stepSyncProfile(env, row);
     else if (step.startsWith("drain_")) {
       const table = COPY_TABLES.find((t) => t.name === row.current_table);
@@ -560,7 +566,7 @@ async function runNextStep(env: Env, row: RegionMoveRow): Promise<StepResult> {
 // HTTP handlers
 // ---------------------------------------------------------------------------
 
-async function resolveIdentity(
+export async function resolveIdentity(
   request: Request,
   env: Env,
   sourceRegion: string | null
@@ -620,6 +626,9 @@ export async function handleRegionMoveStart(request: Request, env: Env): Promise
 export async function handleRegionMoveContinue(request: Request, env: Env): Promise<Response> {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const sourceRegionRaw = typeof body.sourceRegion === "string" ? body.sourceRegion : null;
+  // Optional, only for accounts with a password; see createTargetAuthUser. Only the first step
+  // (create_target_user) ever reads it, so the client may keep sending it on every call.
+  const password = typeof body.password === "string" && body.password.length > 0 ? body.password : null;
 
   const identity = await resolveIdentity(request, env, sourceRegionRaw);
   if (identity instanceof Response) return identity;
@@ -630,7 +639,7 @@ export async function handleRegionMoveContinue(request: Request, env: Env): Prom
   if (!row) return json({ error: "no_active_move" }, 404);
 
   try {
-    const result = await runNextStep(env, row);
+    const result = await runNextStep(env, row, password);
     return json(result);
   } catch (err) {
     return json({ done: false, error: err instanceof Error ? err.message : String(err) }, 500);

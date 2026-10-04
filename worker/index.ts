@@ -1,6 +1,8 @@
+import { runAccountSweep } from "./lib/accountSweep";
 import { mirrorGoogleAvatars } from "./lib/avatarMirror";
 import { type Env, projectConfig } from "./lib/env";
 import { emailKey, isRegion, regionFromCfContinent, type Region } from "./lib/region";
+import { handleEmailChangeCancel, handleEmailChangeFinalize, handleEmailChangeStart } from "./lib/emailChange";
 import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
 import { verifyStandardWebhook } from "./lib/webhooks";
 
@@ -245,6 +247,16 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     return handleRegionMoveStatus(request, env);
   }
 
+  if (request.method === "POST" && url.pathname === "/api/email-change/start") {
+    return handleEmailChangeStart(request, env);
+  }
+  if (request.method === "POST" && url.pathname === "/api/email-change/finalize") {
+    return handleEmailChangeFinalize(request, env);
+  }
+  if (request.method === "POST" && url.pathname === "/api/email-change/cancel") {
+    return handleEmailChangeCancel(request, env);
+  }
+
   return json({ error: "not_found" }, 404);
 }
 
@@ -269,6 +281,7 @@ const worker: ExportedHandler<Env> = {
       await runKeepalive(env);
     } else if (event.cron === "0 4 * * 1") {
       await runReconciliation(env);
+      await runAccountSweep(env);
     } else if (event.cron === "17 * * * *") {
       await mirrorGoogleAvatars(env);
     }

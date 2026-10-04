@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { switchGoogleAccount, cancelPendingAccountDeletion, checkAccountMoved } from "@/lib/client-data/account";
+import { switchGoogleAccount } from "@/lib/client-data/account";
+import { finishSignIn } from "@/lib/auth/finishSignIn";
 import { ApiError } from "@/lib/api/client";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { useToast } from "@/app/components/ui/Toast";
@@ -67,10 +68,15 @@ function AuthCallbackInner() {
 
     const next = searchParams.get("next") ?? "/dashboard";
     const isSwitch = searchParams.get("switch") === "1";
+    // Linking Google to an account that signed up with a password (Settings -> Link Google account):
+    // nothing to switch or clean up, just go back to Settings.
+    const isLink = searchParams.get("link") === "1";
 
-    // A self-service email change (the old manual "change email" flow) used to link a new
-    // "email" identity alongside the existing Google one as a GoTrue side effect. We only
-    // support Google sign-in, so drop it if it's ever still present.
+    // Switching Google accounts goes through admin.updateUserById({ email }), which links a new
+    // "email" identity alongside the Google one as a GoTrue side effect. Only ever called from the
+    // switch flow below, which Settings offers only to accounts WITHOUT a password -- so the email
+    // identity it finds there is that stray one. It must never run on a normal sign-in: since
+    // email + password exists, an "email" identity next to a Google one is a real password.
     async function dropStrayEmailIdentity() {
       try {
         const { data } = await supabase.auth.getUserIdentities();
@@ -122,6 +128,10 @@ function AuthCallbackInner() {
       handled = true;
 
       async function finish() {
+        if (isLink) {
+          router.replace("/settings/profile?linked=1");
+          return;
+        }
         if (isSwitch) {
           const result = await completeGoogleAccountSwitch();
           // admin.updateUserById({ email }) has the same GoTrue side effect as the old
@@ -136,21 +146,13 @@ function AuthCallbackInner() {
           router.replace("/settings/profile?switched=1");
           return;
         }
-        await dropStrayEmailIdentity();
-        // A region-moved account must never fall through to cancelPendingAccountDeletion() below
-        // -- that would silently "reactivate" a stale duplicate the user has no reason to expect
-        // (see the region_move_retirement migration). Check this FIRST, before anything else that
-        // touches pending_deletion_at.
-        const movedTo = await checkAccountMoved();
-        if (movedTo) {
-          await supabase.auth.signOut();
-          router.replace(`/login?error=account_moved&region=${movedTo}`);
+        // Moved-account check first, then reactivating a pending deletion -- see finishSignIn().
+        const finished = await finishSignIn();
+        if (finished.kind === "moved") {
+          router.replace(`/login?error=account_moved&region=${finished.region}`);
           return;
         }
-        // Best-effort: if this account had requested deletion, logging back in
-        // cancels it. cancelPendingAccountDeletion() never throws.
-        const reactivated = await cancelPendingAccountDeletion();
-        if (reactivated) {
+        if (finished.reactivated) {
           showToast("Welcome back — your account was reactivated!", "success");
         }
         router.replace(next);

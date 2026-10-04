@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { FaCheck, FaEarthAmericas, FaEarthEurope } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { updateStudySettings } from "@/lib/client-data/studySettings";
 import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
-import { getRegionMoveStatus, moveToOtherRegion, type RegionMoveProgress } from "@/lib/client-data/account";
+import {
+  getRegionMoveStatus,
+  hasPassword as fetchHasPassword,
+  moveToOtherRegion,
+  type RegionMoveProgress,
+} from "@/lib/client-data/account";
+import { confirmCurrentPassword, isPasswordAuthEnabled, type AuthFailure } from "@/lib/auth/passwordAuth";
+import { Button } from "@/app/components/ui/Button";
+import { fieldLabel } from "@/app/components/ui/formClasses";
+import { FormMessage } from "@/app/components/auth/AuthLayout";
+import { PasswordField } from "@/app/components/auth/PasswordField";
+import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
@@ -49,6 +60,80 @@ function ProgressRing({ percent }: { percent: number }) {
   );
 }
 
+/** Moving an account that signs in with a password needs the password again: the Admin API that
+ * recreates the account in the other project can't copy the stored hash, so the Worker sets the
+ * password on the new account from what is typed here. It is verified first (a real sign-in) so a
+ * typo doesn't leave the new account with a password the person doesn't know. */
+function MovePasswordPrompt({
+  email,
+  target,
+  onConfirmed,
+  onCancel,
+}: {
+  email: string;
+  target: Region;
+  onConfirmed: (password: string) => void;
+  onCancel: () => void;
+}) {
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const [password, setPassword] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [failure, setFailure] = useState<AuthFailure | null>(null);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (checking) return;
+    if (password.length === 0) {
+      setFailure({ code: "invalid_credentials", message: "Enter your password." });
+      return;
+    }
+    setFailure(null);
+    setChecking(true);
+    const result = await confirmCurrentPassword(email, password, async () => captchaRef.current?.getToken());
+    if (!result.ok) {
+      setFailure(result.failure);
+      setChecking(false);
+      return;
+    }
+    onConfirmed(password);
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="mb-3 flex max-w-sm flex-col gap-3 rounded-2xl border border-accent-blue/30 bg-accent-blue/[0.05] p-4 text-left"
+    >
+      <p className="text-[0.85rem] leading-normal text-text-muted">
+        To move your account to <span className="font-bold text-white">{REGION_META[target].label}</span>, enter your
+        password. It is used once, to set it on the new account.
+      </p>
+      <div>
+        <label htmlFor="move-password" className={fieldLabel}>
+          Password
+        </label>
+        <PasswordField
+          id="move-password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={checking}
+        />
+      </div>
+      {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
+      <Turnstile ref={captchaRef} />
+      <div className="flex gap-2.5">
+        <Button type="submit" size="sm" loading={checking}>
+          Move my account
+        </Button>
+        <Button type="button" variant="secondary" size="sm" disabled={checking} onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /** Behind NEXT_PUBLIC_MULTI_REGION, the region a signed-in user is in is a real, settled fact
  * (decided at login -- see app/login/page.tsx -- and enforced by the "Before User Created" hook).
  * Clicking the other region's card starts a self-service move immediately -- no confirmation step,
@@ -60,16 +145,21 @@ function ProgressRing({ percent }: { percent: number }) {
  * previous attempt was left mid-flight (tab closed, etc). */
 function ActiveRegionDisplay() {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const region = getActiveRegion();
+  const passwordAuth = isPasswordAuthEnabled();
 
   const [movingTo, setMovingTo] = useState<Region | null>(null);
   const [percent, setPercent] = useState(0);
+  // Set when the move to this region is waiting for the account's password (see MovePasswordPrompt).
+  const [askPasswordFor, setAskPasswordFor] = useState<Region | null>(null);
 
-  async function runMove(targetRegion: Region) {
+  async function runMove(targetRegion: Region, password?: string) {
+    setAskPasswordFor(null);
     setMovingTo(targetRegion);
     setPercent(0);
     try {
-      await moveToOtherRegion(region, targetRegion, (p: RegionMoveProgress) => setPercent(p.percent));
+      await moveToOtherRegion(region, targetRegion, (p: RegionMoveProgress) => setPercent(p.percent), password);
       window.location.href = "/settings/account";
     } catch (err) {
       setMovingTo(null);
@@ -80,11 +170,21 @@ function ActiveRegionDisplay() {
     }
   }
 
+  /** A password account has to type its password before ANY move starts or resumes; every other
+   * account (Google only, or when that can't be determined) starts straight away, as always. */
+  async function requestMove(targetRegion: Region) {
+    if (passwordAuth && (await fetchHasPassword()) === true) {
+      setAskPasswordFor(targetRegion);
+      return;
+    }
+    runMove(targetRegion);
+  }
+
   useEffect(() => {
     let cancelled = false;
     getRegionMoveStatus(region)
       .then((status) => {
-        if (!cancelled && status.active && status.targetRegion) runMove(status.targetRegion);
+        if (!cancelled && status.active && status.targetRegion) requestMove(status.targetRegion);
       })
       .catch(() => {
         // No active move to resume, or the check itself failed -- either way just start clean.
@@ -104,6 +204,14 @@ function ActiveRegionDisplay() {
         title="Server region"
         description="For the best speed, pick whichever region is closest to you. Switching regions can take a few minutes."
       />
+      {askPasswordFor && user?.email && (
+        <MovePasswordPrompt
+          email={user.email}
+          target={askPasswordFor}
+          onConfirmed={(password) => runMove(askPasswordFor, password)}
+          onCancel={() => setAskPasswordFor(null)}
+        />
+      )}
       <div className="flex max-w-sm flex-col gap-3 text-left">
         {(Object.keys(REGION_META) as Region[]).map((option) => {
           const { label, description, icon: Icon } = REGION_META[option];
@@ -115,7 +223,7 @@ function ActiveRegionDisplay() {
               type="button"
               onClick={() => {
                 if (moving || selected) return;
-                runMove(option);
+                requestMove(option);
               }}
               disabled={moving}
               className={`relative flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 disabled:cursor-not-allowed ${

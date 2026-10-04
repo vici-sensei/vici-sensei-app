@@ -334,7 +334,10 @@ export default function OnboardingPage() {
     // the timezone guess (StepCountry.tsx) while offline, before the user has ever seen or
     // confirmed an actual option in the (still empty/errored) dropdown.
     (step !== "country" || (Boolean(country) && countriesStatus === "loaded")) &&
-    (step !== "profile" || (nameStatus !== "saving" && !avatarSaving)) &&
+    // An account that signed up with a password has no name yet (Google accounts arrive with one),
+    // so the first save must be a real name -- leaderboards would otherwise show "Anonymous user".
+    (step !== "profile" ||
+      (nameStatus !== "saving" && !avatarSaving && (savedName.trim().length > 0 || displayName.trim().length > 0))) &&
     (step !== "leaderboard" || anonymous !== null);
 
   // Persists whatever the user picked on `fromStep`, regardless of which direction they're

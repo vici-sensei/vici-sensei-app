@@ -34,19 +34,27 @@ function createAuthedFetch(
  * "standalone import for bundle-sensitive environments" pattern for auth/postgrest/storage/functions.
  */
 export function createClient(): AppSupabaseClient {
-  if (isMultiRegionEnabled()) {
-    const region = getActiveRegion()
-    const cached = regionalClients.get(region)
-    if (cached) return cached
-    const { url, anonKey } = regionConfig(region)
-    const created = buildClient(url, anonKey)
-    regionalClients.set(region, created)
-    return created
-  }
+  if (isMultiRegionEnabled()) return createClientForRegion(getActiveRegion())
 
   if (client) return client
   client = buildClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   return client
+}
+
+/**
+ * The cached client for one specific region, regardless of which one is currently active. Only
+ * meaningful with `NEXT_PUBLIC_MULTI_REGION` on. Email + password sign-in uses it to try the other
+ * region's project when the active one rejects the credentials (an account lives in exactly one
+ * region and the user may not know which) -- `createClient()` alone can't do that, it is pinned to
+ * `getActiveRegion()`.
+ */
+export function createClientForRegion(region: Region): AppSupabaseClient {
+  const cached = regionalClients.get(region)
+  if (cached) return cached
+  const { url, anonKey } = regionConfig(region)
+  const created = buildClient(url, anonKey)
+  regionalClients.set(region, created)
+  return created
 }
 
 function buildClient(supabaseUrl: string, supabaseKey: string): AppSupabaseClient {

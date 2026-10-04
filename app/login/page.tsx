@@ -1,24 +1,30 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FcGoogle } from "react-icons/fc";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Logo } from "@/app/components/ui/Logo";
+import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
+import { FormMessage, OrDivider } from "@/app/components/auth/AuthLayout";
+import { GoogleButton } from "@/app/components/auth/GoogleButton";
+import { PasswordField } from "@/app/components/auth/PasswordField";
+import { RegionPicker } from "@/app/components/auth/RegionPicker";
+import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
+import { finishSignIn } from "@/lib/auth/finishSignIn";
 import {
-  getActiveRegion,
-  hasStoredActiveRegion,
-  isMultiRegionEnabled,
-  isRegion,
-  setActiveRegion,
-  workerOrigin,
-  type Region,
-} from "@/lib/supabase/regions";
+  isPasswordAuthEnabled,
+  looksLikeEmail,
+  rememberPendingAuth,
+  signInWithPasswordAcrossRegions,
+  type AuthFailure,
+} from "@/lib/auth/passwordAuth";
+import { useAuthRegion } from "@/lib/auth/useAuthRegion";
+import { isRegion, setActiveRegion, type Region } from "@/lib/supabase/regions";
 
 function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) => void }) {
   const router = useRouter();
@@ -34,7 +40,7 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
     router.replace("/login", { scroll: false });
     if (error === "wrong_region") {
       // Set by app/auth/callback/page.tsx when the multi-region "Before User Created" hook
-      // rejects a signup whose email already belongs to the other region.
+      // rejects a signup whose email already belongs to the other region (also by /signup).
       const regionParam = searchParams.get("region");
       if (isRegion(regionParam)) onWrongRegion(regionParam);
       showToast(
@@ -60,115 +66,120 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
       );
       return;
     }
+    if (error === "password_reset_expired") {
+      showToast("That reset link has expired. Request a new one.", "info");
+      return;
+    }
     showToast("Couldn't sign you in. Only @gmail.com Google accounts are supported.", "error");
   }, [searchParams, showToast, onWrongRegion, router]);
 
   return null;
 }
 
-const REGION_LABEL: Record<Region, string> = { eu: "Europe", us: "Americas" };
+/** Email + password form, shown only behind NEXT_PUBLIC_PASSWORD_AUTH. */
+function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => void }) {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [failure, setFailure] = useState<AuthFailure | null>(null);
 
-/** Shown only behind NEXT_PUBLIC_MULTI_REGION -- picks which Supabase project createClient()
- * talks to (lib/supabase/regions.ts), before the user ever clicks "Continue with Google". Picking
- * a different region than the page loaded with forces a reload: AuthProvider (mounted once at the
- * root layout) already built its own client for the region active at mount time and subscribed to
- * *that* GoTrue instance's auth events -- changing the active region afterward without reloading
- * would leave it listening to the wrong project indefinitely. A manual region change is rare
- * enough that a reload is a fine trade for not having to keep two client instances in sync. */
-function RegionPicker({ region }: { region: Region }) {
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (submitting) return;
+    if (!looksLikeEmail(email) || password.length === 0) {
+      setFailure({ code: "invalid_credentials", message: "Enter your email and password." });
+      return;
+    }
+    setFailure(null);
+    setSubmitting(true);
+    // The page's "already signed in -> /dashboard" redirect must not fire between the session
+    // appearing and finishSignIn() below deciding whether this account may continue.
+    onBusyChange(true);
+
+    const result = await signInWithPasswordAcrossRegions(email, password, async () => captchaRef.current?.getToken());
+    if (!result.ok) {
+      if (result.failure.code === "email_not_confirmed") {
+        rememberPendingAuth({ email: email.trim().toLowerCase(), kind: "email" });
+        router.push("/auth/confirm?type=email");
+        return;
+      }
+      setFailure(result.failure);
+      setSubmitting(false);
+      onBusyChange(false);
+      return;
+    }
+
+    const finished = await finishSignIn();
+    if (finished.kind === "moved") {
+      window.location.assign(`/login?error=account_moved&region=${finished.region}`);
+      return;
+    }
+    if (finished.reactivated) showToast("Welcome back — your account was reactivated!", "success");
+    // A full load, not router.replace: AuthProvider is bound to the region that was active when
+    // it mounted, which is wrong whenever the account turned out to live in the other one.
+    window.location.assign("/dashboard");
+  }
+
   return (
-    <div className="mx-auto mb-[clamp(1.5rem,3dvh,2.5rem)] flex w-fit gap-1 rounded-full border border-border-soft bg-white/[0.03] p-1">
-      {(["eu", "us"] as const).map((option) => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => {
-            if (option === region) return;
-            setActiveRegion(option);
-            window.location.reload();
-          }}
-          className={`rounded-full px-8 py-4 text-xs font-bold uppercase tracking-[0.5px] transition-colors ${
-            option === region ? "bg-accent-red text-white" : "text-text-muted hover:text-white"
-          }`}
-        >
-          {REGION_LABEL[option]}
-        </button>
-      ))}
-    </div>
+    <form onSubmit={handleSubmit} noValidate className="mx-auto flex w-full max-w-[360px] flex-col gap-4 text-left">
+      <div>
+        <label htmlFor="login-email" className={fieldLabel}>
+          Email
+        </label>
+        <input
+          id="login-email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={submitting}
+          className={textInput}
+        />
+      </div>
+      <div>
+        <div className="mb-2 flex items-baseline justify-between">
+          <label htmlFor="login-password" className="block text-sm font-bold uppercase tracking-[0.6px] text-text-muted">
+            Password
+          </label>
+          <Link href="/forgot-password" className="text-[0.8rem] font-semibold text-accent-blue hover:underline">
+            Forgot password?
+          </Link>
+        </div>
+        <PasswordField
+          id="login-password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={submitting}
+        />
+      </div>
+      {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
+      <Turnstile ref={captchaRef} />
+      <Button type="submit" variant="secondary" className="w-full" loading={submitting}>
+        Log in
+      </Button>
+    </form>
   );
 }
 
 export default function LoginPage() {
-  const [loading, setLoading] = useState(false);
-  const [region, setRegion] = useState<Region | null>(null);
-  const { showToast } = useToast();
+  const [region, setRegion] = useAuthRegion();
+  const [busy, setBusy] = useState(false);
   const { status } = useAuth();
   const router = useRouter();
+  const passwordAuth = isPasswordAuthEnabled();
 
   useEffect(() => {
-    if (status === "authed") router.replace("/dashboard");
-  }, [status, router]);
+    if (status === "authed" && !busy) router.replace("/dashboard");
+  }, [status, busy, router]);
 
-  useEffect(() => {
-    // Restoring from bfcache after the user hits Back on Google's account
-    // chooser leaves `loading` stuck true — the page never remounts.
-    function handlePageShow(event: PageTransitionEvent) {
-      if (event.persisted) setLoading(false);
-    }
-    window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
-  }, []);
-
-  useEffect(() => {
-    if (!isMultiRegionEnabled()) return;
-    // getActiveRegion() always resolves synchronously (persisted, or a timezone-based guess) --
-    // show that immediately so the picker never flashes empty. Only a first-time visitor (nothing
-    // persisted yet) gets upgraded to the Worker's real geo-IP guess, once it's back.
-    const initial = getActiveRegion();
-    setRegion(initial);
-    if (hasStoredActiveRegion()) return;
-
-    let cancelled = false;
-    fetch(`${workerOrigin()}/api/geo`)
-      .then((res) => res.json())
-      .then((body: { region?: unknown }) => {
-        if (cancelled || !isRegion(body.region) || body.region === initial) return;
-        setActiveRegion(body.region);
-        setRegion(body.region);
-      })
-      .catch(() => {
-        // Offline / Worker unreachable -- keep the timezone-based guess already shown.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function handleGoogleLogin() {
-    setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-        queryParams: {
-          access_type: "offline",
-          prompt: "select_account",
-          // Best-effort hint to Google's account chooser — not a real guarantee,
-          // the @gmail.com requirement is enforced in the database.
-          hd: "gmail.com",
-        },
-      },
-    });
-
-    if (error) {
-      setLoading(false);
-      showToast("Sign-in failed. Please try again.", "error");
-    }
-    // On success the browser navigates away to Google — no further state change needed.
-  }
-
-  if (status !== "anon") return <FullScreenLoader />;
+  if (status !== "anon" && !busy) return <FullScreenLoader />;
 
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-y-auto px-6 py-6 text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">
@@ -181,7 +192,7 @@ export default function LoginPage() {
         />
       </Suspense>
       <div className="relative w-full max-w-[460px]">
-        <Logo size={112} className="mx-auto mb-[clamp(1.75rem,4dvh,4rem)]" />
+        <Logo size={passwordAuth ? 88 : 112} className="mx-auto mb-[clamp(1.75rem,4dvh,4rem)]" />
         <Badge className="mb-[clamp(0.75rem,2.5dvh,2.5rem)]">Spaced repetition</Badge>
         <h1 className="mb-[clamp(0.5rem,1.5dvh,1.75rem)] text-[2.6rem] font-extrabold leading-tight tracking-[-0.8px]">
           Learn Japanese
@@ -194,16 +205,20 @@ export default function LoginPage() {
         </p>
         {region && <RegionPicker region={region} />}
 
-        <Button
-          type="button"
-          className="w-full max-w-[360px]"
-          loading={loading}
-          loadingIconPosition="right"
-          onClick={handleGoogleLogin}
-        >
-          <FcGoogle className="h-5 w-5 shrink-0 rounded-full bg-white p-0.5" />
-          Continue with Google
-        </Button>
+        <GoogleButton />
+
+        {passwordAuth && (
+          <>
+            <OrDivider />
+            <PasswordLoginForm onBusyChange={setBusy} />
+            <p className="mt-6 text-[0.9rem] text-text-muted">
+              New here?{" "}
+              <Link href="/signup" className="font-bold text-accent-blue hover:underline">
+                Create an account
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

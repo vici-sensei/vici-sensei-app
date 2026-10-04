@@ -6,6 +6,8 @@ import type { UserIdentity } from "@supabase/supabase-js";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
 import { updateDisplayName, updateCountry, updateShowCountryOnLeaderboard } from "@/lib/client-data/userProfile";
+import { hasPassword as fetchHasPassword } from "@/lib/client-data/account";
+import { isPasswordAuthEnabled } from "@/lib/auth/passwordAuth";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -20,6 +22,7 @@ import { ProTimeLeft } from "@/app/components/ui/ProTimeLeft";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
 import { FaCheck } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
+import { SignInMethods } from "./SignInMethods";
 
 // Keys are short codes we or GoTrue produce; anything else (e.g. a message
 // already relayed verbatim from the switch-google-account Edge Function) is
@@ -29,13 +32,17 @@ const SWITCH_ERROR_MESSAGES: Record<string, string> = {
   access_denied: "You didn't approve the Google sign-in.",
   identity_already_exists: "That Google account is already used by another profile.",
   identity_already_own_account: "You're already signed in with that Google account.",
+  // GoTrue's generic bucket for "a database trigger rejected this" -- here, the Gmail-only rule
+  // on Google identities (supabase/migrations/*_password_auth_relax_gmail_rule.sql).
+  server_error: "Couldn't link that Google account. Only @gmail.com accounts are supported.",
 };
 
 function switchErrorMessage(code: string): string {
   return SWITCH_ERROR_MESSAGES[code] ?? code;
 }
 
-/** Reads ?switched=/?switchError= left by the auth callback and strips them once shown. */
+/** Reads ?switched=/?linked=/?emailChanged=/?switchError= left by the auth callback (or the
+ * email-change confirmation page) and strips them once shown. */
 function SwitchResultNotice() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -43,10 +50,14 @@ function SwitchResultNotice() {
 
   useEffect(() => {
     const switched = searchParams.get("switched");
+    const linked = searchParams.get("linked");
+    const emailChanged = searchParams.get("emailChanged");
     const switchError = searchParams.get("switchError");
-    if (!switched && !switchError) return;
+    if (!switched && !linked && !emailChanged && !switchError) return;
 
     if (switched) showToast("Now signed in with your new Google account");
+    if (linked) showToast("Google account linked");
+    if (emailChanged) showToast("Your email address was updated");
     // Not a failure — the user just re-picked the account they were already on — so
     // show it with the success styling instead of the red error toast.
     if (switchError === "identity_already_own_account") showToast(switchErrorMessage(switchError));
@@ -95,6 +106,22 @@ export function ProfileSettingsForm({
   const [identitiesStatus, setIdentitiesStatus] = useState<"loading" | "loaded">("loading");
   const [switching, setSwitching] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+
+  // Email + password (behind NEXT_PUBLIC_PASSWORD_AUTH). `null` = still loading / unknown.
+  const passwordAuth = isPasswordAuthEnabled();
+  const [passwordSet, setPasswordSet] = useState<boolean | null>(null);
+  const [linking, setLinking] = useState(false);
+
+  useEffect(() => {
+    if (!passwordAuth) return;
+    let cancelled = false;
+    fetchHasPassword().then((value) => {
+      if (!cancelled) setPasswordSet(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [passwordAuth]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +226,27 @@ export function ProfileSettingsForm({
     }
   }
 
+  /** For an account that has no Google identity yet (it signed up with a password). The callback
+   * only has to bounce back to Settings -- no account switch is involved, unlike the flow above. */
+  async function handleLinkGoogleAccount() {
+    setLinking(true);
+    try {
+      const supabase = createClient();
+      const { error: linkError } = await supabase.auth.linkIdentity({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/settings/profile&link=1`,
+          queryParams: { access_type: "offline", prompt: "select_account", hd: "gmail.com" },
+        },
+      });
+      if (linkError) throw linkError;
+      // On success the browser navigates away to Google — no further state change needed.
+    } catch (err) {
+      showToast(getErrorMessage(err, "Could not start linking your Google account."), "error");
+      setLinking(false);
+    }
+  }
+
   async function handleUnlinkIdentity(identity: UserIdentity) {
     setUnlinkingId(identity.identity_id);
     const previousIdentities = identities;
@@ -223,6 +271,8 @@ export function ProfileSettingsForm({
   const fieldInputBase =
     "w-full rounded-lg border border-border-soft bg-white/[0.03] px-3.5 py-3 text-[0.95rem] text-white outline-none transition-colors focus:border-accent-blue/40";
   const fieldInput = `${fieldInputBase} read-only:cursor-not-allowed read-only:text-text-muted`;
+  // Only a password account can lack a Google identity (a Google account always has one).
+  const noGoogleLinked = passwordAuth && identitiesStatus === "loaded" && identities.length === 0;
 
   return (
     <div>
@@ -304,32 +354,46 @@ export function ProfileSettingsForm({
           </div>
         </div>
         <div>
-          <label className={fieldLabel}>Linked to Google</label>
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <span className="flex items-center gap-2 py-3 text-[0.95rem] text-white">
-              <FcGoogle className="h-4 w-4 shrink-0 rounded-full bg-white p-0.5" />
-              {loading ? (
-                <span className="inline-block h-3.5 w-40 max-w-full animate-pulse rounded-md bg-white/10" />
-              ) : (
-                initial.email
+          <label className={fieldLabel}>{passwordAuth ? "Google" : "Linked to Google"}</label>
+          {noGoogleLinked ? (
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <span className="py-3 text-[0.95rem] text-text-muted">No Google account linked</span>
+              <Button type="button" variant="secondary" size="sm" loading={linking} onClick={handleLinkGoogleAccount}>
+                Link Google account
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <span className="flex items-center gap-2 py-3 text-[0.95rem] text-white">
+                <FcGoogle className="h-4 w-4 shrink-0 rounded-full bg-white p-0.5" />
+                {loading ? (
+                  <span className="inline-block h-3.5 w-40 max-w-full animate-pulse rounded-md bg-white/10" />
+                ) : (
+                  (passwordAuth && identities[0]?.identity_data?.email) || initial.email
+                )}
+              </span>
+              {/* "Switch" rewrites the account's email to the new Google one, which is only right for
+                  an account that signs in with Google alone -- a password account changes its email
+                  from the section below instead. */}
+              {!(passwordAuth && passwordSet !== false) && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={switching}
+                  disabled={loading}
+                  onClick={handleSwitchGoogleAccount}
+                >
+                  Switch Google account
+                </Button>
               )}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              loading={switching}
-              disabled={loading}
-              onClick={handleSwitchGoogleAccount}
-            >
-              Switch Google account
-            </Button>
-          </div>
+            </div>
+          )}
           {identitiesStatus === "loading" ? (
             <div className="mt-2.5">
               <Skeleton className="h-[46px] w-full rounded-lg" />
             </div>
-          ) : identities.length > 1 ? (
+          ) : identities.length > 1 || (passwordAuth && passwordSet === true && identities.length > 0) ? (
             <div className="mt-2.5 flex flex-col gap-2">
               {identities.map((identity) => (
                 <div
@@ -355,6 +419,14 @@ export function ProfileSettingsForm({
             </div>
           ) : null}
         </div>
+        {passwordAuth && (
+          <SignInMethods
+            email={initial.email}
+            hasPassword={passwordSet}
+            onPasswordSet={() => setPasswordSet(true)}
+            loading={loading}
+          />
+        )}
       </GlassCard>
 
       <Suspense fallback={null}>

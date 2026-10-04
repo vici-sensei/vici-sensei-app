@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { ApiError, extractFunctionErrorMessage, getErrorMessage } from "@/lib/api/client";
-import { setActiveRegion, workerOrigin, type Region } from "@/lib/supabase/regions";
+import { getActiveRegion, isMultiRegionEnabled, setActiveRegion, workerOrigin, type Region } from "@/lib/supabase/regions";
 
 export async function deleteAccount(): Promise<{ pendingDeletionAt: string }> {
   const supabase = createClient();
@@ -31,6 +31,17 @@ export async function checkAccountMoved(): Promise<Region | null> {
   const { data, error } = await supabase.rpc("check_account_moved");
   if (error || !data) return null;
   return data as Region;
+}
+
+// Whether the signed-in account has a password (email + password sign-in, or one added later from
+// Settings). Supabase doesn't expose that on the User object, so a SECURITY DEFINER RPC reads
+// auth.users.encrypted_password. Null when it can't be determined -- callers treat that as "unknown",
+// not as "no password".
+export async function hasPassword(): Promise<boolean | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("has_password");
+  if (error || typeof data !== "boolean") return null;
+  return data;
 }
 
 export async function switchGoogleAccount(newIdentityId: string): Promise<{ email: string }> {
@@ -122,13 +133,21 @@ export interface RegionMoveProgress {
 export async function moveToOtherRegion(
   sourceRegion: Region,
   targetRegion: Region,
-  onProgress?: (progress: RegionMoveProgress) => void
+  onProgress?: (progress: RegionMoveProgress) => void,
+  /** For an account that signs in with a password: the Admin API can't copy the hash to the new
+   * project, so the person re-enters it (already verified by the caller) and the Worker sets it on
+   * the new account at creation time. Never persisted anywhere. */
+  password?: string
 ): Promise<{ targetRegion: Region }> {
   await regionMoveFetch("/api/region-move/start", sourceRegion, { targetRegion });
 
   let result: ContinueResult;
   for (;;) {
-    result = (await regionMoveFetch("/api/region-move/continue", sourceRegion)) as ContinueResult;
+    result = (await regionMoveFetch(
+      "/api/region-move/continue",
+      sourceRegion,
+      password ? { password } : undefined
+    )) as ContinueResult;
     if (result.error) throw new ApiError(500, result.error);
     const percent =
       result.totalSteps && result.totalSteps > 0 ? Math.round(((result.completedSteps ?? 0) / result.totalSteps) * 100) : 0;
@@ -157,4 +176,64 @@ export async function moveToOtherRegion(
   }
 
   return { targetRegion };
+}
+
+// --- Email change (email + password accounts) ----------------------------------------------
+// supabase.auth.updateUser({ email }) doesn't run the "Before User Created" hook that keeps the D1
+// email -> region ledger, so these bracket it. See worker/lib/emailChange.ts. With multi-region off
+// there is no ledger and nothing to do.
+
+const EMAIL_CHANGE_ERRORS: Record<string, string> = {
+  email_unavailable: "That email address can't be used. Try a different one.",
+  same_email: "That's already your email address.",
+  invalid_email: "That email address doesn't look valid.",
+  region_move_in_progress: "Your account is being moved to another region. Try again once that finishes.",
+};
+
+async function emailChangeFetch(path: string, body: Record<string, unknown>): Promise<unknown> {
+  const token = await currentAccessToken();
+  let res: Response;
+  try {
+    res = await fetch(`${workerOrigin()}${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ region: getActiveRegion(), ...body }),
+    });
+  } catch (err) {
+    throw new ApiError(0, getErrorMessage(err, "Couldn't reach the server. Check your connection and try again."));
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const code = typeof (json as { error?: unknown }).error === "string" ? (json as { error: string }).error : "";
+    throw new ApiError(res.status, EMAIL_CHANGE_ERRORS[code] ?? "Something went wrong. Please try again.");
+  }
+  return json;
+}
+
+/** Call BEFORE supabase.auth.updateUser({ email }). Throws an ApiError with a user-facing message
+ * when the new address can't be claimed. */
+export async function startEmailChange(newEmail: string): Promise<void> {
+  if (!isMultiRegionEnabled()) return;
+  await emailChangeFetch("/api/email-change/start", { newEmail });
+}
+
+/** Call right after the new email was confirmed. Best-effort and never throws: if it fails, the
+ * weekly sweep (worker/lib/accountSweep.ts) finalizes the change. */
+export async function finalizeEmailChange(): Promise<void> {
+  if (!isMultiRegionEnabled()) return;
+  try {
+    await emailChangeFetch("/api/email-change/finalize", {});
+  } catch {
+    // Left for the sweep.
+  }
+}
+
+/** Call when updateUser({ email }) failed after startEmailChange succeeded. Best-effort. */
+export async function cancelEmailChange(): Promise<void> {
+  if (!isMultiRegionEnabled()) return;
+  try {
+    await emailChangeFetch("/api/email-change/cancel", {});
+  } catch {
+    // Left for the sweep.
+  }
 }

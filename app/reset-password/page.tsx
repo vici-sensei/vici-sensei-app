@@ -1,0 +1,109 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { useToast } from "@/app/components/ui/Toast";
+import { Button } from "@/app/components/ui/Button";
+import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+import { fieldHint, fieldLabel } from "@/app/components/ui/formClasses";
+import { AuthLayout, FormMessage } from "@/app/components/auth/AuthLayout";
+import { PasswordField } from "@/app/components/auth/PasswordField";
+import {
+  isPasswordAuthEnabled,
+  MIN_PASSWORD_LENGTH,
+  passwordProblem,
+  updatePassword,
+  type AuthFailure,
+} from "@/lib/auth/passwordAuth";
+
+/**
+ * Where /auth/confirm sends a verified recovery token: the token already signed the person in (that
+ * is how Supabase recovery works), so all that is left is choosing the new password. Without a
+ * session -- the link was never opened, expired, or this is a stray visit -- there is nothing to
+ * reset and the page says so.
+ */
+export default function ResetPasswordPage() {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const { status } = useAuth();
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const enabled = isPasswordAuthEnabled();
+
+  useEffect(() => {
+    if (!enabled) router.replace("/login");
+  }, [enabled, router]);
+
+  if (!enabled || status === "loading") return <FullScreenLoader />;
+
+  if (status === "anon") {
+    return (
+      <AuthLayout
+        title="This link has expired"
+        subtitle="Reset links work once and only for a short time. Request a new one and try again."
+      >
+        <div className="flex flex-col gap-3">
+          <Link
+            href="/forgot-password"
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent-red px-8 py-[15px] text-base font-bold text-white shadow-[0_0_30px_rgba(255,74,90,0.4)]"
+          >
+            Request a new link
+          </Link>
+          <Link href="/login" className="text-center text-[0.9rem] text-text-muted hover:text-white">
+            Back to log in
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (submitting) return;
+    const problem = passwordProblem(password);
+    if (problem) {
+      setFailure({ code: "weak_password", message: problem });
+      return;
+    }
+    setFailure(null);
+    setSubmitting(true);
+    const result = await updatePassword(password);
+    if (!result.ok) {
+      setFailure(result.failure);
+      setSubmitting(false);
+      return;
+    }
+    // A reset is usually "someone else may have it": end every other session of this account.
+    await createClient().auth.signOut({ scope: "others" });
+    showToast("Password updated", "success");
+    router.replace("/dashboard");
+  }
+
+  return (
+    <AuthLayout title="Choose a new password" subtitle="You'll use it the next time you log in with your email.">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4 text-left">
+        <div>
+          <label htmlFor="reset-password" className={fieldLabel}>
+            New password
+          </label>
+          <PasswordField
+            id="reset-password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={submitting}
+          />
+          <p className={fieldHint}>At least {MIN_PASSWORD_LENGTH} characters, with letters and digits.</p>
+        </div>
+        {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
+        <Button type="submit" className="w-full" loading={submitting}>
+          Save password
+        </Button>
+      </form>
+    </AuthLayout>
+  );
+}
