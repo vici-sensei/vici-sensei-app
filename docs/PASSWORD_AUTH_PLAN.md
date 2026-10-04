@@ -50,32 +50,39 @@ Fără ei, formularul nu poate funcționa. Codul se poate construi și verifica 
    Cloudflare), creează o cheie SMTP.
 2. **Authentication → SMTP Settings**: host/port/user/parolă Brevo, expeditor de tip `no-reply@vici-sensei.com`.
    Apoi **Authentication → Rate Limits**: ridică limita de emailuri/oră de la 30 la ce îți trebuie.
-3. **Authentication → Providers → Email**: pornește providerul, „Confirm email” ACTIV, lungimea OTP 6.
+3. **Authentication → Providers → Email**: pornește providerul, „Confirm email” ACTIV, lungimea OTP 6,
+   „Secure email change” OPRIT (confirmarea la schimbarea emailului se cere doar pe adresa nouă; contul
+   cu parolă oricum cere parola curentă înainte).
 4. **Minimum password length 10** și cerința „letters and digits” (Authentication → Sign In / Providers).
 5. **Authentication → URL Configuration**: Site URL `https://app.vici-sensei.com`; adaugă în Redirect URLs
    `https://app.vici-sensei.com/auth/confirm` și `http://localhost:3000/auth/confirm`.
 6. **Authentication → Emails → Templates**: înlocuiește „Confirm signup”, „Reset password” și „Change email
-   address” cu șabloanele din secțiunea de mai jos.
+   address” cu șabloanele din secțiunea de mai jos. **Șabloanele diferă între proiecte printr-un singur
+   cuvânt** (`region=eu` pe EU, `region=us` pe US): un link de email nu știe ce proiect l-a emis, iar
+   `verifyOtp` trebuie apelat pe proiectul corect.
 7. **Turnstile**: creează un widget în Cloudflare (invisible/managed) pentru `app.vici-sensei.com` și
    `localhost`; pune Secret key în **Authentication → Attack Protection → Captcha** pe ambele proiecte.
    Site key-ul merge în `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
-8. La final: `NEXT_PUBLIC_PASSWORD_AUTH=true` în `.env.local` și în build-ul de producție.
+8. La final: `NEXT_PUBLIC_PASSWORD_AUTH=true` și `NEXT_PUBLIC_TURNSTILE_SITE_KEY=<site key>` în
+   `.env.local` și în mediul build-ului de producție (se citesc la `next build`, nu la runtime).
 
 ### Șabloanele de email
 
 `{{ .RedirectTo }}` e trimis de aplicație (`emailRedirectTo` = `<origin>/auth/confirm`); fără el linkul ar cădea
-pe Site URL.
+pe Site URL. Pe proiectul **EU** `region=eu`, pe proiectul **US** `region=us`.
 
-Confirm signup (`type=email`):
+Confirm signup (`type=email`), varianta EU:
 
 ```html
 <h2>Confirm your email</h2>
 <p>Your code is <strong style="font-size:22px;letter-spacing:4px">{{ .Token }}</strong></p>
-<p>Or <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">confirm in one click</a>
+<p>Or <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email&region=eu">confirm in one click</a>
    (works from any browser).</p>
 ```
 
-Reset password (`type=recovery`) și Change email (`type=email_change`) au aceeași formă, cu `type`-ul de mai sus.
+Reset password (`type=recovery`) și Change email address (`type=email_change`) au aceeași formă, cu `type`-ul din
+paranteză; subiectele le alegi tu. Pagina `/auth/confirm` arată un buton înainte să verifice tokenul, deci
+scanerele de linkuri nu îl consumă.
 
 ## Faze
 
@@ -172,16 +179,46 @@ URL-uri sau analytics. Emailul de confirmare conține doar codul și linkul, nu 
 
 ## Starea implementării
 
-(Se actualizează pe măsură ce fazele se închid.)
+Actualizat 2026-10-04. Tot codul de mai jos e în repo (`sandbox`) și ascuns în spatele
+`NEXT_PUBLIC_PASSWORD_AUTH`; nimic din ce urmează nu se vede în producție până nu pornești flag-ul.
 
 | Faza | Stare |
 |---|---|
-| Dashboard (utilizatorul) | de făcut |
-| 1 DB | de făcut |
-| 2 Worker | de făcut |
-| 3 Nucleu client | de făcut |
-| 4 Pagini | de făcut |
-| 5 Callback | de făcut |
-| 6 Setări | de făcut |
-| 7 Mutare regiune | de făcut |
-| 8 Documentație | de făcut |
+| Dashboard (utilizatorul) | **de făcut** — vezi lista de mai sus |
+| 1 DB | migrația e scrisă și testată pe un Postgres local (`supabase/migrations/20261004184744_password_auth_relax_gmail_rule.sql`); **neaplicată pe EU/US** (vezi „Ce rămâne în mâna ta”) |
+| 2 Worker | scris: `worker/lib/emailChange.ts`, `accountSweep.ts`, parolă la mutare; **nedeployat**, iar tabelul D1 `0004_email_changes.sql` **neaplicat** |
+| 3 Nucleu client | gata (`lib/auth/passwordAuth.ts`, `finishSignIn.ts`, `useAuthRegion.ts`, `app/components/auth/*`) |
+| 4 Pagini | gata: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/confirm`, `/terms`, `/privacy` (textele legale sunt DRAFT) |
+| 5 Callback | gata: `finishSignIn` comun, `dropStrayEmailIdentity` doar la „Switch Google account”, `?link=1` |
+| 6 Setări | gata: parolă (adaugă/schimbă), email (schimbă prin Worker), legare Google pentru conturile cu parolă |
+| 7 Mutare regiune | gata: parola se cere și se transmite Worker-ului doar la crearea contului țintă |
+| 8 Documentație | acest fișier; secțiunea din `docs/MULTI_REGION_ARCHITECTURE.md` |
+
+Verificat: `tsc` (app + Worker) curat, lint fără erori noi, paginile randate în browser (desktop și 375px, fără
+scroll orizontal), validările de formular, migrația SQL pe un Postgres local. **Neverificat cap-coadă**
+(nu se poate până nu există SMTP, provider Email și Turnstile): o înscriere reală, primirea emailului, codul și
+linkul, resetarea parolei, schimbarea emailului, mutarea unui cont cu parolă, comportamentul Supabase când
+același email există și pe Google.
+
+## Ce rămâne în mâna ta (nu am putut sau nu trebuie să fac eu)
+
+1. **Migrația Postgres**, pe EU și pe US (clasificatorul a blocat `psql` pe baza live): rulează conținutul
+   fișierului din SQL Editor pe fiecare proiect, apoi
+   `insert into supabase_migrations.schema_migrations (version, name) values ('20261004184744', 'password_auth_relax_gmail_rule') on conflict (version) do nothing;`
+   și adaugă rândul în `supabase/MIGRATION_PARITY.md`.
+2. **D1**: `wrangler d1 execute vici-sensei-accounts --remote --file=worker/migrations/0004_email_changes.sql`,
+   apoi **deploy** (`npm run deploy`) ca endpoint-urile noi să existe.
+3. Pașii din Dashboard de mai sus, apoi flag-ul.
+4. **Textele `/terms` și `/privacy`** și adresa de contact (`LEGAL_CONTACT` în
+   `app/components/auth/LegalPage.tsx`): sunt un draft scris din ce face aplicația, nu sfat juridic.
+5. Un test cap-coadă pe un email real, în ambele regiuni, înainte să anunți funcția.
+
+## Detalii de proiectare descoperite pe parcurs
+
+- `handle_new_user()` a fost modificat după baseline (trial Pro de 7 zile, `premium_until`): migrația pornește
+  de la versiunea LIVE, nu de la cea din baseline, altfel ar fi anulat trialul.
+- Un cont creat cu parolă primește același trial de 7 zile ca unul Google, din momentul înscrierii (nu al
+  confirmării): cu emailuri de unică folosință se poate „cultiva” trialul. Miza e mică; de reținut.
+- Verificarea parolei curente (schimbare parolă/email, mutare de regiune) e un `signInWithPassword` real, deci
+  cere un token Turnstile ca orice login.
+- `has_password()` (RPC `SECURITY DEFINER`) există fiindcă obiectul `User` nu spune dacă are parolă.

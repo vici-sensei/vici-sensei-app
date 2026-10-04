@@ -116,8 +116,11 @@ export function describeAuthError(error: ErrorLike | null | undefined): AuthFail
     case "validation_failed":
       return { code: "invalid_email", message: "That email address doesn't look valid." };
     case "signup_disabled":
-    case "email_provider_disabled":
       return { code: "signup_disabled", message: "Signing up with email isn't available right now." };
+    case "email_provider_disabled":
+      // The Dashboard's Email provider is off (the state before launch): sign-in, sign-up and
+      // reset all land here, so the wording must fit all three.
+      return { code: "signup_disabled", message: "Email sign-in isn't available right now. Use Google instead." };
   }
   if (error?.status === 429) {
     return { code: "rate_limited", message: "Too many attempts. Please wait a few minutes and try again." };

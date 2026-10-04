@@ -124,6 +124,28 @@ Fiecare proiect Supabase nou are Google OAuth configurat cu ACELAȘI client ID, 
 Google Cloud SEPARAT de cel al proiectului vechi (`vici-sensei-multi-region`, cont
 `vici.sensei@gmail.com`) — External + Production, fără logo custom (evită verificarea Google).
 
+## Auth — email + parolă (cod gata, ascuns în spatele `NEXT_PUBLIC_PASSWORD_AUTH`)
+
+Planul complet, deciziile și lista de pași manuali sunt în `docs/PASSWORD_AUTH_PLAN.md`. Ce contează pentru
+regiuni:
+
+- **Înscrierea** pornește pe regiunea activă (selectorul/geo-IP, ca la Google). Hook-ul „Before User Created”
+  revendică emailul în D1 la fel ca pentru Google; un email al celeilalte regiuni e respins cu
+  `wrong_region:<r>`, iar `/signup` trimite omul la `/login?error=wrong_region&region=<r>`.
+- **Login-ul** (`signInWithPasswordAcrossRegions`) încearcă regiunea activă, apoi, doar la
+  `invalid_credentials`, și cealaltă; la succes pe cea opusă comută regiunea activă și face încărcare completă
+  (`AuthProvider` e legat de regiunea de la montare). Nu există endpoint public email→regiune.
+- **Resetarea parolei** se cere pe ambele regiuni; trimite email doar cea care are contul.
+- **Linkurile din email** poartă `region=<eu|us>` (șablonul fiecărui proiect îl are scris literal), fiindcă
+  `verifyOtp` trebuie apelat pe proiectul care a emis tokenul. Un cod tastat se încearcă pe ambele regiuni.
+- **Schimbarea emailului** nu trece prin hook; `/api/email-change/{start,finalize,cancel}` (Worker,
+  `worker/lib/emailChange.ts`) țin D1 corect. `accountSweep.ts` (cron săptămânal) șterge conturile
+  neconfirmate după 7 zile și curăță schimbările abandonate.
+- **Mutarea de regiune** a unui cont cu parolă: Admin API nu poate copia hash-ul, deci omul își reintroduce
+  parola (verificată printr-un login real), iar Worker-ul o setează pe contul nou la creare. Nu se salvează nicăieri.
+- Regula „doar Gmail” se aplică acum doar identităților Google (`on_auth_identity_require_gmail`), nu emailului
+  contului.
+
 Stripe a fost scos din aplicație pe 2026-09-23: Pro nu se mai vinde în app, vine odată cu înscrierea
 la cursuri (îl setează un admin din `/admin/students`). Funcțiile `stripe-webhook` și
 `stripe-create-portal-session` nu mai există în repo. `delete-account`, `process-scheduled-deletions`
