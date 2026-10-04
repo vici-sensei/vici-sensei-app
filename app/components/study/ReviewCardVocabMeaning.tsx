@@ -55,15 +55,15 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
       subtitle={
         askingAgain?.kind === "reading" ? (
           <>
-            That&apos;s the reading. What does this <Accent accent="orange">word mean</Accent>?
+            That&apos;s the correct reading, but what does the <Accent accent="orange">word mean</Accent>?
           </>
         ) : askingAgain?.kind === "kanji_meaning" ? (
           <>
-            That&apos;s what {askingAgain.note} means. What does the <Accent accent="orange">whole word</Accent> mean?
+            That&apos;s the correct meaning of {askingAgain.note}, but what does the <Accent accent="orange">whole word</Accent> mean?
           </>
         ) : askingAgain ? (
           <>
-            What <Accent accent="orange">other meaning</Accent> does this word have?
+            That&apos;s a correct meaning, but what <Accent accent="orange">other meaning</Accent> does this word have?
           </>
         ) : (
           <>

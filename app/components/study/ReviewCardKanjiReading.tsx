@@ -64,19 +64,20 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
       subtitle={
         askingAgain?.kind === "meaning" ? (
           <>
-            That&apos;s the meaning. How is this <Accent accent="blue">word read</Accent>?
+            That&apos;s the correct meaning, but how is the <Accent accent="blue">word read</Accent>?
           </>
         ) : askingAgain?.kind === "kanji_reading_part" ? (
           <>
-            That&apos;s just {askingAgain.note}. How is the <Accent accent="blue">whole word</Accent> read?
+            That&apos;s the correct reading of {askingAgain.note}, but how is the <Accent accent="blue">whole word</Accent> read?
           </>
         ) : askingAgain?.kind === "kanji_reading_elsewhere" ? (
           <>
-            Not the reading used here. How is this <Accent accent="blue">word read</Accent>?
+            That&apos;s a correct reading of {askingAgain.note}, but not the one used here. How is the{" "}
+            <Accent accent="blue">word read</Accent>?
           </>
         ) : askingAgain ? (
           <>
-            What <Accent accent="blue">other reading</Accent> does this word have?
+            That&apos;s a correct reading, but what <Accent accent="blue">other reading</Accent> does this word have?
           </>
         ) : (
           <>

@@ -36,7 +36,7 @@ export function ReviewCardKanjiMeaning({ card, disabled, onRate, onCancelableCha
       subtitle={
         askingAfterReading ? (
           <>
-            That&apos;s a reading. What does it <Accent accent="violet">mean</Accent>?
+            That&apos;s a correct reading, but what does the <Accent accent="violet">kanji mean</Accent>?
           </>
         ) : (
           <>
