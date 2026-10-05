@@ -66,7 +66,9 @@ Fără ei, formularul nu poate funcționa. Codul se poate construi și verifica 
    `localhost`; pune Secret key în **Authentication → Attack Protection → Captcha** pe ambele proiecte.
    Site key-ul merge în `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
 8. La final: `NEXT_PUBLIC_PASSWORD_AUTH=true` și `NEXT_PUBLIC_TURNSTILE_SITE_KEY=<site key>` în
-   `.env.local` și în mediul build-ului de producție (se citesc la `next build`, nu la runtime).
+   `.env.local` și ca **secrete GitHub Actions** cu aceleași nume (`.github/workflows/deploy.yml` le citește; se
+   iau la `next build`, nu la runtime). Ghid pas cu pas, cu șabloanele gata de copiat:
+   `docs/PASSWORD_AUTH_DASHBOARD.md`.
 
 ### Șabloanele de email
 

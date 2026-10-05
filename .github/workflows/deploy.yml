@@ -29,6 +29,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY_EU: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_EU }}
           NEXT_PUBLIC_SUPABASE_URL_US: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_US }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY_US: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_US }}
+          # Email + password sign-in (docs/PASSWORD_AUTH_PLAN.md). Both are read at BUILD time, so they
+          # must be set here too, not only in .env.local. A secret that doesn't exist yet expands to an
+          # empty string: the flag stays off and no captcha widget is rendered -- safe by default.
+          NEXT_PUBLIC_PASSWORD_AUTH: ${{ secrets.NEXT_PUBLIC_PASSWORD_AUTH }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
 
       - name: Deploy to Cloudflare Workers
         run: npx wrangler deploy
