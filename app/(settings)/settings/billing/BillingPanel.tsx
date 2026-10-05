@@ -3,7 +3,7 @@
 import { Badge } from "@/app/components/ui/Badge";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { buttonClasses } from "@/app/components/ui/Button";
-import { ProTimeLeft } from "@/app/components/ui/ProTimeLeft";
+import { ProTimeLeft, formatProEnd, useProTimeLeft } from "@/app/components/ui/ProTimeLeft";
 import { FaArrowUpRightFromSquare } from "react-icons/fa6";
 import type { UserProfile } from "@/lib/types";
 
@@ -24,6 +24,10 @@ function CoursesLink() {
 }
 
 export function BillingPanel({ user }: { user: Pick<UserProfile, "is_premium" | "premium_until"> }) {
+  // null without an end date, once it has passed (the expiry cron lags up to 5 minutes), and for the
+  // first render before the clock ticks -- all of which fall back to the generic pitch.
+  const hasTimeLeft = useProTimeLeft(user) !== null;
+
   return (
     <GlassCard padding="lg" className="mb-5.5">
       {user.is_premium && !user.premium_until ? (
@@ -50,9 +54,11 @@ export function BillingPanel({ user }: { user: Pick<UserProfile, "is_premium" | 
             <p className="mt-3 text-[0.9rem] leading-[1.6] text-text-muted">
               Pro access to this app is included free of charge for every student enrolled in Vici Sensei&apos;s
               Japanese courses.{" "}
-              {user.is_premium
-                ? "Enroll to keep your Pro access after it ends."
-                : "Enroll to learn with a teacher and unlock everything the app has to offer."}
+              {!user.is_premium
+                ? "Enroll to learn with a teacher and unlock everything the app has to offer."
+                : hasTimeLeft && user.premium_until
+                  ? `Your Pro access ends on ${formatProEnd(user.premium_until)}. Enroll to keep it.`
+                  : "Enroll to keep your Pro access after it ends."}
             </p>
           </div>
           <CoursesLink />

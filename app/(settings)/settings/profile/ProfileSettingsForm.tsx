@@ -288,7 +288,7 @@ export function ProfileSettingsForm({
               badge={initial.is_premium ? <ProBadge size="lg" className="-top-2.5 -right-2.5" /> : null}
               loading={loading}
             />
-            <ProTimeLeft user={initial} />
+            <ProTimeLeft user={initial} href="/settings/billing" />
           </div>
           <div className="w-full md:flex-1">
             <label className={fieldLabel}>Full name</label>

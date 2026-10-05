@@ -106,7 +106,7 @@ export function ProfileMenu({ user, loaded = true }: { user: UserProfile; loaded
               className="h-16 w-16 shrink-0 text-[1.3rem]"
             />
           </Link>
-          <ProTimeLeft user={user} />
+          <ProTimeLeft user={user} href="/settings/billing" onClick={() => setOpen(false)} />
           <div className="min-w-0">
             {loaded ? (
               <>
