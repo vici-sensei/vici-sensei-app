@@ -76,7 +76,7 @@ export function usePressableKanji(text: string, excludedKanji: string | null, co
         <span
           key={i}
           data-kanji={char}
-          className="no-touch-callout select-none transition-colors hover:text-accent-gold active:text-accent-gold"
+          className="no-touch-callout select-none transition-colors duration-300 ease-out hover:text-accent-gold active:text-accent-gold"
         >
           {char}
         </span>
