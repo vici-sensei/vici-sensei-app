@@ -11,6 +11,9 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { OtherMeaningsToggle, hasOtherMeanings } from "@/app/components/browse/OtherMeaningsToggle";
+import { CopyWordButton } from "@/app/components/browse/CopyWordButton";
+import { KanjiHint } from "@/app/components/study/KanjiHint";
+import { usePressableKanji } from "@/app/components/study/usePressableKanji";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 
 function NotFound() {
@@ -164,6 +167,18 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
     refetch: refetchProgress,
     mutate: mutateProgress,
   } = useKanjiProgress(user, kanjiId);
+  // The kanji of every word on the page (Example words and the Reading rows under Your progress)
+  // open KanjiInfoModal, with a link to their own page, on long-press -- all but this page's own
+  // kanji. Called before the early returns below: it's a hook.
+  const pageWords = [
+    ...(kanji?.words.map((w) => w.vocabulary.word) ?? []),
+    ...(progress?.readings.map((r) => r.kanji_word?.vocabulary?.word ?? "") ?? []),
+  ];
+  const { renderKanji, longPressProps, kanjiModal, showKanjiHint } = usePressableKanji(
+    pageWords.join(""),
+    kanji?.kanji ?? null,
+    "dictionary"
+  );
 
   if (kanjiStatus === "loading" || progressStatus === "loading") return <KanjiDetailPlaceholder />;
   if (!kanji) return <NotFound />;
@@ -199,7 +214,9 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       </div>
 
       <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Example words</div>
-      <div className="grid grid-cols-1 gap-3 text-left">
+      {showKanjiHint && <KanjiHint className="-mt-1.5 mb-3.5" />}
+      {kanjiModal}
+      <div {...longPressProps} className="grid grid-cols-1 gap-3 text-left">
         {kanji.words.map((w) => (
           <div
             // gap-y only matters once the meaning block wraps below the word (narrow screens): a
@@ -209,8 +226,19 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
             }`}
             key={w.id}
           >
-            <div className="pt-[0.6em] text-3xl leading-none">
-              {renderWordWithFurigana(w.vocabulary.word, w.vocabulary.furiganas, "text-base text-accent-blue", "bg-accent-blue/10")}
+            <div className="flex items-end gap-2">
+              <div className="pt-[0.6em] text-3xl leading-none">
+                {renderWordWithFurigana(
+                  w.vocabulary.word,
+                  w.vocabulary.furiganas,
+                  "text-base text-accent-blue",
+                  "bg-accent-blue/10",
+                  undefined,
+                  renderKanji
+                )}
+              </div>
+              {/* Pressable kanji can't be selected -- this is how the word gets copied. */}
+              <CopyWordButton text={w.vocabulary.word} />
             </div>
             <div>
               {/* With the "Show other meanings" toggle under the meaning, the note goes above the
@@ -235,7 +263,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
 
       <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
       {hasProgress && progress ? (
-        <div>
+        <div {...longPressProps}>
           {progress.meaning && (
             <ProgressCardRow
               title={<>Meaning — &quot;{kanji.meanings?.[0] ?? kanji.kanji}&quot;</>}
@@ -271,7 +299,15 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
               key={r.id}
               title={
                 <>
-                  Reading — {r.kanji_word?.vocabulary?.word ?? "—"}
+                  Reading —{" "}
+                  {r.kanji_word?.vocabulary?.word ? (
+                    <>
+                      {renderKanji(r.kanji_word.vocabulary.word)}
+                      <CopyWordButton text={r.kanji_word.vocabulary.word} size="sm" className="ml-1 align-middle" />
+                    </>
+                  ) : (
+                    "—"
+                  )}
                   {r.kanji_word?.vocabulary?.kana_reading && (
                     <span className="font-semibold text-text-muted"> ({r.kanji_word.vocabulary.kana_reading})</span>
                   )}

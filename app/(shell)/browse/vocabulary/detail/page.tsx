@@ -10,6 +10,9 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from "@/app/components/browse/ProgressCardRow";
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
+import { CopyWordButton } from "@/app/components/browse/CopyWordButton";
+import { KanjiHint } from "@/app/components/study/KanjiHint";
+import { usePressableKanji } from "@/app/components/study/usePressableKanji";
 import { renderVocabularyWord, vocabularyDisplayText } from "@/lib/study/furigana";
 
 function NotFound() {
@@ -120,6 +123,10 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
     refetch: refetchProgress,
     mutate: mutateProgress,
   } = useVocabularyProgress(user, wordId);
+  // Every kanji of the word opens KanjiInfoModal (with a link to its own page) on long-press --
+  // none when it's shown as kana only. Called before the early returns below: it's a hook.
+  const wordText = word ? vocabularyDisplayText(word) : "";
+  const { renderKanji, longPressProps, kanjiModal, showKanjiHint } = usePressableKanji(wordText, null, "dictionary");
 
   if (wordStatus === "loading" || progressStatus === "loading") return <VocabularyDetailPlaceholder />;
   if (!word) return <NotFound />;
@@ -132,9 +139,15 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="min-w-55 flex-1">
-          <div className="pt-[0.6em] text-5xl leading-[1.1] mb-3">
-            {renderVocabularyWord(word, "text-lg text-accent-blue", "bg-accent-blue/10", true)}
+          <div className="mb-3 flex items-end gap-3">
+            <div {...longPressProps} className="pt-[0.6em] text-5xl leading-[1.1]">
+              {renderVocabularyWord(word, "text-lg text-accent-blue", "bg-accent-blue/10", true, renderKanji)}
+            </div>
+            {/* The pressable kanji above can't be selected -- this is how the word gets copied. */}
+            <CopyWordButton text={wordText} className="mb-2" />
           </div>
+          {showKanjiHint && <KanjiHint className="mb-3" />}
+          {kanjiModal}
           <div className="mb-3 text-[1.35rem] font-bold">{word.primary_meanings?.join(", ")}</div>
           <OtherMeaningsToggle otherMeanings={word.other_meanings} className="mb-3" />
           <div className="flex flex-wrap gap-6">

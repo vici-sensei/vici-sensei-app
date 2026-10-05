@@ -7,11 +7,9 @@ export interface KanjiRow {
   on_readings: string[] | null;
 }
 
-/** One kanji from a "New kanji" card's word list -- see fetchKanjiInfoByCharacters. */
-export interface KanjiInfo extends Pick<KanjiRow, "kanji" | "meanings" | "level"> {
-  /** This user's kanji_meaning card is review/relearning -- get_level_progress's "Already learned". */
-  meaning_learned: boolean;
-}
+/** Just enough of a kanji to show its quick-look modal (and link to its detail page by `id`) --
+ * see fetchKanjiInfoByCharacters. */
+export type KanjiInfo = Pick<KanjiRow, "id" | "kanji" | "meanings" | "level">;
 
 export interface KanjiListResponse {
   data: KanjiRow[];

@@ -8,6 +8,7 @@ import { renderVocabularyWord, vocabularyDisplayText } from "@/lib/study/furigan
 import { StudyCardShell } from "./StudyCardShell";
 import { CardHeading } from "./CardHeading";
 import { InfoChip } from "./InfoChip";
+import { KanjiHint } from "./KanjiHint";
 import { usePressableKanji } from "./usePressableKanji";
 
 interface Props {
@@ -18,7 +19,7 @@ interface Props {
 
 export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
   // Every kanji of the word opens KanjiInfoModal on long-press -- none when it's shown as kana only.
-  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen } = usePressableKanji(
+  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
     vocabularyDisplayText(candidate),
     null
   );
@@ -52,7 +53,9 @@ export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
           {candidate.jlpt_level && <LevelBadge level={candidate.jlpt_level} size="md" />}
         </div>
 
-        <div className="mt-8.5">
+        {showKanjiHint && <KanjiHint className="mt-4" />}
+
+        <div className={showKanjiHint ? "mt-4" : "mt-8.5"}>
           <Button className="w-fit" disabled={disabled} onClick={onConfirm}>
             Next
           </Button>

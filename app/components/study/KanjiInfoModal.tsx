@@ -1,22 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Modal } from "@/app/components/ui/Modal";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
+import { buttonClasses } from "@/app/components/ui/Button";
 import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import type { KanjiInfo } from "@/lib/types";
 
 interface Props {
   info: KanjiInfo;
   onClose: () => void;
+  /** Adds a "View kanji page" button to this kanji's own dictionary page. Left out on /study, where
+   * leaving the card behind would lose the student's place -- only the dictionary passes it. */
+  kanjiPageHref?: string;
 }
 
 /** Quick look at one kanji (meaning + JLPT level), opened by long-pressing or double-tapping it on
- * a /study card -- see usePressableKanji, which only makes a kanji pressable once it already holds
- * its row, so there's nothing to load here. Only the first meaning shows up front; the rest (if
- * any) sit behind a "Show other meanings" toggle, one per row with the toggle's own hairline
- * dividers between them. */
-export function KanjiInfoModal({ info, onClose }: Props) {
+ * a /study card or in the dictionary -- see usePressableKanji, which only makes a kanji pressable
+ * once it already holds its row, so there's nothing to load here. Only the first meaning shows up
+ * front; the rest (if any) sit behind a "Show other meanings" toggle, one per row with the
+ * toggle's own hairline dividers between them. */
+export function KanjiInfoModal({ info, onClose, kanjiPageHref }: Props) {
   const [firstMeaning, ...otherMeanings] = info.meanings ?? [];
 
   // Portaled because the word list this opens from sits inside StudyCardShell, whose backdrop-blur
@@ -43,6 +48,17 @@ export function KanjiInfoModal({ info, onClose }: Props) {
           centered
           className="mt-2"
         />
+        {kanjiPageHref && (
+          // Closed first: on /browse/kanji/detail the link only changes ?id=, which keeps the very
+          // same page (and this modal's open state) mounted -- it would otherwise stay on screen.
+          <Link
+            href={kanjiPageHref}
+            onClick={onClose}
+            className={buttonClasses({ variant: "secondary", size: "sm", hover: "hover", className: "mt-5" })}
+          >
+            View kanji page
+          </Link>
+        )}
       </div>
     </Modal>,
     document.body

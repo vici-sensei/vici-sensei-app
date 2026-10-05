@@ -22,26 +22,21 @@ export async function fetchKanjiDetail(id: number): Promise<KanjiDetail | null> 
   return { ...kanji, words };
 }
 
-type KanjiInfoRow = Pick<KanjiRow, "kanji" | "meanings" | "level"> & {
-  user_kanji_meaning_progress: { status: string }[];
-};
+// A kanji's meaning/level is the same for every user (and in both regions), so one lookup serves
+// every card and page for the rest of the session -- the next card's kanji are usually already here.
+const kanjiInfoCache = new Map<string, KanjiInfo>();
+// Chars the kanji table has no row for (a non-JLPT kanji), remembered so they aren't asked again.
+const kanjiInfoMisses = new Set<string>();
 
-/** Meaning + level for every one of `chars` the kanji table has a row for (a char with no row,
- * e.g. a non-JLPT kanji, is simply absent), plus whether `userId` has already learned its meaning
- * -- review/relearning, the same bar as get_level_progress's "Already learned". The embedded
- * progress rows are filtered to `userId` explicitly: RLS alone would also hand an admin every
- * other student's row. */
-export async function fetchKanjiInfoByCharacters(userId: string, chars: string[]): Promise<KanjiInfo[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("kanji")
-    .select("kanji, meanings, level, user_kanji_meaning_progress(status)")
-    .in("kanji", chars)
-    .eq("user_kanji_meaning_progress.user_id", userId)
-    .in("user_kanji_meaning_progress.status", ["review", "relearning"]);
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as unknown as KanjiInfoRow[]).map(({ user_kanji_meaning_progress, ...kanji }) => ({
-    ...kanji,
-    meaning_learned: user_kanji_meaning_progress.length > 0,
-  }));
+/** Id + meaning + level for every one of `chars` the kanji table has a row for (a char with no
+ * row, e.g. a non-JLPT kanji, is simply absent). Only chars not seen before hit the network. */
+export async function fetchKanjiInfoByCharacters(chars: string[]): Promise<KanjiInfo[]> {
+  const unknown = chars.filter((char) => !kanjiInfoCache.has(char) && !kanjiInfoMisses.has(char));
+  if (unknown.length > 0) {
+    const { data, error } = await createClient().from("kanji").select("id, kanji, meanings, level").in("kanji", unknown);
+    if (error) throw new Error(error.message);
+    for (const row of (data ?? []) as KanjiInfo[]) kanjiInfoCache.set(row.kanji, row);
+    for (const char of unknown) if (!kanjiInfoCache.has(char)) kanjiInfoMisses.add(char);
+  }
+  return chars.flatMap((char) => kanjiInfoCache.get(char) ?? []);
 }

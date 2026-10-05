@@ -4,6 +4,7 @@ import type { DueCard, Rating } from "@/lib/types";
 import { renderVocabularyWord, vocabularyDisplayText } from "@/lib/study/furigana";
 import { useVocabMeaningReviewCard } from "./useVocabMeaningReviewCard";
 import { usePressableKanji } from "./usePressableKanji";
+import { KanjiHint } from "./KanjiHint";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
 import { Accent } from "./Accent";
@@ -26,12 +27,12 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
   // The follow-up question depends on what the last checkmark was for.
   const askingAgain = !revealed ? lastAlternate : null;
 
-  // The word's kanji open KanjiInfoModal on long-press -- but only in a word of more than one
-  // character: a single kanji's own meaning is the very answer this card asks for.
+  // The word's kanji open KanjiInfoModal on long-press -- but not in a word of one character until
+  // it's revealed: a single kanji's own meaning is the very answer this card asks for.
   const displayedWord = card.word ? vocabularyDisplayText({ ...card, word: card.word }) : "";
-  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen } = usePressableKanji(
-    Array.from(displayedWord).length > 1 ? displayedWord : "",
-    null
+  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
+    displayedWord,
+    !revealed && Array.from(displayedWord).length === 1 ? displayedWord : null
   );
   // While the modal is open the card counts as disabled -- see ReviewCardKanjiReading.
   const shellDisabled = disabled || kanjiModalOpen;
@@ -49,6 +50,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
                 : card.word}
             </CardHeading>
           </div>
+          {showKanjiHint && <KanjiHint className="mb-1" />}
           {kanjiModal}
         </>
       }

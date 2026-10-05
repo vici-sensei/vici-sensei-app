@@ -8,6 +8,7 @@ import { StudyCardShell } from "./StudyCardShell";
 import { CardHeading } from "./CardHeading";
 import { InfoChip } from "./InfoChip";
 import { WordPreviewRow } from "./WordPreviewRow";
+import { KanjiHint } from "./KanjiHint";
 import { usePressableKanji } from "./usePressableKanji";
 import { useScrollHint } from "./useScrollHint";
 
@@ -22,7 +23,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
   const { ref: listRef, showFade, isScrollable, hasScrolledToBottom } = useScrollHint<HTMLDivElement>();
   const nextDisabled = disabled || (isScrollable && !hasScrolledToBottom);
   // The word list's kanji open KanjiInfoModal on long-press -- all but the one this card introduces.
-  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen } = usePressableKanji(
+  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
     words.map((w) => w.vocabulary.word).join(""),
     candidate.kanji
   );
@@ -92,6 +93,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
           </div>
         )}
         <div className="mt-4 shrink-0">
+          {showKanjiHint && <KanjiHint className="mb-3" />}
           <Button className="w-fit" disabled={nextDisabled} onClick={onConfirm}>
             Next
           </Button>

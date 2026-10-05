@@ -5,6 +5,7 @@ import { FaCheck } from "react-icons/fa6";
 import { renderTargetWord } from "@/lib/study/furigana";
 import { useKanjiReadingReviewCard } from "./useKanjiReadingReviewCard";
 import { usePressableKanji } from "./usePressableKanji";
+import { KanjiHint } from "./KanjiHint";
 import { ReviewCardShell } from "./ReviewCardShell";
 import { CardHeading } from "./CardHeading";
 import { UsuallyKanaNote } from "@/app/components/ui/UsuallyKanaNote";
@@ -28,8 +29,12 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
   const askingAgain = !revealed ? lastAlternate : null;
   const meanings = card.primary_word_meanings ?? [];
 
-  // The word's other kanji open KanjiInfoModal on long-press -- never the one being tested.
-  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen } = usePressableKanji(card.word ?? "", card.kanji_char);
+  // The word's other kanji open KanjiInfoModal on long-press -- the one being tested joins them
+  // once the answer is revealed.
+  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
+    card.word ?? "",
+    revealed ? null : card.kanji_char
+  );
   // While the modal is open the card counts as disabled: that switches off ReviewCardShell's
   // Enter/1/2/3 shortcuts, which would otherwise answer the card underneath it, and AnswerForm's
   // input -- which then refocuses itself once the modal closes, bringing the keyboard back.
@@ -48,6 +53,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
                 : card.kanji_char}
             </CardHeading>
           </div>
+          {showKanjiHint && <KanjiHint className="mb-1" />}
           {/* Shown once the answer is revealed, right or wrong -- a wrong answer is exactly when
               the student most needs to know which word they just missed. */}
           {revealed && meanings.length > 0 && (
