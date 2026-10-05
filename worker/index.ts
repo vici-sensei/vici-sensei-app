@@ -2,6 +2,7 @@ import { runAccountSweep } from "./lib/accountSweep";
 import { mirrorGoogleAvatars } from "./lib/avatarMirror";
 import { type Env, projectConfig } from "./lib/env";
 import { emailKey, isRegion, regionFromCfContinent, type Region } from "./lib/region";
+import { runSmtpHeartbeat } from "./lib/smtpHeartbeat";
 import { handleEmailChangeCancel, handleEmailChangeFinalize, handleEmailChangeStart } from "./lib/emailChange";
 import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
 import { verifyStandardWebhook } from "./lib/webhooks";
@@ -284,6 +285,8 @@ const worker: ExportedHandler<Env> = {
       await runAccountSweep(env);
     } else if (event.cron === "17 * * * *") {
       await mirrorGoogleAvatars(env);
+    } else if (event.cron === "0 5 1 * *") {
+      await runSmtpHeartbeat(env);
     }
   },
 };

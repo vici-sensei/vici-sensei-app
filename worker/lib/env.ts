@@ -15,6 +15,16 @@ export interface Env {
   // Reconciliation and region moves no-op/fail until both are set.
   SUPABASE_SERVICE_ROLE_KEY_EU?: string;
   SUPABASE_SERVICE_ROLE_KEY_US?: string;
+  // Monthly SMTP heartbeat (worker/lib/smtpHeartbeat.ts). SMTP_USER / SMTP_PASSWORD are the Brevo SMTP
+  // login and key, HEARTBEAT_EMAIL_TO is where the check email goes -- all three set with
+  // `wrangler secret put`. The job logs "skipped" until they exist. SMTP_HOST / SMTP_PORT /
+  // SMTP_STARTTLS only exist so a local test server can stand in for Brevo; leave them unset.
+  SMTP_USER?: string;
+  SMTP_PASSWORD?: string;
+  HEARTBEAT_EMAIL_TO?: string;
+  SMTP_HOST?: string;
+  SMTP_PORT?: string;
+  SMTP_STARTTLS?: string;
 }
 
 export function projectConfig(env: Env, region: Region) {

@@ -225,6 +225,11 @@ Cu flag-ul pornit și fără migrație, Setări nu poate afla dacă un cont are 
 
 ## Detalii de proiectare descoperite pe parcurs
 
+- **Heartbeat Brevo:** cheia SMTP expiră după 90 de zile de inactivitate, iar un site liniștit poate sta atât fără
+  niciun email. `worker/lib/smtpHeartbeat.ts` trimite lunar (cron `0 5 1 * *`) un email prin același SMTP, cu un
+  client SMTP minimal (EHLO, STARTTLS, AUTH PLAIN, un mesaj). Testat local pe un server SMTP simulat (succes,
+  parolă respinsă, server nepornit, secrete lipsă); **STARTTLS-ul către Brevo real nu s-a putut testa local**.
+  Pașii și secretele: `docs/PASSWORD_AUTH_DASHBOARD.md`, secțiunea F.
 - `handle_new_user()` a fost modificat după baseline (trial Pro de 7 zile, `premium_until`): migrația pornește
   de la versiunea LIVE, nu de la cea din baseline, altfel ar fi anulat trialul.
 - Un cont creat cu parolă primește același trial de 7 zile ca unul Google, din momentul înscrierii (nu al

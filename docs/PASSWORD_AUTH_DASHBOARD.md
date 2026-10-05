@@ -93,6 +93,43 @@ Repetă tot ce urmează, în ordine, pe **EU** și apoi pe **US**. Singura difer
 
 Dacă ceva nu merge, nu schimba setări la întâmplare: scrie-mi exact ce vezi pe ecran.
 
+## F. Verificarea lunară care ține cheia Brevo în viață (heartbeat)
+
+Cheia SMTP de la Brevo expiră după 90 de zile fără nicio utilizare. Worker-ul trimite o dată pe lună, pe 1 la
+05:00 UTC, un email scurt prin același server Brevo, cu aceeași cheie, ca să nu expire. Codul e în
+`worker/lib/smtpHeartbeat.ts`. Are nevoie de cheia pusă și ca secret în Worker (a doua copie). **Nu o
+scrie în chat și nu o pune în fișiere din proiect.**
+
+1. După ce codul e publicat, rulează trei comenzi, una după alta. La fiecare, terminalul îți cere valoarea
+   și o lipești acolo (nu apare pe ecran):
+   ```bash
+   npx.cmd wrangler secret put SMTP_USER
+   ```
+   ```bash
+   npx.cmd wrangler secret put SMTP_PASSWORD
+   ```
+   ```bash
+   npx.cmd wrangler secret put HEARTBEAT_EMAIL_TO
+   ```
+   - `SMTP_USER`: login-ul SMTP de la Brevo (se termină în `@smtp-brevo.com`);
+   - `SMTP_PASSWORD`: cheia SMTP;
+   - `HEARTBEAT_EMAIL_TO`: adresa ta, unde vrei să primești emailul lunar.
+2. Cât timp lipsește oricare dintre ele, jobul nu face nimic și scrie „skipped” în jurnal.
+3. **Cum verifici că merge:** în Brevo, la **SMTP & API → SMTP**, coloana **Last used on** a cheii se
+   actualizează, iar emailul „Vici Sensei: monthly email check” îți ajunge în inbox. Rezultatul fiecărei rulări
+   se vede și în baza D1, în tabelul `reconciliation_log` (`smtp_heartbeat` = reușit, `smtp_heartbeat_error` =
+   a eșuat, cu motivul).
+4. **Test imediat, fără să aștepți luna viitoare:** adaugă cele trei valori în fișierul `.dev.vars` din
+   rădăcina proiectului (e ignorat de git), apoi rulează
+   ```bash
+   node node_modules/wrangler/bin/wrangler.js dev --local --port 8788
+   ```
+   și deschide în browser `http://127.0.0.1:8788/cdn-cgi/local/scheduled?cron=0+5+1+*+*`. Emailul trebuie să
+   ajungă în câteva secunde. Apoi oprești serverul cu Ctrl+C și ștergi cele trei linii din `.dev.vars`.
+
+Dacă emailul lunar nu mai vine, înseamnă că ceva s-a stricat la trimitere: verifică jurnalul de mai sus și,
+dacă cheia a expirat, creează alta în Brevo și pune-o în Supabase (EU și US) și în `SMTP_PASSWORD`.
+
 ---
 
 ## Șabloanele
