@@ -34,7 +34,7 @@ export function isKanjiChar(char: string): boolean {
 }
 
 /** `renderText`, when given, replaces each segment's plain base text (never the furigana) -- e.g.
- * WordPreviewRow wraps every kanji in its own long-pressable span. */
+ * WordPreviewRow wraps every kanji in its own pressable span. */
 export function renderWordWithFurigana(
   word: string,
   furiganas: string[] | null | undefined,

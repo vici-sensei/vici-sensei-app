@@ -7,9 +7,10 @@ import { isKanjiChar } from "@/lib/study/furigana";
 import { hasSeenKanjiHint, markKanjiHintSeen, type KanjiHintContext } from "@/lib/study/kanjiHintStorage";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { KanjiInfoModal } from "./KanjiInfoModal";
-import { useKanjiLongPress } from "./useKanjiLongPress";
+import { useKanjiPress } from "./useKanjiPress";
 
-/** Long-press-or-double-tap-to-see-meaning for the kanji of the word(s) a page shows -- the /study
+/** Click-or-double-tap-to-see-meaning for the kanji of the word(s) a page shows (a click with a
+ * mouse, a double-tap with a finger -- see useKanjiPress) -- the /study
  * cards ("New kanji"'s word list, "Word reading", "New word", "Vocabulary") and the dictionary's
  * word lists (`context` "dictionary"; the modal then also links to the kanji's own page).
  * Pressable: every kanji in `text` the kanji table knows, except `excludedKanji` (the one the page
@@ -19,8 +20,8 @@ import { useKanjiLongPress } from "./useKanjiLongPress";
  * way if the lookup fails -- the page then works exactly as it would without this.
  *
  * Returns `renderKanji` (pass as renderWordWithFurigana/renderTargetWord's `renderText`), which
- * wraps each pressable kanji in the `data-kanji` span useKanjiLongPress looks for;
- * `longPressProps`, to spread on an element containing those words; `kanjiModal`, to render
+ * wraps each pressable kanji in the `data-kanji` span useKanjiPress looks for;
+ * `pressProps`, to spread on an element containing those words; `kanjiModal`, to render
  * anywhere on the page; `kanjiModalOpen`, so a card can hold off its own keyboard shortcuts
  * while the modal covers it; and `showKanjiHint`, whether to show the one-time KanjiHint line
  * (there's something to press and none was opened yet in this `context`). */
@@ -30,7 +31,7 @@ export function usePressableKanji(text: string, excludedKanji: string | null, co
   const [kanjiInfo, setKanjiInfo] = useState<Map<string, KanjiInfo>>(new Map());
   const [inspectedKanji, setInspectedKanji] = useState<KanjiInfo | null>(null);
   const [hintDismissed, setHintDismissed] = useState(false);
-  const longPressProps = useKanjiLongPress((char) => {
+  const pressProps = useKanjiPress((char) => {
     const info = kanjiInfo.get(char) ?? null;
     setInspectedKanji(info);
     if (info && userId) markKanjiHintSeen(userId, context);
@@ -68,8 +69,8 @@ export function usePressableKanji(text: string, excludedKanji: string | null, co
     [hasPressable, userId, context]
   );
 
-  // select-none + no-touch-callout: holding the kanji would otherwise start a text selection /
-  // the iOS callout menu instead of the long-press (and double-tapping it would select it).
+  // select-none + no-touch-callout: a finger resting on the kanji would otherwise start a text
+  // selection / the iOS callout menu, and double-tapping (or double-clicking) it would select it.
   function renderKanji(segment: string): ReactNode {
     return Array.from(segment).map((char, i) =>
       isPressable(char) ? (
@@ -96,7 +97,7 @@ export function usePressableKanji(text: string, excludedKanji: string | null, co
 
   return {
     renderKanji,
-    longPressProps,
+    pressProps,
     kanjiModal,
     kanjiModalOpen: inspectedKanji !== null,
     showKanjiHint: !hintAlreadySeen && !hintDismissed,

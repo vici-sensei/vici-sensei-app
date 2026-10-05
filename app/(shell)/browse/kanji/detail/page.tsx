@@ -168,13 +168,13 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
     mutate: mutateProgress,
   } = useKanjiProgress(user, kanjiId);
   // The kanji of every word on the page (Example words and the Reading rows under Your progress)
-  // open KanjiInfoModal, with a link to their own page, on long-press -- all but this page's own
-  // kanji. Called before the early returns below: it's a hook.
+  // open KanjiInfoModal, with a link to their own page, on click (double-tap on touch) -- all but this
+  // page's own kanji. Called before the early returns below: it's a hook.
   const pageWords = [
     ...(kanji?.words.map((w) => w.vocabulary.word) ?? []),
     ...(progress?.readings.map((r) => r.kanji_word?.vocabulary?.word ?? "") ?? []),
   ];
-  const { renderKanji, longPressProps, kanjiModal, showKanjiHint } = usePressableKanji(
+  const { renderKanji, pressProps, kanjiModal, showKanjiHint } = usePressableKanji(
     pageWords.join(""),
     kanji?.kanji ?? null,
     "dictionary"
@@ -216,7 +216,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Example words</div>
       {showKanjiHint && <KanjiHint className="-mt-1.5 mb-3.5" />}
       {kanjiModal}
-      <div {...longPressProps} className="grid grid-cols-1 gap-3 text-left">
+      <div {...pressProps} className="grid grid-cols-1 gap-3 text-left">
         {kanji.words.map((w) => (
           <div
             // gap-y only matters once the meaning block wraps below the word (narrow screens): a
@@ -263,7 +263,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
 
       <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
       {hasProgress && progress ? (
-        <div {...longPressProps}>
+        <div {...pressProps}>
           {progress.meaning && (
             <ProgressCardRow
               title={<>Meaning — &quot;{kanji.meanings?.[0] ?? kanji.kanji}&quot;</>}

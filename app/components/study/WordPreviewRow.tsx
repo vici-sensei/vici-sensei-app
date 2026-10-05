@@ -6,7 +6,7 @@ import type { NewKanjiIntroWord } from "@/lib/types";
 
 interface Props {
   vocabulary: NewKanjiIntroWord["vocabulary"];
-  /** Makes the word's kanji long-pressable -- NewKanjiIntroCard's usePressableKanji().renderKanji. */
+  /** Makes the word's kanji pressable -- NewKanjiIntroCard's usePressableKanji().renderKanji. */
   renderKanji: (text: string) => ReactNode;
 }
 

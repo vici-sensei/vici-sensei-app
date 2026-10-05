@@ -8,6 +8,8 @@ import { buttonClasses } from "@/app/components/ui/Button";
 import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import type { KanjiInfo } from "@/lib/types";
 
+const BACKDROP_GRACE_MS = 400;
+
 interface Props {
   info: KanjiInfo;
   onClose: () => void;
@@ -16,8 +18,8 @@ interface Props {
   kanjiPageHref?: string;
 }
 
-/** Quick look at one kanji (meaning + JLPT level), opened by long-pressing or double-tapping it on
- * a /study card or in the dictionary -- see usePressableKanji, which only makes a kanji pressable
+/** Quick look at one kanji (meaning + JLPT level), opened by clicking it (double-tapping, on touch)
+ * on a /study card or in the dictionary -- see usePressableKanji, which only makes a kanji pressable
  * once it already holds its row, so there's nothing to load here. Only the first meaning shows up
  * front; the rest (if any) sit behind a "Show other meanings" toggle, one per row with the
  * toggle's own hairline dividers between them. */
@@ -28,13 +30,22 @@ export function KanjiInfoModal({ info, onClose, kanjiPageHref }: Props) {
   // makes it the containing block for any position:fixed descendant -- rendered in place, the
   // Modal's backdrop would only cover the card instead of the whole screen.
   //
-  // select-none + no-touch-callout: this opens while the press that opened it is still held, so
-  // holding on a bit longer reaches the OS's own long-press, which then lands on this dialog instead
-  // of the pressed kanji -- and would select whatever text is under the finger. useKanjiLongPress
-  // can't cancel that here: on Android the contextmenu event goes to this portal, outside the
-  // element its props are spread on, and iOS doesn't fire one at all.
+  // select-none + no-touch-callout: a double-tap opens this on the second tap's press, while the
+  // finger is still down, so holding on a bit longer reaches the OS's own long-press, which then
+  // lands on this dialog instead of the pressed kanji -- and would select whatever text is under the
+  // finger. useKanjiPress can't cancel that here: on Android the contextmenu event goes to this
+  // portal, outside the element its props are spread on, and iOS doesn't fire one at all.
+  //
+  // backdropGraceMs: a click opens this, and a habitual double-click's second press would land on
+  // the backdrop that just appeared and close it again.
   return createPortal(
-    <Modal onClose={onClose} labelledBy="kanji-info-title" showCloseButton closeButtonSide="left">
+    <Modal
+      onClose={onClose}
+      labelledBy="kanji-info-title"
+      showCloseButton
+      closeButtonSide="left"
+      backdropGraceMs={BACKDROP_GRACE_MS}
+    >
       <div className="no-touch-callout select-none text-center">
         {/* Top-right, mirroring the Modal's close button in the top-left (top-4 left-4, h-9):
             top-5 centers the md badge's 28px on that 36px button's row. */}

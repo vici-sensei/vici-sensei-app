@@ -27,10 +27,10 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
   // The follow-up question depends on what the last checkmark was for.
   const askingAgain = !revealed ? lastAlternate : null;
 
-  // The word's kanji open KanjiInfoModal on long-press -- but not in a word of one character until
-  // it's revealed: a single kanji's own meaning is the very answer this card asks for.
+  // The word's kanji open KanjiInfoModal on click (double-tap on touch) -- but not in a word of one
+  // character until it's revealed: a single kanji's own meaning is the very answer this card asks for.
   const displayedWord = card.word ? vocabularyDisplayText({ ...card, word: card.word }) : "";
-  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
+  const { renderKanji, pressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
     displayedWord,
     !revealed && Array.from(displayedWord).length === 1 ? displayedWord : null
   );
@@ -43,7 +43,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
       accent="orange"
       prompt={
         <>
-          <div {...longPressProps}>
+          <div {...pressProps}>
             <CardHeading furigana masked={!revealed}>
               {card.word
                 ? renderVocabularyWord({ ...card, word: card.word }, undefined, undefined, undefined, renderKanji)

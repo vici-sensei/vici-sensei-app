@@ -20,6 +20,11 @@ interface ModalProps {
    * into document.body so it isn't affected by an opacity/grayscale ancestor (e.g. a "locked"
    * card) the way a plain fixed-position descendant would still be. */
   fullScreen?: boolean;
+  /** Presses on the backdrop in the first this-many ms after the dialog opens don't close it --
+   * for a dialog opened by a click, where the second press of a habitual double-click would
+   * otherwise land on the just-appeared backdrop and dismiss it again straight away
+   * (KanjiInfoModal). Off by default. */
+  backdropGraceMs?: number;
   children: ReactNode;
 }
 
@@ -36,13 +41,26 @@ const TRANSITION_MS = 200;
  * layer SakuraPetals behind their content inside this card, and both clip the petals to the
  * rounded corners and keep the card's own z-index comparisons (petals vs. content) from ever
  * being compared against anything outside the card. */
-export function Modal({ onClose, labelledBy, showCloseButton, closeButtonSide = "right", fullScreen, children }: ModalProps) {
+export function Modal({
+  onClose,
+  labelledBy,
+  showCloseButton,
+  closeButtonSide = "right",
+  fullScreen,
+  backdropGraceMs = 0,
+  children,
+}: ModalProps) {
   const [shown, setShown] = useState(false);
   const [closing, setClosing] = useState(false);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  const openedAtRef = useRef(0);
+  useEffect(() => {
+    openedAtRef.current = performance.now();
+  }, []);
 
   useEffect(() => {
     // One tick after the initial (hidden) paint, so the transition from that state to visible
@@ -82,7 +100,7 @@ export function Modal({ onClose, labelledBy, showCloseButton, closeButtonSide = 
         fullScreen ? "" : "rounded-2xl px-4"
       } ${visible ? "opacity-100" : "opacity-0"}`}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) closeAnimated();
+        if (e.target === e.currentTarget && performance.now() - openedAtRef.current >= backdropGraceMs) closeAnimated();
       }}
     >
       <div

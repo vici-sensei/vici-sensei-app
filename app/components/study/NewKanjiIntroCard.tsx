@@ -22,8 +22,9 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
   const words = candidate.words;
   const { ref: listRef, showFade, isScrollable, hasScrolledToBottom } = useScrollHint<HTMLDivElement>();
   const nextDisabled = disabled || (isScrollable && !hasScrolledToBottom);
-  // The word list's kanji open KanjiInfoModal on long-press -- all but the one this card introduces.
-  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
+  // The word list's kanji open KanjiInfoModal on click (double-tap on touch) -- all but the one this
+  // card introduces.
+  const { renderKanji, pressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
     words.map((w) => w.vocabulary.word).join(""),
     candidate.kanji
   );
@@ -77,7 +78,7 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
           <div className="relative mt-4 min-h-[130px]">
             <div
               ref={listRef}
-              {...longPressProps}
+              {...pressProps}
               className="h-full max-h-full overflow-y-auto divide-y divide-border-soft rounded-xl border border-border-soft bg-white/[0.03] text-left"
             >
               {words.map((w) => (

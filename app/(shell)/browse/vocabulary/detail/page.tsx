@@ -123,10 +123,10 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
     refetch: refetchProgress,
     mutate: mutateProgress,
   } = useVocabularyProgress(user, wordId);
-  // Every kanji of the word opens KanjiInfoModal (with a link to its own page) on long-press --
-  // none when it's shown as kana only. Called before the early returns below: it's a hook.
+  // Every kanji of the word opens KanjiInfoModal (with a link to its own page) on click (double-tap on
+  // touch) -- none when it's shown as kana only. Called before the early returns below: it's a hook.
   const wordText = word ? vocabularyDisplayText(word) : "";
-  const { renderKanji, longPressProps, kanjiModal, showKanjiHint } = usePressableKanji(wordText, null, "dictionary");
+  const { renderKanji, pressProps, kanjiModal, showKanjiHint } = usePressableKanji(wordText, null, "dictionary");
 
   if (wordStatus === "loading" || progressStatus === "loading") return <VocabularyDetailPlaceholder />;
   if (!word) return <NotFound />;
@@ -140,7 +140,7 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="min-w-55 flex-1">
           <div className="mb-3 flex items-end gap-3">
-            <div {...longPressProps} className="pt-[0.6em] text-5xl leading-[1.1]">
+            <div {...pressProps} className="pt-[0.6em] text-5xl leading-[1.1]">
               {renderVocabularyWord(word, "text-lg text-accent-blue", "bg-accent-blue/10", true, renderKanji)}
             </div>
             {/* The pressable kanji above can't be selected -- this is how the word gets copied. */}

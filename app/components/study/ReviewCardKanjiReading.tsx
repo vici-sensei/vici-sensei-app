@@ -29,9 +29,9 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
   const askingAgain = !revealed ? lastAlternate : null;
   const meanings = card.primary_word_meanings ?? [];
 
-  // The word's other kanji open KanjiInfoModal on long-press -- the one being tested joins them
-  // once the answer is revealed.
-  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
+  // The word's other kanji open KanjiInfoModal on click (double-tap on touch) -- the one being tested
+  // joins them once the answer is revealed.
+  const { renderKanji, pressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
     card.word ?? "",
     revealed ? null : card.kanji_char
   );
@@ -46,7 +46,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
       accent="blue"
       prompt={
         <>
-          <div {...longPressProps}>
+          <div {...pressProps}>
             <CardHeading furigana masked={!revealed}>
               {card.word
                 ? renderTargetWord(card.word, card.kanji_char ?? "", card.furiganas, card.known_kanji_chars, renderKanji)

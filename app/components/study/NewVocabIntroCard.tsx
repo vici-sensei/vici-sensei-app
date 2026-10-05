@@ -18,8 +18,9 @@ interface Props {
 }
 
 export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
-  // Every kanji of the word opens KanjiInfoModal on long-press -- none when it's shown as kana only.
-  const { renderKanji, longPressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
+  // Every kanji of the word opens KanjiInfoModal on click (double-tap on touch) -- none when it's
+  // shown as kana only.
+  const { renderKanji, pressProps, kanjiModal, kanjiModalOpen, showKanjiHint } = usePressableKanji(
     vocabularyDisplayText(candidate),
     null
   );
@@ -40,7 +41,7 @@ export function NewVocabIntroCard({ candidate, disabled, onConfirm }: Props) {
   return (
     <>
       <StudyCardShell label="New word" accent="gold">
-        <div {...longPressProps}>
+        <div {...pressProps}>
           <CardHeading furigana>
             {renderVocabularyWord(candidate, undefined, undefined, undefined, renderKanji)}
           </CardHeading>
