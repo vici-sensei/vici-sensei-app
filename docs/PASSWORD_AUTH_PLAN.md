@@ -52,7 +52,9 @@ Fără ei, formularul nu poate funcționa. Codul se poate construi și verifica 
    Apoi **Authentication → Rate Limits**: ridică limita de emailuri/oră de la 30 la ce îți trebuie.
 3. **Authentication → Providers → Email**: pornește providerul, „Confirm email” ACTIV, lungimea OTP 6,
    „Secure email change” OPRIT (confirmarea la schimbarea emailului se cere doar pe adresa nouă; contul
-   cu parolă oricum cere parola curentă înainte).
+   cu parolă oricum cere parola curentă înainte) și „Secure password change” OPRIT (aplicația verifică
+   singură parola curentă; cu opțiunea pornită, `updateUser({ password })` ar cere un nonce de reautentificare
+   pe care formularele nu-l trimit).
 4. **Minimum password length 10** și cerința „letters and digits” (Authentication → Sign In / Providers).
 5. **Authentication → URL Configuration**: Site URL `https://app.vici-sensei.com`; adaugă în Redirect URLs
    `https://app.vici-sensei.com/auth/confirm` și `http://localhost:3000/auth/confirm`.
@@ -194,13 +196,21 @@ Actualizat 2026-10-04. Tot codul de mai jos e în repo (`sandbox`) și ascuns î
 | 7 Mutare regiune | gata: parola se cere și se transmite Worker-ului doar la crearea contului țintă |
 | 8 Documentație | acest fișier; secțiunea din `docs/MULTI_REGION_ARCHITECTURE.md` |
 
-Verificat: `tsc` (app + Worker) curat, lint fără erori noi, paginile randate în browser (desktop și 375px, fără
-scroll orizontal), validările de formular, migrația SQL pe un Postgres local. **Neverificat cap-coadă**
+Verificat: `tsc` (app + Worker) curat, `next build` (export static) trece cu toate rutele noi prerandate, lint
+fără erori noi, paginile randate în browser (desktop și 375px, fără scroll orizontal), validările de formular,
+migrația SQL pe un Postgres local (inclusiv `has_password()`). Worker-ul testat local (`wrangler dev --local`, D1
+local, Supabase simulat): schimbarea emailului (start/finalize/cancel, inclusiv email deținut de cealaltă
+regiune, claim preexistent care nu trebuie eliberat, anulare după confirmare, mutare de regiune în curs) și
+job-ul săptămânal de curățare (șterge doar conturile neconfirmate, fără sign-in, cu identitate doar `email`,
+mai vechi de 7 zile; nu atinge confirmate, Google, recente). **Neverificat cap-coadă**
 (nu se poate până nu există SMTP, provider Email și Turnstile): o înscriere reală, primirea emailului, codul și
 linkul, resetarea parolei, schimbarea emailului, mutarea unui cont cu parolă, comportamentul Supabase când
 același email există și pe Google.
 
 ## Ce rămâne în mâna ta (nu am putut sau nu trebuie să fac eu)
+
+**Ordinea contează**: 1 (migrația) și 2 (D1 + deploy) înainte de pașii din Dashboard, iar flag-ul la urmă.
+Cu flag-ul pornit și fără migrație, Setări nu poate afla dacă un cont are parolă (`has_password()` lipsește).
 
 1. **Migrația Postgres**, pe EU și pe US (clasificatorul a blocat `psql` pe baza live): rulează conținutul
    fișierului din SQL Editor pe fiecare proiect, apoi
