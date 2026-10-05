@@ -187,8 +187,8 @@ Actualizat 2026-10-04. Tot codul de mai jos e în repo (`sandbox`) și ascuns î
 | Faza | Stare |
 |---|---|
 | Dashboard (utilizatorul) | **de făcut** — vezi lista de mai sus |
-| 1 DB | migrația e scrisă și testată pe un Postgres local (`supabase/migrations/20261004184744_password_auth_relax_gmail_rule.sql`); **neaplicată pe EU/US** (vezi „Ce rămâne în mâna ta”) |
-| 2 Worker | scris: `worker/lib/emailChange.ts`, `accountSweep.ts`, parolă la mutare; **nedeployat**, iar tabelul D1 `0004_email_changes.sql` **neaplicat** |
+| 1 DB | **aplicată 2026-10-05 pe EU și US**, cu rândul de ledger (`supabase/migrations/20261004184744_password_auth_relax_gmail_rule.sql`). Verificat după aplicare: triggerul și constrângerea vechi dispărute, `on_auth_identity_require_gmail` și `has_password()` prezente, `handle_new_user()` păstrează trial-ul Pro, cele 8 conturi EU neatinse |
+| 2 Worker | scris și testat local: `worker/lib/emailChange.ts`, `accountSweep.ts`, parolă la mutare; **nedeployat**, iar tabelul D1 `0004_email_changes.sql` **neaplicat** (scrierea pe D1-ul remote a fost blocată de clasificator) |
 | 3 Nucleu client | gata (`lib/auth/passwordAuth.ts`, `finishSignIn.ts`, `useAuthRegion.ts`, `app/components/auth/*`) |
 | 4 Pagini | gata: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/confirm`, `/terms`, `/privacy` (textele legale sunt DRAFT) |
 | 5 Callback | gata: `finishSignIn` comun, `dropStrayEmailIdentity` doar la „Switch Google account”, `?link=1` |
@@ -212,10 +212,8 @@ același email există și pe Google.
 **Ordinea contează**: 1 (migrația) și 2 (D1 + deploy) înainte de pașii din Dashboard, iar flag-ul la urmă.
 Cu flag-ul pornit și fără migrație, Setări nu poate afla dacă un cont are parolă (`has_password()` lipsește).
 
-1. **Migrația Postgres**, pe EU și pe US (clasificatorul a blocat `psql` pe baza live): rulează conținutul
-   fișierului din SQL Editor pe fiecare proiect, apoi
-   `insert into supabase_migrations.schema_migrations (version, name) values ('20261004184744', 'password_auth_relax_gmail_rule') on conflict (version) do nothing;`
-   și adaugă rândul în `supabase/MIGRATION_PARITY.md`.
+1. ~~Migrația Postgres pe EU și US~~ — **făcută 2026-10-05** (ledger și `MIGRATION_PARITY.md` la zi). Fișierul
+   SQL e încă necomis în git.
 2. **D1**: `wrangler d1 execute vici-sensei-accounts --remote --file=worker/migrations/0004_email_changes.sql`,
    apoi **deploy** (`npm run deploy`) ca endpoint-urile noi să existe.
 3. Pașii din Dashboard de mai sus, apoi flag-ul.
