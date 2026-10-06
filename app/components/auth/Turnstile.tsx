@@ -93,6 +93,19 @@ export function useTurnstile(revealed = true): TurnstileController {
 
 const CARD = "rounded-xl border border-border-soft bg-white/[0.03] p-3 text-left";
 
+// The widget is a cross-origin iframe: its colours can't be set, only `theme` chosen. So it is
+// dressed from outside, without hiding anything of Cloudflare's (logo and links stay; removing
+// them is the Enterprise "offlabel" feature). Its dark theme paints a flat ~rgb(48,50,48) box with
+// a 1px light-grey border. The border is cropped off (overflow hidden, the iframe pushed outward
+// by 2px) and the box is darkened toward the card (~rgb(19,23,33)) with a CSS filter. That filter
+// is `brightness(b) contrast(c)`, i.e. x -> (b*x - .5)*c + .5, with b and c solved so that white
+// stays white (the text keeps its full contrast, which a plain `brightness()` would not) and
+// 48/255 lands on 22/255. It stays neutral grey; an SVG `url()` filter could tint it to the card's
+// blue but is not applied to cross-origin iframes by Chromium, and a blend-mode overlay can hide
+// the widget while it composites -- not worth risking the one control that gates sign-up. Re-check
+// the numbers if Cloudflare ever changes the widget's dark palette.
+const WIDGET_FILTER = "brightness(0.899) contrast(1.252)";
+
 /**
  * Mount one per form, above the submit button. `lazy` skips the background check and only runs it
  * when `getToken()` is called -- for a form where the captcha guards a secondary action (the
@@ -268,8 +281,14 @@ export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileControl
               <p className="text-[0.9rem] font-bold text-white">One quick check</p>
               <p className="mt-0.5 text-[0.8rem] leading-normal text-text-muted">Helps keep bots out.</p>
             </div>
-            {/* The widget is at least 300px wide; on a ~360px phone the card's padding would squeeze it out. */}
-            <div ref={containerRef} className="-mx-2 min-[380px]:mx-0" />
+            {/* The widget is at least 300px wide; on a ~360px phone the card's padding would squeeze it out.
+                The outline is ours, same as the text inputs'; `-m-0.5` pushes Cloudflare's own border out
+                of view, and `leading-[0]` removes the inline-iframe gap Cloudflare's markup leaves under it. */}
+            <div className="-mx-2 overflow-hidden rounded-lg border border-border-soft min-[380px]:mx-0">
+              <div className="flow-root" style={{ filter: WIDGET_FILTER }}>
+                <div ref={containerRef} className="-m-0.5 leading-[0]" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
