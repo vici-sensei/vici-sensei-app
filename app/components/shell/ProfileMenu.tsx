@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
 import { useAvatarSrc } from "@/app/components/ui/useAvatarSrc";
@@ -63,6 +64,7 @@ export function ProfileMenu({ user, loaded = true }: { user: UserProfile; loaded
 
   async function handleLogout() {
     setLoggingOut(true);
+    clearRememberedEmail();
     try {
       await createClient().auth.signOut();
     } catch {

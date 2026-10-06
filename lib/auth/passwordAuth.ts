@@ -28,6 +28,20 @@ export function passwordProblem(password: string): string | null {
   return null;
 }
 
+/** What to say under an email field: as soon as the person starts typing an address that isn't
+ * valid yet, or once they have left the field still invalid (e.g. empty). */
+export function emailFieldError(email: string, touched: boolean): string | null {
+  if (!touched && email.length === 0) return null;
+  return looksLikeEmail(email) ? null : "Enter a valid email address.";
+}
+
+/** What to say under the password field of /signup and /login: the first problem as soon as the
+ * person starts typing, or "Enter a password." once they have left the field empty (`touched`). */
+export function passwordFieldError(password: string, touched: boolean): string | null {
+  if (password.length === 0) return touched ? "Enter a password." : null;
+  return passwordProblem(password);
+}
+
 const EMAIL_SHAPE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export function looksLikeEmail(value: string): boolean {

@@ -5,25 +5,33 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
-import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Logo } from "@/app/components/ui/Logo";
 import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
-import { FormMessage, OrDivider } from "@/app/components/auth/AuthLayout";
+import {
+  AUTH_LOGO_SIZE,
+  FieldError,
+  FormMessage,
+  OrDivider,
+  PasswordMessage,
+} from "@/app/components/auth/AuthLayout";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { PasswordField } from "@/app/components/auth/PasswordField";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
 import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
 import { finishSignIn } from "@/lib/auth/finishSignIn";
 import {
+  emailFieldError,
   isPasswordAuthEnabled,
   looksLikeEmail,
+  passwordFieldError,
   rememberPendingAuth,
   signInWithPasswordAcrossRegions,
   type AuthFailure,
 } from "@/lib/auth/passwordAuth";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
+import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 import { isRegion, setActiveRegion, type Region } from "@/lib/supabase/regions";
 
 function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) => void }) {
@@ -81,10 +89,15 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   const router = useRouter();
   const { showToast } = useToast();
   const captchaRef = useRef<TurnstileHandle>(null);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
+  // A field only complains once the person has left it, and stops the moment it is filled in right.
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const emailError = emailFieldError(email, emailTouched);
+  const passwordError = passwordFieldError(password, passwordTouched);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -138,9 +151,13 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
           spellCheck={false}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onBlur={() => setEmailTouched(true)}
+          aria-invalid={emailError ? true : undefined}
+          aria-describedby="login-email-error"
           disabled={submitting}
           className={textInput}
         />
+        <FieldError id="login-email-error">{emailError}</FieldError>
       </div>
       <div>
         <div className="mb-2 flex items-baseline justify-between">
@@ -156,12 +173,22 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onBlur={() => setPasswordTouched(true)}
+          aria-invalid={passwordError ? true : undefined}
+          aria-describedby="login-password-hint"
           disabled={submitting}
         />
+        <PasswordMessage id="login-password-hint" error={passwordError} empty={password.length === 0} />
       </div>
       {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
       <Turnstile ref={captchaRef} />
-      <Button type="submit" variant="secondary" className="w-full" loading={submitting}>
+      <Button
+        type="submit"
+        variant="secondary"
+        className="w-full"
+        loading={submitting}
+        disabled={!looksLikeEmail(email) || password.length === 0}
+      >
         Log in
       </Button>
     </form>
@@ -192,17 +219,7 @@ export default function LoginPage() {
         />
       </Suspense>
       <div className="relative w-full max-w-[460px]">
-        <Logo size={passwordAuth ? 88 : 112} className="mx-auto mb-[clamp(1.75rem,4dvh,4rem)]" />
-        <Badge className="mb-[clamp(0.75rem,2.5dvh,2.5rem)]">Spaced repetition</Badge>
-        <h1 className="mb-[clamp(0.5rem,1.5dvh,1.75rem)] text-[2.6rem] font-extrabold leading-tight tracking-[-0.8px]">
-          Learn Japanese
-          <br />
-          at your own pace.
-        </h1>
-        <p className="mb-[clamp(2.5rem,6dvh,5.5rem)] text-base leading-[1.6] text-text-muted">
-          Kanji, readings, and vocabulary organized by JLPT level, scheduled for exactly when your brain needs to
-          see them again.
-        </p>
+        <Logo size={AUTH_LOGO_SIZE} className="mx-auto mb-8" />
         {region && <RegionPicker region={region} />}
 
         <GoogleButton />

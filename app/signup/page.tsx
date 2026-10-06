@@ -6,21 +6,24 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
-import { fieldHint, fieldLabel, textInput } from "@/app/components/ui/formClasses";
-import { AuthLayout, FormMessage, OrDivider } from "@/app/components/auth/AuthLayout";
+import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
+import { AuthLayout, FieldError, FormMessage, OrDivider, PasswordMessage } from "@/app/components/auth/AuthLayout";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { PasswordField } from "@/app/components/auth/PasswordField";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
 import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
 import {
+  emailFieldError,
   isPasswordAuthEnabled,
   looksLikeEmail,
-  MIN_PASSWORD_LENGTH,
+  passwordFieldError,
   passwordProblem,
   signUpWithPassword,
   type AuthFailure,
 } from "@/lib/auth/passwordAuth";
+import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
+import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 import { setActiveRegion } from "@/lib/supabase/regions";
 
 export default function SignUpPage() {
@@ -28,12 +31,18 @@ export default function SignUpPage() {
   const { status } = useAuth();
   const [region] = useAuthRegion();
   const captchaRef = useRef<TurnstileHandle>(null);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  // A field only complains once the person has left it, and stops the moment it is filled in right.
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<AuthFailure | null>(null);
   const enabled = isPasswordAuthEnabled();
+  const emailError = emailFieldError(email, emailTouched);
+  const passwordValid = passwordProblem(password) === null;
+  const passwordError = passwordFieldError(password, passwordTouched);
 
   useEffect(() => {
     // The form only exists once the Dashboard side is ready (NEXT_PUBLIC_PASSWORD_AUTH).
@@ -78,6 +87,8 @@ export default function SignUpPage() {
       setSubmitting(false);
       return;
     }
+    // Registered: the code screen gets the email from its own pending-auth storage.
+    clearRememberedEmail();
     if (result.signedIn) {
       // Only when the Dashboard's "Confirm email" is off -- the session already exists.
       window.location.assign("/dashboard");
@@ -89,13 +100,13 @@ export default function SignUpPage() {
   }
 
   return (
-    <AuthLayout title="Create your account" subtitle="Start learning Japanese at your own pace.">
+    <AuthLayout>
       {region && <RegionPicker region={region} />}
       <div className="flex justify-center">
         <GoogleButton disabled={submitting} />
       </div>
       <OrDivider />
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4 text-left">
+      <form onSubmit={handleSubmit} noValidate className="mx-auto flex w-full max-w-[360px] flex-col gap-4 text-left">
         <div>
           <label htmlFor="signup-email" className={fieldLabel}>
             Email
@@ -109,9 +120,13 @@ export default function SignUpPage() {
             spellCheck={false}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setEmailTouched(true)}
+            aria-invalid={emailError ? true : undefined}
+            aria-describedby="signup-email-error"
             disabled={submitting}
             className={textInput}
           />
+          <FieldError id="signup-email-error">{emailError}</FieldError>
         </div>
         <div>
           <label htmlFor="signup-password" className={fieldLabel}>
@@ -122,9 +137,12 @@ export default function SignUpPage() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => setPasswordTouched(true)}
+            aria-invalid={passwordError ? true : undefined}
+            aria-describedby="signup-password-hint"
             disabled={submitting}
           />
-          <p className={fieldHint}>At least {MIN_PASSWORD_LENGTH} characters, with letters and digits.</p>
+          <PasswordMessage id="signup-password-hint" error={passwordError} empty={password.length === 0} />
         </div>
         <label className="flex cursor-pointer items-start gap-2.5 text-[0.85rem] leading-normal text-text-muted">
           <input
@@ -148,7 +166,13 @@ export default function SignUpPage() {
         </label>
         {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
         <Turnstile ref={captchaRef} />
-        <Button type="submit" className="w-full" loading={submitting}>
+        <Button
+          type="submit"
+          variant="secondary"
+          className="w-full"
+          loading={submitting}
+          disabled={!looksLikeEmail(email) || !passwordValid || !acceptedTerms}
+        >
           Create account
         </Button>
       </form>

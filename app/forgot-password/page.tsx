@@ -6,22 +6,27 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
-import { AuthLayout, FormMessage } from "@/app/components/auth/AuthLayout";
+import { AuthLayout, FieldError, FormMessage } from "@/app/components/auth/AuthLayout";
 import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
 import {
   isPasswordAuthEnabled,
+  emailFieldError,
   looksLikeEmail,
   requestPasswordReset,
   type AuthFailure,
 } from "@/lib/auth/passwordAuth";
+import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const captchaRef = useRef<TurnstileHandle>(null);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useRememberedEmail();
+  // The field only complains once the person has left it, and stops the moment it is filled in right.
+  const [emailTouched, setEmailTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<AuthFailure | null>(null);
   const enabled = isPasswordAuthEnabled();
+  const emailError = emailFieldError(email, emailTouched);
 
   useEffect(() => {
     if (!enabled) router.replace("/login");
@@ -68,13 +73,23 @@ export default function ForgotPasswordPage() {
             spellCheck={false}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setEmailTouched(true)}
+            aria-invalid={emailError ? true : undefined}
+            aria-describedby="forgot-email-error"
             disabled={submitting}
             className={textInput}
           />
+          <FieldError id="forgot-email-error">{emailError}</FieldError>
         </div>
         {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
         <Turnstile ref={captchaRef} />
-        <Button type="submit" className="w-full" loading={submitting}>
+        <Button
+          type="submit"
+          variant="secondary"
+          className="w-full"
+          loading={submitting}
+          disabled={!looksLikeEmail(email)}
+        >
           Send reset email
         </Button>
       </form>

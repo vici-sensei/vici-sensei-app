@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { cancelPendingAccountDeletion, checkAccountMoved } from "@/lib/client-data/account";
+import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import type { Region } from "@/lib/supabase/regions";
 
 export type FinishedSignIn =
@@ -22,5 +23,7 @@ export async function finishSignIn(): Promise<FinishedSignIn> {
   // Best-effort: if this account had requested deletion, logging back in cancels it.
   // cancelPendingAccountDeletion() never throws.
   const reactivated = await cancelPendingAccountDeletion();
+  // Signed in for real: the email remembered for the login forms has done its job.
+  clearRememberedEmail();
   return { kind: "ok", reactivated };
 }

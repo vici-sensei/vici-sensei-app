@@ -25,6 +25,21 @@ export default function PrivacyPage() {
           <strong>Technical logs:</strong> error reports from the app, used to fix bugs.
         </li>
       </ul>
+      <h2>Stored in your browser</h2>
+      <p>Vici Sensei also keeps a few things in your browser&apos;s storage, on your device:</p>
+      <ul>
+        <li>your sign-in session, so you stay signed in;</li>
+        <li>your region, your filters and preferences, and copies of study content so pages load faster;</li>
+        <li>a short trail of the pages you visited just before an error, kept for the current tab only;</li>
+        <li>
+          <strong>the email you type</strong> in the log-in, sign-up and password-reset forms, so it is still there if you
+          refresh the page. It stays on your device until you submit the form, never includes your password, and is
+          removed as soon as you log in, sign up or log out.
+        </li>
+      </ul>
+      <p>
+        You can clear all of this at any time from your browser&apos;s site-data settings (you will be signed out).
+      </p>
       <h2>Who processes it</h2>
       <ul>
         <li>Supabase hosts the database and sign-in. Your data lives in either the EU or the US region, depending on where you are.</li>

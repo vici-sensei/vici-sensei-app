@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
+import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import { createClient } from "@/lib/supabase/client";
 import { deleteAccount } from "@/lib/client-data/account";
 import { useToast } from "@/app/components/ui/Toast";
@@ -29,6 +30,7 @@ export function AccountDangerZone() {
       // still mounted under that layout when it does, its own useRequireAuth
       // redirect to /login wins the race against this one.
       router.push(`/account-deletion?until=${encodeURIComponent(pendingDeletionAt)}`);
+      clearRememberedEmail();
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch (err) {
