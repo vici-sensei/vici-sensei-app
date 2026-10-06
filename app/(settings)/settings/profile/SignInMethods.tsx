@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ApiError } from "@/lib/api/client";
@@ -21,7 +21,7 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { fieldHint, fieldLabel, textInput } from "@/app/components/ui/formClasses";
 import { FormMessage } from "@/app/components/auth/AuthLayout";
 import { PasswordField } from "@/app/components/auth/PasswordField";
-import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
+import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
 
 /** Email + password half of "Sign-in methods" (the Google half stays in ProfileSettingsForm).
  * Rendered only behind NEXT_PUBLIC_PASSWORD_AUTH. `hasPassword` is `null` while it loads (or when it
@@ -108,7 +108,7 @@ function PasswordForm({
   onClose: () => void;
 }) {
   const { showToast } = useToast();
-  const captchaRef = useRef<TurnstileHandle>(null);
+  const captcha = useTurnstile();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -130,7 +130,7 @@ function PasswordForm({
     setSubmitting(true);
 
     if (hasPassword) {
-      const confirmed = await confirmCurrentPassword(email, current, async () => captchaRef.current?.getToken());
+      const confirmed = await confirmCurrentPassword(email, current, captcha.getToken);
       if (!confirmed.ok) {
         setFailure(confirmed.failure);
         setSubmitting(false);
@@ -180,11 +180,11 @@ function PasswordForm({
         <p className={fieldHint}>At least {MIN_PASSWORD_LENGTH} characters, with letters and digits.</p>
       </div>
       {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-      <Turnstile ref={captchaRef} />
+      <Turnstile captcha={captcha} />
       <div className="flex gap-2.5">
-        <Button type="submit" size="sm" loading={submitting}>
+        <CaptchaButton captcha={captcha} type="submit" size="sm" loading={submitting}>
           Save password
-        </Button>
+        </CaptchaButton>
         <Button type="button" variant="secondary" size="sm" disabled={submitting} onClick={onClose}>
           Cancel
         </Button>
@@ -195,7 +195,7 @@ function PasswordForm({
 
 function ChangeEmailForm({ email, onClose }: { email: string; onClose: () => void }) {
   const router = useRouter();
-  const captchaRef = useRef<TurnstileHandle>(null);
+  const captcha = useTurnstile();
   const [newEmail, setNewEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -219,7 +219,7 @@ function ChangeEmailForm({ email, onClose }: { email: string; onClose: () => voi
     setFailure(null);
     setSubmitting(true);
 
-    const confirmed = await confirmCurrentPassword(email, password, async () => captchaRef.current?.getToken());
+    const confirmed = await confirmCurrentPassword(email, password, captcha.getToken);
     if (!confirmed.ok) {
       setFailure(confirmed.failure);
       setSubmitting(false);
@@ -278,11 +278,11 @@ function ChangeEmailForm({ email, onClose }: { email: string; onClose: () => voi
         />
       </div>
       {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-      <Turnstile ref={captchaRef} />
+      <Turnstile captcha={captcha} />
       <div className="flex gap-2.5">
-        <Button type="submit" size="sm" loading={submitting}>
+        <CaptchaButton captcha={captcha} type="submit" size="sm" loading={submitting}>
           Send code
-        </Button>
+        </CaptchaButton>
         <Button type="button" variant="secondary" size="sm" disabled={submitting} onClick={onClose}>
           Cancel
         </Button>

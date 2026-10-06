@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
 import { AuthLayout, FieldError, FormMessage } from "@/app/components/auth/AuthLayout";
-import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
+import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
 import {
   isPasswordAuthEnabled,
   emailFieldError,
@@ -19,7 +18,7 @@ import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const captchaRef = useRef<TurnstileHandle>(null);
+  const captcha = useTurnstile();
   const [email, setEmail] = useRememberedEmail();
   // The field only complains once the person has left it, and stops the moment it is filled in right.
   const [emailTouched, setEmailTouched] = useState(false);
@@ -43,7 +42,7 @@ export default function ForgotPasswordPage() {
     }
     setFailure(null);
     setSubmitting(true);
-    const result = await requestPasswordReset(email, async () => captchaRef.current?.getToken());
+    const result = await requestPasswordReset(email, captcha.getToken);
     if (!result.ok) {
       setFailure(result.failure);
       setSubmitting(false);
@@ -82,8 +81,9 @@ export default function ForgotPasswordPage() {
           <FieldError id="forgot-email-error">{emailError}</FieldError>
         </div>
         {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-        <Turnstile ref={captchaRef} />
-        <Button
+        <Turnstile captcha={captcha} />
+        <CaptchaButton
+          captcha={captcha}
           type="submit"
           variant="secondary"
           className="w-full"
@@ -91,7 +91,7 @@ export default function ForgotPasswordPage() {
           disabled={!looksLikeEmail(email)}
         >
           Send reset email
-        </Button>
+        </CaptchaButton>
       </form>
       <p className="mt-6 text-center text-[0.9rem] text-text-muted">
         <Link href="/login" className="font-bold text-accent-blue hover:underline">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { FaCheck, FaEarthAmericas, FaEarthEurope } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { updateStudySettings } from "@/lib/client-data/studySettings";
@@ -16,7 +16,7 @@ import { Button } from "@/app/components/ui/Button";
 import { fieldLabel } from "@/app/components/ui/formClasses";
 import { FormMessage } from "@/app/components/auth/AuthLayout";
 import { PasswordField } from "@/app/components/auth/PasswordField";
-import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
+import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
@@ -75,7 +75,7 @@ function MovePasswordPrompt({
   onConfirmed: (password: string) => void;
   onCancel: () => void;
 }) {
-  const captchaRef = useRef<TurnstileHandle>(null);
+  const captcha = useTurnstile();
   const [password, setPassword] = useState("");
   const [checking, setChecking] = useState(false);
   const [failure, setFailure] = useState<AuthFailure | null>(null);
@@ -89,7 +89,7 @@ function MovePasswordPrompt({
     }
     setFailure(null);
     setChecking(true);
-    const result = await confirmCurrentPassword(email, password, async () => captchaRef.current?.getToken());
+    const result = await confirmCurrentPassword(email, password, captcha.getToken);
     if (!result.ok) {
       setFailure(result.failure);
       setChecking(false);
@@ -121,11 +121,11 @@ function MovePasswordPrompt({
         />
       </div>
       {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-      <Turnstile ref={captchaRef} />
+      <Turnstile captcha={captcha} />
       <div className="flex gap-2.5">
-        <Button type="submit" size="sm" loading={checking}>
+        <CaptchaButton captcha={captcha} type="submit" size="sm" loading={checking}>
           Move my account
-        </Button>
+        </CaptchaButton>
         <Button type="button" variant="secondary" size="sm" disabled={checking} onClick={onCancel}>
           Cancel
         </Button>

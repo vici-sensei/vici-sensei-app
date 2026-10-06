@@ -1,17 +1,26 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
+import { Button } from "@/app/components/ui/Button";
+import { FormMessage } from "@/app/components/auth/AuthLayout";
 
 // Cloudflare Turnstile, explicit rendering (https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/).
 // Supabase verifies the token itself when its "Captcha protection" is on -- the app only has to
 // hand one to every signUp / signIn / resetPassword call. No site key configured = no captcha at
 // all (local development with the Dashboard toggle off), `getToken()` just resolves `undefined`.
+//
+// How it looks to the person: nothing at all in the usual case. The check runs in the background as
+// soon as the form appears, so a token is normally ready before the submit button is pressed. Only
+// when Cloudflare decides it needs the person (`interaction-only`) does a small card with the
+// checkbox show up, and the submit button (CaptchaButton) turns into "Complete the check above"
+// instead of spinning -- a spinner means *we* are working, and here we are waiting on them.
 
 interface TurnstileApi {
   render: (container: HTMLElement, options: Record<string, unknown>) => string;
   execute: (widgetId: string) => void;
   reset: (widgetId: string) => void;
   remove: (widgetId: string) => void;
+  isExpired: (widgetId: string) => boolean;
 }
 
 declare global {
@@ -22,6 +31,8 @@ declare global {
 
 const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+// How long a submit waits for an invisible check before giving up (a visible challenge has Cloudflare's own timeout).
+const INVISIBLE_WAIT_MS = 30_000;
 
 let scriptPromise: Promise<void> | null = null;
 
@@ -41,9 +52,7 @@ function loadScript(): Promise<void> {
   return scriptPromise;
 }
 
-export interface TurnstileHandle {
-  /** A fresh single-use token, or `undefined` when captcha isn't configured. Rejects if the
-   * challenge fails or the script can't load -- callers treat that as a failed captcha. */
+interface Engine {
   getToken: () => Promise<string | undefined>;
 }
 
@@ -52,58 +61,231 @@ interface Pending {
   reject: (reason: Error) => void;
 }
 
+export interface TurnstileController {
+  /** A fresh single-use token, or `undefined` when captcha isn't configured. Rejects if the
+   * challenge fails or the script can't load -- callers treat that as a failed captcha. */
+  getToken: () => Promise<string | undefined>;
+  /** True while a visible challenge is waiting on the person. */
+  challenging: boolean;
+  /** Wiring between this hook and <Turnstile>; callers don't touch it. */
+  link: { attach: (engine: Engine | null) => void; setChallenging: (value: boolean) => void };
+}
+
+/** One per form. Pass the result to <Turnstile> and <CaptchaButton>, and call `getToken()` right
+ * before each request -- a token is single-use, so the second region attempt of a sign-in or a
+ * password reset gets its own. */
+export function useTurnstile(): TurnstileController {
+  const engine = useRef<Engine | null>(null);
+  const [challenging, setChallenging] = useState(false);
+  const attach = useCallback((next: Engine | null) => {
+    engine.current = next;
+  }, []);
+  return {
+    getToken: async () => engine.current?.getToken(),
+    challenging,
+    link: { attach, setChallenging },
+  };
+}
+
+const CARD = "rounded-xl border border-border-soft bg-white/[0.03] p-3 text-left";
+
 /**
- * Invisible widget (`appearance: "interaction-only"`: it only shows UI if Cloudflare decides the
- * visitor needs to interact). Mount one per form and call `ref.current.getToken()` right before each
- * request -- a token is single-use, so the second region attempt of a sign-in or a password reset
- * gets its own.
+ * Mount one per form, above the submit button. `lazy` skips the background check and only runs it
+ * when `getToken()` is called -- for a form where the captcha guards a secondary action (the
+ * resend link on the code screen), so a challenge doesn't greet someone who only came to type a code.
  */
-export const Turnstile = forwardRef<TurnstileHandle>(function Turnstile(_props, ref) {
+export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileController; lazy?: boolean }) {
+  const { attach, setChallenging } = captcha.link;
+  const { challenging } = captcha;
   const containerRef = useRef<HTMLDivElement>(null);
-  const widgetIdRef = useRef<string | null>(null);
-  const pendingRef = useRef<Pending | null>(null);
-  const readyRef = useRef<Promise<string> | null>(null);
+  // The widget (or its script) is broken -- blocked, offline, misconfigured. Shown with a retry.
+  const [failed, setFailed] = useState(false);
+  // A visible challenge was just solved and its token is waiting for the submit.
+  const [verified, setVerified] = useState(false);
+  // Bumped by "Try again" to tear the widget down and build it from scratch.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!SITE_KEY) return;
     let removed = false;
-    readyRef.current = loadScript().then(() => {
-      if (removed || !containerRef.current || !window.turnstile) throw new Error("turnstile unavailable");
-      const id = window.turnstile.render(containerRef.current, {
+    let widgetId: string | null = null;
+    let token: string | null = null; // verified and unused
+    let pending: Pending | null = null; // a submit waiting for one
+    let waitTimer: ReturnType<typeof setTimeout> | undefined;
+    let inChallenge = false;
+    let sawChallenge = false; // the token being produced needed the person
+    let broken = false;
+
+    const clearWait = () => {
+      clearTimeout(waitTimer);
+      waitTimer = undefined;
+    };
+    const rejectPending = (reason: string) => {
+      clearWait();
+      if (!pending) return;
+      const waiting = pending;
+      pending = null;
+      waiting.reject(new Error(reason));
+    };
+    const onToken = (value: string) => {
+      inChallenge = false;
+      broken = false;
+      setChallenging(false);
+      setFailed(false);
+      clearWait();
+      if (pending) {
+        const waiting = pending;
+        pending = null;
+        sawChallenge = false;
+        waiting.resolve(value);
+        // The next token, in the background, for the next request.
+        if (!lazy && widgetId) window.turnstile?.reset(widgetId);
+        return;
+      }
+      token = value;
+      if (sawChallenge) setVerified(true);
+    };
+    const onBroken = () => {
+      inChallenge = false;
+      broken = true;
+      setChallenging(false);
+      setFailed(true);
+      rejectPending("turnstile error");
+    };
+
+    const ready = loadScript().then(() => {
+      const turnstile = window.turnstile;
+      if (removed || !containerRef.current || !turnstile) throw new Error("turnstile unavailable");
+      widgetId = turnstile.render(containerRef.current, {
         sitekey: SITE_KEY,
-        execution: "execute",
+        theme: "dark",
+        size: "flexible",
         appearance: "interaction-only",
-        callback: (token: string) => pendingRef.current?.resolve(token),
-        "error-callback": () => pendingRef.current?.reject(new Error("turnstile error")),
-        "timeout-callback": () => pendingRef.current?.reject(new Error("turnstile timeout")),
-        "expired-callback": () => undefined,
+        ...(lazy ? { execution: "execute" } : {}),
+        callback: onToken,
+        "error-callback": onBroken,
+        "unsupported-callback": onBroken,
+        "before-interactive-callback": () => {
+          inChallenge = true;
+          sawChallenge = true;
+          clearWait();
+          setVerified(false);
+          setChallenging(true);
+        },
+        "after-interactive-callback": () => {
+          inChallenge = false;
+          setChallenging(false);
+        },
+        // The person walked away from a visible challenge; Cloudflare re-arms it by itself.
+        "timeout-callback": () => rejectPending("turnstile timeout"),
+        // Unused tokens expire after 5 minutes; Cloudflare then re-runs the check by itself.
+        "expired-callback": () => {
+          token = null;
+          sawChallenge = false;
+          setVerified(false);
+        },
       });
-      widgetIdRef.current = id;
-      return id;
+      return widgetId;
     });
-    // A rejected `ready` promise is handled where getToken awaits it; this keeps an unused one
-    // (user never submits) from being reported as an unhandled rejection.
-    readyRef.current.catch(() => undefined);
+    // A rejected `ready` is handled where getToken awaits it; this covers the case where nobody
+    // does (the person never submits) and tells them the check can't run.
+    ready.catch(() => {
+      if (removed) return;
+      broken = true;
+      setFailed(true);
+    });
+
+    attach({
+      async getToken() {
+        const id = await ready;
+        const turnstile = window.turnstile;
+        if (!turnstile) throw new Error("turnstile unavailable");
+        if (token && !turnstile.isExpired(id)) {
+          const held = token;
+          token = null;
+          sawChallenge = false;
+          setVerified(false);
+          turnstile.reset(id);
+          return held;
+        }
+        return new Promise<string>((resolve, reject) => {
+          pending = { resolve, reject };
+          if (lazy) {
+            turnstile.reset(id);
+            turnstile.execute(id);
+          } else if (broken) {
+            turnstile.reset(id);
+          }
+          clearWait();
+          if (!inChallenge) waitTimer = setTimeout(() => rejectPending("turnstile timeout"), INVISIBLE_WAIT_MS);
+        });
+      },
+    });
+
     return () => {
       removed = true;
-      if (widgetIdRef.current) window.turnstile?.remove(widgetIdRef.current);
-      widgetIdRef.current = null;
+      rejectPending("turnstile removed");
+      attach(null);
+      if (widgetId) window.turnstile?.remove(widgetId);
+      setChallenging(false);
     };
-  }, []);
+  }, [attach, setChallenging, lazy, attempt]);
 
-  useImperativeHandle(ref, () => ({
-    async getToken() {
-      if (!SITE_KEY) return undefined;
-      const widgetId = await readyRef.current;
-      if (!widgetId || !window.turnstile) throw new Error("turnstile unavailable");
-      const turnstile = window.turnstile;
-      return new Promise<string>((resolve, reject) => {
-        pendingRef.current = { resolve, reject };
-        turnstile.reset(widgetId);
-        turnstile.execute(widgetId);
-      });
-    },
-  }));
+  if (!SITE_KEY) return null;
 
-  return <div ref={containerRef} className="flex justify-center empty:hidden" />;
-});
+  return (
+    <>
+      {/* Always mounted (the check runs inside it); visually hidden until Cloudflare needs the person. */}
+      <div className={challenging ? CARD : "sr-only"}>
+        {challenging && (
+          <div className="mb-2.5">
+            <p className="text-[0.9rem] font-bold text-white">One quick check</p>
+            <p className="mt-0.5 text-[0.8rem] leading-normal text-text-muted">Helps keep bots out.</p>
+          </div>
+        )}
+        {/* The widget is at least 300px wide; on a ~360px phone the card's padding would squeeze it out. */}
+        <div ref={containerRef} className="-mx-2 min-[380px]:mx-0" />
+      </div>
+      {verified && !challenging && (
+        <p aria-hidden="true" className="text-[0.85rem] font-semibold text-accent-green">
+          ✓ Verified
+        </p>
+      )}
+      {failed && (
+        <FormMessage tone="error">
+          The security check isn&apos;t loading. Check your connection or turn off content blockers for this site.{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setFailed(false);
+              setAttempt((n) => n + 1);
+            }}
+            className="cursor-pointer font-bold underline"
+          >
+            Try again
+          </button>
+        </FormMessage>
+      )}
+      <p role="status" className="sr-only">
+        {challenging ? "Please complete the security check to continue." : verified ? "Verified." : ""}
+      </p>
+    </>
+  );
+}
+
+/** The submit button of a form that sends a captcha token: while a visible challenge waits on the
+ * person it is disabled and says what to do, with no spinner (nothing is loading). */
+export function CaptchaButton({
+  captcha,
+  loading = false,
+  disabled,
+  children,
+  ...rest
+}: ComponentProps<typeof Button> & { captcha: TurnstileController }) {
+  const waiting = captcha.challenging;
+  return (
+    <Button {...rest} loading={loading && !waiting} disabled={disabled || waiting}>
+      {waiting ? "Complete the check above" : children}
+    </Button>
+  );
+}

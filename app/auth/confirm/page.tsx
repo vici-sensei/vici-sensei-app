@@ -1,13 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { fieldHint, fieldLabel, textInput } from "@/app/components/ui/formClasses";
 import { AuthLayout, FormMessage } from "@/app/components/auth/AuthLayout";
-import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
+import { Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
 import { finalizeEmailChange } from "@/lib/client-data/account";
 import { finishSignIn } from "@/lib/auth/finishSignIn";
 import {
@@ -56,7 +56,7 @@ function ConfirmInner() {
   const tokenHash = searchParams.get("token_hash");
   const type = verifyTypeFrom(searchParams.get("type"));
   const regionParam = searchParams.get("region");
-  const captchaRef = useRef<TurnstileHandle>(null);
+  const captcha = useTurnstile();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -158,7 +158,7 @@ function ConfirmInner() {
     setFailure(null);
     setNotice(null);
     setCooldown(RESEND_COOLDOWN_SECONDS);
-    const result = await resendSignUpCode(email, async () => captchaRef.current?.getToken());
+    const result = await resendSignUpCode(email, captcha.getToken);
     if (!result.ok) {
       setCooldown(0);
       setFailure(result.failure);
@@ -240,7 +240,8 @@ function ConfirmInner() {
         </div>
         {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
         {notice && <FormMessage tone="info">{notice}</FormMessage>}
-        <Turnstile ref={captchaRef} />
+        {/* Lazy: the check only guards "Send a new code", so it shouldn't greet someone who came to type a code. */}
+        <Turnstile captcha={captcha} lazy />
         <Button type="submit" className="w-full" loading={submitting}>
           {type === "recovery" ? "Continue" : "Confirm email"}
         </Button>

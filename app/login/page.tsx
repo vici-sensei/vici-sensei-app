@@ -1,11 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
-import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Logo } from "@/app/components/ui/Logo";
 import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
@@ -19,7 +18,7 @@ import {
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { PasswordField } from "@/app/components/auth/PasswordField";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
-import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
+import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
 import { finishSignIn } from "@/lib/auth/finishSignIn";
 import {
   emailFieldError,
@@ -88,7 +87,7 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
 function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => void }) {
   const router = useRouter();
   const { showToast } = useToast();
-  const captchaRef = useRef<TurnstileHandle>(null);
+  const captcha = useTurnstile();
   const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
   // A field only complains once the person has left it, and stops the moment it is filled in right.
@@ -112,7 +111,7 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
     // appearing and finishSignIn() below deciding whether this account may continue.
     onBusyChange(true);
 
-    const result = await signInWithPasswordAcrossRegions(email, password, async () => captchaRef.current?.getToken());
+    const result = await signInWithPasswordAcrossRegions(email, password, captcha.getToken);
     if (!result.ok) {
       if (result.failure.code === "email_not_confirmed") {
         rememberPendingAuth({ email: email.trim().toLowerCase(), kind: "email" });
@@ -181,8 +180,9 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
         <PasswordMessage id="login-password-hint" error={passwordError} empty={password.length === 0} />
       </div>
       {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-      <Turnstile ref={captchaRef} />
-      <Button
+      <Turnstile captcha={captcha} />
+      <CaptchaButton
+        captcha={captcha}
         type="submit"
         variant="secondary"
         className="w-full"
@@ -190,7 +190,7 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
         disabled={!looksLikeEmail(email) || password.length === 0}
       >
         Log in
-      </Button>
+      </CaptchaButton>
     </form>
   );
 }

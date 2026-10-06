@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
 import { AuthLayout, FieldError, FormMessage, OrDivider, PasswordMessage } from "@/app/components/auth/AuthLayout";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { PasswordField } from "@/app/components/auth/PasswordField";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
-import { Turnstile, type TurnstileHandle } from "@/app/components/auth/Turnstile";
+import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
 import {
   emailFieldError,
   isPasswordAuthEnabled,
@@ -30,7 +29,7 @@ export default function SignUpPage() {
   const router = useRouter();
   const { status } = useAuth();
   const [region] = useAuthRegion();
-  const captchaRef = useRef<TurnstileHandle>(null);
+  const captcha = useTurnstile();
   const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -74,7 +73,7 @@ export default function SignUpPage() {
 
     setFailure(null);
     setSubmitting(true);
-    const result = await signUpWithPassword(email, password, async () => captchaRef.current?.getToken());
+    const result = await signUpWithPassword(email, password, captcha.getToken);
     if (!result.ok) {
       if (result.failure.code === "wrong_region" && result.failure.region) {
         // The email already has an account in the other region -- send them to log in there. A full
@@ -165,8 +164,9 @@ export default function SignUpPage() {
           </span>
         </label>
         {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-        <Turnstile ref={captchaRef} />
-        <Button
+        <Turnstile captcha={captcha} />
+        <CaptchaButton
+          captcha={captcha}
           type="submit"
           variant="secondary"
           className="w-full"
@@ -174,7 +174,7 @@ export default function SignUpPage() {
           disabled={!looksLikeEmail(email) || !passwordValid || !acceptedTerms}
         >
           Create account
-        </Button>
+        </CaptchaButton>
       </form>
       <p className="mt-6 text-center text-[0.9rem] text-text-muted">
         Already have an account?{" "}
