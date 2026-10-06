@@ -18,5 +18,5 @@ export function LegalPage({ title, updated, children }: { title: string; updated
   );
 }
 
-/** Replace with the real contact address before the Terms/Privacy pages are relied on. */
-export const LEGAL_CONTACT = "[contact email]";
+/** Public contact address shown on the Terms and Privacy pages. */
+export const LEGAL_CONTACT = "vici.sensei@gmail.com";
