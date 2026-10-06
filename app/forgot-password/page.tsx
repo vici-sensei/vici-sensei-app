@@ -18,7 +18,6 @@ import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const captcha = useTurnstile();
   const [email, setEmail] = useRememberedEmail();
   // The field only complains once the person has left it, and stops the moment it is filled in right.
   const [emailTouched, setEmailTouched] = useState(false);
@@ -26,6 +25,8 @@ export default function ForgotPasswordPage() {
   const [failure, setFailure] = useState<AuthFailure | null>(null);
   const enabled = isPasswordAuthEnabled();
   const emailError = emailFieldError(email, emailTouched);
+  // The security card only slides in once there is something to submit.
+  const captcha = useTurnstile(looksLikeEmail(email));
 
   useEffect(() => {
     if (!enabled) router.replace("/login");

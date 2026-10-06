@@ -29,7 +29,6 @@ export default function SignUpPage() {
   const router = useRouter();
   const { status } = useAuth();
   const [region] = useAuthRegion();
-  const captcha = useTurnstile();
   const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -42,6 +41,9 @@ export default function SignUpPage() {
   const emailError = emailFieldError(email, emailTouched);
   const passwordValid = passwordProblem(password) === null;
   const passwordError = passwordFieldError(password, passwordTouched);
+  // The security card only slides in once there is something to submit.
+  const formComplete = looksLikeEmail(email) && passwordValid && acceptedTerms;
+  const captcha = useTurnstile(formComplete);
 
   useEffect(() => {
     // The form only exists once the Dashboard side is ready (NEXT_PUBLIC_PASSWORD_AUTH).
@@ -171,7 +173,7 @@ export default function SignUpPage() {
           variant="secondary"
           className="w-full"
           loading={submitting}
-          disabled={!looksLikeEmail(email) || !passwordValid || !acceptedTerms}
+          disabled={!formComplete}
         >
           Create account
         </CaptchaButton>

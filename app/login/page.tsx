@@ -87,7 +87,6 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
 function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => void }) {
   const router = useRouter();
   const { showToast } = useToast();
-  const captcha = useTurnstile();
   const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
   // A field only complains once the person has left it, and stops the moment it is filled in right.
@@ -97,6 +96,9 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   const [failure, setFailure] = useState<AuthFailure | null>(null);
   const emailError = emailFieldError(email, emailTouched);
   const passwordError = passwordFieldError(password, passwordTouched);
+  // The security card only slides in once there is something to submit.
+  const formComplete = looksLikeEmail(email) && password.length > 0;
+  const captcha = useTurnstile(formComplete);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -187,7 +189,7 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
         variant="secondary"
         className="w-full"
         loading={submitting}
-        disabled={!looksLikeEmail(email) || password.length === 0}
+        disabled={!formComplete}
       >
         Log in
       </CaptchaButton>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { Button } from "@/app/components/ui/Button";
 import { FormMessage } from "@/app/components/auth/AuthLayout";
 
@@ -65,16 +65,20 @@ export interface TurnstileController {
   /** A fresh single-use token, or `undefined` when captcha isn't configured. Rejects if the
    * challenge fails or the script can't load -- callers treat that as a failed captcha. */
   getToken: () => Promise<string | undefined>;
-  /** True while a visible challenge is waiting on the person. */
-  challenging: boolean;
+  /** True while a visible challenge is waiting on the person and its card is on screen. */
+  waiting: boolean;
   /** Wiring between this hook and <Turnstile>; callers don't touch it. */
   link: { attach: (engine: Engine | null) => void; setChallenging: (value: boolean) => void };
 }
 
 /** One per form. Pass the result to <Turnstile> and <CaptchaButton>, and call `getToken()` right
  * before each request -- a token is single-use, so the second region attempt of a sign-in or a
- * password reset gets its own. */
-export function useTurnstile(): TurnstileController {
+ * password reset gets its own.
+ *
+ * `revealed` is whether the person has got far enough in the form for the check to be worth
+ * showing: until then a challenge Cloudflare already asked for stays out of sight (it is waiting,
+ * not lost), and the card slides in the moment the form is complete. */
+export function useTurnstile(revealed = true): TurnstileController {
   const engine = useRef<Engine | null>(null);
   const [challenging, setChallenging] = useState(false);
   const attach = useCallback((next: Engine | null) => {
@@ -82,7 +86,7 @@ export function useTurnstile(): TurnstileController {
   }, []);
   return {
     getToken: async () => engine.current?.getToken(),
-    challenging,
+    waiting: challenging && revealed,
     link: { attach, setChallenging },
   };
 }
@@ -96,7 +100,8 @@ const CARD = "rounded-xl border border-border-soft bg-white/[0.03] p-3 text-left
  */
 export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileController; lazy?: boolean }) {
   const { attach, setChallenging } = captcha.link;
-  const { challenging } = captcha;
+  const { waiting } = captcha;
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // The widget (or its script) is broken -- blocked, offline, misconfigured. Shown with a retry.
   const [failed, setFailed] = useState(false);
@@ -104,6 +109,17 @@ export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileControl
   const [verified, setVerified] = useState(false);
   // Bumped by "Try again" to tear the widget down and build it from scratch.
   const [attempt, setAttempt] = useState(0);
+
+  useLayoutEffect(() => {
+    // The collapsed card is a zero-height flex item, which still gets a gap on each side. Pulling it
+    // up by one gap keeps the form's spacing identical to "no card"; the form's own gap is read
+    // rather than passed in so every form can keep the spacing it already has.
+    const wrapper = wrapperRef.current;
+    const parent = wrapper?.parentElement;
+    if (!wrapper || !parent) return;
+    const gap = parseFloat(getComputedStyle(parent).rowGap);
+    wrapper.style.setProperty("--captcha-gap", Number.isFinite(gap) ? `${gap}px` : "0px");
+  }, []);
 
   useEffect(() => {
     if (!SITE_KEY) return;
@@ -235,18 +251,29 @@ export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileControl
 
   return (
     <>
-      {/* Always mounted (the check runs inside it); visually hidden until Cloudflare needs the person. */}
-      <div className={challenging ? CARD : "sr-only"}>
-        {challenging && (
-          <div className="mb-2.5">
-            <p className="text-[0.9rem] font-bold text-white">One quick check</p>
-            <p className="mt-0.5 text-[0.8rem] leading-normal text-text-muted">Helps keep bots out.</p>
+      {/* Always mounted (the check runs inside it) but collapsed to nothing until the card is wanted;
+          it grows open (rows 0fr -> 1fr) rather than popping in. `inert` keeps the collapsed widget
+          out of the tab order and away from screen readers. */}
+      <div
+        ref={wrapperRef}
+        inert={!waiting}
+        style={waiting ? undefined : { marginTop: "calc(var(--captcha-gap, 0px) * -1)" }}
+        className={`grid transition-[grid-template-rows,margin-top,opacity] duration-300 ease-out motion-reduce:transition-none ${
+          waiting ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className={CARD}>
+            <div className="mb-2.5">
+              <p className="text-[0.9rem] font-bold text-white">One quick check</p>
+              <p className="mt-0.5 text-[0.8rem] leading-normal text-text-muted">Helps keep bots out.</p>
+            </div>
+            {/* The widget is at least 300px wide; on a ~360px phone the card's padding would squeeze it out. */}
+            <div ref={containerRef} className="-mx-2 min-[380px]:mx-0" />
           </div>
-        )}
-        {/* The widget is at least 300px wide; on a ~360px phone the card's padding would squeeze it out. */}
-        <div ref={containerRef} className="-mx-2 min-[380px]:mx-0" />
+        </div>
       </div>
-      {verified && !challenging && (
+      {verified && !waiting && (
         <p aria-hidden="true" className="text-[0.85rem] font-semibold text-accent-green">
           ✓ Verified
         </p>
@@ -267,7 +294,7 @@ export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileControl
         </FormMessage>
       )}
       <p role="status" className="sr-only">
-        {challenging ? "Please complete the security check to continue." : verified ? "Verified." : ""}
+        {waiting ? "Please complete the security check to continue." : verified ? "Verified." : ""}
       </p>
     </>
   );
@@ -282,7 +309,7 @@ export function CaptchaButton({
   children,
   ...rest
 }: ComponentProps<typeof Button> & { captcha: TurnstileController }) {
-  const waiting = captcha.challenging;
+  const { waiting } = captcha;
   return (
     <Button {...rest} loading={loading && !waiting} disabled={disabled || waiting}>
       {waiting ? "Complete the check above" : children}
