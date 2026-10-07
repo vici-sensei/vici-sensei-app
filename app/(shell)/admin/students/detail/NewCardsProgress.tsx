@@ -10,12 +10,14 @@ import { stepperButtonClass } from "@/app/components/ui/Stepper";
 import { JLPT_LEVELS } from "@/lib/srs/constants";
 import {
   KANA_CATEGORIES,
+  KANA_TEST_PAUSE_DAYS,
   RECENT_AVERAGE_DAYS,
   STANDARD_CATEGORIES,
   projectNewCards,
   type CategoryPace,
   type PaceSource,
   type PredictionStart,
+  type ProjectionResult,
   type Track,
 } from "@/lib/study/newCardProjection";
 import type { AsyncStatus, NewCardCategory, StudentDetail, StudentNewCardProgress } from "@/lib/types";
@@ -25,6 +27,7 @@ const numberFormatter = new Intl.NumberFormat();
 const fmt = (value: number) => numberFormatter.format(Math.round(value));
 const fmtDecimal = (value: number) => numberFormatter.format(Math.round(value * 10) / 10);
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
+const listFormatter = new Intl.ListFormat("en", { style: "long", type: "conjunction" });
 
 // A prediction can run for years; the table starts with the first year and offers the rest on request.
 const TABLE_ROW_LIMIT = 366;
@@ -43,7 +46,7 @@ const START_OPTIONS: { value: PredictionStart; label: string }[] = [
 
 // What "Reset" returns the filters to. Track and levels come from the student, so they're derived per student below.
 const DEFAULT_VIEW: ChartView = "cumulative";
-const DEFAULT_START: PredictionStart = "ideal";
+const DEFAULT_START: PredictionStart = "today";
 const DEFAULT_PACE_MODE: PaceMode = "settings";
 
 const PACE_OPTIONS: { value: PaceMode; label: string }[] = [
@@ -197,6 +200,111 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       <div className="text-xs text-text-muted">{label}</div>
       <div className="font-semibold">{value}</div>
       {sub && <div className="text-xs text-text-muted">{sub}</div>}
+    </div>
+  );
+}
+
+const PACE_ORIGIN: Record<PaceMode, string> = {
+  settings: "from the student's settings",
+  average: `the student's real average over the last ${RECENT_AVERAGE_DAYS} days`,
+  custom: "custom, set in the filters",
+};
+
+function Strong({ children }: { children: React.ReactNode }) {
+  return <strong className="font-semibold text-white">{children}</strong>;
+}
+
+/** The chart in plain words, with the exact filter values spelled out -- read straight from the same
+ * state the chart is drawn from, so it can't drift from what's on screen. */
+function ChartExplanation({
+  result,
+  track,
+  levels,
+  view,
+  start,
+  modes,
+  reviewCap,
+  reviewFromSettings,
+}: {
+  result: ProjectionResult;
+  track: Track;
+  levels: string[];
+  view: ChartView;
+  start: PredictionStart;
+  modes: { standard: PaceMode; hiragana: PaceMode; katakana: PaceMode };
+  reviewCap: number | null;
+  reviewFromSettings: boolean;
+}) {
+  const { predicted, targets, summary, days, todayIdx } = result;
+  const cards = track === "standard" ? "kanji and vocabulary" : "hiragana and katakana";
+  // Same test the chart uses for drawing the dashed line: it needs at least two points.
+  const showsPrediction = predicted != null && days.length - (start === "today" ? todayIdx : 0) > 1;
+
+  const pace =
+    track === "standard" ? (
+      <>
+        <Strong>{fmtDecimal(targets.kanji ?? 0)} new kanji</Strong> and <Strong>{fmtDecimal(targets.vocabulary ?? 0)} new vocabulary words</Strong> a day (
+        {PACE_ORIGIN[modes.standard]})
+      </>
+    ) : (
+      <>
+        <Strong>{fmtDecimal(targets.hiragana_reading ?? 0)} new hiragana</Strong> a day
+        {modes.hiragana === modes.katakana ? "" : ` (${PACE_ORIGIN[modes.hiragana]})`}, then{" "}
+        <Strong>{fmtDecimal(targets.katakana_reading ?? 0)} new katakana</Strong> a day ({PACE_ORIGIN[modes.katakana]})
+      </>
+    );
+
+  return (
+    <div className="mt-4 flex flex-col gap-1.5 text-sm leading-relaxed text-text-main/90">
+      <p>
+        {view === "cumulative" ? (
+          <>
+            This chart shows the <Strong>running total</Strong> of new {cards} cards the student has learned, day by day
+          </>
+        ) : (
+          <>
+            This chart shows <Strong>how many</Strong> new {cards} cards the student started <Strong>on each day</Strong>
+          </>
+        )}
+        {track === "standard" && (
+          <>
+            , for the JLPT {levels.length === 1 ? "level" : "levels"} <Strong>{listFormatter.format(levels)}</Strong>
+          </>
+        )}
+        {summary.poolTotal > 0 && (
+          <>
+            , out of <Strong>{fmt(summary.poolTotal)}</Strong> cards to learn in all
+          </>
+        )}
+        .
+      </p>
+      <p>
+        <span className="font-semibold text-accent-red">The red line</span> is what the student really did, up to today:{" "}
+        <Strong>{fmt(summary.seen)}</Strong> card{summary.seen === 1 ? "" : "s"} seen in total.
+      </p>
+      {showsPrediction && (
+        <p>
+          <span className="font-semibold text-accent-blue">The blue dashed line</span>{" "}
+          {start === "today" ? (
+            <>is a prediction that starts from today&apos;s real total and carries on at {pace}.</>
+          ) : (
+            <>
+              is an ideal run: how it would look if the student had followed {pace} <Strong>from the very first day</Strong>, ignoring what they really did.
+            </>
+          )}{" "}
+          {track === "kana" && (
+            <>Katakana starts {KANA_TEST_PAUSE_DAYS} days after the last hiragana card, standing in for the hiragana reading test. </>
+          )}
+          {reviewCap == null ? (
+            <>It puts no limit on daily reviews, so new cards are never paused.</>
+          ) : (
+            <>
+              It also limits reviews of already-learned cards to <Strong>{fmt(reviewCap)} a day</Strong>
+              {reviewFromSettings ? " (the student's own limit)" : ""}: on a day when that many reviews are due, no new cards are added.
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }
@@ -563,6 +671,17 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
           reviewCap={reviewCap}
         />
       </div>
+
+      <ChartExplanation
+        result={result}
+        track={track}
+        levels={levels}
+        view={view}
+        start={start}
+        modes={{ standard: standardMode, hiragana: hiraganaMode, katakana: katakanaMode }}
+        reviewCap={reviewCap}
+        reviewFromSettings={reviewKey === "settings"}
+      />
 
       <div className="mt-3 flex flex-col gap-1 text-xs text-text-muted">
         {emptyMessage && <p>{emptyMessage}</p>}
