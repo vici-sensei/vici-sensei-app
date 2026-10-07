@@ -20,28 +20,47 @@ export function gapText(gap: number): string {
   return "=";
 }
 
-/** How the kanji is read in each reading group, most frequent reading first. A reading group is only a number in
- *  the data, so it is recovered from the furigana of the group's words: the segment that is exactly this kanji
- *  (a word read as a whole, like 今日 → きょう, says nothing about one kanji, so it is skipped). A group with no such
- *  word has no entry. */
-export function groupReadings(candidates: KanjiWordCandidate[], kanji: string): Map<number, string[]> {
-  const votes = new Map<number, Map<string, number>>();
+const WHOLE_WORD_SHOWN = 2;
+
+/** How the kanji is read in each reading group, for the label of its button. A reading group is only a number in
+ *  the data, so the reading is recovered from the furigana of the group's words: the segment that is exactly this
+ *  kanji, most frequent reading first ("ひ、び、ぴ"). A group whose words are all read as a whole, like 今日 → きょう,
+ *  has no reading of this kanji alone; it shows that whole-word reading with its text ("今日: きょう") instead. A
+ *  group none of whose words has any furigana or kana has no entry. */
+export function groupReadingLabels(candidates: KanjiWordCandidate[], kanji: string): Map<number, string> {
+  const own = new Map<number, Map<string, number>>();
+  const whole = new Map<number, Map<string, number>>();
+  const vote = (votes: Map<number, Map<string, number>>, rg: number, reading: string) => {
+    const group = votes.get(rg) ?? new Map<string, number>();
+    group.set(reading, (group.get(reading) ?? 0) + 1);
+    votes.set(rg, group);
+  };
   for (const c of candidates) {
-    for (const segment of buildFuriganaSegments(c.word, c.furiganas)) {
-      if (segment.text !== kanji || !segment.furigana) continue;
-      const group = votes.get(c.rg) ?? new Map<string, number>();
-      group.set(segment.furigana, (group.get(segment.furigana) ?? 0) + 1);
-      votes.set(c.rg, group);
+    const segments = buildFuriganaSegments(c.word, c.furiganas);
+    for (const segment of segments) {
+      if (!segment.text.includes(kanji)) continue;
+      if (segment.furigana) {
+        if (segment.text === kanji) vote(own, c.rg, segment.furigana);
+        else vote(whole, c.rg, `${segment.text}: ${segment.furigana}`);
+      } else if (segments.length === 1 && c.kana) {
+        // No usable furigana for this word: its kana reading is all there is.
+        if (c.word === kanji) vote(own, c.rg, c.kana);
+        else vote(whole, c.rg, `${c.word}: ${c.kana}`);
+      }
     }
   }
-  const readings = new Map<number, string[]>();
-  for (const [rg, counts] of votes) {
-    readings.set(
+  const byFrequency = (votes: Map<string, number>) =>
+    [...votes].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([reading]) => reading);
+  const labels = new Map<number, string>();
+  for (const [rg, votes] of whole) {
+    const readings = byFrequency(votes);
+    labels.set(
       rg,
-      [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([reading]) => reading)
+      readings.slice(0, WHOLE_WORD_SHOWN).join("、") + (readings.length > WHOLE_WORD_SHOWN ? "…" : "")
     );
   }
-  return readings;
+  for (const [rg, votes] of own) labels.set(rg, byFrequency(votes).join("、"));
+  return labels;
 }
 
 /** The sentence under a candidate: why the algorithm did or didn't pick it. */
