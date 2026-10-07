@@ -1,8 +1,8 @@
-// Draws a piece of the live page onto a canvas, for "download as image / PDF" buttons.
+// Turns a piece of the live page into an image, for "download as image / PDF" buttons.
 //
 // The element is cloned with every computed style written inline (so Tailwind classes and
-// `var(--color-...)` colours survive without the page's stylesheets), wrapped in an SVG
-// <foreignObject> and rasterised through an <img>. An image can't load the page's fonts, so the
+// `var(--color-...)` colours survive without the page's stylesheets) and wrapped in an SVG
+// <foreignObject>, which an <img> then loads. An image can't load the page's fonts, so the
 // first font of the element's stack is embedded as data: URLs. Only plain DOM and inline SVG are
 // supported (no <img>, <canvas>, <input> or pseudo-elements).
 //
@@ -10,15 +10,6 @@
 // a caption for the file.
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-
-interface Options {
-  /** Canvas pixels per CSS pixel. */
-  scale?: number;
-  /** Space around the element, in CSS pixels. */
-  padding?: number;
-  /** Painted behind everything; the PNG would otherwise be transparent. */
-  background: string;
-}
 
 function cloneStyled(source: Element): Element {
   const clone = source.cloneNode(false) as HTMLElement | SVGElement;
@@ -99,45 +90,32 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-export interface DomCanvas {
-  canvas: HTMLCanvasElement;
-  /** The picture's size in CSS pixels (the canvas is `scale` times larger). */
+export interface DomImage {
+  /** Vector-backed: drawn at any size it is rasterised at that size, so it stays sharp when scaled up. */
+  image: HTMLImageElement;
+  /** The element's size in CSS pixels. */
   width: number;
   height: number;
 }
 
-export async function domToCanvas(element: HTMLElement, { scale = 2, padding = 24, background }: Options): Promise<DomCanvas> {
+export async function domToImage(element: HTMLElement): Promise<DomImage> {
   const clone = cloneStyled(element) as HTMLElement;
   clone.style.setProperty("margin", "0");
-  const innerWidth = Math.ceil(element.getBoundingClientRect().width);
-  const width = innerWidth + 2 * padding;
-
-  const box = document.createElement("div");
-  box.style.cssText = `box-sizing:border-box;width:${width}px;padding:${padding}px;background:${background}`;
-  box.appendChild(clone);
+  const width = Math.ceil(element.getBoundingClientRect().width);
 
   // The height depends on the optional parts, so it's measured with the picture's own markup, off-screen.
   const stage = document.createElement("div");
   stage.style.cssText = "position:fixed;left:-100000px;top:0;visibility:hidden";
-  stage.appendChild(box);
+  stage.appendChild(clone);
   document.body.appendChild(stage);
-  const height = Math.ceil(box.getBoundingClientRect().height);
+  const height = Math.ceil(clone.getBoundingClientRect().height);
   stage.remove();
 
   const fontCss = await embeddedFontCss(element);
   const svg =
     `<svg xmlns="${SVG_NS}" width="${width}" height="${height}">` +
     `<defs><style>${fontCss}</style></defs>` +
-    `<foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(box)}</foreignObject></svg>`;
+    `<foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(clone)}</foreignObject></svg>`;
   const image = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(width * scale);
-  canvas.height = Math.round(height * scale);
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("This browser can't draw the picture.");
-  context.fillStyle = background;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  return { canvas, width, height };
+  return { image, width, height };
 }

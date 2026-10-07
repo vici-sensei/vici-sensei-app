@@ -1,8 +1,7 @@
 // A one-page PDF holding a canvas as an image, written by hand so the app doesn't need a PDF library.
-// The page is as large as the picture is on screen (1 CSS pixel = 0.75 pt), so it prints at the size
-// the admin saw it, while the pixels stay at the canvas's own resolution.
+// The image covers the whole page; its pixels stay at the canvas's own resolution.
 
-const PT_PER_PX = 0.75;
+const PT_PER_MM = 72 / 25.4;
 
 interface PdfImage {
   /** PDF filter name for `bytes`. */
@@ -32,10 +31,10 @@ async function jpegImage(canvas: HTMLCanvasElement): Promise<PdfImage> {
   return { filter: "DCTDecode", bytes: new Uint8Array(await blob.arrayBuffer()) };
 }
 
-export async function canvasToPdf(canvas: HTMLCanvasElement, cssWidth: number, cssHeight: number): Promise<Blob> {
+export async function canvasToPdf(canvas: HTMLCanvasElement, pageWidthMm: number, pageHeightMm: number): Promise<Blob> {
   const image = typeof CompressionStream === "undefined" ? await jpegImage(canvas) : await flateImage(canvas);
-  const pageWidth = (cssWidth * PT_PER_PX).toFixed(2);
-  const pageHeight = (cssHeight * PT_PER_PX).toFixed(2);
+  const pageWidth = (pageWidthMm * PT_PER_MM).toFixed(2);
+  const pageHeight = (pageHeightMm * PT_PER_MM).toFixed(2);
   const content = `q ${pageWidth} 0 0 ${pageHeight} 0 0 cm /Im0 Do Q`;
 
   const encoder = new TextEncoder();

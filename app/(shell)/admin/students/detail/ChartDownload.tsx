@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { FaChevronDown, FaDownload, FaFileImage, FaFilePdf } from "react-icons/fa6";
 import { useToast } from "@/app/components/ui/Toast";
+import { renderOnA4 } from "@/lib/export/a4Page";
 import { canvasToPdf } from "@/lib/export/canvasToPdf";
-import { domToCanvas } from "@/lib/export/domToCanvas";
 import { downloadBlob } from "@/lib/export/download";
 
 type Format = "png" | "pdf";
@@ -14,8 +14,8 @@ const FORMATS: { value: Format; label: string; Icon: typeof FaFileImage }[] = [
   { value: "pdf", label: "PDF document", Icon: FaFilePdf },
 ];
 
-/** "Download" button with a PNG / PDF menu: saves a picture of `targetRef`'s element as it is on screen
- * right now, to `<fileName>-<date>.png|pdf`. */
+/** "Download" button with a PNG / PDF menu: saves `targetRef`'s element as it is on screen right now,
+ * centred on an A4 page, to `<fileName>-<date>.png|pdf`. */
 export function ChartDownload({ targetRef, fileName }: { targetRef: RefObject<HTMLElement | null>; fileName: string }) {
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
@@ -44,10 +44,10 @@ export function ChartDownload({ targetRef, fileName }: { targetRef: RefObject<HT
     setOpen(false);
     setBusy(true);
     try {
-      const { canvas, width, height } = await domToCanvas(target, { background: getComputedStyle(document.body).backgroundColor });
+      const { canvas, widthMm, heightMm } = await renderOnA4(target, { background: getComputedStyle(document.body).backgroundColor });
       const blob =
         format === "pdf"
-          ? await canvasToPdf(canvas, width, height)
+          ? await canvasToPdf(canvas, widthMm, heightMm)
           : await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("The picture couldn't be saved.");
       downloadBlob(blob, `${fileName}-${new Date().toISOString().slice(0, 10)}.${format}`);
