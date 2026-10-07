@@ -1,12 +1,12 @@
 "use client";
 
 import { Suspense, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/app/components/ui/Toast";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { AuthLayout, OrDivider } from "@/app/components/auth/AuthLayout";
 import { AuthForm } from "@/app/components/auth/AuthForm";
+import { AuthFooter, AuthLink } from "@/app/components/auth/AuthLink";
 import { EmailField, PasswordFormField } from "@/app/components/auth/AuthFields";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
@@ -129,9 +129,9 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
         value={password}
         onChange={setPassword}
         labelAside={
-          <Link href="/forgot-password" className="text-[0.8rem] font-semibold text-accent-blue hover:underline">
+          <AuthLink href="/forgot-password" weight="semibold" className="text-[0.8rem]">
             Forgot password?
-          </Link>
+          </AuthLink>
         }
       />
     </AuthForm>
@@ -164,12 +164,9 @@ export default function LoginPage() {
         <>
           <OrDivider />
           <PasswordLoginForm onBusyChange={setBusy} />
-          <p className="mt-6 text-center text-[0.9rem] text-text-muted">
-            New here?{" "}
-            <Link href="/signup" className="font-bold text-accent-blue hover:underline">
-              Create an account
-            </Link>
-          </p>
+          <AuthFooter>
+            New here? <AuthLink href="/signup">Create an account</AuthLink>
+          </AuthFooter>
         </>
       )}
     </AuthLayout>

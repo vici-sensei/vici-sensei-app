@@ -7,6 +7,7 @@ import { buttonClasses } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { AuthLayout, OrDivider } from "@/app/components/auth/AuthLayout";
 import { AuthForm } from "@/app/components/auth/AuthForm";
+import { AuthFooter, AuthLink } from "@/app/components/auth/AuthLink";
 import { EmailField, PasswordFormField } from "@/app/components/auth/AuthFields";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
@@ -143,23 +144,20 @@ export default function SignUpPage() {
           />
           <span>
             I agree to the{" "}
-            <Link href="/terms" target="_blank" className="font-semibold text-accent-blue hover:underline">
+            <AuthLink href="/terms" target="_blank" weight="semibold">
               Terms
-            </Link>{" "}
+            </AuthLink>{" "}
             and the{" "}
-            <Link href="/privacy" target="_blank" className="font-semibold text-accent-blue hover:underline">
+            <AuthLink href="/privacy" target="_blank" weight="semibold">
               Privacy Policy
-            </Link>
+            </AuthLink>
             .
           </span>
         </label>
       </AuthForm>
-      <p className="mt-6 text-center text-[0.9rem] text-text-muted">
-        Already have an account?{" "}
-        <Link href="/login" className="font-bold text-accent-blue hover:underline">
-          Log in
-        </Link>
-      </p>
+      <AuthFooter>
+        Already have an account? <AuthLink href="/login">Log in</AuthLink>
+      </AuthFooter>
     </AuthLayout>
   );
 }

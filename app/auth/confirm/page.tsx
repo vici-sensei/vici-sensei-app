@@ -1,13 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { fieldHint, fieldLabel, textInput } from "@/app/components/ui/formClasses";
 import { AuthLayout, FormMessage } from "@/app/components/auth/AuthLayout";
 import { AuthForm } from "@/app/components/auth/AuthForm";
+import { AuthLink } from "@/app/components/auth/AuthLink";
 import { EmailField } from "@/app/components/auth/AuthFields";
 import { useTurnstile } from "@/app/components/auth/Turnstile";
 import { finalizeEmailChange } from "@/lib/client-data/account";
@@ -157,12 +157,9 @@ function ConfirmInner() {
           </Button>
           {failure && (
             <p className="text-center text-[0.9rem] text-text-muted">
-              <Link
-                href={type === "recovery" ? "/forgot-password" : "/login"}
-                className="font-bold text-accent-blue hover:underline"
-              >
+              <AuthLink href={type === "recovery" ? "/forgot-password" : "/login"}>
                 {type === "recovery" ? "Request a new reset link" : "Back to log in"}
-              </Link>
+              </AuthLink>
             </p>
           )}
         </div>
@@ -210,9 +207,7 @@ function ConfirmInner() {
       </AuthForm>
       <div className="mt-6 flex flex-col items-center gap-2 text-[0.9rem] text-text-muted">
         {type === "recovery" ? (
-          <Link href="/forgot-password" className="font-bold text-accent-blue hover:underline">
-            Send a new code
-          </Link>
+          <AuthLink href="/forgot-password">Send a new code</AuthLink>
         ) : (
           <button
             type="button"
@@ -223,9 +218,9 @@ function ConfirmInner() {
             {cooldown > 0 ? `Send a new code (${cooldown}s)` : "Send a new code"}
           </button>
         )}
-        <Link href="/login" className="hover:text-white">
+        <AuthLink href="/login" tone="muted">
           Back to log in
-        </Link>
+        </AuthLink>
       </div>
     </AuthLayout>
   );

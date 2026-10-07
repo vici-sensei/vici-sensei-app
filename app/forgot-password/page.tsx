@@ -1,11 +1,11 @@
 "use client";
 
 import type { FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { AuthLayout } from "@/app/components/auth/AuthLayout";
 import { AuthForm } from "@/app/components/auth/AuthForm";
+import { AuthFooter, AuthLink } from "@/app/components/auth/AuthLink";
 import { EmailField } from "@/app/components/auth/AuthFields";
 import { useTurnstile } from "@/app/components/auth/Turnstile";
 import {
@@ -56,11 +56,9 @@ export default function ForgotPasswordPage() {
       >
         <EmailField id="forgot-email" value={email} onChange={setEmail} />
       </AuthForm>
-      <p className="mt-6 text-center text-[0.9rem] text-text-muted">
-        <Link href="/login" className="font-bold text-accent-blue hover:underline">
-          Back to log in
-        </Link>
-      </p>
+      <AuthFooter>
+        <AuthLink href="/login">Back to log in</AuthLink>
+      </AuthFooter>
     </AuthLayout>
   );
 }

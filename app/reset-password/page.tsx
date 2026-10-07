@@ -9,6 +9,7 @@ import { buttonClasses } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { AuthLayout } from "@/app/components/auth/AuthLayout";
 import { AuthForm } from "@/app/components/auth/AuthForm";
+import { AuthLink } from "@/app/components/auth/AuthLink";
 import { PasswordFormField } from "@/app/components/auth/AuthFields";
 import {
   passwordProblem,
@@ -43,9 +44,9 @@ export default function ResetPasswordPage() {
           <Link href="/forgot-password" className={buttonClasses({ hover: "hover" })}>
             Request a new link
           </Link>
-          <Link href="/login" className="text-center text-[0.9rem] text-text-muted hover:text-white">
+          <AuthLink href="/login" tone="muted" className="text-center text-[0.9rem]">
             Back to log in
-          </Link>
+          </AuthLink>
         </div>
       </AuthLayout>
     );
