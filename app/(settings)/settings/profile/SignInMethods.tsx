@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { ApiError } from "@/lib/api/client";
 import { cancelEmailChange, startEmailChange } from "@/lib/client-data/account";
 import {
@@ -135,8 +134,6 @@ function PasswordForm({
       return updatePassword(next);
     });
     if (!result) return;
-    // Changing a password is usually "someone else may have it": sign every other device out.
-    await createClient().auth.signOut({ scope: "others" });
     showToast(hasPassword ? "Password updated" : "Password added", "success");
     stop();
     onDone();

@@ -3,9 +3,9 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
+import { buttonClasses } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { AuthLayout } from "@/app/components/auth/AuthLayout";
 import { AuthForm } from "@/app/components/auth/AuthForm";
@@ -40,10 +40,7 @@ export default function ResetPasswordPage() {
         subtitle="Reset links work once and only for a short time. Request a new one and try again."
       >
         <div className="flex flex-col gap-3">
-          <Link
-            href="/forgot-password"
-            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent-red px-8 py-[15px] text-base font-bold text-white shadow-[0_0_30px_rgba(255,74,90,0.4)]"
-          >
+          <Link href="/forgot-password" className={buttonClasses({ hover: "hover" })}>
             Request a new link
           </Link>
           <Link href="/login" className="text-center text-[0.9rem] text-text-muted hover:text-white">
@@ -63,8 +60,6 @@ export default function ResetPasswordPage() {
     }
     const result = await submit(() => updatePassword(password));
     if (!result) return;
-    // A reset is usually "someone else may have it": end every other session of this account.
-    await createClient().auth.signOut({ scope: "others" });
     showToast("Password updated", "success");
     router.replace("/dashboard");
   }

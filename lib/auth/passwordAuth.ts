@@ -459,9 +459,13 @@ export async function requestEmailChange(newEmail: string): Promise<{ ok: true }
   return { ok: true };
 }
 
-/** Sets or changes the password of the signed-in account (also how a Google-only account adds one). */
+/** Sets or changes the password of the signed-in account (also how a Google-only account adds one).
+ * Changing a password usually means "someone else may have it", so once it is saved every OTHER
+ * session of the account is signed out; this one stays. */
 export async function updatePassword(password: string): Promise<{ ok: true } | { ok: false; failure: AuthFailure }> {
-  const { error } = await createClient().auth.updateUser({ password });
+  const supabase = createClient();
+  const { error } = await supabase.auth.updateUser({ password });
   if (error) return { ok: false, failure: describeAuthError(error) };
+  await supabase.auth.signOut({ scope: "others" });
   return { ok: true };
 }
