@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { EMAIL_TAKEN_MESSAGE } from "@/lib/auth/passwordAuth";
 import { ApiError, extractFunctionErrorMessage, getErrorMessage } from "@/lib/api/client";
 import { getActiveRegion, isMultiRegionEnabled, setActiveRegion, workerOrigin, type Region } from "@/lib/supabase/regions";
 
@@ -184,7 +185,7 @@ export async function moveToOtherRegion(
 // there is no ledger and nothing to do.
 
 const EMAIL_CHANGE_ERRORS: Record<string, string> = {
-  email_unavailable: "That email address can't be used. Try a different one.",
+  email_unavailable: EMAIL_TAKEN_MESSAGE,
   same_email: "That's already your email address.",
   invalid_email: "That email address doesn't look valid.",
   region_move_in_progress: "Your account is being moved to another region. Try again once that finishes.",

@@ -66,6 +66,7 @@ export type AuthFailureCode =
   | "wrong_region"
   | "invalid_code"
   | "invalid_email"
+  | "email_taken"
   | "signup_disabled"
   | "network"
   | "unknown";
@@ -85,6 +86,12 @@ interface ErrorLike {
 }
 
 const GENERIC_FAILURE = "Something went wrong. Please try again.";
+
+/** Shown when a new email address already belongs to another account -- whether GoTrue says so
+ * (`email_exists`) or the Worker's region ledger does (`email_unavailable`). One wording for both,
+ * so the answer doesn't reveal which region holds it. */
+export const EMAIL_TAKEN_MESSAGE =
+  "That email address is already linked to another Vici Sensei account. Please try a different one.";
 
 /**
  * Turns a GoTrue error into a failure code the forms can branch on plus a user-facing message.
@@ -129,6 +136,8 @@ export function describeAuthError(error: ErrorLike | null | undefined): AuthFail
     case "email_address_invalid":
     case "validation_failed":
       return { code: "invalid_email", message: "That email address doesn't look valid." };
+    case "email_exists":
+      return { code: "email_taken", message: EMAIL_TAKEN_MESSAGE };
     case "signup_disabled":
       return { code: "signup_disabled", message: "Signing up with email isn't available right now." };
     case "email_provider_disabled":
