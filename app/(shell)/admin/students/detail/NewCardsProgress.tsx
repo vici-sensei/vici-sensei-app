@@ -22,6 +22,7 @@ import {
 } from "@/lib/study/newCardProjection";
 import type { AsyncStatus, NewCardCategory, StudentDetail, StudentNewCardProgress } from "@/lib/types";
 import { NewCardsChart, type ChartView } from "./NewCardsChart";
+import { NewCardsOverlayChart } from "./NewCardsOverlayChart";
 
 const numberFormatter = new Intl.NumberFormat();
 const fmt = (value: number) => numberFormatter.format(Math.round(value));
@@ -34,8 +35,8 @@ const TABLE_ROW_LIMIT = 366;
 
 type PaceMode = "settings" | "average" | "custom";
 type ReviewKey = "settings" | "20" | "50" | "100" | "150" | "200" | "none";
-/** Standard track only: one chart with the totals, or kanji and vocabulary each in their own chart. */
-type ChartLines = "combined" | "split";
+/** Standard track only: one chart with the totals, kanji and vocabulary each in their own chart, or both in one chart. */
+type ChartLines = "combined" | "split" | "overlay";
 
 const VIEW_OPTIONS: { value: ChartView; label: string }[] = [
   { value: "cumulative", label: "Cumulative" },
@@ -43,7 +44,8 @@ const VIEW_OPTIONS: { value: ChartView; label: string }[] = [
 ];
 const LINES_OPTIONS: { value: ChartLines; label: string }[] = [
   { value: "combined", label: "Combined" },
-  { value: "split", label: "Split" },
+  { value: "split", label: "Split in two charts" },
+  { value: "overlay", label: "Split in one chart" },
 ];
 const SPLIT_CHARTS = [
   { category: "kanji", title: "Kanji" },
@@ -287,6 +289,46 @@ function ChartExplanation({
   );
 }
 
+/** The stacked charts of the "two charts" layout. They share one hover, so the day the pointer is on is
+ * marked in both. */
+function SplitCharts({
+  result,
+  view,
+  start,
+  track,
+  tests,
+  reviewCap,
+}: {
+  result: ProjectionResult;
+  view: ChartView;
+  start: PredictionStart;
+  track: Track;
+  tests: StudentNewCardProgress["tests"];
+  reviewCap: number | null;
+}) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  return (
+    <div className="flex flex-col gap-5">
+      {SPLIT_CHARTS.map(({ category, title }, i) => (
+        <NewCardsChart
+          key={category}
+          result={projectionForCategory(result, category)}
+          view={view}
+          start={start}
+          track={track}
+          tests={tests}
+          reviewCap={reviewCap}
+          title={title}
+          showLegend={i === 0}
+          compact
+          hoverIdx={hoverIdx}
+          onHoverChange={setHoverIdx}
+        />
+      ))}
+    </div>
+  );
+}
+
 type TableSeries = { perDay: number[]; cumulative: number[] };
 interface TableColumn {
   header: string;
@@ -443,6 +485,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   const { summary, predicted, days, todayIdx, actual } = result;
   // Kana scripts are learned one after the other, so splitting them would only draw two lines that never run together.
   const split = track === "standard" && lines === "split";
+  const overlay = track === "standard" && lines === "overlay";
   const complete = summary.poolTotal > 0 && summary.seen >= summary.poolTotal;
   const percent = summary.poolTotal > 0 ? Math.round((summary.seen / summary.poolTotal) * 100) : 0;
 
@@ -465,7 +508,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
     track === "standard" ? "Standard" : "Kana",
     ...(track === "standard" ? [levelSummary] : []),
     view === "cumulative" ? "Cumulative" : "Per day",
-    ...(split ? ["Kanji and vocabulary split"] : []),
+    ...(split ? ["Kanji and vocabulary in two charts"] : overlay ? ["Kanji and vocabulary in one chart"] : []),
     START_OPTIONS.find((o) => o.value === start)?.label,
     paceSummary,
     reviewSummary,
@@ -515,7 +558,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   ];
   const tableColumns: TableColumn[] = [
     { header: "Date", cell: (i) => dateFormatter.format(new Date(days[i])) },
-    ...(split
+    ...(split || overlay
       ? SPLIT_CHARTS.flatMap(({ category, title }) =>
           seriesColumns(`${title} `, result.actualByCategory[category], predicted?.byCategory[category] ?? null)
         )
@@ -574,7 +617,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
           {track === "standard" && (
             <FilterRow
               label="Lines"
-              hint={`Split draws kanji and vocabulary as two charts, each on its own scale: vocabulary runs ${VOCAB_PER_KANJI} times higher than kanji, so on one scale the kanji would be squashed.`}
+              hint={`Vocabulary runs ${VOCAB_PER_KANJI} times higher than kanji, so on one scale the kanji would be squashed. Two charts: each has its own scale. One chart: kanji (left axis) and vocabulary (right axis) share the plot, and a line reaches the top when its category is used up.`}
             >
               <PillSelector variant="compact" active={lines} onChange={setLines} options={LINES_OPTIONS} />
             </FilterRow>
@@ -686,22 +729,9 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
 
       <div className="mt-5">
         {split ? (
-          <div className="flex flex-col gap-5">
-            {SPLIT_CHARTS.map(({ category, title }, i) => (
-              <NewCardsChart
-                key={category}
-                result={projectionForCategory(result, category)}
-                view={view}
-                start={start}
-                track={track}
-                tests={progress.tests}
-                reviewCap={reviewCap}
-                title={title}
-                showLegend={i === 0}
-                compact
-              />
-            ))}
-          </div>
+          <SplitCharts result={result} view={view} start={start} track={track} tests={progress.tests} reviewCap={reviewCap} />
+        ) : overlay ? (
+          <NewCardsOverlayChart result={result} view={view} start={start} reviewCap={reviewCap} />
         ) : (
           <NewCardsChart
             result={result}
@@ -755,7 +785,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
       </button>
       {showTable && (
         <div className="mt-2 max-h-72 overflow-auto">
-          <table className={`w-full text-left text-sm ${split ? "min-w-240" : "min-w-120"}`}>
+          <table className={`w-full text-left text-sm ${split || overlay ? "min-w-240" : "min-w-120"}`}>
             <thead>
               <tr className="border-b border-border-soft text-text-muted">
                 {tableColumns.map((column) => (
