@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient, createClientForRegion } from "@/lib/supabase/client";
 import { EMAIL_TAKEN_MESSAGE } from "@/lib/auth/passwordAuth";
 import { ApiError, extractFunctionErrorMessage, getErrorMessage } from "@/lib/api/client";
 import { getActiveRegion, isMultiRegionEnabled, setActiveRegion, workerOrigin, type Region } from "@/lib/supabase/regions";
@@ -156,27 +156,43 @@ export async function moveToOtherRegion(
     if (result.done) break;
   }
 
-  if (!result.signInTokenHash) {
-    throw new ApiError(500, "Your account was moved, but we couldn't sign you in automatically. Please sign in again.");
-  }
+  // The move is complete, so the source account is retired (see check_account_moved): whatever
+  // happens below, its session in this browser is dead weight. Left in localStorage it would be
+  // picked up again the moment the active region points back at the source (a failed sign-in on
+  // the target, the login page's region picker, ...), and since the retired row is hidden from it
+  // by RLS, the app would see an "authenticated" user with no settings at all. Dropped LAST, right
+  // before the caller's hard navigation: AuthProvider is still subscribed to the source client, so
+  // this flips it to "anon" and the page behind the progress ring would otherwise swap to a loader.
+  try {
+    if (!result.signInTokenHash) {
+      throw new ApiError(500, "Your account was moved, but we couldn't sign you in automatically. Please sign in again.");
+    }
 
-  setActiveRegion(targetRegion);
-  const targetClient = createClient();
-  // type: "email" (not the deprecated "magiclink") is what verifyOtp expects for a token_hash --
-  // see @supabase/auth-js's GoTrueClient.verifyOtp doc comment ("magiclink"/"signup" types are
-  // deprecated for verification; generateLink's own `type` on the Worker side is unrelated and
-  // still "magiclink" there, that's the link-generation purpose, not the verification method).
-  // email must NOT be sent alongside token_hash -- confirmed live against GoTrue's /auth/v1/verify,
-  // which rejects that combination with "Only the token_hash and type should be provided".
-  const { error: verifyError } = await targetClient.auth.verifyOtp({
-    token_hash: result.signInTokenHash,
-    type: "email",
-  });
-  if (verifyError) {
-    throw new ApiError(500, "Your account was moved, but we couldn't sign you in automatically. Please sign in again.");
-  }
+    setActiveRegion(targetRegion);
+    const targetClient = createClient();
+    // type: "email" (not the deprecated "magiclink") is what verifyOtp expects for a token_hash --
+    // see @supabase/auth-js's GoTrueClient.verifyOtp doc comment ("magiclink"/"signup" types are
+    // deprecated for verification; generateLink's own `type` on the Worker side is unrelated and
+    // still "magiclink" there, that's the link-generation purpose, not the verification method).
+    // email must NOT be sent alongside token_hash -- confirmed live against GoTrue's /auth/v1/verify,
+    // which rejects that combination with "Only the token_hash and type should be provided".
+    const { error: verifyError } = await targetClient.auth.verifyOtp({
+      token_hash: result.signInTokenHash,
+      type: "email",
+    });
+    if (verifyError) {
+      throw new ApiError(500, "Your account was moved, but we couldn't sign you in automatically. Please sign in again.");
+    }
 
-  return { targetRegion };
+    return { targetRegion };
+  } finally {
+    try {
+      await createClientForRegion(sourceRegion).auth.signOut({ scope: "local" });
+    } catch {
+      // Best effort -- the move itself succeeded, and useRequireOnboarded's retired-account check
+      // cleans up a session that is still around.
+    }
+  }
 }
 
 // --- Email change (email + password accounts) ----------------------------------------------
