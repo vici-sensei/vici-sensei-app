@@ -231,7 +231,12 @@ Ordinea de aplicare: 1 → 2 pe EU și pe US (oricare primul), apoi 3 pe EU și 
   elevi cu card/motivul algoritmului, previzualizarea „What a student gets”), tabul History, ferestrele „Bulk changes” și
   previzualizarea în masă („519 kanji will change, 691 words removed”), placa din Overview, layout de telefon (iframe de
   390 px), `tsc` și `eslint` fără erori. După aceste verificări, ambele baze au rămas curate (0 rânduri de istoric).
-  **Netestat în interfață (scrie pe live, iar istoricul e permanent):** salvarea unui kanji, restaurarea unei versiuni,
-  executarea unei acțiuni în masă, anularea unui lot, conflictul de versiune. Logica lor e acoperită de testele SQL din
-  faza 1 (inclusiv push-ul în ambele sensuri); lipsește doar parcursul prin pagină.
+  **Test real de scriere prin pagină, pe live (2026-10-07, aprobat de utilizator):** pe kanji-ul 戯 (id 1829, N1, nimeni
+  nu-l învățase): scos 戯れ, adăugat 悪戯, notă, „Save changes” -> versiunea 1 apare identic pe EU și pe US (emailul
+  adminului, nota, `{"add":[25795],"remove":[25798]}`, lista finală 戯れる/悪戯/戯曲); apoi din tabul History „Restore”
+  pe versiunea 0 -> versiunea 2 („Restored version 0”), 0 override-uri, lista finală a întregii baze din nou identică cu
+  cea originală (hash `94f91efe…`, 5189 de rânduri) și paritate exactă între regiuni (`kw_stats` local = la distanță).
+  **Au rămas permanent în istoric (pe EU și pe US) 2 rânduri pe kanji-ul 戯**: versiunea 1 (nota „test of the new page…”)
+  și versiunea 2. Restul acțiunilor (executarea unei acțiuni în masă, anularea unui lot, conflictul de versiune) nu au
+  fost rulate prin pagină; logica lor e acoperită de testele SQL din faza 1 (inclusiv push-ul în ambele sensuri).
 - Faza 3 (închidere): neînceput.
