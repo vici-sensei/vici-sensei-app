@@ -54,7 +54,10 @@ Fără ei, formularul nu poate funcționa. Codul se poate construi și verifica 
    „Secure email change” OPRIT (confirmarea la schimbarea emailului se cere doar pe adresa nouă; contul
    cu parolă oricum cere parola curentă înainte) și „Secure password change” OPRIT (aplicația verifică
    singură parola curentă; cu opțiunea pornită, `updateUser({ password })` ar cere un nonce de reautentificare
-   pe care formularele nu-l trimit).
+   pe care formularele nu-l trimit). Pe aceeași pagină, **„Allow manual linking” PORNIT**: fără el
+   `linkIdentity` (Setări → „Link Google account” pentru un cont cu parolă, și „Switch Google account”) răspunde
+   `manual_linking_disabled`. Era pornit doar pe proiectul vechi (`enable_manual_linking = true`); pe EU și US
+   setările Auth nu vin prin migrații și implicit e oprit.
 4. **Minimum password length 10** și cerința „letters and digits” (Authentication → Sign In / Providers).
 5. **Authentication → URL Configuration**: Site URL `https://app.vici-sensei.com`; adaugă în Redirect URLs
    `https://app.vici-sensei.com/auth/confirm` și `http://localhost:3000/auth/confirm`.

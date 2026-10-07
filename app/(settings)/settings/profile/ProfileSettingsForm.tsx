@@ -273,6 +273,10 @@ export function ProfileSettingsForm({
   const fieldInput = `${fieldInputBase} read-only:cursor-not-allowed read-only:text-text-muted`;
   // Only a password account can lack a Google identity (a Google account always has one).
   const noGoogleLinked = passwordAuth && identitiesStatus === "loaded" && identities.length === 0;
+  // A password account with Google linked lists that identity (with its Unlink button) below, so the
+  // summary row above would only repeat the same address -- and it has no action of its own there
+  // ("Switch" is hidden for password accounts).
+  const googleListedBelow = passwordAuth && passwordSet === true && identities.length > 0;
 
   return (
     <div>
@@ -353,7 +357,7 @@ export function ProfileSettingsForm({
             <Toggle checked={showCountryOnLeaderboard} onChange={handleShowCountryOnLeaderboardChange} disabled={loading} />
           </div>
         </div>
-        <div>
+        <div className={passwordAuth ? "mb-6.5" : undefined}>
           <label className={fieldLabel}>{passwordAuth ? "Google" : "Linked to Google"}</label>
           {noGoogleLinked ? (
             <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -362,7 +366,7 @@ export function ProfileSettingsForm({
                 Link Google account
               </Button>
             </div>
-          ) : (
+          ) : googleListedBelow ? null : (
             <div className="flex flex-wrap items-center justify-between gap-2.5">
               <span className="flex items-center gap-2 py-3 text-[0.95rem] text-white">
                 <FcGoogle className="h-4 w-4 shrink-0 rounded-full bg-white p-0.5" />
@@ -393,8 +397,8 @@ export function ProfileSettingsForm({
             <div className="mt-2.5">
               <Skeleton className="h-[46px] w-full rounded-lg" />
             </div>
-          ) : identities.length > 1 || (passwordAuth && passwordSet === true && identities.length > 0) ? (
-            <div className="mt-2.5 flex flex-col gap-2">
+          ) : identities.length > 1 || googleListedBelow ? (
+            <div className={`${googleListedBelow ? "" : "mt-2.5"} flex flex-col gap-2`}>
               {identities.map((identity) => (
                 <div
                   key={identity.identity_id}

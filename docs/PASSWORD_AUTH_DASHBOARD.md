@@ -51,6 +51,12 @@ Repetă tot ce urmează, în ordine, pe **EU** și apoi pe **US**. Singura difer
    - **Secure email change**: OPRIT;
    - **Secure password change**: OPRIT;
    - **Email OTP length**: `6`.
+
+   Pe aceeași pagină (secțiunea „User Signups”, deasupra listei de provideri):
+   - **Allow manual linking**: PORNIT. Fără el, butonul „Link Google account” din Settings → Profile (pentru
+     un cont creat cu parolă) și „Switch Google account” eșuează cu „Manual linking is disabled”. Proiectul
+     vechi, înghețat, îl avea pornit, dar un proiect nou îl are oprit implicit, iar setările Auth nu vin prin
+     migrații.
 4. Tot acolo, la regulile parolei (sub Email sau „Password”): **Minimum password length** = `10` și cerința
    **„Letters and digits”** (litere și cifre).
 5. **Authentication → URL Configuration**:
@@ -87,7 +93,10 @@ Repetă tot ce urmează, în ordine, pe **EU** și apoi pe **US**. Singura difer
 3. Introdu codul (sau apasă butonul, chiar și într-un alt browser). Ar trebui să ajungi în onboarding, unde ți
    se cere numele.
 4. Ieși din cont și intră cu email și parolă. Apoi încearcă „Forgot password?”.
-5. Din **Settings → Profile**: schimbă parola, apoi schimbă emailul.
+5. Din **Settings → Profile**: schimbă parola, apoi schimbă emailul. Apoi apasă **Link Google account** și
+   alege un cont `@gmail.com`; ar trebui să te întoarcă în Profile cu mesajul „Google account linked”. Dacă
+   vezi „Manual linking is disabled”, lipsește **Allow manual linking** de la pasul C.3 (pe proiectul în care
+   e contul).
 6. Fă același test în regiunea Americas (selectorul de pe pagina de login).
 7. În Brevo, la **Statistics**, vezi dacă emailurile au fost livrate.
 
