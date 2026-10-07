@@ -11,7 +11,8 @@ import { EmailField, PasswordFormField } from "@/app/components/auth/AuthFields"
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
 import { useTurnstile } from "@/app/components/auth/Turnstile";
-import { finishSignIn } from "@/lib/auth/finishSignIn";
+import { completeSignIn } from "@/lib/auth/finishSignIn";
+import { LOGIN_ERROR } from "@/lib/auth/loginErrors";
 import {
   isPasswordAuthEnabled,
   looksLikeEmail,
@@ -36,7 +37,7 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
     // every LoginPage re-render (e.g. the geo-IP effect resolving), which would otherwise
     // re-run this effect and re-show the toast indefinitely as long as the param lingers.
     router.replace("/login", { scroll: false });
-    if (error === "wrong_region") {
+    if (error === LOGIN_ERROR.wrongRegion) {
       // Set by app/auth/callback/page.tsx when the multi-region "Before User Created" hook
       // rejects a signup whose email already belongs to the other region (also by /signup).
       const regionParam = searchParams.get("region");
@@ -49,7 +50,7 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
       );
       return;
     }
-    if (error === "account_moved") {
+    if (error === LOGIN_ERROR.accountMoved) {
       // Set by app/auth/callback/page.tsx when check_account_moved() finds this account was
       // self-service moved to the other region (Settings -> Server region) -- logging into the
       // OLD region again (stale bookmark, another device) must not look like a normal failure,
@@ -62,10 +63,6 @@ function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) =
           : "Your account has moved to a different region. Please sign in from there.",
         "info"
       );
-      return;
-    }
-    if (error === "password_reset_expired") {
-      showToast("That reset link has expired. Request a new one.", "info");
       return;
     }
     showToast("Couldn't sign you in. Only @gmail.com Google accounts are supported.", "error");
@@ -86,7 +83,7 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   const captcha = useTurnstile(formComplete);
 
   // The page's "already signed in -> /dashboard" redirect must not fire between the session
-  // appearing and finishSignIn() below deciding whether this account may continue. It also has to
+  // appearing and completeSignIn() below deciding whether this account may continue. It also has to
   // be lifted again when Back restores this form from bfcache (useAuthSubmit resets `submitting`).
   useEffect(() => {
     onBusyChange(submitting);
@@ -109,15 +106,9 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
     });
     if (!result) return;
 
-    const finished = await finishSignIn();
-    if (finished.kind === "moved") {
-      window.location.assign(`/login?error=account_moved&region=${finished.region}`);
-      return;
-    }
-    if (finished.reactivated) showToast("Welcome back — your account was reactivated!", "success");
-    // A full load, not router.replace: AuthProvider is bound to the region that was active when
-    // it mounted, which is wrong whenever the account turned out to live in the other one.
-    window.location.assign("/dashboard");
+    await completeSignIn({
+      onReactivated: () => showToast("Welcome back — your account was reactivated!", "success"),
+    });
   }
 
   return (

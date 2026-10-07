@@ -11,7 +11,7 @@ import { AuthForm } from "@/app/components/auth/AuthForm";
 import { EmailField } from "@/app/components/auth/AuthFields";
 import { useTurnstile } from "@/app/components/auth/Turnstile";
 import { finalizeEmailChange } from "@/lib/client-data/account";
-import { finishSignIn } from "@/lib/auth/finishSignIn";
+import { completeSignIn } from "@/lib/auth/finishSignIn";
 import {
   clearPendingAuth,
   looksLikeEmail,
@@ -98,12 +98,7 @@ function ConfirmInner() {
       window.location.assign("/settings/profile?emailChanged=1");
       return;
     }
-    const finished = await finishSignIn();
-    if (finished.kind === "moved") {
-      window.location.assign(`/login?error=account_moved&region=${finished.region}`);
-      return;
-    }
-    window.location.assign("/dashboard");
+    await completeSignIn();
   }
 
   async function handleVerifyLink() {

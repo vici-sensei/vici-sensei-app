@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/client";
 import { checkAccountMoved } from "@/lib/client-data/account";
+import { hardNavigate } from "@/lib/auth/finishSignIn";
+import { LOGIN_ERROR, loginErrorUrl } from "@/lib/auth/loginErrors";
 
 let pending: Promise<boolean> | null = null;
 
 /**
- * The already-open-session counterpart of finishSignIn()'s moved-account check: a browser can still
+ * The already-open-session counterpart of completeSignIn()'s moved-account check: a browser can still
  * hold a session for an account that was moved to the other region (the region move's own cleanup
  * failed, another tab or device, a session that outlived a failed sign-in). The retired row is hidden
  * from that session by RLS, so every per-user fetch comes back empty -- most visibly the study
@@ -28,7 +30,7 @@ export function leaveIfAccountMoved(): Promise<boolean> {
     } catch {
       // Still send them on: the next load runs this check again against whatever session is left.
     }
-    window.location.assign(`/login?error=account_moved&region=${movedTo}`);
+    hardNavigate(loginErrorUrl(LOGIN_ERROR.accountMoved, movedTo));
     return true;
   })().finally(() => {
     pending = null;

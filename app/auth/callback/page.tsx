@@ -4,8 +4,10 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { switchGoogleAccount } from "@/lib/client-data/account";
-import { finishSignIn } from "@/lib/auth/finishSignIn";
+import { completeSignIn } from "@/lib/auth/finishSignIn";
+import { LOGIN_ERROR, loginErrorUrl } from "@/lib/auth/loginErrors";
 import { ApiError } from "@/lib/api/client";
+import type { Region } from "@/lib/supabase/regions";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { useToast } from "@/app/components/ui/Toast";
 
@@ -57,9 +59,9 @@ function AuthCallbackInner() {
           // hit the wrong region's hook before then.
           const wrongRegionMatch = errorDescription?.match(/^wrong_region:(eu|us)$/);
           if (wrongRegionMatch) {
-            router.replace(`/login?error=wrong_region&region=${wrongRegionMatch[1]}`);
+            router.replace(loginErrorUrl(LOGIN_ERROR.wrongRegion, wrongRegionMatch[1] as Region));
           } else {
-            router.replace("/login?error=auth_callback_failed");
+            router.replace(loginErrorUrl(LOGIN_ERROR.callbackFailed));
           }
         }
       });
@@ -146,16 +148,12 @@ function AuthCallbackInner() {
           router.replace("/settings/profile?switched=1");
           return;
         }
-        // Moved-account check first, then reactivating a pending deletion -- see finishSignIn().
-        const finished = await finishSignIn();
-        if (finished.kind === "moved") {
-          router.replace(`/login?error=account_moved&region=${finished.region}`);
-          return;
-        }
-        if (finished.reactivated) {
-          showToast("Welcome back — your account was reactivated!", "success");
-        }
-        router.replace(next);
+        // The OAuth round trip returns in the region it started in, so the router is enough here.
+        await completeSignIn({
+          next,
+          navigate: (url) => router.replace(url),
+          onReactivated: () => showToast("Welcome back — your account was reactivated!", "success"),
+        });
       }
 
       finish();
@@ -175,7 +173,7 @@ function AuthCallbackInner() {
   }, [router, searchParams, showToast]);
 
   useEffect(() => {
-    if (failed) router.replace("/login?error=auth_callback_failed");
+    if (failed) router.replace(loginErrorUrl(LOGIN_ERROR.callbackFailed));
   }, [failed, router]);
 
   return <FullScreenLoader />;
