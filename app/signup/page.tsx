@@ -28,7 +28,9 @@ import { useAuthRegion } from "@/lib/auth/useAuthRegion";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 import { setActiveRegion } from "@/lib/supabase/regions";
 
-/** What replaces the whole form once the account exists: just the logo, a green check and the way on. */
+/** What replaces the whole form once the account exists: just the logo, a green check and the way on.
+ * The button goes straight to the code page (signUp already remembered the email for it), not to /login:
+ * entering the code signs the person in, so a separate log-in step would only get in the way. */
 function RegisteredNotice({ email }: { email: string }) {
   return (
     <AuthLayout>
@@ -36,14 +38,17 @@ function RegisteredNotice({ email }: { email: string }) {
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-accent-green/30 bg-accent-green/10">
           <FaCheck aria-hidden="true" className="h-7 w-7 text-accent-green" />
         </div>
-        <h1 className="mb-2 text-[1.9rem] font-extrabold leading-tight tracking-[-0.5px]">You&apos;re registered!</h1>
+        <h1 className="mb-2 text-[1.9rem] font-extrabold leading-tight tracking-[-0.5px]">You&apos;re almost in!</h1>
         <p className="mb-7 text-[0.95rem] leading-[1.6] text-text-muted">
-          Your account was created successfully. We sent a confirmation email to{" "}
-          <strong className="break-all text-white">{email}</strong>. Confirm it, then log in.
+          We sent a 6-digit code to <strong className="break-all text-white">{email}</strong>. Pop it in on the next
+          page and you&apos;re good to go.
         </p>
       </div>
-      <Link href="/login" className={buttonClasses({ variant: "secondary", hover: "hover", className: "w-full" })}>
-        Go to log in
+      <Link
+        href="/auth/confirm?type=email"
+        className={buttonClasses({ variant: "secondary", hover: "hover", className: "w-full" })}
+      >
+        Enter my code
       </Link>
     </AuthLayout>
   );
