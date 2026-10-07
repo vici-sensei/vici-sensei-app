@@ -21,12 +21,11 @@ import {
   passwordFieldError,
   passwordProblem,
   signUpWithPassword,
-  type AuthFailure,
 } from "@/lib/auth/passwordAuth";
 import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
+import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
-import { useOnPageRestored } from "@/lib/useOnPageRestored";
 import { setActiveRegion } from "@/lib/supabase/regions";
 
 /** What replaces the whole form once the account exists: just the logo, a green check and the way on.
@@ -65,8 +64,7 @@ export default function SignUpPage() {
   // A field only complains once the person has left it, and stops the moment it is filled in right.
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const { submitting, failure, setFailure, submit } = useAuthSubmit();
   // Set once the account is created and still needs its email confirmed: swaps the form for RegisteredNotice.
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const enabled = isPasswordAuthEnabled();
@@ -76,10 +74,6 @@ export default function SignUpPage() {
   // The security card only slides in once there is something to submit.
   const formComplete = looksLikeEmail(email) && passwordValid && acceptedTerms;
   const captcha = useTurnstile(formComplete);
-
-  // Back from the full-page load to /dashboard (account created with no email confirmation)
-  // restores this form from bfcache still submitting.
-  useOnPageRestored(() => setSubmitting(false));
 
   useEffect(() => {
     // The form only exists once the Dashboard side is ready (NEXT_PUBLIC_PASSWORD_AUTH).
@@ -95,7 +89,6 @@ export default function SignUpPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (submitting) return;
     if (!looksLikeEmail(email)) {
       setFailure({ code: "invalid_email", message: "Enter a valid email address." });
       return;
@@ -110,16 +103,10 @@ export default function SignUpPage() {
       return;
     }
 
-    setFailure(null);
-    setSubmitting(true);
-    const result = await signUpWithPassword(email, password, captcha.getToken);
-    if (!result.ok) {
-      // A `wrong_region` failure (the email already has an account in the other region) stays on this
-      // page: the message says so and offers "Log in", which is what switches the region.
-      setFailure(result.failure);
-      setSubmitting(false);
-      return;
-    }
+    // A `wrong_region` failure (the email already has an account in the other region) stays on this
+    // page: the message says so and offers "Log in", which is what switches the region.
+    const result = await submit(() => signUpWithPassword(email, password, captcha.getToken));
+    if (!result) return;
     clearRememberedEmail();
     if (result.signedIn) {
       // Only when the Dashboard's "Confirm email" is off -- the session already exists.

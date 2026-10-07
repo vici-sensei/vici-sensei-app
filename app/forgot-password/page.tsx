@@ -12,8 +12,8 @@ import {
   emailFieldError,
   looksLikeEmail,
   requestPasswordReset,
-  type AuthFailure,
 } from "@/lib/auth/passwordAuth";
+import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 
 export default function ForgotPasswordPage() {
@@ -21,8 +21,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useRememberedEmail();
   // The field only complains once the person has left it, and stops the moment it is filled in right.
   const [emailTouched, setEmailTouched] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const { submitting, failure, setFailure, submit } = useAuthSubmit();
   const enabled = isPasswordAuthEnabled();
   const emailError = emailFieldError(email, emailTouched);
   // The security card only slides in once there is something to submit.
@@ -36,19 +35,12 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (submitting) return;
     if (!looksLikeEmail(email)) {
       setFailure({ code: "invalid_email", message: "Enter a valid email address." });
       return;
     }
-    setFailure(null);
-    setSubmitting(true);
-    const result = await requestPasswordReset(email, captcha.getToken);
-    if (!result.ok) {
-      setFailure(result.failure);
-      setSubmitting(false);
-      return;
-    }
+    const result = await submit(() => requestPasswordReset(email, captcha.getToken));
+    if (!result) return;
     // Same screen whether or not the email has an account -- the next page says "if an account
     // exists", and never confirms either way.
     router.push("/auth/confirm?type=recovery");

@@ -16,8 +16,8 @@ import {
   MIN_PASSWORD_LENGTH,
   passwordProblem,
   updatePassword,
-  type AuthFailure,
 } from "@/lib/auth/passwordAuth";
+import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
 
 /**
  * Where /auth/confirm sends a verified recovery token: the token already signed the person in (that
@@ -30,8 +30,7 @@ export default function ResetPasswordPage() {
   const { showToast } = useToast();
   const { status } = useAuth();
   const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const { submitting, failure, setFailure, submit } = useAuthSubmit();
   const enabled = isPasswordAuthEnabled();
 
   useEffect(() => {
@@ -63,20 +62,13 @@ export default function ResetPasswordPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (submitting) return;
     const problem = passwordProblem(password);
     if (problem) {
       setFailure({ code: "weak_password", message: problem });
       return;
     }
-    setFailure(null);
-    setSubmitting(true);
-    const result = await updatePassword(password);
-    if (!result.ok) {
-      setFailure(result.failure);
-      setSubmitting(false);
-      return;
-    }
+    const result = await submit(() => updatePassword(password));
+    if (!result) return;
     // A reset is usually "someone else may have it": end every other session of this account.
     await createClient().auth.signOut({ scope: "others" });
     showToast("Password updated", "success");

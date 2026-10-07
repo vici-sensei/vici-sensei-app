@@ -17,9 +17,9 @@ import {
   readPendingAuth,
   resendSignUpCode,
   verifyAuthToken,
-  type AuthFailure,
   type VerifyType,
 } from "@/lib/auth/passwordAuth";
+import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
 import { isRegion } from "@/lib/supabase/regions";
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -60,8 +60,7 @@ function ConfirmInner() {
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const { submitting, failure, setFailure, submit } = useAuthSubmit();
   const [notice, setNotice] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const enabled = isPasswordAuthEnabled();
@@ -111,25 +110,16 @@ function ConfirmInner() {
   }
 
   async function handleVerifyLink() {
-    if (submitting || !tokenHash) return;
-    setFailure(null);
-    setSubmitting(true);
-    const result = await verifyAuthToken({
-      type,
-      tokenHash,
-      region: isRegion(regionParam) ? regionParam : undefined,
-    });
-    if (!result.ok) {
-      setFailure(result.failure);
-      setSubmitting(false);
-      return;
-    }
+    if (!tokenHash) return;
+    const result = await submit(() =>
+      verifyAuthToken({ type, tokenHash, region: isRegion(regionParam) ? regionParam : undefined })
+    );
+    if (!result) return;
     await onVerified();
   }
 
   async function handleVerifyCode(event: FormEvent) {
     event.preventDefault();
-    if (submitting) return;
     if (!looksLikeEmail(email)) {
       setFailure({ code: "invalid_email", message: "Enter the email the code was sent to." });
       return;
@@ -138,14 +128,8 @@ function ConfirmInner() {
       setFailure({ code: "invalid_code", message: "Enter the code from the email." });
       return;
     }
-    setFailure(null);
-    setSubmitting(true);
-    const result = await verifyAuthToken({ type, email, code });
-    if (!result.ok) {
-      setFailure(result.failure);
-      setSubmitting(false);
-      return;
-    }
+    const result = await submit(() => verifyAuthToken({ type, email, code }));
+    if (!result) return;
     await onVerified();
   }
 

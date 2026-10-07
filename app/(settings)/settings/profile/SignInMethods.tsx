@@ -13,8 +13,8 @@ import {
   passwordProblem,
   requestEmailChange,
   updatePassword,
-  type AuthFailure,
 } from "@/lib/auth/passwordAuth";
+import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -112,14 +112,12 @@ function PasswordForm({
   const [next, setNext] = useState("");
   // Same as /signup: the field only complains once it has been left, and stops the moment it is valid.
   const [nextTouched, setNextTouched] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const { submitting, failure, setFailure, submit, stop } = useAuthSubmit();
   const nextError = passwordFieldError(next, nextTouched);
   const formComplete = passwordProblem(next) === null && (!hasPassword || current.length > 0);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (submitting) return;
     if (hasPassword && current.length === 0) {
       setFailure({ code: "invalid_credentials", message: "Enter your current password." });
       return;
@@ -129,27 +127,19 @@ function PasswordForm({
       setFailure({ code: "weak_password", message: problem });
       return;
     }
-    setFailure(null);
-    setSubmitting(true);
 
-    if (hasPassword) {
-      const confirmed = await confirmCurrentPassword(email, current, captcha.getToken);
-      if (!confirmed.ok) {
-        setFailure(confirmed.failure);
-        setSubmitting(false);
-        return;
+    const result = await submit(async () => {
+      if (hasPassword) {
+        const confirmed = await confirmCurrentPassword(email, current, captcha.getToken);
+        if (!confirmed.ok) return confirmed;
       }
-    }
-    const result = await updatePassword(next);
-    if (!result.ok) {
-      setFailure(result.failure);
-      setSubmitting(false);
-      return;
-    }
+      return updatePassword(next);
+    });
+    if (!result) return;
     // Changing a password is usually "someone else may have it": sign every other device out.
     await createClient().auth.signOut({ scope: "others" });
     showToast(hasPassword ? "Password updated" : "Password added", "success");
-    setSubmitting(false);
+    stop();
     onDone();
   }
 
@@ -206,12 +196,10 @@ function ChangeEmailForm({ email, onClose }: { email: string; onClose: () => voi
   const captcha = useTurnstile();
   const [newEmail, setNewEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const { submitting, failure, setFailure, submit } = useAuthSubmit();
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (submitting) return;
     if (!looksLikeEmail(newEmail)) {
       setFailure({ code: "invalid_email", message: "Enter a valid email address." });
       return;
@@ -224,32 +212,24 @@ function ChangeEmailForm({ email, onClose }: { email: string; onClose: () => voi
       setFailure({ code: "invalid_credentials", message: "Enter your current password." });
       return;
     }
-    setFailure(null);
-    setSubmitting(true);
 
-    const confirmed = await confirmCurrentPassword(email, password, captcha.getToken);
-    if (!confirmed.ok) {
-      setFailure(confirmed.failure);
-      setSubmitting(false);
-      return;
-    }
+    const result = await submit(async () => {
+      const confirmed = await confirmCurrentPassword(email, password, captcha.getToken);
+      if (!confirmed.ok) return confirmed;
 
-    // Order matters: claim the address in the region ledger first, so a refusal costs nothing, then
-    // ask Supabase to send the confirmation. If Supabase refuses after the claim, give the claim back.
-    try {
-      await startEmailChange(newEmail);
-    } catch (err) {
-      setFailure({ code: "unknown", message: err instanceof ApiError ? err.message : "Something went wrong. Please try again." });
-      setSubmitting(false);
-      return;
-    }
-    const result = await requestEmailChange(newEmail);
-    if (!result.ok) {
-      await cancelEmailChange();
-      setFailure(result.failure);
-      setSubmitting(false);
-      return;
-    }
+      // Order matters: claim the address in the region ledger first, so a refusal costs nothing, then
+      // ask Supabase to send the confirmation. If Supabase refuses after the claim, give the claim back.
+      try {
+        await startEmailChange(newEmail);
+      } catch (err) {
+        const message = err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
+        return { ok: false as const, failure: { code: "unknown" as const, message } };
+      }
+      const changed = await requestEmailChange(newEmail);
+      if (!changed.ok) await cancelEmailChange();
+      return changed;
+    });
+    if (!result) return;
     router.push("/auth/confirm?type=email_change");
   }
 

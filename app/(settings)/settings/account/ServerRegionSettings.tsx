@@ -11,7 +11,8 @@ import {
   moveToOtherRegion,
   type RegionMoveProgress,
 } from "@/lib/client-data/account";
-import { confirmCurrentPassword, isPasswordAuthEnabled, type AuthFailure } from "@/lib/auth/passwordAuth";
+import { confirmCurrentPassword, isPasswordAuthEnabled } from "@/lib/auth/passwordAuth";
+import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
 import { Button } from "@/app/components/ui/Button";
 import { fieldLabel } from "@/app/components/ui/formClasses";
 import { FormMessage } from "@/app/components/auth/AuthLayout";
@@ -77,24 +78,16 @@ function MovePasswordPrompt({
 }) {
   const captcha = useTurnstile();
   const [password, setPassword] = useState("");
-  const [checking, setChecking] = useState(false);
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const { submitting: checking, failure, setFailure, submit } = useAuthSubmit();
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (checking) return;
     if (password.length === 0) {
       setFailure({ code: "invalid_credentials", message: "Enter your password." });
       return;
     }
-    setFailure(null);
-    setChecking(true);
-    const result = await confirmCurrentPassword(email, password, captcha.getToken);
-    if (!result.ok) {
-      setFailure(result.failure);
-      setChecking(false);
-      return;
-    }
+    const result = await submit(() => confirmCurrentPassword(email, password, captcha.getToken));
+    if (!result) return;
     onConfirmed(password);
   }
 

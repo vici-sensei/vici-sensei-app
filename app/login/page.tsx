@@ -27,11 +27,10 @@ import {
   passwordFieldError,
   rememberPendingAuth,
   signInWithPasswordAcrossRegions,
-  type AuthFailure,
 } from "@/lib/auth/passwordAuth";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
+import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
-import { useOnPageRestored } from "@/lib/useOnPageRestored";
 import { isRegion, setActiveRegion, type Region } from "@/lib/supabase/regions";
 
 function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) => void }) {
@@ -93,46 +92,36 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   // A field only complains once the person has left it, and stops the moment it is filled in right.
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const { submitting, failure, setFailure, submit } = useAuthSubmit();
   const emailError = emailFieldError(email, emailTouched);
   const passwordError = passwordFieldError(password, passwordTouched);
   // The security card only slides in once there is something to submit.
   const formComplete = looksLikeEmail(email) && password.length > 0;
   const captcha = useTurnstile(formComplete);
 
-  // Hitting Back after the full-page load to /dashboard restores this form from bfcache still
-  // submitting. Clearing `busy` too lets the "already signed in -> /dashboard" redirect run again.
-  useOnPageRestored(() => {
-    setSubmitting(false);
-    onBusyChange(false);
-  });
+  // The page's "already signed in -> /dashboard" redirect must not fire between the session
+  // appearing and finishSignIn() below deciding whether this account may continue. It also has to
+  // be lifted again when Back restores this form from bfcache (useAuthSubmit resets `submitting`).
+  useEffect(() => {
+    onBusyChange(submitting);
+  }, [submitting, onBusyChange]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (submitting) return;
     if (!looksLikeEmail(email) || password.length === 0) {
       setFailure({ code: "invalid_credentials", message: "Enter your email and password." });
       return;
     }
-    setFailure(null);
-    setSubmitting(true);
-    // The page's "already signed in -> /dashboard" redirect must not fire between the session
-    // appearing and finishSignIn() below deciding whether this account may continue.
-    onBusyChange(true);
 
-    const result = await signInWithPasswordAcrossRegions(email, password, captcha.getToken);
-    if (!result.ok) {
-      if (result.failure.code === "email_not_confirmed") {
+    const result = await submit(() => signInWithPasswordAcrossRegions(email, password, captcha.getToken), {
+      onFailure: (failure) => {
+        if (failure.code !== "email_not_confirmed") return false;
         rememberPendingAuth({ email: email.trim().toLowerCase(), kind: "email" });
         router.push("/auth/confirm?type=email");
-        return;
-      }
-      setFailure(result.failure);
-      setSubmitting(false);
-      onBusyChange(false);
-      return;
-    }
+        return true;
+      },
+    });
+    if (!result) return;
 
     const finished = await finishSignIn();
     if (finished.kind === "moved") {
