@@ -1,5 +1,6 @@
 import { runAccountSweep } from "./lib/accountSweep";
 import { mirrorGoogleAvatars } from "./lib/avatarMirror";
+import { takeOverOrphanClaim } from "./lib/claimHeal";
 import { type Env, projectConfig } from "./lib/env";
 import { emailKey, isRegion, regionFromCfContinent, type Region } from "./lib/region";
 import { runSmtpHeartbeat } from "./lib/smtpHeartbeat";
@@ -65,7 +66,7 @@ async function handleAuthHookClaim(request: Request, env: Env, region: Region): 
       // Shouldn't happen (the INSERT above guarantees a row exists) -- fail closed anyway.
       return json({ error: { http_code: 500, message: "claim_failed" } });
     }
-    if (claimed.region !== region) {
+    if (claimed.region !== region && !(await takeOverOrphanClaim(env, key, claimed.region, region))) {
       return json({ error: { http_code: 400, message: `wrong_region:${claimed.region}` } });
     }
     return json({});
