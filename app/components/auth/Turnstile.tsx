@@ -67,8 +67,15 @@ export interface TurnstileController {
   getToken: () => Promise<string | undefined>;
   /** True while a visible challenge is waiting on the person and its card is on screen. */
   waiting: boolean;
+  /** True while the widget (or its script) is broken -- blocked, offline, misconfigured -- and the
+   * "security check isn't loading" message is on screen. No token can come, so the submit is disabled. */
+  blocked: boolean;
   /** Wiring between this hook and <Turnstile>; callers don't touch it. */
-  link: { attach: (engine: Engine | null) => void; setChallenging: (value: boolean) => void };
+  link: {
+    attach: (engine: Engine | null) => void;
+    setChallenging: (value: boolean) => void;
+    setBlocked: (value: boolean) => void;
+  };
 }
 
 /** One per form. Pass the result to <Turnstile> and <CaptchaButton>, and call `getToken()` right
@@ -81,13 +88,15 @@ export interface TurnstileController {
 export function useTurnstile(revealed = true): TurnstileController {
   const engine = useRef<Engine | null>(null);
   const [challenging, setChallenging] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const attach = useCallback((next: Engine | null) => {
     engine.current = next;
   }, []);
   return {
     getToken: async () => engine.current?.getToken(),
     waiting: challenging && revealed,
-    link: { attach, setChallenging },
+    blocked,
+    link: { attach, setChallenging, setBlocked },
   };
 }
 
@@ -112,12 +121,12 @@ const WIDGET_FILTER = "brightness(0.899) contrast(1.252)";
  * resend link on the code screen), so a challenge doesn't greet someone who only came to type a code.
  */
 export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileController; lazy?: boolean }) {
-  const { attach, setChallenging } = captcha.link;
-  const { waiting } = captcha;
+  const { attach, setChallenging, setBlocked: setFailed } = captcha.link;
+  // The widget (or its script) is broken -- blocked, offline, misconfigured. Shown with a retry,
+  // and held by the hook so CaptchaButton can disable the submit while it lasts.
+  const { waiting, blocked: failed } = captcha;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // The widget (or its script) is broken -- blocked, offline, misconfigured. Shown with a retry.
-  const [failed, setFailed] = useState(false);
   // A visible challenge was just solved and its token is waiting for the submit.
   const [verified, setVerified] = useState(false);
   // Bumped by "Try again" to tear the widget down and build it from scratch.
@@ -258,7 +267,7 @@ export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileControl
       if (widgetId) window.turnstile?.remove(widgetId);
       setChallenging(false);
     };
-  }, [attach, setChallenging, lazy, attempt]);
+  }, [attach, setChallenging, setFailed, lazy, attempt]);
 
   if (!SITE_KEY) return null;
 
@@ -320,7 +329,8 @@ export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileControl
 }
 
 /** The submit button of a form that sends a captcha token: while a visible challenge waits on the
- * person it is disabled and says what to do, with no spinner (nothing is loading). */
+ * person it is disabled and says what to do, with no spinner (nothing is loading). It is disabled
+ * too while the check itself can't load (the message above it says why), since no token can come. */
 export function CaptchaButton({
   captcha,
   loading = false,
@@ -328,9 +338,9 @@ export function CaptchaButton({
   children,
   ...rest
 }: ComponentProps<typeof Button> & { captcha: TurnstileController }) {
-  const { waiting } = captcha;
+  const { waiting, blocked } = captcha;
   return (
-    <Button {...rest} loading={loading && !waiting} disabled={disabled || waiting}>
+    <Button {...rest} loading={loading && !waiting} disabled={disabled || waiting || blocked}>
       {waiting ? "Complete the check above" : children}
     </Button>
   );
