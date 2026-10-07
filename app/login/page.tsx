@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Logo } from "@/app/components/ui/Logo";
@@ -22,6 +21,7 @@ import {
 } from "@/lib/auth/passwordAuth";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
 import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
+import { useRedirectIfAuthed } from "@/lib/auth/useRedirectIfAuthed";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 import { isRegion, setActiveRegion, type Region } from "@/lib/supabase/regions";
 
@@ -151,13 +151,8 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
 export default function LoginPage() {
   const [region, setRegion] = useAuthRegion();
   const [busy, setBusy] = useState(false);
-  const { status } = useAuth();
-  const router = useRouter();
+  const status = useRedirectIfAuthed(busy);
   const passwordAuth = isPasswordAuthEnabled();
-
-  useEffect(() => {
-    if (status === "authed" && !busy) router.replace("/dashboard");
-  }, [status, busy, router]);
 
   if (status !== "anon" && !busy) return <FullScreenLoader />;
 

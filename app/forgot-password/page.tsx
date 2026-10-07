@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type FormEvent } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
@@ -9,24 +9,20 @@ import { AuthForm } from "@/app/components/auth/AuthForm";
 import { EmailField } from "@/app/components/auth/AuthFields";
 import { useTurnstile } from "@/app/components/auth/Turnstile";
 import {
-  isPasswordAuthEnabled,
   looksLikeEmail,
   requestPasswordReset,
 } from "@/lib/auth/passwordAuth";
 import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
+import { useRequirePasswordAuth } from "@/lib/auth/useRequirePasswordAuth";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [email, setEmail] = useRememberedEmail();
   const { submitting, failure, setFailure, submit } = useAuthSubmit();
-  const enabled = isPasswordAuthEnabled();
+  const enabled = useRequirePasswordAuth();
   // The security card only slides in once there is something to submit.
   const captcha = useTurnstile(looksLikeEmail(email));
-
-  useEffect(() => {
-    if (!enabled) router.replace("/login");
-  }, [enabled, router]);
 
   if (!enabled) return <FullScreenLoader />;
 

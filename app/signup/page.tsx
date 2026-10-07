@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FaCheck } from "react-icons/fa6";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import { buttonClasses } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { AuthLayout, OrDivider } from "@/app/components/auth/AuthLayout";
@@ -14,7 +12,6 @@ import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
 import { useTurnstile } from "@/app/components/auth/Turnstile";
 import {
-  isPasswordAuthEnabled,
   looksLikeEmail,
   normalizeEmail,
   passwordProblem,
@@ -23,6 +20,8 @@ import {
 import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
 import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
+import { useRedirectIfAuthed } from "@/lib/auth/useRedirectIfAuthed";
+import { useRequirePasswordAuth } from "@/lib/auth/useRequirePasswordAuth";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 import { setActiveRegion } from "@/lib/supabase/regions";
 
@@ -53,29 +52,20 @@ function RegisteredNotice({ email }: { email: string }) {
 }
 
 export default function SignUpPage() {
-  const router = useRouter();
-  const { status } = useAuth();
   const [region] = useAuthRegion();
   const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const { submitting, failure, setFailure, submit } = useAuthSubmit();
+  // The form only exists once the Dashboard side is ready (NEXT_PUBLIC_PASSWORD_AUTH).
+  const enabled = useRequirePasswordAuth();
+  const status = useRedirectIfAuthed(submitting);
   // Set once the account is created and still needs its email confirmed: swaps the form for RegisteredNotice.
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
-  const enabled = isPasswordAuthEnabled();
   const passwordValid = passwordProblem(password) === null;
   // The security card only slides in once there is something to submit.
   const formComplete = looksLikeEmail(email) && passwordValid && acceptedTerms;
   const captcha = useTurnstile(formComplete);
-
-  useEffect(() => {
-    // The form only exists once the Dashboard side is ready (NEXT_PUBLIC_PASSWORD_AUTH).
-    if (!enabled) router.replace("/login");
-  }, [enabled, router]);
-
-  useEffect(() => {
-    if (status === "authed" && !submitting) router.replace("/dashboard");
-  }, [status, submitting, router]);
 
   if (!enabled || status !== "anon") return <FullScreenLoader />;
   if (registeredEmail) return <RegisteredNotice email={registeredEmail} />;

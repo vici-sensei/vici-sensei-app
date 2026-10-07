@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { fieldHint, fieldLabel, textInput } from "@/app/components/ui/formClasses";
@@ -14,7 +14,6 @@ import { finalizeEmailChange } from "@/lib/client-data/account";
 import { finishSignIn } from "@/lib/auth/finishSignIn";
 import {
   clearPendingAuth,
-  isPasswordAuthEnabled,
   looksLikeEmail,
   readPendingAuth,
   resendSignUpCode,
@@ -22,6 +21,7 @@ import {
   type VerifyType,
 } from "@/lib/auth/passwordAuth";
 import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
+import { useRequirePasswordAuth } from "@/lib/auth/useRequirePasswordAuth";
 import { isRegion } from "@/lib/supabase/regions";
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -53,7 +53,6 @@ const COPY: Record<VerifyType, { title: string; linkSubtitle: string; button: st
 };
 
 function ConfirmInner() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const tokenHash = searchParams.get("token_hash");
   const type = verifyTypeFrom(searchParams.get("type"));
@@ -65,11 +64,7 @@ function ConfirmInner() {
   const { submitting, failure, setFailure, submit } = useAuthSubmit();
   const [notice, setNotice] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
-  const enabled = isPasswordAuthEnabled();
-
-  useEffect(() => {
-    if (!enabled) router.replace("/login");
-  }, [enabled, router]);
+  const enabled = useRequirePasswordAuth();
 
   useEffect(() => {
     // sessionStorage only exists in the browser, so this can't be the initial state (it would

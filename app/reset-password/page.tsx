@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -11,11 +11,11 @@ import { AuthLayout } from "@/app/components/auth/AuthLayout";
 import { AuthForm } from "@/app/components/auth/AuthForm";
 import { PasswordFormField } from "@/app/components/auth/AuthFields";
 import {
-  isPasswordAuthEnabled,
   passwordProblem,
   updatePassword,
 } from "@/lib/auth/passwordAuth";
 import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
+import { useRequirePasswordAuth } from "@/lib/auth/useRequirePasswordAuth";
 
 /**
  * Where /auth/confirm sends a verified recovery token: the token already signed the person in (that
@@ -29,11 +29,7 @@ export default function ResetPasswordPage() {
   const { status } = useAuth();
   const [password, setPassword] = useState("");
   const { submitting, failure, setFailure, submit } = useAuthSubmit();
-  const enabled = isPasswordAuthEnabled();
-
-  useEffect(() => {
-    if (!enabled) router.replace("/login");
-  }, [enabled, router]);
+  const enabled = useRequirePasswordAuth();
 
   if (!enabled || status === "loading") return <FullScreenLoader />;
 
