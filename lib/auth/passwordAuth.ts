@@ -99,7 +99,7 @@ export function describeAuthError(error: ErrorLike | null | undefined): AuthFail
     return {
       code: "wrong_region",
       region: wrongRegion[1],
-      message: `This email already has an account in the ${REGION_LABEL[wrongRegion[1]]} region. Please log in from there.`,
+      message: `This email already has an account in the ${REGION_LABEL[wrongRegion[1]]} region. Log in to continue.`,
     };
   }
   switch (error?.code) {

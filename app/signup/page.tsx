@@ -3,7 +3,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FaCheck } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { buttonClasses } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
 import { AuthLayout, FieldError, FormMessage, OrDivider, PasswordMessage } from "@/app/components/auth/AuthLayout";
@@ -15,6 +17,7 @@ import {
   emailFieldError,
   isPasswordAuthEnabled,
   looksLikeEmail,
+  normalizeEmail,
   passwordFieldError,
   passwordProblem,
   signUpWithPassword,
@@ -24,6 +27,27 @@ import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
 import { setActiveRegion } from "@/lib/supabase/regions";
+
+/** What replaces the whole form once the account exists: just the logo, a green check and the way on. */
+function RegisteredNotice({ email }: { email: string }) {
+  return (
+    <AuthLayout>
+      <div role="status" className="text-center">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-accent-green/30 bg-accent-green/10">
+          <FaCheck aria-hidden="true" className="h-7 w-7 text-accent-green" />
+        </div>
+        <h1 className="mb-2 text-[1.9rem] font-extrabold leading-tight tracking-[-0.5px]">You&apos;re registered!</h1>
+        <p className="mb-7 text-[0.95rem] leading-[1.6] text-text-muted">
+          Your account was created successfully. We sent a confirmation email to{" "}
+          <strong className="break-all text-white">{email}</strong>. Confirm it, then log in.
+        </p>
+      </div>
+      <Link href="/login" className={buttonClasses({ variant: "secondary", hover: "hover", className: "w-full" })}>
+        Go to log in
+      </Link>
+    </AuthLayout>
+  );
+}
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -37,6 +61,8 @@ export default function SignUpPage() {
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<AuthFailure | null>(null);
+  // Set once the account is created and still needs its email confirmed: swaps the form for RegisteredNotice.
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const enabled = isPasswordAuthEnabled();
   const emailError = emailFieldError(email, emailTouched);
   const passwordValid = passwordProblem(password) === null;
@@ -55,6 +81,7 @@ export default function SignUpPage() {
   }, [status, submitting, router]);
 
   if (!enabled || status !== "anon") return <FullScreenLoader />;
+  if (registeredEmail) return <RegisteredNotice email={registeredEmail} />;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -77,27 +104,22 @@ export default function SignUpPage() {
     setSubmitting(true);
     const result = await signUpWithPassword(email, password, captcha.getToken);
     if (!result.ok) {
-      if (result.failure.code === "wrong_region" && result.failure.region) {
-        // The email already has an account in the other region -- send them to log in there. A full
-        // load (not router.push) so the auth client is rebuilt for that region.
-        setActiveRegion(result.failure.region);
-        window.location.assign(`/login?error=wrong_region&region=${result.failure.region}`);
-        return;
-      }
+      // A `wrong_region` failure (the email already has an account in the other region) stays on this
+      // page: the message says so and offers "Log in", which is what switches the region.
       setFailure(result.failure);
       setSubmitting(false);
       return;
     }
-    // Registered: the code screen gets the email from its own pending-auth storage.
     clearRememberedEmail();
     if (result.signedIn) {
       // Only when the Dashboard's "Confirm email" is off -- the session already exists.
       window.location.assign("/dashboard");
       return;
     }
-    // Supabase answers identically whether or not the email already had an account, so this goes to
-    // the same "enter your code" screen in both cases.
-    router.push("/auth/confirm?type=email");
+    // Supabase answers identically whether or not the email already had an account, so everyone gets
+    // the same screen. The code from the email is still entered on /auth/confirm: logging in with the
+    // unconfirmed account sends the person there (and so does the link in the email itself).
+    setRegisteredEmail(normalizeEmail(email));
   }
 
   return (
@@ -166,6 +188,19 @@ export default function SignUpPage() {
           </span>
         </label>
         {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
+        {failure?.code === "wrong_region" && failure.region && (
+          <button
+            type="button"
+            onClick={() => {
+              // A full load (not router.push) so the auth client is rebuilt for that region.
+              setActiveRegion(failure.region!);
+              window.location.assign("/login");
+            }}
+            className={buttonClasses({ variant: "secondary", hover: "hover", className: "w-full" })}
+          >
+            Log in
+          </button>
+        )}
         <Turnstile captcha={captcha} />
         <CaptchaButton
           captcha={captcha}
