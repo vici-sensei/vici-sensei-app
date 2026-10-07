@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FaArrowRotateLeft, FaChevronDown, FaChevronRight, FaMinus, FaPlus } from "react-icons/fa6";
 import { Collapsible } from "@/app/components/ui/Collapsible";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -21,6 +21,7 @@ import {
   type Track,
 } from "@/lib/study/newCardProjection";
 import type { AsyncStatus, NewCardCategory, StudentDetail, StudentNewCardProgress } from "@/lib/types";
+import { ChartDownload } from "./ChartDownload";
 import { NewCardsChart, type ChartView } from "./NewCardsChart";
 import { NewCardsOverlayChart } from "./NewCardsOverlayChart";
 
@@ -384,6 +385,8 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showTable, setShowTable] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
+  // What the Download button saves: the chart(s) and the explanation under them.
+  const exportRef = useRef<HTMLDivElement>(null);
 
   // `levels` is always kept in JLPT order, so comparing the joined lists is enough.
   const filtersAreDefault =
@@ -504,6 +507,8 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
         : [kanaPaceLabel("Hiragana", hiraganaMode, hiraganaPace), kanaPaceLabel("katakana", katakanaMode, katakanaPace)].join(", ");
   const usesAverage = track === "standard" ? standardMode === "average" : hiraganaMode === "average" || katakanaMode === "average";
   const reviewSummary = reviewCap == null ? "No review limit" : `${fmt(reviewCap)} reviews/day`;
+  const studentLabel = student.display_name ?? student.email;
+  const exportFileName = `${studentLabel.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "student"}-new-cards`;
   const summaryLine = [
     track === "standard" ? "Standard" : "Kana",
     ...(track === "standard" ? [levelSummary] : []),
@@ -727,7 +732,17 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
         />
       </div>
 
-      <div className="mt-5">
+      <div className="mt-5 flex justify-end">
+        <ChartDownload targetRef={exportRef} fileName={exportFileName} />
+      </div>
+
+      <div ref={exportRef} className="mt-3">
+        {/* Only in the downloaded file: whose chart it is and which filters it was drawn with. */}
+        <div data-export-only hidden className="mb-4">
+          <p className="text-base font-bold">{studentLabel}</p>
+          <p className="text-xs text-text-muted">New cards progress · {summaryLine}</p>
+        </div>
+
         {split ? (
           <SplitCharts result={result} view={view} start={start} track={track} tests={progress.tests} reviewCap={reviewCap} />
         ) : overlay ? (
@@ -742,17 +757,17 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
             reviewCap={reviewCap}
           />
         )}
-      </div>
 
-      <ChartExplanation
-        result={result}
-        track={track}
-        levels={levels}
-        view={view}
-        start={start}
-        modes={{ standard: standardMode, hiragana: hiraganaMode, katakana: katakanaMode }}
-        reviewCap={reviewCap}
-      />
+        <ChartExplanation
+          result={result}
+          track={track}
+          levels={levels}
+          view={view}
+          start={start}
+          modes={{ standard: standardMode, hiragana: hiraganaMode, katakana: katakanaMode }}
+          reviewCap={reviewCap}
+        />
+      </div>
 
       <div className="mt-3 flex flex-col gap-1 text-xs text-text-muted">
         {emptyMessage && <p>{emptyMessage}</p>}
