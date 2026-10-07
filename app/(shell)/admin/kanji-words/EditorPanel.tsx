@@ -18,6 +18,7 @@ import type { AsyncStatus, KanjiWordCandidate, KanjiWordCandidates, KanjiWordsRo
 import { CandidateRow } from "./CandidateRow";
 import { HistoryPanel } from "./HistoryPanel";
 import { StudentPreview } from "./StudentPreview";
+import { groupReadings } from "./wordLabels";
 
 const REST_PAGE = 40;
 /** Above this many words a kanji adds a lot of Word reading cards to a student's day. */
@@ -126,6 +127,8 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
     for (const c of restBase) counts.set(c.rg, (counts.get(c.rg) ?? 0) + 1);
     return [...counts].sort((a, b) => a[0] - b[0]);
   }, [restBase]);
+  // Read from every candidate, not just the visible ones, so a group keeps its reading as words move between lists.
+  const readingsByGroup = useMemo(() => groupReadings(candidates, row.k), [candidates, row.k]);
   // A group that has emptied (its last words were just ticked) no longer filters anything.
   const activeGroup = restGroup !== null && restGroups.some(([g]) => g === restGroup) ? restGroup : null;
   const rest = useMemo(
@@ -393,6 +396,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                             }`}
                           >
                             {group === null ? "All" : `Group ${group}`}
+                            {group !== null && readingsByGroup.has(group) ? ` (${readingsByGroup.get(group)!.join("、")})` : ""}
                             <span className="ml-1 font-normal opacity-70">{count}</span>
                           </button>
                         )

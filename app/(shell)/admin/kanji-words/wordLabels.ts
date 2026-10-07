@@ -1,3 +1,4 @@
+import { buildFuriganaSegments } from "@/lib/study/furigana";
 import type {
   KanjiWordCandidate,
   KanjiWordsBatch,
@@ -17,6 +18,30 @@ export function gapText(gap: number): string {
   if (gap > 0) return `+${gap}`;
   if (gap < 0) return String(gap);
   return "=";
+}
+
+/** How the kanji is read in each reading group, most frequent reading first. A reading group is only a number in
+ *  the data, so it is recovered from the furigana of the group's words: the segment that is exactly this kanji
+ *  (a word read as a whole, like 今日 → きょう, says nothing about one kanji, so it is skipped). A group with no such
+ *  word has no entry. */
+export function groupReadings(candidates: KanjiWordCandidate[], kanji: string): Map<number, string[]> {
+  const votes = new Map<number, Map<string, number>>();
+  for (const c of candidates) {
+    for (const segment of buildFuriganaSegments(c.word, c.furiganas)) {
+      if (segment.text !== kanji || !segment.furigana) continue;
+      const group = votes.get(c.rg) ?? new Map<string, number>();
+      group.set(segment.furigana, (group.get(segment.furigana) ?? 0) + 1);
+      votes.set(c.rg, group);
+    }
+  }
+  const readings = new Map<number, string[]>();
+  for (const [rg, counts] of votes) {
+    readings.set(
+      rg,
+      [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([reading]) => reading)
+    );
+  }
+  return readings;
 }
 
 /** The sentence under a candidate: why the algorithm did or didn't pick it. */
