@@ -41,16 +41,18 @@ export function GoogleButton({ disabled }: { disabled?: boolean }) {
   }
 
   return (
-    <Button
-      type="button"
-      className="w-full max-w-[360px]"
-      loading={loading}
-      disabled={disabled}
-      loadingIconPosition="right"
-      onClick={handleGoogleLogin}
-    >
-      <FcGoogle className="h-5 w-5 shrink-0 rounded-full bg-white p-0.5" />
-      Continue with Google
-    </Button>
+    <div className="flex justify-center">
+      <Button
+        type="button"
+        className="w-full max-w-[360px]"
+        loading={loading}
+        disabled={disabled}
+        loadingIconPosition="right"
+        onClick={handleGoogleLogin}
+      >
+        <FcGoogle className="h-5 w-5 shrink-0 rounded-full bg-white p-0.5" />
+        Continue with Google
+      </Button>
+    </div>
   );
 }

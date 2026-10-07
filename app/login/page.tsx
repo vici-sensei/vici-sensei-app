@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/app/components/ui/Toast";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
-import { Logo } from "@/app/components/ui/Logo";
-import { AUTH_LOGO_SIZE, OrDivider } from "@/app/components/auth/AuthLayout";
+import { AuthLayout, OrDivider } from "@/app/components/auth/AuthLayout";
 import { AuthForm } from "@/app/components/auth/AuthForm";
 import { EmailField, PasswordFormField } from "@/app/components/auth/AuthFields";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
@@ -157,7 +156,7 @@ export default function LoginPage() {
   if (status !== "anon" && !busy) return <FullScreenLoader />;
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-y-auto px-6 py-6 text-center before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_20%,rgb(255_74_90/0.1)_0%,transparent_55%)]">
+    <AuthLayout>
       <Suspense fallback={null}>
         <LoginErrorNotice
           onWrongRegion={(correctRegion) => {
@@ -166,25 +165,22 @@ export default function LoginPage() {
           }}
         />
       </Suspense>
-      <div className="relative w-full max-w-[460px]">
-        <Logo size={AUTH_LOGO_SIZE} className="mx-auto mb-8" />
-        {region && <RegionPicker region={region} />}
+      {region && <RegionPicker region={region} />}
 
-        <GoogleButton />
+      <GoogleButton />
 
-        {passwordAuth && (
-          <>
-            <OrDivider />
-            <PasswordLoginForm onBusyChange={setBusy} />
-            <p className="mt-6 text-[0.9rem] text-text-muted">
-              New here?{" "}
-              <Link href="/signup" className="font-bold text-accent-blue hover:underline">
-                Create an account
-              </Link>
-            </p>
-          </>
-        )}
-      </div>
-    </div>
+      {passwordAuth && (
+        <>
+          <OrDivider />
+          <PasswordLoginForm onBusyChange={setBusy} />
+          <p className="mt-6 text-center text-[0.9rem] text-text-muted">
+            New here?{" "}
+            <Link href="/signup" className="font-bold text-accent-blue hover:underline">
+              Create an account
+            </Link>
+          </p>
+        </>
+      )}
+    </AuthLayout>
   );
 }

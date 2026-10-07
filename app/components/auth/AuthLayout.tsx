@@ -6,8 +6,8 @@ import { MIN_PASSWORD_LENGTH } from "@/lib/auth/passwordAuth";
 /** Logo size on every pre-login page, so /login and /signup (and the rest) line up. */
 export const AUTH_LOGO_SIZE = 72;
 
-/** The shell shared by every pre-login page except /login: radial glow, logo, an optional heading
- * and short line under it, then the form. */
+/** The shell shared by every pre-login page: radial glow, logo, an optional heading and short line
+ * under it, then the content. */
 export function AuthLayout({
   title,
   subtitle,

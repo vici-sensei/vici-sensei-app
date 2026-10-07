@@ -10,6 +10,7 @@ import { AuthForm } from "@/app/components/auth/AuthForm";
 import { EmailField, PasswordFormField } from "@/app/components/auth/AuthFields";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
+import { StatusIcon } from "@/app/components/auth/StatusNotice";
 import { useTurnstile } from "@/app/components/auth/Turnstile";
 import {
   looksLikeEmail,
@@ -32,9 +33,7 @@ function RegisteredNotice({ email }: { email: string }) {
   return (
     <AuthLayout>
       <div role="status" className="text-center">
-        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-accent-green/30 bg-accent-green/10">
-          <FaCheck aria-hidden="true" className="h-7 w-7 text-accent-green" />
-        </div>
+        <StatusIcon icon={FaCheck} tone="green" />
         <h1 className="mb-2 text-[1.9rem] font-extrabold leading-tight tracking-[-0.5px]">You&apos;re almost in!</h1>
         <p className="mb-7 text-[0.95rem] leading-[1.6] text-text-muted">
           We sent a 6-digit code to <strong className="break-all text-white">{email}</strong>. Pop it in on the next
@@ -105,9 +104,7 @@ export default function SignUpPage() {
   return (
     <AuthLayout>
       {region && <RegionPicker region={region} />}
-      <div className="flex justify-center">
-        <GoogleButton disabled={submitting} />
-      </div>
+      <GoogleButton disabled={submitting} />
       <OrDivider />
       <AuthForm
         onSubmit={handleSubmit}

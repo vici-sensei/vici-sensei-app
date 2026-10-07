@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FaTriangleExclamation } from "react-icons/fa6";
+import { StatusPage } from "@/app/components/auth/StatusNotice";
 import { Button } from "@/app/components/ui/Button";
 import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import { createClient } from "@/lib/supabase/client";
@@ -27,16 +28,11 @@ export function AccountUnavailable() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-[60px] text-center">
-      <div className="w-full max-w-[440px]">
-        <div className="mx-auto mb-5.5 flex h-16 w-16 items-center justify-center rounded-full border border-accent-red/30 bg-accent-red/10">
-          <FaTriangleExclamation className="h-6.5 w-6.5 text-accent-red" />
-        </div>
-        <h1 className="mb-2.5 text-2xl font-extrabold">We can&apos;t load your account</h1>
-        <p className="mb-7 text-base leading-[1.6] text-text-muted">
-          This session can&apos;t see your account&apos;s data. That can happen after the account was moved to another
-          region or scheduled for deletion on another device. Try again, or log out and sign in again.
-        </p>
+    <StatusPage
+      icon={FaTriangleExclamation}
+      tone="red"
+      title="We can&apos;t load your account"
+      actions={
         <div className="flex items-center justify-center gap-2.5">
           <Button type="button" onClick={() => window.location.reload()} disabled={loggingOut}>
             Try again
@@ -45,7 +41,12 @@ export function AccountUnavailable() {
             Log out
           </Button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      <p>
+        This session can&apos;t see your account&apos;s data. That can happen after the account was moved to another
+        region or scheduled for deletion on another device. Try again, or log out and sign in again.
+      </p>
+    </StatusPage>
   );
 }
