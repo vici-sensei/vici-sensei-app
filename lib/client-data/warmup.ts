@@ -1,6 +1,5 @@
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { runWhenIdleSequence } from "@/lib/runWhenIdle";
-import { prefetchFirstDueCard } from "@/lib/client-data/study";
 import { prefetchProgressSummary } from "@/lib/client-data/progress";
 import { prefetchLeaderboard } from "@/lib/client-data/leaderboard";
 import { prefetchKanjiList } from "@/lib/client-data/kanji";
@@ -28,7 +27,6 @@ export function runGlobalWarmup(userId: string): () => void {
   if (lastRun != null && Date.now() - lastRun < FRESH_MS) return () => {};
 
   return runWhenIdleSequence([
-    () => prefetchFirstDueCard(userId),
     () => prefetchProgressSummary(userId),
     () => prefetchLeaderboard(userId),
     () => prefetchKanjiList(),

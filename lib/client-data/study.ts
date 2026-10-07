@@ -24,7 +24,6 @@ export type { KanaPackResult } from "@/lib/data/introduce";
 import { recordHiraganaDrillResult, recordKatakanaDrillResult, type KanaDrillResult } from "@/lib/data/kanaDrill";
 import { checkJlptLevelUp as checkJlptLevelUpData } from "@/lib/data/jlptLevel";
 import { acknowledgeAchievements as acknowledgeAchievementsData } from "@/lib/data/achievements";
-import { writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { getActiveTimeZone, resolveTimeZone } from "@/lib/timezone";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
 import type {
@@ -73,18 +72,46 @@ export async function getStudyQueue(
   return fetchStudyQueue(supabase, userId, resolveTimeZone(settings), settings, onKanjiWordsReady);
 }
 
+// How long after it started a prefetched first-card request may still be handed to /study. Long
+// enough to cover hover -> click, short enough that a card answered in the meantime (or one that
+// became due) is never shown from a request that predates it.
+const PREFETCHED_FIRST_CARD_MAX_AGE_MS = 10_000;
+
+// Module-level (in memory only, deliberately never persisted): a card read back from storage on a
+// later visit is whatever was first due then, not now -- /study used to paint exactly that before
+// its own fetch landed, so a card already answered flashed on screen and was swapped out a moment later.
+let prefetchedFirstCard: { userId: string; startedAt: number; promise: Promise<DueCard | null> } | null = null;
+
 /** Fire-and-forget: called on hover/focus of a "Start studying" entry point, well before
  * the user actually navigates to /study. Self-sufficient (fetches its own settings, unlike
- * getFirstDueCard above) since callers here are outside the study route's context and this
- * isn't latency-sensitive -- nothing is waiting on it. Writes straight to the localStorage
- * cache useStudyQueue reads on mount. */
+ * getFirstDueCard above) since callers here are outside the study route's context. Only starts
+ * the request early and keeps its promise for getFirstDueCardOnOpen to pick up -- nothing is
+ * painted from it and nothing is stored. */
 export const prefetchFirstDueCard = createPrefetcher(async (userId: string) => {
   const supabase = createClient();
-  const settings = await fetchStudySettings(supabase, userId);
-  if (!settings) return;
-  const card = await fetchFirstDueCard(supabase, userId, settings, resolveTimeZone(settings));
-  if (card) writeFirstCardCache(userId, card);
+  const request = (async () => {
+    const settings = await fetchStudySettings(supabase, userId);
+    return settings ? fetchFirstDueCard(supabase, userId, settings, resolveTimeZone(settings)) : null;
+  })();
+  prefetchedFirstCard = { userId, startedAt: Date.now(), promise: request };
+  await request;
 });
+
+/** The first card for /study's initial load: reuses a prefetchFirstDueCard request that is still
+ * in flight or at most PREFETCHED_FIRST_CARD_MAX_AGE_MS old (one-shot -- consumed here), otherwise
+ * makes its own request. Never for the "queue just emptied" re-check, which needs a fresh read. */
+export async function getFirstDueCardOnOpen(userId: string, settings: StudySettings): Promise<DueCard | null> {
+  const entry = prefetchedFirstCard;
+  prefetchedFirstCard = null;
+  if (entry && entry.userId === userId && Date.now() - entry.startedAt <= PREFETCHED_FIRST_CARD_MAX_AGE_MS) {
+    try {
+      return await entry.promise;
+    } catch {
+      // The prefetch failed -- fall through to a request of /study's own.
+    }
+  }
+  return getFirstDueCard(userId, settings);
+}
 
 export async function submitReview(input: ReviewRequestBody): Promise<SubmitReviewResult> {
   const supabase = createClient();

@@ -8,6 +8,7 @@ import {
   completeVocabBatch,
   endSession as endStudySessionApi,
   getFirstDueCard,
+  getFirstDueCardOnOpen,
   getHiraganaReadingCards,
   getKanjiIntroCards,
   getKatakanaReadingCards,
@@ -31,7 +32,6 @@ import {
 import { fetchHiraganaMastered, fetchKatakanaMastered, refreshStudySettings } from "@/lib/client-data/studySettings";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
-import { clearFirstCardCache, readFirstCardCache, writeFirstCardCache } from "@/lib/study/firstCardCache";
 import { hasCelebratedMaxLevel, markMaxLevelCelebrated } from "@/lib/study/levelUpCache";
 import { useToast } from "@/app/components/ui/Toast";
 import { clearStoredSessionId, getStoredSessionId, setStoredSessionId } from "@/lib/study/session";
@@ -776,9 +776,8 @@ export function useStudyQueue() {
   const sessionRetriedRef = useRef(false);
   // Resolves once init() has settled whether this visit gets a study session at all -- restored
   // from sessionStorage, started, or none (empty queue / failed load). sessionReady, and through
-  // it every enqueued mutation, waits on this: while the first paint is still an unconfirmed
-  // cached card, the session doesn't exist yet, and without the wait an answer given in that window
-  // would go out with no session_id.
+  // it every enqueued mutation, waits on this: the session insert only starts once a card is
+  // confirmed, so without the wait an answer given before it lands would go out with no session_id.
   const [sessionDecided] = useState(() => {
     let resolve!: () => void;
     const promise = new Promise<void>((r) => {
@@ -1009,17 +1008,10 @@ export function useStudyQueue() {
         sessionDecided.resolve();
       };
 
-      // Instant paint from localStorage -- written by prefetchFirstDueCard() (hover/focus on
-      // a "Start studying" entry point) or by a previous /study mount below. Purely
-      // provisional: it never sets `settled`, so the moment either real fetch below
-      // resolves, its answer replaces this one -- the DB is always the final word on what
-      // the first card actually is, this is only here so there's never a blank/skeleton
-      // screen while that answer is in flight.
-      const cachedCard = readFirstCardCache(user.id);
-      if (cachedCard) {
-        setQueue([{ key: reviewKey(cachedCard), kind: "review", card: cachedCard }]);
-        setStatus("ready");
-      }
+      // Nothing is painted until one of the two real fetches below lands -- `status` stays
+      // "loading", so StudyPage shows its skeleton. A card remembered from an earlier visit (the
+      // old localStorage first-card cache) is never shown here: by the time /study opens, that card
+      // has usually been answered, and it flashed on screen before the real first card replaced it.
 
       // Race a cheap single-card fetch against the full queue fetch -- whichever resolves
       // first gets to paint the first card, and `settled` stops the other from clobbering
@@ -1027,18 +1019,15 @@ export function useStudyQueue() {
       // queue (and undo_disabled/next_due_at), merging in behind whatever's already shown.
       let settled = false;
 
-      void getFirstDueCard(user.id, settings)
+      // getFirstDueCardOnOpen reuses the request a hover/focus on "Start studying" already
+      // started (see prefetchFirstDueCard), when one is still fresh enough.
+      void getFirstDueCardOnOpen(user.id, settings)
         .then((card) => {
           if (cancelledRef.current || settled) return;
-          if (!card) {
-            // The fast path can positively confirm a card, but not "there are none" -- that's
-            // only true once the full fetch (which also checks new-material candidates)
-            // agrees. Still worth dropping a stale cache entry so it isn't shown again.
-            clearFirstCardCache(user.id);
-            return;
-          }
+          // The fast path can positively confirm a card, but not "there are none" -- that's
+          // only true once the full fetch (which also checks new-material candidates) agrees.
+          if (!card) return;
           settled = true;
-          writeFirstCardCache(user.id, card);
           setQueue([{ key: reviewKey(card), kind: "review", card }]);
           setStatus("ready");
           ensureSession();
@@ -1102,7 +1091,6 @@ export function useStudyQueue() {
           )
         );
         if (items.length === 0) {
-          clearFirstCardCache(user.id);
           // Without this the student just watches /study flash and bounce back to /dashboard with
           // no explanation -- the dashboard offered "Start studying", so say why nothing opened.
           // ToastProvider lives in the root layout, so it survives the redirect below.
