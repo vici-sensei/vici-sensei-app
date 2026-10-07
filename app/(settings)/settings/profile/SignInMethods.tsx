@@ -8,8 +8,8 @@ import { cancelEmailChange, startEmailChange } from "@/lib/client-data/account";
 import {
   confirmCurrentPassword,
   looksLikeEmail,
-  MIN_PASSWORD_LENGTH,
   normalizeEmail,
+  passwordFieldError,
   passwordProblem,
   requestEmailChange,
   updatePassword,
@@ -19,7 +19,7 @@ import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { fieldHint, fieldLabel, textInput } from "@/app/components/ui/formClasses";
-import { FormMessage } from "@/app/components/auth/AuthLayout";
+import { FormMessage, PasswordMessage } from "@/app/components/auth/AuthLayout";
 import { PasswordField } from "@/app/components/auth/PasswordField";
 import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
 
@@ -87,11 +87,6 @@ export function SignInMethods({
           />
         )}
       </div>
-      {hasPassword === false && (
-        <p className={fieldHint}>
-          Add a password to also log in with your email, not only Google. You can always still use Google.
-        </p>
-      )}
     </div>
   );
 }
@@ -111,8 +106,12 @@ function PasswordForm({
   const captcha = useTurnstile();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
+  // Same as /signup: the field only complains once it has been left, and stops the moment it is valid.
+  const [nextTouched, setNextTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<AuthFailure | null>(null);
+  const nextError = passwordFieldError(next, nextTouched);
+  const formComplete = passwordProblem(next) === null && (!hasPassword || current.length > 0);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -175,14 +174,17 @@ function PasswordForm({
           autoComplete="new-password"
           value={next}
           onChange={(e) => setNext(e.target.value)}
+          onBlur={() => setNextTouched(true)}
+          aria-invalid={nextError ? true : undefined}
+          aria-describedby="settings-new-password-hint"
           disabled={submitting}
         />
-        <p className={fieldHint}>At least {MIN_PASSWORD_LENGTH} characters, with letters and digits.</p>
+        <PasswordMessage id="settings-new-password-hint" error={nextError} empty={next.length === 0} />
       </div>
       {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
       <Turnstile captcha={captcha} />
       <div className="flex gap-2.5">
-        <CaptchaButton captcha={captcha} type="submit" size="sm" loading={submitting}>
+        <CaptchaButton captcha={captcha} type="submit" size="sm" loading={submitting} disabled={!formComplete}>
           Save password
         </CaptchaButton>
         <Button type="button" variant="secondary" size="sm" disabled={submitting} onClick={onClose}>
