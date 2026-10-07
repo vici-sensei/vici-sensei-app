@@ -1,0 +1,440 @@
+KANJI ȘI CUVINTE CARE REPREZINTĂ CIFRE SAU NUMERE
+Extras din baza de date a aplicației (tabelele `kanji` și `vocabulary`), 2026-10-07.
+Date de referință identice pe proiectul vechi (înghețat) și pe EU-nou; verificat prin sume de control.
+Format kanji:   KANJI [nivel JLPT] — sensuri, apoi citirile on/kun.
+Format cuvinte: CUVÂNT (citire) [nivel JLPT] — sensuri. „-” la nivel = fără nivel JLPT în bază.
+
+==============================================================================
+PARTEA 1 — KANJI
+==============================================================================
+
+1.1 Cifre 0–9 (10)
+------------------
+  零 [N2] — zero | cipher | nothing | overflow | spill
+      on: レイ
+      kun: こぼ.す、こぼ.れる、ぜろ
+  一 [N5] — one | one radical (no.1)
+      on: イチ、イツ
+      kun: ひと-、ひと.つ
+  二 [N5] — two | two radical (no. 7)
+      on: ジ、ニ
+      kun: ふた、ふた.つ、ふたたび
+  三 [N5] — three
+      on: サン、ゾウ
+      kun: み、み.つ、みっ.つ
+  四 [N5] — four
+      on: シ
+      kun: よ、よ.つ、よっ.つ、よん
+  五 [N5] — five
+      on: ゴ
+      kun: いつ、いつ.つ
+  六 [N5] — six
+      on: リク、ロク
+      kun: む、む.つ、むい、むっ.つ
+  七 [N5] — seven
+      on: シチ
+      kun: なな、なな.つ、なの
+  八 [N5] — eight | eight radical (no. 12)
+      on: ハチ、ハツ
+      kun: や、や.つ、やっ.つ、よう
+  九 [N5] — nine
+      on: キュウ、ク
+      kun: ここの、ここの.つ
+
+1.2 Ordine de mărime (7)
+------------------------
+  十 [N5] — ten
+      on: ジッ、ジュウ、ジュッ
+      kun: そ、と、とお
+  百 [N5] — hundred
+      on: ヒャク、ビャク
+      kun: もも
+  千 [N5] — thousand
+      on: セン
+      kun: ち
+  万 [N5] — ten thousand | 10 | 000
+      on: バン、マン
+      kun: よろず
+  億 [N2] — hundred million | 10**8
+      on: オク
+  兆 [N2] — portent | 10**12 | omen | sign | symptoms | trillion
+      on: チョウ
+      kun: きざ.し、きざ.す
+  京 [N4] — capital | 10**16
+      on: キョウ、キン、ケイ
+      kun: みやこ
+
+1.3 Forme formale, folosite în acte (8)
+---------------------------------------
+  壱 [N1] — one (in documents)
+      on: イチ、イツ
+      kun: ひとつ
+  弐 [N1] — II | second | two
+      on: ジ、ニ
+      kun: そえ、ふた.つ
+  参 [N3] — nonplussed | be defeated | be madly in love | coming | die | going | participate | take part in | three (in documents) | visit | visiting
+      on: サン、シン
+      kun: まい-、まい.る、まじわる、みつ
+  拾 [N2] — pick up | find | gather | go on foot | ten
+      on: シュウ、ジュウ
+      kun: ひろ.う
+  伍 [N1] — five | file | five-man squad | line
+      on: ゴ
+      kun: いつつ
+  陸 [N2] — land | six
+      on: リク、ロク
+      kun: おか
+  漆 [N1] — lacquer | seven | varnish
+      on: シツ
+      kun: うるし
+  玖 [N1] — beautiful black jewel | nine
+      on: キュウ、ク
+
+Total kanji-număr: 25
+Nu există în bază: 〇, 廿, 卅, 捌 (8), 肆 (4).
+
+1.4 La limită: are „two” printre sensuri, dar sensul principal e „both” (1)
+---------------------------------------------------------------------------
+  両 [N3] — both | counter for carriages (e.g. | in a train) | old Japanese coin | two
+      on: リョウ
+      kun: てる、ふたつ
+
+1.5 Legate de numere, dar nu sunt numere (10)
+---------------------------------------------
+  半 [N5] — half | middle | odd number | part- | semi-
+      on: ハン
+      kun: なか.ば
+  倍 [N2] — double | fold | times | twice
+      on: バイ
+  数 [N3] — number | fate | figures | law | strength
+      on: サク、シュ、ス、スウ、ソク
+      kun: かず、かぞ.える、しばしば、せ.める、わずらわ.しい
+  号 [N3] — nickname | call | item | name | number | pseudonym | title
+      on: ゴウ
+      kun: さけ.ぶ、よびな
+  番 [N3] — turn | number in a series
+      on: バン
+      kun: つが.い
+  偶 [N3] — accidentally | couple | even number | man & wife | same kind
+      on: グウ
+      kun: たま
+  再 [N2] — again | second time | twice
+      on: サ、サイ
+      kun: ふたた.び
+  初 [N3] — first time | beginning
+      on: ショ
+      kun: -そ.める、-ぞ.め、うい-、はじ.め、はじ.めて、はつ、はつ-
+  幾 [N3] — how many | how far | how long | how much | several | some
+      on: キ
+      kun: いく-、いく.つ、いく.ら
+  各 [N2] — each | either | every
+      on: カク
+      kun: おのおの
+
+1.6 Kanji-contor: au „counter for…” printre sensuri (58, după nivel)
+--------------------------------------------------------------------
+(Lista exclude 両, pus mai sus. Unele, ca 日, 年, 本, 分, au și sensul de contor.)
+  基 [N1] — fundamentals | counter for machines | foundation | radical (chem)
+      on: キ
+      kun: もと、もとい
+  条 [N1] — article | clause | counter for articles | clauses | paragraphs | etc. | item | streak | stripe | twig
+      on: ジョウ、チョウ、デキ
+      kun: えだ、すじ
+  張 [N1] — lengthen | counter for bows & stringed instruments | put up (tent) | spread | stretch
+      on: チョウ
+      kun: -は.り、-ば.り、は.る
+  株 [N1] — stocks | counter for small plants | shares | stock | stump
+      on: シュ
+      kun: かぶ
+  郎 [N1] — son | counter for sons
+      on: リョウ、ロウ
+      kun: おとこ
+  献 [N1] — offering | counter for drinks | offer | present
+      on: ケン、コン
+      kun: たてまつ.る
+  尾 [N1] — tail | counter for fish | end | lower slope of mountain
+      on: ビ
+      kun: お
+  句 [N1] — phrase | clause | counter for haiku | paragraph | passage | sentence
+      on: ク
+  軸 [N1] — axis | counter for book scrolls | pivot | stalk | stem
+      on: ジク
+  丁 [N1] — street | 4th calendar sign | counter for guns | tools | leaves or cakes of something | even number | town | ward
+      on: チ、チョウ、チン、テイ、トウ
+      kun: ひのと
+  俵 [N1] — bag | bale | counter for bags | sack
+      on: ヒョウ
+      kun: たわら
+  把 [N1] — grasp | bunch | counter for bundles | faggot
+      on: ハ、ワ
+  騎 [N1] — equestrian | counter for equestrians | riding on horses
+      on: キ
+  箇 [N1] — counter for articles
+      on: カ、コ
+  斤 [N1] — axe | 1.32 lb | axe radical (no. 69) | catty | counter for loaves of bread
+      on: キン
+  個 [N2] — individual | counter for articles
+      on: カ、コ
+  門 [N2] — gate | counter for cannons
+      on: モン
+      kun: かど、と
+  課 [N2] — chapter | counter for chapters (of a book) | department | division | lesson | section
+      on: カ
+  階 [N2] — storey | counter for storeys of a building | stair
+      on: カイ
+      kun: きざはし
+  戸 [N2] — door | counter for houses | door radical (no. 63)
+      on: コ
+      kun: と
+  輪 [N2] — wheel | circle | counter for wheels and flowers | link | loop | ring
+      on: リン
+      kun: わ
+  羽 [N2] — feathers | counter for birds | rabbits
+      on: ウ
+      kun: は、はね、わ
+  著 [N2] — renowned | arrival | counter for suits of clothing | don | finish (race) | literary work | phenomenal | publish | put on | remarkable | wear | write
+      on: チャク、チョ
+      kun: あらわ.す、いちじる.しい
+  枚 [N2] — sheet of... | counter for flat thin objects or sheets
+      on: バイ、マイ
+  札 [N2] — tag | bid | counter for bonds | paper money | placard
+      on: サツ
+      kun: ふだ
+  巻 [N2] — scroll | book | coil | counter for texts (or book scrolls) | part | roll up | tie | volume | wind up
+      on: カン、ケン
+      kun: ま.き、ま.く、まき
+  双 [N2] — pair | comparison | counter for pairs | set
+      on: ソウ
+      kun: たぐい、ならぶ、ふた、ふたつ
+  床 [N2] — bed | counter for beds | floor | padding | tatami
+      on: ショウ
+      kun: とこ、ゆか
+  冊 [N2] — tome | counter for books | volume
+      on: サク、サツ
+      kun: ふみ
+  匹 [N2] — equal | counter for small animals | head | roll of cloth
+      on: ヒツ
+      kun: ひき
+  枝 [N2] — bough | branch | counter for branches | limb | twig
+      on: シ
+      kun: えだ
+  軒 [N2] — flats | counter for houses | eaves
+      on: ケン
+      kun: のき
+  隻 [N2] — vessels | arrows | birds | counter for ships | fish | one of a pair
+      on: セキ
+  灯 [N2] — lamp | a light | counter for lights | light
+      on: トウ
+      kun: あかり、とも.す、ともしび、ひ、ほ-
+  粒 [N2] — grains | counter for tiny particles | drop
+      on: リュウ
+      kun: つぶ
+  畳 [N2] — tatami mat | counter for tatami mats | do away with | fold | shut up
+      on: ジョウ、チョウ
+      kun: かさ.なる、たた.む、たたみ
+  部 [N3] — section | bureau | class | copy | counter for copies of a newspaper or magazine | dept | part | portion
+      on: ブ
+      kun: -べ
+  回 [N3] — -times | counter for occurrences | game | revolve | round
+      on: エ、カイ
+      kun: -まわ.し、-まわ.す、-まわ.り、-まわ.る、か.える、まわ.し-、まわ.す、まわ.る、もとお.る
+  首 [N3] — neck | counter for songs and poems
+      on: シュ
+      kun: くび
+  乗 [N3] — ride | board | counter for vehicles | join | mount | multiplication | power | record
+      on: ショウ、ジョウ
+      kun: -の.り、の.せる、の.る
+  葉 [N3] — leaf | blade | counter for flat things | fragment | lobe | needle | piece | plane | spear
+      on: ヨウ
+      kun: は
+  頭 [N3] — head | counter for large animals
+      on: ズ、ト、トウ
+      kun: -がしら、あたま、かしら、かぶり
+  師 [N3] — expert | army (incl. counter) | exemplar | master | model | teacher | war
+      on: シ
+      kun: いくさ
+  具 [N3] — tool | counter for armor | suits | sets of furniture | ingredients | means | possess | utensil
+      on: グ
+      kun: そな.える、つぶさ.に
+  杯 [N3] — counter for cupfuls | glass | toast | wine glass
+      on: ハイ
+      kun: さかずき
+  発 [N4] — departure | counter for gunshots | discharge | disclose | emit | publish | start from
+      on: ハツ、ホツ
+      kun: あば.く、おこ.る、た.つ、つか.わす、はな.つ
+  代 [N4] — substitute | age | change | charge | convert | counter for decades of ages | eras | etc. | fee | generation | period | rate | replace
+      on: タイ、ダイ
+      kun: -が.わり、-がわ.り、か.える、か.わり、か.わる、かわ.り、かわ.る、しろ、よ
+  通 [N4] — traffic | avenue | commute | counter for letters | notes | documents | etc. | pass through
+      on: ツ、ツウ
+      kun: -とお.り、-どお.し、-どお.り、かよ.う、とお.し、とお.す、とお.り、とお.る
+  体 [N4] — body | counter for images | object | reality | substance
+      on: タイ、テイ
+      kun: かたち、からだ
+  度 [N4] — degrees | attitude | consider | counter for occurrences | occurrence | time
+      on: タク、ト、ド
+      kun: -た.い、たび
+  品 [N4] — goods | article | counter for meal courses | dignity | refinement
+      on: ヒン、ホン
+      kun: しな
+  台 [N4] — pedestal | a stand | counter for machines and vehicles
+      on: タイ、ダイ
+      kun: うてな、つかさ、われ
+  足 [N4] — leg | be sufficient | counter for pairs of footwear | foot
+      on: ソク
+      kun: あし、た.す、た.りる、た.る
+  着 [N4] — don | arrive | counter for suits of clothing | wear
+      on: ジャク、チャク
+      kun: き.せる、き.る、つ.く、つ.ける
+  歩 [N4] — walk | counter for steps
+      on: フ、ブ、ホ
+      kun: あゆ.む、ある.く
+  日 [N5] — day | Japan | counter for days | sun
+      on: ジツ、ニチ
+      kun: -か、-び、ひ
+  年 [N5] — year | counter for years
+      on: ネン
+      kun: とし
+  本 [N5] — book | counter for long cylindrical things | main | origin | present | real | true
+      on: ホン
+      kun: もと
+
+==============================================================================
+PARTEA 2 — CUVINTE
+==============================================================================
+
+2.0 Cuvinte marcate „Numeric” în bază: 44
+-----------------------------------------
+
+2.1 Cifre și zece (10)
+----------------------
+  一 (いち) [N5] — one | 1
+  二 (に) [N5] — two | 2
+  三 (さん) [N5] — three | 3
+  四 (し) [N5] — four | 4
+  五 (ご) [N5] — five | 5
+  六 (ろく) [N5] — six | 6
+  七 (しち) [N5] — seven
+  八 (はち) [N5] — eight | 8
+  九 (きゅう) [N3] — nine | 9
+  十 (じゅう) [N5] — ten | 10
+
+2.2 Numărătoarea japoneză veche (…つ) (9)
+----------------------------------------
+  一つ (ひとつ) [N5] — one
+  二つ (ふたつ) [N5] — two
+  三つ (みっつ) [N5] — three
+  四つ (よっつ) [N5] — four | 4
+  五つ (いつつ) [N5] — five
+  六つ (むっつ) [N5] — six
+  七つ (ななつ) [N5] — seven
+  八つ (やっつ) [N5] — eight
+  九つ (ここのつ) [N5] — nine
+
+2.3 Ordine de mărime (7)
+------------------------
+  百 (ひゃく) [N5] — hundred | 100
+  千 (せん) [N5] — thousand | 1,000
+  万 (まん) [N5] — 10,000 | ten thousand
+  億 (おく) [N4] — hundred million | 100,000,000 | 10^8
+  兆 (ちょう) [-] — 10^12 | 1,000,000,000,000 | trillion
+  秭 (し) [N1] — 10^24 | septillion
+  溝 (こう) [N1] — 10^32 | hundred nonillion
+
+2.4 Numere compuse (16)
+-----------------------
+  十一 (じゅういち) [-] — eleven | 11
+  十三 (じゅうさん) [-] — thirteen | 13
+  十四 (じゅうし) [-] — fourteen | 14
+  十五 (じゅうご) [-] — fifteen | 15
+  二十 (にじゅう) [-] — twenty | 20
+  三十 (さんじゅう) [-] — thirty | 30
+  七十 (ななじゅう) [-] — seventy | 70
+  八十 (はちじゅう) [-] — eighty | 80
+  二百 (にひゃく) [-] — 200 | two hundred
+  三百 (さんびゃく) [-] — 300 | three hundred
+  四百 (よんひゃく) [-] — 400 | four hundred
+  一千 (いっせん) [-] — 1,000 | one thousand
+  三千 (さんぜん) [-] — 3000 | three thousand
+  四千 (よんせん) [-] — four thousand | 4,000
+  一万 (いちまん) [-] — 10,000 | ten thousand | 10^4
+  百万 (ひゃくまん) [-] — 1,000,000 | one million | million
+
+2.5 Fracții ca unități (2)
+--------------------------
+  分 (ぶ) [N3] — one-tenth | one percent (one-tenth of a wari) | 3 mm (one-tenth of a sun) | 2.4 mm (one-tenth of a mon, a traditional unit used to measure shoe sizes) | 0.1 degree (one-tenth of a do, used to measure body temperature on any temperature scale)
+  厘 (りん) [-] — one-hundredth | 0.3 mm (one-hundredth of a sun) | 0.1 percent (one-hundredth of a wari) | 0.0375 grams (one-hundredth of a monme)
+
+Verificare: 44 din 44 cuvinte „Numeric” afișate.
+Compusele nu formează o serie completă: există 十一, 十三, 十四, 十五, dar nu 十二, 十六 etc.
+
+2.6 Numere fără eticheta „Numeric” (7)
+--------------------------------------
+  半 (はん) [N5] — half | semi- | partial
+  零 (れい) [N5] — zero | nought
+  一億 (いちおく) [-] — 100,000,000 | one hundred million | 10^8
+  一二 (いちに) [-] — one or two | a couple | a few
+  ゼロ (ゼロ) [-] — zero | 0 | nought | nil
+  九九 (くく) [-] — multiplication table | times table
+  一 (ひと) [-] — one
+
+2.7 Cuvinte despre numere, nu numere în sine (14)
+-------------------------------------------------
+  奇数 (きすう) [N1] — odd number
+  数詞 (すうし) [N1] — numeral
+  算数 (さんすう) [N2] — arithmetic
+  偶数 (ぐうすう) [N2] — even number
+  ナンバー (ナンバー) [N2] — number
+  分数 (ぶんすう) [N2] — fraction
+  小数 (しょうすう) [N2] — fraction (part of) | decimal fraction
+  整数 (せいすう) [N2] — integer
+  数字 (すうじ) [N3] — numeral | digit | numeric character
+  数える (かぞえる) [N3] — to count | to enumerate
+  数 (すう) [N3] — several | a few | a number of
+  数 (かず) [N3] — number | amount
+  番号 (ばんごう) [N5] — number | series of digits
+  数値 (すうち) [-] — numerical value
+
+2.8 Cuvinte marcate „Counter” (cuvinte pentru numărat) (41, după nivel)
+-----------------------------------------------------------------------
+  振り (ふり) [N1] — swing | shake | sweep | wave | wag
+  匹 (ひき) [N1] — counter for small animals
+  票 (ひょう) [N1] — vote | ballot
+  冊 (さつ) [N1] — counter for books
+  枚 (まい) [N1] — counter for thin, flat objects (e.g. sheets of paper, plates, coins)
+  番目 (ばんめ) [N1] — the nth ...
+  ヶ月 (かげつ) [N1] — counter for months
+  周 (しゅう) [N1] — counter for laps or circuits
+  問 (もん) [N1] — counter for questions
+  泊 (はく) [N1] — counter for nights of a stay
+  箇 (か) [N1] — counter used with Sino-Japanese words
+  戸 (こ) [N1] — counter for houses, households, apartments, etc.
+  畳 (じょう) [N1] — tatami mat (esp. as a measure of room size, either 1.82 sqm or 1.54 sqm)
+  等 (とう) [N1] — class | order | rank
+  輪 (りん) [N1] — counter for wheels and flowers
+  重 (え) [N1] — -fold | -ply
+  缶 (かん) [N3] — can | tin
+  回 (かい) [N3] — counter for occurrences
+  株 (かぶ) [N3] — stock | share
+  級 (きゅう) [N3] — (school) grade | year | class
+  束 (たば) [N3] — bundle | bunch | sheaf
+  段 (だん) [N3] — step | stair | rung | (flight of) steps
+  語 (ご) [N3] — word | term
+  度 (たび) [N3] — time (three times, each time, etc.) | times
+  軒 (けん) [N3] — counter for buildings (esp. houses)
+  山 (やま) [N5] — mountain | hill
+  頁 (ページ) [N5] — page
+  件 (けん) [-] — matter | affair | case | item | subject
+  誌 (し) [-] — magazine | journal
+  個 (こ) [-] — counter for (small) things or pieces
+  分間 (ふんかん) [-] — minutes (period of)
+  カ国 (かこく) [-] — counter for countries
+  頭 (とう) [-] — counter for large animals (e.g. head of cattle) | counter for insects in a collection | counter for helmets, masks, etc.
+  歳 (さい) [-] — ... years old | age (of) ...
+  人 (にん) [-] — counter for people
+  位 (い) [-] — rank | place (e.g. first place)
+  双 (そう) [-] — pair
+  気筒 (きとう) [-] — cylinder
+  把 (わ) [-] — counter for bundles
+  代目 (だいめ) [-] — nth generation | nth (person to occupy a position, e.g. president)
+  羽 (わ) [-] — counter for birds or rabbits
