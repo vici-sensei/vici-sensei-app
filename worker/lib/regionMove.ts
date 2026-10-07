@@ -1,6 +1,6 @@
 import type { Env } from "./env";
 import { projectConfig } from "./env";
-import { emailKey, isRegion, type Region } from "./region";
+import { emailKey, isRegion, retiredCopyEmail, type Region } from "./region";
 import {
   pgDeleteWhere,
   pgInsertMany,
@@ -502,6 +502,45 @@ async function stepUpdateLedger(env: Env, row: RegionMoveRow): Promise<void> {
   await patchMove(env, row.id, { ledger_updated: 1, status: "ledger_updated" });
 }
 
+interface ReleaseSourceResult {
+  email_released: boolean;
+  identities_removed: number;
+  sessions_removed: number;
+}
+
+/**
+ * Turns the retired source copy into a tombstone (public.region_move_release_source): its email
+ * becomes retired-<id>@moved.invalid and its Google identities go, so the person's real address is
+ * free again in the source project -- otherwise a later Google/password login with it there would
+ * land on the dead copy (GoTrue links the new identity to it by email), and a new signup with it
+ * would hit the unique index on public.users.email. Sessions are NOT revoked here (`revokeSessions`
+ * false): /continue authenticates with the source session, so killing it before the move is
+ * marked completed could strand a move whose verification below failed.
+ *
+ * Then reads the copy back from GoTrue's Admin API instead of trusting the function's own answer;
+ * throws if it still has a real email or a non-email identity, so the step is retried (the function
+ * is idempotent).
+ */
+async function releaseSourceCopy(env: Env, row: RegionMoveRow, revokeSessions: boolean): Promise<ReleaseSourceResult> {
+  const result = await pgRpc<ReleaseSourceResult>(restConfig(env, row.source_region), "region_move_release_source", {
+    p_user_id: row.source_user_id,
+    p_revoke_sessions: revokeSessions,
+  });
+  if (revokeSessions) return result;
+
+  const { url, serviceRoleKey } = projectConfig(env, row.source_region);
+  const res = await fetch(new URL(`auth/v1/admin/users/${row.source_user_id}`, url), {
+    headers: { apikey: serviceRoleKey!, Authorization: `Bearer ${serviceRoleKey}` },
+  });
+  if (!res.ok) throw new Error(`release_source verify ${row.source_region}: HTTP ${res.status} ${await res.text()}`);
+  const user = (await res.json()) as { email?: string; identities?: Array<{ provider?: string }> };
+  const leftover = (user.identities ?? []).filter((identity) => identity.provider !== "email").length;
+  if (user.email !== retiredCopyEmail(row.source_user_id) || leftover > 0) {
+    throw new Error(`release_source verify ${row.source_region}: the retired copy still has its email or ${leftover} sign-in method(s)`);
+  }
+  return result;
+}
+
 async function stepRetireSource(env: Env, row: RegionMoveRow): Promise<void> {
   const sourceCfg = restConfig(env, row.source_region);
   const pendingDeletionAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -511,7 +550,20 @@ async function stepRetireSource(env: Env, row: RegionMoveRow): Promise<void> {
     { id: `eq.${row.source_user_id}` },
     { pending_deletion_at: pendingDeletionAt, retired_to_region: row.target_region }
   );
+  // The function refuses an account that isn't flagged retired, so this must come after the PATCH.
+  const released = await releaseSourceCopy(env, row, false);
+  await logStep(env, row.id, "release_source", true, JSON.stringify(released));
   await patchMove(env, row.id, { source_retired: 1, status: "completed" });
+
+  // The move is completed now, so the source session (the one /continue just authenticated with) can
+  // go. Best effort: a failure only leaves a retired copy's session alive until it expires, and a
+  // client that missed the completion response signs in again instead of re-calling /continue.
+  try {
+    const revoked = await releaseSourceCopy(env, row, true);
+    await logStep(env, row.id, "revoke_source_sessions", true, JSON.stringify({ sessions_removed: revoked.sessions_removed }));
+  } catch (err) {
+    await logStep(env, row.id, "revoke_source_sessions", false, err instanceof Error ? err.message : String(err));
+  }
 }
 
 /** Issues a magic-link token for the target project so the frontend can call

@@ -1,5 +1,6 @@
 import type { Env } from "./env";
 import { projectConfig } from "./env";
+import { pgRpc } from "./postgrest";
 import { emailKey, type Region } from "./region";
 
 /**
@@ -15,6 +16,9 @@ import { emailKey, type Region } from "./region";
  *
  * Deliberately narrow: an account is only ever deleted when it has never been confirmed, never
  * signed in, and has no identity but `email`. Anything a person ever used is untouched.
+ *
+ * It also logs (never changes anything) retired copies of moved accounts that still hold a real
+ * email or a Google identity -- see checkUnreleasedRetiredCopies().
  */
 
 const UNCONFIRMED_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -116,6 +120,24 @@ async function sweepStaleEmailChanges(env: Env): Promise<{ released: number; fin
   return { released, finalized };
 }
 
+/** Retired copies of moved accounts that still hold a real email or a Google identity -- the state a
+ * region move used to leave behind (see public.region_move_release_source), and what a retire_source
+ * that crashed halfway would. Log-only, like the reconciliation: no outbound alert channel exists. The
+ * log carries counts and account ids, never an email. */
+async function checkUnreleasedRetiredCopies(env: Env): Promise<void> {
+  const found: Partial<Record<Region, Array<{ user_id: string; real_email: boolean; extra_identities: number }>>> = {};
+  for (const region of ["eu", "us"] as const) {
+    const { url, serviceRoleKey } = projectConfig(env, region);
+    const rows = await pgRpc<Array<{ user_id: string; real_email: boolean; extra_identities: number }>>(
+      { url, serviceRoleKey: serviceRoleKey! },
+      "region_move_unreleased_sources",
+      {}
+    );
+    if (rows.length > 0) found[region] = rows;
+  }
+  if (Object.keys(found).length > 0) await log(env, "retired_copy_unreleased", found);
+}
+
 /** Runs from the weekly cron. No-ops until both service-role secrets are set (the reconciliation
  * job next to it already logs that). Logs only when it actually did something. */
 export async function runAccountSweep(env: Env): Promise<void> {
@@ -129,5 +151,11 @@ export async function runAccountSweep(env: Env): Promise<void> {
     }
   } catch (err) {
     await log(env, "account_sweep_error", err instanceof Error ? err.message : String(err));
+  }
+  // Its own try: a project that doesn't have the function yet (not migrated) must not hide the sweep above.
+  try {
+    await checkUnreleasedRetiredCopies(env);
+  } catch (err) {
+    await log(env, "retired_copy_check_error", err instanceof Error ? err.message : String(err));
   }
 }

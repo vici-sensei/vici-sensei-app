@@ -2,7 +2,7 @@ import { runAccountSweep } from "./lib/accountSweep";
 import { mirrorGoogleAvatars } from "./lib/avatarMirror";
 import { takeOverOrphanClaim } from "./lib/claimHeal";
 import { type Env, projectConfig } from "./lib/env";
-import { emailKey, isRegion, regionFromCfContinent, type Region } from "./lib/region";
+import { emailKey, isRegion, isRetiredCopyEmail, regionFromCfContinent, type Region } from "./lib/region";
 import { runSmtpHeartbeat } from "./lib/smtpHeartbeat";
 import { handleEmailChangeCancel, handleEmailChangeFinalize, handleEmailChangeStart } from "./lib/emailChange";
 import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
@@ -182,7 +182,9 @@ async function runReconciliation(env: Env): Promise<void> {
 }
 
 /** Paginates GET /auth/v1/admin/users (Supabase's Admin API) to collect every real email in one
- * project. Requires the service_role key -- auth.users isn't reachable through PostgREST. */
+ * project. Requires the service_role key -- auth.users isn't reachable through PostgREST. Retired
+ * copies of moved accounts (retired-<id>@moved.invalid) are left out: they have no ledger row by
+ * design, so they'd show up as drift every week. */
 async function listAllUserEmails(env: Env, region: Region): Promise<string[]> {
   const { url, serviceRoleKey } = projectConfig(env, region);
   const emails: string[] = [];
@@ -197,7 +199,7 @@ async function listAllUserEmails(env: Env, region: Region): Promise<string[]> {
     });
     if (!response.ok) throw new Error(`admin/users ${region} page ${page}: HTTP ${response.status}`);
     const body = (await response.json()) as { users: Array<{ email?: string }> };
-    for (const user of body.users) if (user.email) emails.push(user.email);
+    for (const user of body.users) if (user.email && !isRetiredCopyEmail(user.email)) emails.push(user.email);
     if (body.users.length < perPage) break;
     page += 1;
   }

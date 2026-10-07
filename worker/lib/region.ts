@@ -43,3 +43,16 @@ export function regionFromCfContinent(continent: unknown): Region {
 export function emailKey(email: string): string {
   return email.trim().toLowerCase();
 }
+
+/** What a retired (moved-away) copy's `auth.users.email` is changed to, so the person's real address
+ * is free again in the source project -- see public.region_move_release_source(). `.invalid` is
+ * reserved (RFC 2606): it never delivers and can't be a real signup. Keep in sync with that SQL. */
+export function retiredCopyEmail(userId: string): string {
+  return `retired-${userId}@moved.invalid`;
+}
+
+/** True for any address `retiredCopyEmail` produced -- these have no D1 ledger row by design, so the
+ * weekly reconciliation must not count them as drift. */
+export function isRetiredCopyEmail(email: string): boolean {
+  return emailKey(email).endsWith("@moved.invalid");
+}

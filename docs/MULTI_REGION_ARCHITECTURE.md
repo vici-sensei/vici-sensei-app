@@ -162,6 +162,40 @@ la cursuri (îl setează un admin din `/admin/students`). Funcțiile `stripe-web
 și pasul `stripe` din mutarea de regiune încă tratează un `stripe_customer_id` existent, dar niciun
 cont nu mai are unul.
 
+## Mutarea de regiune — ce se întâmplă cu copia veche (2026-10-07)
+
+Mutarea self-service (`worker/lib/regionMove.ts`, Settings → Server region) creează un cont NOU în
+regiunea țintă (alt `user_id`), copiază cele 16 tabele per user și apoi **retrage** copia din regiunea
+sursă: `public.users.pending_deletion_at` (+30 zile) și `retired_to_region`. `process-scheduled-deletions`
+o șterge când expiră perioada de grație; datele ei rămân până atunci, ca plasă de siguranță.
+
+Până pe 2026-10-07 copia retrasă păstra și emailul real, și identitățile Google. Cât timp trăia, orice
+login cu acel email în regiunea sursă ajungea la ea: GoTrue leagă automat identitatea Google nouă de
+utilizatorul existent cu același email. Asta s-a văzut când un cont și-a schimbat emailul după mutare
+(D1 eliberase vechea adresă, dar copia retrasă o ținea încă): „Continue with Google” cu adresa veche
+loga omul într-un cont mort și aplicația spunea „contul s-a mutat în America”. În plus, indexul unic
+`public.users.email` bloca orice signup nou cu adresa respectivă în regiunea sursă.
+
+Acum pasul `retire_source` apelează `public.region_move_release_source(user, p_revoke_sessions)`
+(migrația `20261007193329`, doar `service_role`), care transformă copia într-o piatră de mormânt:
+
+- emailul din `auth.users` (și din identitatea `email`) devine `retired-<user_id>@moved.invalid`;
+  `.invalid` e rezervat (RFC 2606) și nu primește niciodată mail; trigger-ul `on_auth_user_email_changed`
+  îl oglindește în `public.users`;
+- toate identitățile non-`email` (Google) se șterg, `app_metadata.providers` se recalculează;
+- tokenurile one-time și coloanele de token rămase se golesc;
+- sesiunile se șterg — dar abia după ce mutarea e marcată `completed` (a doua apelare, `p_revoke_sessions =
+  true`, best-effort): `/continue` se autentifică cu sesiunea sursă, iar revocarea ei înainte de
+  `completed` ar bloca o mutare a cărei verificare a eșuat.
+
+Funcția refuză un cont care nu e retras (`retired_to_region` null) și e idempotentă. Worker-ul citește copia
+înapoi prin Admin API și aruncă eroare dacă mai are emailul real sau o identitate non-`email` (pasul se
+reia). O mutare înapoi într-o regiune care are deja o copie retrasă creează acum un cont complet nou; copia
+veche rămâne cu emailul placeholder până expiră. Reconcilierea săptămânală ignoră adresele `@moved.invalid`
+(nu au rând în D1 prin design), iar `accountSweep.ts` loghează `retired_copy_unreleased` (ids și numărătoare,
+niciun email) dacă găsește o copie retrasă care mai are un email real sau o identitate Google
+(`region_move_unreleased_sources()`).
+
 ## Flag-ul central
 
 `NEXT_PUBLIC_MULTI_REGION` (`lib/supabase/regions.ts`, `isMultiRegionEnabled()`) e citit static de
@@ -172,7 +206,5 @@ trafic din aplicație, dar rămâne intact ca istoric/sursă de adevăr pentru c
 
 ## Ce NU face sistemul (încă)
 
-Mutarea unui cont dintr-o regiune în alta e complet manuală/inexistentă — fiecare proiect are propriul
-`auth.users` cu UID-uri diferite, deci nu există un `UPDATE region = ...` simplu. Vezi discuția
-"mutare self-service între regiuni" din istoricul de sesiune pentru complexitatea reală, dacă/când
-acest feature ajunge să fie construit.
+Un cont nu se mută prin `UPDATE region = ...`: fiecare proiect are propriul `auth.users` cu UID-uri
+diferite, deci mutarea e o copiere (vezi „Mutarea de regiune” mai sus), nu o schimbare de coloană.
