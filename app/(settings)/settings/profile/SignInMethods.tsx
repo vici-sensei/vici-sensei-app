@@ -60,21 +60,25 @@ export function SignInMethods({
         </div>
         {open === "email" && hasPassword && <ChangeEmailForm email={email} onClose={() => setOpen(null)} />}
 
-        <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-border-soft bg-white/[0.02] px-3.5 py-3">
-          <div className="min-w-0">
-            <div className="text-[0.8rem] text-text-muted">Password</div>
-            {hasPassword === null ? (
-              <Skeleton className="mt-1 h-4 w-28 rounded-md" />
-            ) : (
-              <div className="text-[0.95rem] text-white">{hasPassword ? "••••••••••" : "Not set"}</div>
+        {/* The form replaces this row while it is open, so "Password" is never on screen twice
+            (and "Not set" never sits above the box that is setting it). */}
+        {!(open === "password" && hasPassword !== null) && (
+          <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-border-soft bg-white/[0.02] px-3.5 py-3">
+            <div className="min-w-0">
+              <div className="text-[0.8rem] text-text-muted">Password</div>
+              {hasPassword === null ? (
+                <Skeleton className="mt-1 h-4 w-28 rounded-md" />
+              ) : (
+                <div className="text-[0.95rem] text-white">{hasPassword ? "••••••••••" : "Not set"}</div>
+              )}
+            </div>
+            {hasPassword !== null && (
+              <Button type="button" variant="secondary" size="sm" onClick={() => setOpen("password")}>
+                {hasPassword ? "Change password" : "Add a password"}
+              </Button>
             )}
           </div>
-          {hasPassword !== null && (
-            <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(open === "password" ? null : "password")}>
-              {hasPassword ? "Change password" : "Add a password"}
-            </Button>
-          )}
-        </div>
+        )}
         {open === "password" && hasPassword !== null && (
           <PasswordForm
             email={email}
@@ -162,6 +166,7 @@ function PasswordForm({
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             disabled={submitting}
+            autoFocus
           />
         </div>
       )}
@@ -178,6 +183,7 @@ function PasswordForm({
           aria-invalid={nextError ? true : undefined}
           aria-describedby="settings-new-password-hint"
           disabled={submitting}
+          autoFocus={!hasPassword}
         />
         <PasswordMessage id="settings-new-password-hint" error={nextError} empty={next.length === 0} />
       </div>
