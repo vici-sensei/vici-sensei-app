@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FaUserGraduate, FaInbox } from "react-icons/fa6";
+import { FaUserGraduate, FaInbox, FaLanguage } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import { useAdminDashboardStats } from "@/lib/client-data/adminDashboard";
+import { useKanjiWordsTodoCount } from "@/lib/client-data/adminKanjiWords";
+import { isMultiRegionEnabled } from "@/lib/supabase/regions";
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -24,6 +26,9 @@ export default function AdminOverviewPage() {
   const { user } = useAuth();
   const { ready, checking } = useRequireAdmin();
   const { data: stats, status } = useAdminDashboardStats(ready ? user : null);
+  // The kanji-words RPCs only exist on the EU/US projects, so the tile (and its request) is multi-region only.
+  const multiRegion = isMultiRegionEnabled();
+  const { data: kanjiWords, status: kanjiWordsStatus } = useKanjiWordsTodoCount(ready && multiRegion ? user : null);
 
   if (checking || !ready) return <FullScreenLoader />;
 
@@ -80,6 +85,30 @@ export default function AdminOverviewPage() {
             </div>
           </GlassCard>
         </Link>
+        {multiRegion ? (
+          <Link href="/admin/kanji-words">
+            <GlassCard
+              padding="sm"
+              tone={kanjiWords && kanjiWords.algo_changed > 0 ? "danger" : "default"}
+              className="flex items-center gap-4 transition-colors hover:bg-white/[0.03]"
+            >
+              <FaLanguage className="h-6 w-6 text-accent-green" />
+              <div>
+                <div className="font-bold">Kanji words</div>
+                <div className="text-sm text-text-muted">
+                  {kanjiWordsStatus === "loading" ? <Skeleton className="h-4 w-40" /> : null}
+                  {kanjiWords
+                    ? `${kanjiWords.to_review} kanji to review${
+                        kanjiWords.algo_changed > 0 ? `, ${kanjiWords.algo_changed} with a changed algorithm result` : ""
+                      }`
+                    : kanjiWordsStatus === "error"
+                      ? "Choose the words each kanji is taught with"
+                      : null}
+                </div>
+              </div>
+            </GlassCard>
+          </Link>
+        ) : null}
       </div>
     </div>
   );

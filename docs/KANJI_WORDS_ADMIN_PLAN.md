@@ -221,5 +221,17 @@ Ordinea de aplicare: 1 → 2 pe EU și pe US (oricare primul), apoi 3 pe EU și 
   istoric/override pe ambele, `kanji_detail_words` neschimbat (hash `94f91efe…`).
   Costuri măsurate pe EU: overview 0,4 s / ~600 KB JSON (necomprimat), previzualizare în masă pe toate cele 2229 de
   kanji 4,7 s.
-- Faza 2 (pagina): neînceput.
+- **Faza 2 (pagina `/admin/kanji-words`): construită, verificată în Chrome-ul adminului pe date live, doar cu citiri**
+  (2026-10-07). Fișiere: `app/(shell)/admin/kanji-words/` (`page.tsx`, `kanjiWordsView.ts` filtre/sortare/URL,
+  `FilterPanel`, `KanjiList`, `EditorPanel`, `CandidateRow`, `StudentPreview`, `HistoryPanel`, `BulkMenu`,
+  `OperationModal`, `BatchesModal`, `wordLabels.ts`), `lib/data/adminKanjiWords.ts` (RPC-uri + erori),
+  `lib/client-data/adminKanjiWords.ts` (hook-uri), `lib/types/kanjiWords.ts`, intrare „Kanji words” în meniul Teacher,
+  placă pe `/admin` cu numărul de kanji de verificat. Verificat live: lista (2229 de kanji), filtrul „2+ niveluri peste
+  kanji” pe N5–N2 = **519** (exact numărul măsurat în DB), editorul (candidați cu nivel/diferență/frecvență/grup/
+  elevi cu card/motivul algoritmului, previzualizarea „What a student gets”), tabul History, ferestrele „Bulk changes” și
+  previzualizarea în masă („519 kanji will change, 691 words removed”), placa din Overview, layout de telefon (iframe de
+  390 px), `tsc` și `eslint` fără erori. După aceste verificări, ambele baze au rămas curate (0 rânduri de istoric).
+  **Netestat în interfață (scrie pe live, iar istoricul e permanent):** salvarea unui kanji, restaurarea unei versiuni,
+  executarea unei acțiuni în masă, anularea unui lot, conflictul de versiune. Logica lor e acoperită de testele SQL din
+  faza 1 (inclusiv push-ul în ambele sensuri); lipsește doar parcursul prin pagină.
 - Faza 3 (închidere): neînceput.
