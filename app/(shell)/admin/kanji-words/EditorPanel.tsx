@@ -62,6 +62,9 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
   const [showAll, setShowAll] = useState(false);
   const [showDisabled, setShowDisabled] = useState(false);
   const [restLimit, setRestLimit] = useState(REST_PAGE);
+  // Filters of the "Other candidates" list only; the filter above it covers the chosen / algorithm words.
+  const [restText, setRestText] = useState("");
+  const [restGroup, setRestGroup] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [markReviewed, setMarkReviewed] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -105,6 +108,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
   const candidates = useMemo(() => data?.candidates ?? [], [data]);
   const algoIds = useMemo(() => new Set(candidates.filter((c) => c.in_algo).map((c) => c.id)), [candidates]);
   const q = text.trim().toLowerCase();
+  const restQ = restText.trim().toLowerCase();
 
   // Words the admin is looking at by default: everything chosen now or by the algorithm. The rest of the
   // (up to 224) candidates sit behind "Show all candidates".
@@ -112,13 +116,23 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
     () => candidates.filter((c) => (selected.has(c.id) || c.in_algo || c.in_final) && matchesText(c, q)),
     [candidates, selected, q]
   );
-  const rest = useMemo(
-    () =>
-      candidates.filter(
-        (c) => !(selected.has(c.id) || c.in_algo || c.in_final) && (showDisabled || c.enabled) && matchesText(c, q)
-      ),
-    [candidates, selected, showDisabled, q]
+  // The other candidates before the search / reading-group filters: what "Show all (N)" counts.
+  const restBase = useMemo(
+    () => candidates.filter((c) => !(selected.has(c.id) || c.in_algo || c.in_final) && (showDisabled || c.enabled)),
+    [candidates, selected, showDisabled]
   );
+  const restGroups = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const c of restBase) counts.set(c.rg, (counts.get(c.rg) ?? 0) + 1);
+    return [...counts].sort((a, b) => a[0] - b[0]);
+  }, [restBase]);
+  // A group that has emptied (its last words were just ticked) no longer filters anything.
+  const activeGroup = restGroup !== null && restGroups.some(([g]) => g === restGroup) ? restGroup : null;
+  const rest = useMemo(
+    () => restBase.filter((c) => (activeGroup === null || c.rg === activeGroup) && matchesText(c, restQ)),
+    [restBase, activeGroup, restQ]
+  );
+  const restFiltered = restQ !== "" || activeGroup !== null;
   const hiddenDisabled = useMemo(
     () => candidates.filter((c) => !c.enabled && !(selected.has(c.id) || c.in_algo || c.in_final)).length,
     [candidates, selected]
@@ -309,7 +323,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                 type="search"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Filter this kanji's words…"
+                placeholder="Filter the chosen and algorithm words…"
                 className="min-w-0 flex-1 basis-48 rounded-xl border border-border-soft bg-bg-cards px-3.5 py-2 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
               />
               <span className="text-xs text-text-muted">{candidates.length} candidates</span>
@@ -342,11 +356,55 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                 aria-expanded={showAll}
                 className="cursor-pointer text-[0.8rem] font-bold text-accent-blue hover:underline"
               >
-                {showAll ? "Hide" : `Show all (${rest.length})`}
+                {showAll ? "Hide" : `Show all (${restBase.length})`}
               </button>
             </div>
             {showAll ? (
               <>
+                <div className="mt-2 space-y-2">
+                  <input
+                    type="search"
+                    value={restText}
+                    onChange={(e) => {
+                      setRestText(e.target.value);
+                      setRestLimit(REST_PAGE);
+                    }}
+                    placeholder="Search the other candidates (word, reading, meaning)…"
+                    aria-label="Search the other candidates"
+                    className="w-full rounded-xl border border-border-soft bg-bg-cards px-3.5 py-2 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
+                  />
+                  {restGroups.length > 1 ? (
+                    <div role="group" aria-label="Filter by reading group" className="flex flex-wrap items-center gap-1.5">
+                      <span className="mr-1 text-xs text-text-muted">Reading group</span>
+                      {[{ group: null, count: restBase.length }, ...restGroups.map(([group, count]) => ({ group, count }))].map(
+                        ({ group, count }) => (
+                          <button
+                            key={group ?? "all"}
+                            type="button"
+                            aria-pressed={activeGroup === group}
+                            onClick={() => {
+                              setRestGroup(group);
+                              setRestLimit(REST_PAGE);
+                            }}
+                            className={`cursor-pointer rounded-lg border px-2.5 py-1 text-[0.75rem] font-bold transition-all ${
+                              activeGroup === group
+                                ? "border-accent-blue/35 bg-accent-blue/[0.12] text-accent-blue"
+                                : "border-border-soft bg-white/[0.03] text-text-muted hover:border-white/20"
+                            }`}
+                          >
+                            {group === null ? "All" : `Group ${group}`}
+                            <span className="ml-1 font-normal opacity-70">{count}</span>
+                          </button>
+                        )
+                      )}
+                    </div>
+                  ) : null}
+                  {restFiltered ? (
+                    <p className="text-xs text-text-muted">
+                      {rest.length} of {restBase.length} other candidate{restBase.length === 1 ? "" : "s"}
+                    </p>
+                  ) : null}
+                </div>
                 {hiddenDisabled > 0 ? (
                   <label className="mt-2 flex cursor-pointer items-center gap-2 text-[0.82rem] text-text-muted">
                     <input
@@ -358,17 +416,21 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                     Also show words not enabled for study ({hiddenDisabled}); they can&apos;t be chosen
                   </label>
                 ) : null}
-                <ul className="mt-2 space-y-2">
-                  {rest.slice(0, restLimit).map((c) => (
-                    <CandidateRow
-                      key={c.id}
-                      candidate={c}
-                      checked={selected.has(c.id)}
-                      onToggle={() => toggle(c.id)}
-                      onRevert={() => revertWord(c)}
-                    />
-                  ))}
-                </ul>
+                {rest.length === 0 ? (
+                  <p className="mt-2 text-sm italic text-text-muted">{restFiltered ? "No match." : "None."}</p>
+                ) : (
+                  <ul className="mt-2 space-y-2">
+                    {rest.slice(0, restLimit).map((c) => (
+                      <CandidateRow
+                        key={c.id}
+                        candidate={c}
+                        checked={selected.has(c.id)}
+                        onToggle={() => toggle(c.id)}
+                        onRevert={() => revertWord(c)}
+                      />
+                    ))}
+                  </ul>
+                )}
                 {rest.length > restLimit ? (
                   <button
                     type="button"
