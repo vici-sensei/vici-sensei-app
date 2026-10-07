@@ -187,7 +187,10 @@ export function Turnstile({ captcha, lazy = false }: { captcha: TurnstileControl
       inChallenge = false;
       broken = true;
       setChallenging(false);
-      setFailed(true);
+      // A lazy widget only guards a secondary action, so while nobody is waiting on a token a crash
+      // is not worth an alert (it happens when the tab sits in the background -- e.g. while the person
+      // fetches their code from the mail tab); the next getToken() resets and re-runs it.
+      if (!lazy || pending) setFailed(true);
       rejectPending("turnstile error");
     };
 
