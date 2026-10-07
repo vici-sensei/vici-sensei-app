@@ -7,7 +7,9 @@ import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { fieldHint, fieldLabel, textInput } from "@/app/components/ui/formClasses";
 import { AuthLayout, FormMessage } from "@/app/components/auth/AuthLayout";
-import { Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
+import { AuthForm } from "@/app/components/auth/AuthForm";
+import { EmailField } from "@/app/components/auth/AuthFields";
+import { useTurnstile } from "@/app/components/auth/Turnstile";
 import { finalizeEmailChange } from "@/lib/client-data/account";
 import { finishSignIn } from "@/lib/auth/finishSignIn";
 import {
@@ -187,24 +189,18 @@ function ConfirmInner() {
           : "We sent a code to your email. Enter it below, or open the link in the same email."
       }
     >
-      <form onSubmit={handleVerifyCode} noValidate className="flex flex-col gap-4 text-left">
-        <div>
-          <label htmlFor="confirm-email" className={fieldLabel}>
-            Email
-          </label>
-          <input
-            id="confirm-email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={submitting}
-            className={textInput}
-          />
-        </div>
+      <AuthForm
+        onSubmit={handleVerifyCode}
+        className="gap-4"
+        submitting={submitting}
+        failure={failure}
+        notice={notice && <FormMessage tone="info">{notice}</FormMessage>}
+        // The check only guards "Send a new code", so it shouldn't greet someone who came to type a code.
+        captcha={captcha}
+        captchaGuardsSubmit={false}
+        submitLabel={type === "recovery" ? "Continue" : "Confirm email"}
+      >
+        <EmailField id="confirm-email" value={email} onChange={setEmail} validate={false} />
         <div>
           <label htmlFor="confirm-code" className={fieldLabel}>
             Code
@@ -217,19 +213,11 @@ function ConfirmInner() {
             maxLength={8}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            disabled={submitting}
             className={`${textInput} text-center text-[1.3rem] font-bold tracking-[0.4em]`}
           />
           <p className={fieldHint}>It can take a minute to arrive. Check your spam folder too.</p>
         </div>
-        {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-        {notice && <FormMessage tone="info">{notice}</FormMessage>}
-        {/* Lazy: the check only guards "Send a new code", so it shouldn't greet someone who came to type a code. */}
-        <Turnstile captcha={captcha} lazy />
-        <Button type="submit" className="w-full" loading={submitting}>
-          {type === "recovery" ? "Continue" : "Confirm email"}
-        </Button>
-      </form>
+      </AuthForm>
       <div className="mt-6 flex flex-col items-center gap-2 text-[0.9rem] text-text-muted">
         {type === "recovery" ? (
           <Link href="/forgot-password" className="font-bold text-accent-blue hover:underline">

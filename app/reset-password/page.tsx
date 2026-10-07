@@ -6,14 +6,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
-import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
-import { fieldHint, fieldLabel } from "@/app/components/ui/formClasses";
-import { AuthLayout, FormMessage } from "@/app/components/auth/AuthLayout";
-import { PasswordField } from "@/app/components/auth/PasswordField";
+import { AuthLayout } from "@/app/components/auth/AuthLayout";
+import { AuthForm } from "@/app/components/auth/AuthForm";
+import { PasswordFormField } from "@/app/components/auth/AuthFields";
 import {
   isPasswordAuthEnabled,
-  MIN_PASSWORD_LENGTH,
   passwordProblem,
   updatePassword,
 } from "@/lib/auth/passwordAuth";
@@ -77,25 +75,21 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout title="Choose a new password" subtitle="You'll use it the next time you log in with your email.">
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4 text-left">
-        <div>
-          <label htmlFor="reset-password" className={fieldLabel}>
-            New password
-          </label>
-          <PasswordField
-            id="reset-password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={submitting}
-          />
-          <p className={fieldHint}>At least {MIN_PASSWORD_LENGTH} characters, with letters and digits.</p>
-        </div>
-        {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-        <Button type="submit" className="w-full" loading={submitting}>
-          Save password
-        </Button>
-      </form>
+      <AuthForm
+        onSubmit={handleSubmit}
+        className="gap-4"
+        submitting={submitting}
+        failure={failure}
+        submitLabel="Save password"
+      >
+        <PasswordFormField
+          id="reset-password"
+          label="New password"
+          autoComplete="new-password"
+          value={password}
+          onChange={setPassword}
+        />
+      </AuthForm>
     </AuthLayout>
   );
 }

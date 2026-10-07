@@ -13,11 +13,9 @@ import {
 } from "@/lib/client-data/account";
 import { confirmCurrentPassword, isPasswordAuthEnabled } from "@/lib/auth/passwordAuth";
 import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
-import { Button } from "@/app/components/ui/Button";
-import { fieldLabel } from "@/app/components/ui/formClasses";
-import { FormMessage } from "@/app/components/auth/AuthLayout";
-import { PasswordField } from "@/app/components/auth/PasswordField";
-import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
+import { AuthForm } from "@/app/components/auth/AuthForm";
+import { PasswordFormField } from "@/app/components/auth/AuthFields";
+import { useTurnstile } from "@/app/components/auth/Turnstile";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/app/components/ui/Toast";
 import { SettingsHeader } from "@/app/components/ui/SettingsHeader";
@@ -92,38 +90,27 @@ function MovePasswordPrompt({
   }
 
   return (
-    <form
+    <AuthForm
       onSubmit={handleSubmit}
-      noValidate
-      className="mb-3 flex max-w-sm flex-col gap-3 rounded-2xl border border-accent-blue/30 bg-accent-blue/[0.05] p-4 text-left"
+      className="mb-3 max-w-sm gap-3 rounded-2xl border border-accent-blue/30 bg-accent-blue/[0.05] p-4"
+      submitting={checking}
+      failure={failure}
+      captcha={captcha}
+      submitLabel="Move my account"
+      onCancel={onCancel}
     >
       <p className="text-[0.85rem] leading-normal text-text-muted">
         To move your account to <span className="font-bold text-white">{REGION_META[target].label}</span>, enter your
         password. It is used once, to set it on the new account.
       </p>
-      <div>
-        <label htmlFor="move-password" className={fieldLabel}>
-          Password
-        </label>
-        <PasswordField
-          id="move-password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={checking}
-        />
-      </div>
-      {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-      <Turnstile captcha={captcha} />
-      <div className="flex gap-2.5">
-        <CaptchaButton captcha={captcha} type="submit" size="sm" loading={checking}>
-          Move my account
-        </CaptchaButton>
-        <Button type="button" variant="secondary" size="sm" disabled={checking} onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+      <PasswordFormField
+        id="move-password"
+        autoComplete="current-password"
+        value={password}
+        onChange={setPassword}
+        validate={false}
+      />
+    </AuthForm>
   );
 }
 

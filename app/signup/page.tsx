@@ -7,18 +7,16 @@ import { FaCheck } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { buttonClasses } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
-import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
-import { AuthLayout, FieldError, FormMessage, OrDivider, PasswordMessage } from "@/app/components/auth/AuthLayout";
+import { AuthLayout, OrDivider } from "@/app/components/auth/AuthLayout";
+import { AuthForm } from "@/app/components/auth/AuthForm";
+import { EmailField, PasswordFormField } from "@/app/components/auth/AuthFields";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
-import { PasswordField } from "@/app/components/auth/PasswordField";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
-import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
+import { useTurnstile } from "@/app/components/auth/Turnstile";
 import {
-  emailFieldError,
   isPasswordAuthEnabled,
   looksLikeEmail,
   normalizeEmail,
-  passwordFieldError,
   passwordProblem,
   signUpWithPassword,
 } from "@/lib/auth/passwordAuth";
@@ -61,16 +59,11 @@ export default function SignUpPage() {
   const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  // A field only complains once the person has left it, and stops the moment it is filled in right.
-  const [emailTouched, setEmailTouched] = useState(false);
-  const [passwordTouched, setPasswordTouched] = useState(false);
   const { submitting, failure, setFailure, submit } = useAuthSubmit();
   // Set once the account is created and still needs its email confirmed: swaps the form for RegisteredNotice.
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const enabled = isPasswordAuthEnabled();
-  const emailError = emailFieldError(email, emailTouched);
   const passwordValid = passwordProblem(password) === null;
-  const passwordError = passwordFieldError(password, passwordTouched);
   // The security card only slides in once there is something to submit.
   const formComplete = looksLikeEmail(email) && passwordValid && acceptedTerms;
   const captcha = useTurnstile(formComplete);
@@ -126,50 +119,39 @@ export default function SignUpPage() {
         <GoogleButton disabled={submitting} />
       </div>
       <OrDivider />
-      <form onSubmit={handleSubmit} noValidate className="mx-auto flex w-full max-w-[360px] flex-col gap-4 text-left">
-        <div>
-          <label htmlFor="signup-email" className={fieldLabel}>
-            Email
-          </label>
-          <input
-            id="signup-email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => setEmailTouched(true)}
-            aria-invalid={emailError ? true : undefined}
-            aria-describedby="signup-email-error"
-            disabled={submitting}
-            className={textInput}
-          />
-          <FieldError id="signup-email-error">{emailError}</FieldError>
-        </div>
-        <div>
-          <label htmlFor="signup-password" className={fieldLabel}>
-            Password
-          </label>
-          <PasswordField
-            id="signup-password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onBlur={() => setPasswordTouched(true)}
-            aria-invalid={passwordError ? true : undefined}
-            aria-describedby="signup-password-hint"
-            disabled={submitting}
-          />
-          <PasswordMessage id="signup-password-hint" error={passwordError} empty={password.length === 0} />
-        </div>
+      <AuthForm
+        onSubmit={handleSubmit}
+        className="mx-auto w-full max-w-[360px] gap-4"
+        submitting={submitting}
+        failure={failure}
+        notice={
+          failure?.code === "wrong_region" &&
+          failure.region && (
+            <button
+              type="button"
+              onClick={() => {
+                // A full load (not router.push) so the auth client is rebuilt for that region.
+                setActiveRegion(failure.region!);
+                window.location.assign("/login");
+              }}
+              className={buttonClasses({ variant: "secondary", hover: "hover", className: "w-full" })}
+            >
+              Log in
+            </button>
+          )
+        }
+        captcha={captcha}
+        submitLabel="Create account"
+        submitVariant="secondary"
+        submitDisabled={!formComplete}
+      >
+        <EmailField id="signup-email" value={email} onChange={setEmail} />
+        <PasswordFormField id="signup-password" autoComplete="new-password" value={password} onChange={setPassword} />
         <label className="flex cursor-pointer items-start gap-2.5 text-[0.85rem] leading-normal text-text-muted">
           <input
             type="checkbox"
             checked={acceptedTerms}
             onChange={(e) => setAcceptedTerms(e.target.checked)}
-            disabled={submitting}
             className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent-red)]"
           />
           <span>
@@ -184,32 +166,7 @@ export default function SignUpPage() {
             .
           </span>
         </label>
-        {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-        {failure?.code === "wrong_region" && failure.region && (
-          <button
-            type="button"
-            onClick={() => {
-              // A full load (not router.push) so the auth client is rebuilt for that region.
-              setActiveRegion(failure.region!);
-              window.location.assign("/login");
-            }}
-            className={buttonClasses({ variant: "secondary", hover: "hover", className: "w-full" })}
-          >
-            Log in
-          </button>
-        )}
-        <Turnstile captcha={captcha} />
-        <CaptchaButton
-          captcha={captcha}
-          type="submit"
-          variant="secondary"
-          className="w-full"
-          loading={submitting}
-          disabled={!formComplete}
-        >
-          Create account
-        </CaptchaButton>
-      </form>
+      </AuthForm>
       <p className="mt-6 text-center text-[0.9rem] text-text-muted">
         Already have an account?{" "}
         <Link href="/login" className="font-bold text-accent-blue hover:underline">

@@ -9,7 +9,6 @@ import {
   confirmCurrentPassword,
   looksLikeEmail,
   normalizeEmail,
-  passwordFieldError,
   passwordProblem,
   requestEmailChange,
   updatePassword,
@@ -18,10 +17,13 @@ import { useAuthSubmit } from "@/lib/auth/useAuthSubmit";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { fieldHint, fieldLabel, textInput } from "@/app/components/ui/formClasses";
-import { FormMessage, PasswordMessage } from "@/app/components/auth/AuthLayout";
-import { PasswordField } from "@/app/components/auth/PasswordField";
-import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
+import { fieldLabel } from "@/app/components/ui/formClasses";
+import { AuthForm } from "@/app/components/auth/AuthForm";
+import { EmailField, PasswordFormField } from "@/app/components/auth/AuthFields";
+import { useTurnstile } from "@/app/components/auth/Turnstile";
+
+/** The box the two forms below open in, inside the "Sign-in methods" list. */
+const FORM_CARD = "gap-3.5 rounded-lg border border-border-soft bg-white/[0.03] p-3.5";
 
 /** Email + password half of "Sign-in methods" (the Google half stays in ProfileSettingsForm).
  * Rendered only behind NEXT_PUBLIC_PASSWORD_AUTH. `hasPassword` is `null` while it loads (or when it
@@ -110,10 +112,7 @@ function PasswordForm({
   const captcha = useTurnstile();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
-  // Same as /signup: the field only complains once it has been left, and stops the moment it is valid.
-  const [nextTouched, setNextTouched] = useState(false);
   const { submitting, failure, setFailure, submit, stop } = useAuthSubmit();
-  const nextError = passwordFieldError(next, nextTouched);
   const formComplete = passwordProblem(next) === null && (!hasPassword || current.length > 0);
 
   async function handleSubmit(event: FormEvent) {
@@ -144,50 +143,36 @@ function PasswordForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5 rounded-lg border border-border-soft bg-white/[0.03] p-3.5">
+    <AuthForm
+      onSubmit={handleSubmit}
+      className={FORM_CARD}
+      submitting={submitting}
+      failure={failure}
+      captcha={captcha}
+      submitLabel="Save password"
+      submitDisabled={!formComplete}
+      onCancel={onClose}
+    >
       {hasPassword && (
-        <div>
-          <label htmlFor="settings-current-password" className={fieldLabel}>
-            Current password
-          </label>
-          <PasswordField
-            id="settings-current-password"
-            autoComplete="current-password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-            disabled={submitting}
-            autoFocus
-          />
-        </div>
-      )}
-      <div>
-        <label htmlFor="settings-new-password" className={fieldLabel}>
-          {hasPassword ? "New password" : "Password"}
-        </label>
-        <PasswordField
-          id="settings-new-password"
-          autoComplete="new-password"
-          value={next}
-          onChange={(e) => setNext(e.target.value)}
-          onBlur={() => setNextTouched(true)}
-          aria-invalid={nextError ? true : undefined}
-          aria-describedby="settings-new-password-hint"
-          disabled={submitting}
-          autoFocus={!hasPassword}
+        <PasswordFormField
+          id="settings-current-password"
+          label="Current password"
+          autoComplete="current-password"
+          value={current}
+          onChange={setCurrent}
+          validate={false}
+          autoFocus
         />
-        <PasswordMessage id="settings-new-password-hint" error={nextError} empty={next.length === 0} />
-      </div>
-      {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-      <Turnstile captcha={captcha} />
-      <div className="flex gap-2.5">
-        <CaptchaButton captcha={captcha} type="submit" size="sm" loading={submitting} disabled={!formComplete}>
-          Save password
-        </CaptchaButton>
-        <Button type="button" variant="secondary" size="sm" disabled={submitting} onClick={onClose}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+      )}
+      <PasswordFormField
+        id="settings-new-password"
+        label={hasPassword ? "New password" : "Password"}
+        autoComplete="new-password"
+        value={next}
+        onChange={setNext}
+        autoFocus={!hasPassword}
+      />
+    </AuthForm>
   );
 }
 
@@ -234,47 +219,31 @@ function ChangeEmailForm({ email, onClose }: { email: string; onClose: () => voi
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5 rounded-lg border border-border-soft bg-white/[0.03] p-3.5">
-      <div>
-        <label htmlFor="settings-new-email" className={fieldLabel}>
-          New email
-        </label>
-        <input
-          id="settings-new-email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          autoCapitalize="none"
-          spellCheck={false}
-          value={newEmail}
-          onChange={(e) => setNewEmail(e.target.value)}
-          disabled={submitting}
-          className={textInput}
-        />
-        <p className={fieldHint}>We&apos;ll send a code to the new address. Your email only changes once you confirm it.</p>
-      </div>
-      <div>
-        <label htmlFor="settings-email-password" className={fieldLabel}>
-          Current password
-        </label>
-        <PasswordField
-          id="settings-email-password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={submitting}
-        />
-      </div>
-      {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-      <Turnstile captcha={captcha} />
-      <div className="flex gap-2.5">
-        <CaptchaButton captcha={captcha} type="submit" size="sm" loading={submitting}>
-          Send code
-        </CaptchaButton>
-        <Button type="button" variant="secondary" size="sm" disabled={submitting} onClick={onClose}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+    <AuthForm
+      onSubmit={handleSubmit}
+      className={FORM_CARD}
+      submitting={submitting}
+      failure={failure}
+      captcha={captcha}
+      submitLabel="Send code"
+      onCancel={onClose}
+    >
+      <EmailField
+        id="settings-new-email"
+        label="New email"
+        value={newEmail}
+        onChange={setNewEmail}
+        validate={false}
+        hint="We'll send a code to the new address. Your email only changes once you confirm it."
+      />
+      <PasswordFormField
+        id="settings-email-password"
+        label="Current password"
+        autoComplete="current-password"
+        value={password}
+        onChange={setPassword}
+        validate={false}
+      />
+    </AuthForm>
   );
 }

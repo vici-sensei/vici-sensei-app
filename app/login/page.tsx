@@ -7,24 +7,16 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/app/components/ui/Toast";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { Logo } from "@/app/components/ui/Logo";
-import { fieldLabel, textInput } from "@/app/components/ui/formClasses";
-import {
-  AUTH_LOGO_SIZE,
-  FieldError,
-  FormMessage,
-  OrDivider,
-  PasswordMessage,
-} from "@/app/components/auth/AuthLayout";
+import { AUTH_LOGO_SIZE, OrDivider } from "@/app/components/auth/AuthLayout";
+import { AuthForm } from "@/app/components/auth/AuthForm";
+import { EmailField, PasswordFormField } from "@/app/components/auth/AuthFields";
 import { GoogleButton } from "@/app/components/auth/GoogleButton";
-import { PasswordField } from "@/app/components/auth/PasswordField";
 import { RegionPicker } from "@/app/components/auth/RegionPicker";
-import { CaptchaButton, Turnstile, useTurnstile } from "@/app/components/auth/Turnstile";
+import { useTurnstile } from "@/app/components/auth/Turnstile";
 import { finishSignIn } from "@/lib/auth/finishSignIn";
 import {
-  emailFieldError,
   isPasswordAuthEnabled,
   looksLikeEmail,
-  passwordFieldError,
   rememberPendingAuth,
   signInWithPasswordAcrossRegions,
 } from "@/lib/auth/passwordAuth";
@@ -89,12 +81,7 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   const { showToast } = useToast();
   const [email, setEmail] = useRememberedEmail();
   const [password, setPassword] = useState("");
-  // A field only complains once the person has left it, and stops the moment it is filled in right.
-  const [emailTouched, setEmailTouched] = useState(false);
-  const [passwordTouched, setPasswordTouched] = useState(false);
   const { submitting, failure, setFailure, submit } = useAuthSubmit();
-  const emailError = emailFieldError(email, emailTouched);
-  const passwordError = passwordFieldError(password, passwordTouched);
   // The security card only slides in once there is something to submit.
   const formComplete = looksLikeEmail(email) && password.length > 0;
   const captcha = useTurnstile(formComplete);
@@ -135,62 +122,29 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mx-auto flex w-full max-w-[360px] flex-col gap-4 text-left">
-      <div>
-        <label htmlFor="login-email" className={fieldLabel}>
-          Email
-        </label>
-        <input
-          id="login-email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          autoCapitalize="none"
-          spellCheck={false}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onBlur={() => setEmailTouched(true)}
-          aria-invalid={emailError ? true : undefined}
-          aria-describedby="login-email-error"
-          disabled={submitting}
-          className={textInput}
-        />
-        <FieldError id="login-email-error">{emailError}</FieldError>
-      </div>
-      <div>
-        <div className="mb-2 flex items-baseline justify-between">
-          <label htmlFor="login-password" className="block text-sm font-bold uppercase tracking-[0.6px] text-text-muted">
-            Password
-          </label>
+    <AuthForm
+      onSubmit={handleSubmit}
+      className="mx-auto w-full max-w-[360px] gap-4"
+      submitting={submitting}
+      failure={failure}
+      captcha={captcha}
+      submitLabel="Log in"
+      submitVariant="secondary"
+      submitDisabled={!formComplete}
+    >
+      <EmailField id="login-email" value={email} onChange={setEmail} />
+      <PasswordFormField
+        id="login-password"
+        autoComplete="current-password"
+        value={password}
+        onChange={setPassword}
+        labelAside={
           <Link href="/forgot-password" className="text-[0.8rem] font-semibold text-accent-blue hover:underline">
             Forgot password?
           </Link>
-        </div>
-        <PasswordField
-          id="login-password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onBlur={() => setPasswordTouched(true)}
-          aria-invalid={passwordError ? true : undefined}
-          aria-describedby="login-password-hint"
-          disabled={submitting}
-        />
-        <PasswordMessage id="login-password-hint" error={passwordError} empty={password.length === 0} />
-      </div>
-      {failure && <FormMessage tone="error">{failure.message}</FormMessage>}
-      <Turnstile captcha={captcha} />
-      <CaptchaButton
-        captcha={captcha}
-        type="submit"
-        variant="secondary"
-        className="w-full"
-        loading={submitting}
-        disabled={!formComplete}
-      >
-        Log in
-      </CaptchaButton>
-    </form>
+        }
+      />
+    </AuthForm>
   );
 }
 
