@@ -42,10 +42,20 @@ export interface ProjectionParams {
   start: PredictionStart;
 }
 
+/** One category's share of a prediction: the same arrays as the totals, but only its own cards. */
+export interface CategorySeries {
+  perDay: number[];
+  cumulative: number[];
+  /** Day index of this category's last new card, or null when its pool is not used up within the horizon. */
+  completionIdx: number | null;
+}
+
 export interface PredictionSeries {
   /** Index 0 = the start day. Both arrays run to `endIdx`. */
   perDay: number[];
   cumulative: number[];
+  /** `perDay`/`cumulative` split by category (they add up to the totals above). */
+  byCategory: Record<string, CategorySeries>;
   /** Expected number of already-learned cards waiting for review each day, before the daily cap. */
   due: number[];
   /** Day index of the last new card, or null when the pool is not used up within the horizon. */
@@ -79,7 +89,11 @@ export interface ProjectionResult {
   hasHistory: boolean;
   todayIdx: number;
   actual: { perDay: number[]; cumulative: number[] };
+  /** `actual` split by category (they add up to `actual`). */
+  actualByCategory: Record<string, { perDay: number[]; cumulative: number[] }>;
   poolTotal: number;
+  /** `poolTotal` split by category. */
+  poolByCategory: Record<string, number>;
   /** The prediction for the chosen `start`; null when nothing can be predicted (no pool or no target). */
   predicted: PredictionSeries | null;
   /** Always the ideal-from-day-1 run, for the summary's ahead/behind number. */
@@ -178,6 +192,8 @@ function simulate(cfg: SimConfig): PredictionSeries {
   }
 
   const perDay: number[] = [];
+  const perDayByCat: Record<string, number[]> = {};
+  for (const c of categories) perDayByCat[c] = [];
   const dueSeries: number[] = [];
   const blocked: { idx: number; due: number }[] = [];
   let completionIdx: number | null = null;
@@ -227,6 +243,7 @@ function simulate(cfg: SimConfig): PredictionSeries {
         if (firstIntro[cat] === Infinity) firstIntro[cat] = d;
         introducedToday += n;
       }
+      perDayByCat[cat].push(n);
     }
     if (!isReal && someoneWaiting && !gateOpen) blocked.push({ idx: d, due: dueCount });
     schedule(d + 1, 1, GRADUATING_INTERVAL_DAYS, DEFAULT_EASE_CENTS, introducedToday);
@@ -238,9 +255,19 @@ function simulate(cfg: SimConfig): PredictionSeries {
     if (completionIdx !== null && d >= minEnd) break;
   }
 
-  const cumulative: number[] = [];
-  let running = 0;
-  for (const n of perDay) cumulative.push((running += n));
+  const cumulativeOf = (series: number[]) => {
+    let running = 0;
+    return series.map((n) => (running += n));
+  };
+  const cumulative = cumulativeOf(perDay);
+  const byCategory: Record<string, CategorySeries> = {};
+  for (const c of categories) {
+    byCategory[c] = {
+      perDay: perDayByCat[c],
+      cumulative: cumulativeOf(perDayByCat[c]),
+      completionIdx: remaining[c] <= 0 && Number.isFinite(lastIntro[c]) ? lastIntro[c] : null,
+    };
+  }
 
   const testBands: PredictionSeries["testBands"] = [];
   if (sequential) {
@@ -255,7 +282,7 @@ function simulate(cfg: SimConfig): PredictionSeries {
     }
   }
 
-  return { perDay, cumulative, due: dueSeries, completionIdx, blocked, testBands, endIdx: perDay.length - 1 };
+  return { perDay, cumulative, byCategory, due: dueSeries, completionIdx, blocked, testBands, endIdx: perDay.length - 1 };
 }
 
 function windowAverage(perDay: number[], todayIdx: number): number {
@@ -323,10 +350,14 @@ export function projectNewCards(params: ProjectionParams): ProjectionResult {
   }
   const actualPerDay = new Array<number>(todayIdx + 1).fill(0);
   for (const c of categories) for (let i = 0; i <= todayIdx; i++) actualPerDay[i] += actualByCat[c][i];
-  const actualCumulative: number[] = [];
-  let running = 0;
-  for (const n of actualPerDay) actualCumulative.push((running += n));
-  const seen = running;
+  const runningTotal = (series: number[]) => {
+    let running = 0;
+    return series.map((n) => (running += n));
+  };
+  const actualCumulative = runningTotal(actualPerDay);
+  const seen = actualCumulative[actualCumulative.length - 1];
+  const actualByCategory: ProjectionResult["actualByCategory"] = {};
+  for (const c of categories) actualByCategory[c] = { perDay: actualByCat[c], cumulative: runningTotal(actualByCat[c]) };
 
   const targets = resolveTargets(pace, track, categories, settingsCaps, actualByCat, todayIdx);
   const targetSum = categories.reduce((sum, c) => sum + (targets[c] ?? 0), 0);
@@ -379,7 +410,9 @@ export function projectNewCards(params: ProjectionParams): ProjectionResult {
     hasHistory,
     todayIdx,
     actual: { perDay: actualPerDay, cumulative: actualCumulative },
+    actualByCategory,
     poolTotal,
+    poolByCategory: pool,
     predicted,
     ideal,
     summary: {
@@ -393,5 +426,22 @@ export function projectNewCards(params: ProjectionParams): ProjectionResult {
     },
     targets,
     categories,
+  };
+}
+
+/** What the chart draws: a whole projection, or one category's slice of it. */
+export type ChartSeries = Pick<ProjectionResult, "days" | "startDay" | "todayIdx" | "actual" | "poolTotal" | "predicted">;
+
+/** One category's slice of a projection, shaped like the whole thing so the chart can draw either. The
+ * x axis, the reviews due and the paused days stay shared: the review cap holds back every category at once. */
+export function projectionForCategory(result: ProjectionResult, category: NewCardCategory): ChartSeries {
+  const { days, startDay, todayIdx, actualByCategory, poolByCategory, predicted } = result;
+  return {
+    days,
+    startDay,
+    todayIdx,
+    actual: actualByCategory[category],
+    poolTotal: poolByCategory[category] ?? 0,
+    predicted: predicted && { ...predicted, ...predicted.byCategory[category] },
   };
 }

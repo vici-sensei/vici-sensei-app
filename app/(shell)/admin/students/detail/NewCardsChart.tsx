@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { dayIndex, type PredictionStart, type ProjectionResult, type Track } from "@/lib/study/newCardProjection";
+import { dayIndex, type ChartSeries, type PredictionStart, type Track } from "@/lib/study/newCardProjection";
 import type { StudentNewCardProgress } from "@/lib/types";
 
 export type ChartView = "cumulative" | "daily";
 
 const HEIGHT = 300;
+// The split view stacks two charts, so each one is shorter.
+const COMPACT_HEIGHT = 220;
 const MARGIN = { top: 24, right: 16, bottom: 30, left: 46 };
 const MIN_WIDTH = 280;
 
@@ -93,16 +95,21 @@ function LineKey({ color, dashed }: { color: string; dashed?: boolean }) {
 }
 
 interface ChartProps {
-  result: ProjectionResult;
+  result: ChartSeries;
   view: ChartView;
   start: PredictionStart;
   track: Track;
   /** Real hiragana/katakana reading tests; only drawn on the kana track. */
   tests: StudentNewCardProgress["tests"];
   reviewCap: number | null;
+  /** Heading above the plot, for when several charts are stacked. */
+  title?: string;
+  /** False when another chart above already shows the same legend. */
+  showLegend?: boolean;
+  compact?: boolean;
 }
 
-export function NewCardsChart({ result, view, start, track, tests, reviewCap }: ChartProps) {
+export function NewCardsChart({ result, view, start, track, tests, reviewCap, title, showLegend = true, compact = false }: ChartProps) {
   const [wrapRef, width] = useElementWidth<HTMLDivElement>();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
@@ -110,7 +117,8 @@ export function NewCardsChart({ result, view, start, track, tests, reviewCap }: 
   const n = days.length;
   const cumulative = view === "cumulative";
   const plotW = width - MARGIN.left - MARGIN.right;
-  const plotH = HEIGHT - MARGIN.top - MARGIN.bottom;
+  const height = compact ? COMPACT_HEIGHT : HEIGHT;
+  const plotH = height - MARGIN.top - MARGIN.bottom;
   const baseY = MARGIN.top + plotH;
   const stepX = n > 1 ? plotW / (n - 1) : plotW;
   const x = (i: number) => MARGIN.left + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
@@ -214,50 +222,53 @@ export function NewCardsChart({ result, view, start, track, tests, reviewCap }: 
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-text-muted">
-        <span className="flex items-center gap-2">
-          <LineKey color={REAL_COLOR} /> Real
-        </span>
-        {predicted && predictedPoints.length > 1 && (
+      {showLegend && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-text-muted">
           <span className="flex items-center gap-2">
-            <LineKey color={PREDICTED_COLOR} dashed /> Predicted, {start === "ideal" ? "ideal from day 1" : "from today on"}
+            <LineKey color={REAL_COLOR} /> Real
           </span>
-        )}
-        {cumulative && (
-          <span className="flex items-center gap-2">
-            <svg width="22" height="8" aria-hidden="true">
-              <line x1="1" y1="4" x2="21" y2="4" strokeWidth="1" strokeDasharray="2 3" style={{ stroke: INK_MUTED }} />
-            </svg>
-            Total to learn
-          </span>
-        )}
-        {realTests.length > 0 && (
-          <span className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: TEST_COLOR }} /> Reading test taken
-          </span>
-        )}
-        {hasTestBands && (
-          <span className="flex items-center gap-2">
-            <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[0.55rem] font-extrabold text-bg-main" style={{ background: TEST_COLOR }}>
-              T
+          {predicted && predictedPoints.length > 1 && (
+            <span className="flex items-center gap-2">
+              <LineKey color={PREDICTED_COLOR} dashed /> Predicted, {start === "ideal" ? "ideal from day 1" : "from today on"}
             </span>
-            Estimated reading-test period
-          </span>
-        )}
-        {hasBlocked && (
-          <span className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-0.5" style={{ background: BLOCKED_COLOR }} /> New cards paused (review cap)
-          </span>
-        )}
-      </div>
+          )}
+          {cumulative && (
+            <span className="flex items-center gap-2">
+              <svg width="22" height="8" aria-hidden="true">
+                <line x1="1" y1="4" x2="21" y2="4" strokeWidth="1" strokeDasharray="2 3" style={{ stroke: INK_MUTED }} />
+              </svg>
+              Total to learn
+            </span>
+          )}
+          {realTests.length > 0 && (
+            <span className="flex items-center gap-2">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: TEST_COLOR }} /> Reading test taken
+            </span>
+          )}
+          {hasTestBands && (
+            <span className="flex items-center gap-2">
+              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[0.55rem] font-extrabold text-bg-main" style={{ background: TEST_COLOR }}>
+                T
+              </span>
+              Estimated reading-test period
+            </span>
+          )}
+          {hasBlocked && (
+            <span className="flex items-center gap-2">
+              <span className="inline-block h-2.5 w-0.5" style={{ background: BLOCKED_COLOR }} /> New cards paused (review cap)
+            </span>
+          )}
+        </div>
+      )}
+      {title && <h3 className="mb-1 text-sm font-bold">{title}</h3>}
 
       <div ref={wrapRef} className="relative">
         <svg
           width={width}
-          height={HEIGHT}
-          viewBox={`0 0 ${width} ${HEIGHT}`}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
           role="img"
-          aria-label="New cards chart. Use the left and right arrow keys to read the values day by day."
+          aria-label={`${title ? `${title} new cards` : "New cards"} chart. Use the left and right arrow keys to read the values day by day.`}
           tabIndex={0}
           className="block touch-pan-y select-none outline-offset-2"
           onPointerMove={onPointerMove}
@@ -274,7 +285,7 @@ export function NewCardsChart({ result, view, start, track, tests, reviewCap }: 
             </g>
           ))}
           {xTickIdx.map((i) => (
-            <text key={i} x={x(i)} y={HEIGHT - 8} textAnchor={i === 0 && n > 1 ? "start" : i === n - 1 && n > 1 ? "end" : "middle"} fontSize="11" style={{ fill: INK_MUTED }}>
+            <text key={i} x={x(i)} y={height - 8} textAnchor={i === 0 && n > 1 ? "start" : i === n - 1 && n > 1 ? "end" : "middle"} fontSize="11" style={{ fill: INK_MUTED }}>
               {(spansYears ? tickYearFormatter : tickFormatter).format(new Date(days[i]))}
             </text>
           ))}

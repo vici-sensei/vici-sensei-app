@@ -13,6 +13,7 @@ import {
   RECENT_AVERAGE_DAYS,
   STANDARD_CATEGORIES,
   projectNewCards,
+  projectionForCategory,
   type CategoryPace,
   type PaceSource,
   type PredictionStart,
@@ -33,11 +34,21 @@ const TABLE_ROW_LIMIT = 366;
 
 type PaceMode = "settings" | "average" | "custom";
 type ReviewKey = "settings" | "20" | "50" | "100" | "150" | "200" | "none";
+/** Standard track only: one chart with the totals, or kanji and vocabulary each in their own chart. */
+type ChartLines = "combined" | "split";
 
 const VIEW_OPTIONS: { value: ChartView; label: string }[] = [
   { value: "cumulative", label: "Cumulative" },
   { value: "daily", label: "Per day" },
 ];
+const LINES_OPTIONS: { value: ChartLines; label: string }[] = [
+  { value: "combined", label: "Combined" },
+  { value: "split", label: "Split" },
+];
+const SPLIT_CHARTS = [
+  { category: "kanji", title: "Kanji" },
+  { category: "vocabulary", title: "Vocabulary" },
+] as const;
 const START_OPTIONS: { value: PredictionStart; label: string }[] = [
   { value: "ideal", label: "Ideal from day 1" },
   { value: "today", label: "From today on" },
@@ -45,6 +56,7 @@ const START_OPTIONS: { value: PredictionStart; label: string }[] = [
 
 // What "Reset" returns the filters to. Track and levels come from the student, so they're derived per student below.
 const DEFAULT_VIEW: ChartView = "cumulative";
+const DEFAULT_LINES: ChartLines = "combined";
 const DEFAULT_START: PredictionStart = "today";
 const DEFAULT_PACE_MODE: PaceMode = "settings";
 
@@ -275,6 +287,13 @@ function ChartExplanation({
   );
 }
 
+type TableSeries = { perDay: number[]; cumulative: number[] };
+interface TableColumn {
+  header: string;
+  muted?: boolean;
+  cell: (dayIdx: number) => string;
+}
+
 interface Props {
   student: StudentDetail | null;
   progress: StudentNewCardProgress | null;
@@ -305,6 +324,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   const [track, setTrack] = useState<Track>(defaultTrack);
   const [levels, setLevels] = useState<string[]>(defaultLevels);
   const [view, setView] = useState<ChartView>(DEFAULT_VIEW);
+  const [lines, setLines] = useState<ChartLines>(DEFAULT_LINES);
   const [start, setStart] = useState<PredictionStart>(DEFAULT_START);
   // Standard: kanji and vocabulary always share one mode, and a custom vocabulary pace is always
   // VOCAB_PER_KANJI x the custom kanji pace -- the same 1:6 lock the app itself keeps. Kana: the
@@ -328,6 +348,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
     track === defaultTrack &&
     levels.join() === defaultLevels.join() &&
     view === DEFAULT_VIEW &&
+    lines === DEFAULT_LINES &&
     start === DEFAULT_START &&
     standardMode === DEFAULT_PACE_MODE &&
     hiraganaMode === DEFAULT_PACE_MODE &&
@@ -338,6 +359,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
     setTrack(defaultTrack);
     setLevels(defaultLevels);
     setView(DEFAULT_VIEW);
+    setLines(DEFAULT_LINES);
     setStart(DEFAULT_START);
     setStandardMode(DEFAULT_PACE_MODE);
     setCustomKanji(defaultCustomKanji);
@@ -419,6 +441,8 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   const trackLabel = track === "standard" ? "Standard" : "Kana";
 
   const { summary, predicted, days, todayIdx, actual } = result;
+  // Kana scripts are learned one after the other, so splitting them would only draw two lines that never run together.
+  const split = track === "standard" && lines === "split";
   const complete = summary.poolTotal > 0 && summary.seen >= summary.poolTotal;
   const percent = summary.poolTotal > 0 ? Math.round((summary.seen / summary.poolTotal) * 100) : 0;
 
@@ -441,6 +465,7 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
     track === "standard" ? "Standard" : "Kana",
     ...(track === "standard" ? [levelSummary] : []),
     view === "cumulative" ? "Cumulative" : "Per day",
+    ...(split ? ["Kanji and vocabulary split"] : []),
     START_OPTIONS.find((o) => o.value === start)?.label,
     paceSummary,
     reviewSummary,
@@ -473,6 +498,30 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
       if (dayDiff != null && dayDiff !== 0) vsSub = `about ${fmt(Math.abs(dayDiff))} day${Math.abs(dayDiff) === 1 ? "" : "s"} ${dayDiff > 0 ? "behind" : "ahead"}`;
     }
   }
+
+  // The table has a "—" wherever a column has nothing to say about a day: no real data after today, no
+  // prediction before it ("From today on") or when nothing can be predicted.
+  const hasReal = (i: number) => i <= todayIdx;
+  const hasPredicted = (i: number) => predicted != null && (start === "ideal" || i > todayIdx);
+  const seriesColumns = (prefix: string, real: TableSeries, forecast: TableSeries | null): TableColumn[] => [
+    { header: `${prefix}Real`, cell: (i) => (hasReal(i) ? fmt(real.perDay[i]) : "—") },
+    { header: `${prefix}Real total`, muted: true, cell: (i) => (hasReal(i) ? fmt(real.cumulative[i]) : "—") },
+    { header: `${prefix}Predicted`, cell: (i) => (forecast && hasPredicted(i) ? fmt(forecast.perDay[i] ?? 0) : "—") },
+    {
+      header: `${prefix}Predicted total`,
+      muted: true,
+      cell: (i) => (forecast && hasPredicted(i) ? fmt(forecast.cumulative[Math.min(i, forecast.cumulative.length - 1)]) : "—"),
+    },
+  ];
+  const tableColumns: TableColumn[] = [
+    { header: "Date", cell: (i) => dateFormatter.format(new Date(days[i])) },
+    ...(split
+      ? SPLIT_CHARTS.flatMap(({ category, title }) =>
+          seriesColumns(`${title} `, result.actualByCategory[category], predicted?.byCategory[category] ?? null)
+        )
+      : seriesColumns("", actual, predicted)),
+    { header: "Reviews due", muted: true, cell: (i) => (predicted && hasPredicted(i) && i < predicted.due.length ? fmt(predicted.due[i]) : "—") },
+  ];
 
   return (
     <div>
@@ -522,6 +571,14 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
           <FilterRow label="Chart shows">
             <PillSelector variant="compact" active={view} onChange={setView} options={VIEW_OPTIONS} />
           </FilterRow>
+          {track === "standard" && (
+            <FilterRow
+              label="Lines"
+              hint={`Split draws kanji and vocabulary as two charts, each on its own scale: vocabulary runs ${VOCAB_PER_KANJI} times higher than kanji, so on one scale the kanji would be squashed.`}
+            >
+              <PillSelector variant="compact" active={lines} onChange={setLines} options={LINES_OPTIONS} />
+            </FilterRow>
+          )}
           <FilterRow label="Prediction">
             <PillSelector variant="compact" active={start} onChange={setStart} options={START_OPTIONS} />
           </FilterRow>
@@ -628,14 +685,33 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
       </div>
 
       <div className="mt-5">
-        <NewCardsChart
-          result={result}
-          view={view}
-          start={start}
-          track={track}
-          tests={progress.tests}
-          reviewCap={reviewCap}
-        />
+        {split ? (
+          <div className="flex flex-col gap-5">
+            {SPLIT_CHARTS.map(({ category, title }, i) => (
+              <NewCardsChart
+                key={category}
+                result={projectionForCategory(result, category)}
+                view={view}
+                start={start}
+                track={track}
+                tests={progress.tests}
+                reviewCap={reviewCap}
+                title={title}
+                showLegend={i === 0}
+                compact
+              />
+            ))}
+          </div>
+        ) : (
+          <NewCardsChart
+            result={result}
+            view={view}
+            start={start}
+            track={track}
+            tests={progress.tests}
+            reviewCap={reviewCap}
+          />
+        )}
       </div>
 
       <ChartExplanation
@@ -679,34 +755,26 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
       </button>
       {showTable && (
         <div className="mt-2 max-h-72 overflow-auto">
-          <table className="w-full min-w-120 text-left text-sm">
+          <table className={`w-full text-left text-sm ${split ? "min-w-240" : "min-w-120"}`}>
             <thead>
               <tr className="border-b border-border-soft text-text-muted">
-                <th className="px-2 py-2 font-semibold">Date</th>
-                <th className="px-2 py-2 font-semibold">Real</th>
-                <th className="px-2 py-2 font-semibold">Real total</th>
-                <th className="px-2 py-2 font-semibold">Predicted</th>
-                <th className="px-2 py-2 font-semibold">Predicted total</th>
-                <th className="px-2 py-2 font-semibold">Reviews due</th>
+                {tableColumns.map((column) => (
+                  <th key={column.header} className="px-2 py-2 font-semibold">
+                    {column.header}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {days.slice(0, showAllRows ? undefined : TABLE_ROW_LIMIT).map((day, i) => {
-                const hasReal = i <= todayIdx;
-                const hasPredicted = predicted != null && (start === "ideal" || i > todayIdx);
-                return (
-                  <tr key={day} className="border-b border-border-soft/50">
-                    <td className="px-2 py-1.5">{dateFormatter.format(new Date(day))}</td>
-                    <td className="px-2 py-1.5">{hasReal ? fmt(actual.perDay[i]) : "—"}</td>
-                    <td className="px-2 py-1.5 text-text-muted">{hasReal ? fmt(actual.cumulative[i]) : "—"}</td>
-                    <td className="px-2 py-1.5">{hasPredicted ? fmt(predicted.perDay[i] ?? 0) : "—"}</td>
-                    <td className="px-2 py-1.5 text-text-muted">
-                      {hasPredicted ? fmt(predicted.cumulative[Math.min(i, predicted.cumulative.length - 1)]) : "—"}
+              {days.slice(0, showAllRows ? undefined : TABLE_ROW_LIMIT).map((day, i) => (
+                <tr key={day} className="border-b border-border-soft/50">
+                  {tableColumns.map((column) => (
+                    <td key={column.header} className={`whitespace-nowrap px-2 py-1.5${column.muted ? " text-text-muted" : ""}`}>
+                      {column.cell(i)}
                     </td>
-                    <td className="px-2 py-1.5 text-text-muted">{hasPredicted && i < predicted.due.length ? fmt(predicted.due[i]) : "—"}</td>
-                  </tr>
-                );
-              })}
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
           {days.length > TABLE_ROW_LIMIT && !showAllRows && (
