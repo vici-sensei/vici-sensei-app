@@ -5,9 +5,6 @@
 // <foreignObject>, which an <img> then loads. An image can't load the page's fonts, so the
 // first font of the element's stack is embedded as data: URLs. Only plain DOM and inline SVG are
 // supported (no <img>, <canvas>, <input> or pseudo-elements).
-//
-// A descendant marked `data-export-only` (and `hidden` on screen) is shown in the picture only, e.g.
-// a caption for the file.
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -17,15 +14,6 @@ function cloneStyled(source: Element): Element {
   // An inline `var(...)` is replaced by the resolved value written below.
   clone.removeAttribute("style");
   for (const property of computed) clone.style.setProperty(property, computed.getPropertyValue(property), computed.getPropertyPriority(property));
-  if (source.hasAttribute("data-export-only")) {
-    clone.removeAttribute("hidden");
-    clone.style.setProperty("display", "block");
-  }
-  // The computed height leaves out the picture-only parts inside, so it can't stay fixed.
-  if (source.querySelector("[data-export-only]")) {
-    clone.style.removeProperty("height");
-    clone.style.removeProperty("block-size");
-  }
   for (const child of source.childNodes) {
     if (child.nodeType === Node.TEXT_NODE) clone.appendChild(child.cloneNode());
     else if (child.nodeType === Node.ELEMENT_NODE) clone.appendChild(cloneStyled(child as Element));

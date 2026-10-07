@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FaChevronDown, FaDownload, FaFileImage, FaFilePdf } from "react-icons/fa6";
 import { useToast } from "@/app/components/ui/Toast";
 import { renderOnA4 } from "@/lib/export/a4Page";
@@ -9,18 +9,31 @@ import { downloadBlob } from "@/lib/export/download";
 
 type Format = "png" | "pdf";
 
+// The file is laid out this wide (CSS px), whatever the screen: on the A4 page's 186 mm of printable
+// width that makes the 11 px axis labels about 9 pt.
+const EXPORT_WIDTH = 620;
+
+/** Resolves after the next paint -- or after 100 ms, which is all a hidden tab gets (no frames there). */
+const nextFrame = () =>
+  new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+    setTimeout(resolve, 100);
+  });
+
 const FORMATS: { value: Format; label: string; Icon: typeof FaFileImage }[] = [
   { value: "png", label: "PNG image", Icon: FaFileImage },
   { value: "pdf", label: "PDF document", Icon: FaFilePdf },
 ];
 
-/** "Download" button with a PNG / PDF menu: saves `targetRef`'s element as it is on screen right now,
- * centred on an A4 page, to `<fileName>-<date>.png|pdf`. */
-export function ChartDownload({ targetRef, fileName }: { targetRef: RefObject<HTMLElement | null>; fileName: string }) {
+/** "Download" button with a PNG / PDF menu. The file is made from `children`, rendered off-screen at
+ * EXPORT_WIDTH only while it is being made, and saved centred on an A4 portrait page as
+ * `<fileName>-<date>.png|pdf`. */
+export function ChartDownload({ fileName, children }: { fileName: string; children: ReactNode }) {
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -39,11 +52,14 @@ export function ChartDownload({ targetRef, fileName }: { targetRef: RefObject<HT
   }, [open]);
 
   async function download(format: Format) {
-    const target = targetRef.current;
-    if (!target) return;
     setOpen(false);
     setBusy(true);
     try {
+      // Two frames: the charts measure their width once mounted, and draw again at it.
+      await nextFrame();
+      await nextFrame();
+      const target = stageRef.current;
+      if (!target) throw new Error("Couldn't prepare the chart.");
       const { canvas, widthMm, heightMm } = await renderOnA4(target, { background: getComputedStyle(document.body).backgroundColor });
       const blob =
         format === "pdf"
@@ -60,6 +76,13 @@ export function ChartDownload({ targetRef, fileName }: { targetRef: RefObject<HT
 
   return (
     <div ref={rootRef} className="relative">
+      {busy && (
+        <div inert className="pointer-events-none fixed top-0 -left-[10000px]">
+          <div ref={stageRef} style={{ width: EXPORT_WIDTH }}>
+            {children}
+          </div>
+        </div>
+      )}
       <button
         type="button"
         aria-haspopup="menu"

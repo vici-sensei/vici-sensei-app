@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { FaArrowRotateLeft, FaChevronDown, FaChevronRight, FaMinus, FaPlus } from "react-icons/fa6";
 import { Collapsible } from "@/app/components/ui/Collapsible";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -385,8 +385,6 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showTable, setShowTable] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
-  // What the Download button saves: the chart(s) and the explanation under them.
-  const exportRef = useRef<HTMLDivElement>(null);
 
   // `levels` is always kept in JLPT order, so comparing the joined lists is enough.
   const filtersAreDefault =
@@ -509,6 +507,24 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
   const reviewSummary = reviewCap == null ? "No review limit" : `${fmt(reviewCap)} reviews/day`;
   const studentLabel = student.display_name ?? student.email;
   const exportFileName = `${studentLabel.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "student"}-new-cards`;
+  const chart = split ? (
+    <SplitCharts result={result} view={view} start={start} track={track} tests={progress.tests} reviewCap={reviewCap} />
+  ) : overlay ? (
+    <NewCardsOverlayChart result={result} view={view} start={start} reviewCap={reviewCap} />
+  ) : (
+    <NewCardsChart result={result} view={view} start={start} track={track} tests={progress.tests} reviewCap={reviewCap} />
+  );
+  const explanation = (
+    <ChartExplanation
+      result={result}
+      track={track}
+      levels={levels}
+      view={view}
+      start={start}
+      modes={{ standard: standardMode, hiragana: hiraganaMode, katakana: katakanaMode }}
+      reviewCap={reviewCap}
+    />
+  );
   const summaryLine = [
     track === "standard" ? "Standard" : "Kana",
     ...(track === "standard" ? [levelSummary] : []),
@@ -733,40 +749,18 @@ function NewCardsProgressLoaded({ student, progress }: { student: StudentDetail;
       </div>
 
       <div className="mt-5 flex justify-end">
-        <ChartDownload targetRef={exportRef} fileName={exportFileName} />
+        {/* The file gets its own copy of the chart, with a caption on top: whose chart it is and which filters it was drawn with. */}
+        <ChartDownload fileName={exportFileName}>
+          <p className="text-base font-bold">{studentLabel}</p>
+          <p className="mb-4 text-xs text-text-muted">New cards progress · {summaryLine}</p>
+          {chart}
+          {explanation}
+        </ChartDownload>
       </div>
 
-      <div ref={exportRef} className="mt-3">
-        {/* Only in the downloaded file: whose chart it is and which filters it was drawn with. */}
-        <div data-export-only hidden className="mb-4">
-          <p className="text-base font-bold">{studentLabel}</p>
-          <p className="text-xs text-text-muted">New cards progress · {summaryLine}</p>
-        </div>
-
-        {split ? (
-          <SplitCharts result={result} view={view} start={start} track={track} tests={progress.tests} reviewCap={reviewCap} />
-        ) : overlay ? (
-          <NewCardsOverlayChart result={result} view={view} start={start} reviewCap={reviewCap} />
-        ) : (
-          <NewCardsChart
-            result={result}
-            view={view}
-            start={start}
-            track={track}
-            tests={progress.tests}
-            reviewCap={reviewCap}
-          />
-        )}
-
-        <ChartExplanation
-          result={result}
-          track={track}
-          levels={levels}
-          view={view}
-          start={start}
-          modes={{ standard: standardMode, hiragana: hiraganaMode, katakana: katakanaMode }}
-          reviewCap={reviewCap}
-        />
+      <div className="mt-3">
+        {chart}
+        {explanation}
       </div>
 
       <div className="mt-3 flex flex-col gap-1 text-xs text-text-muted">
