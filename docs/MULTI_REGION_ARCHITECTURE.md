@@ -40,6 +40,14 @@ aplică unde.
    emailul normalizat) — primul proiect care cere un email câștigă acea regiune pentru totdeauna.
    Dacă alt proiect cere ulterior același email, hook-ul respinge cu `wrong_region:<regiune corectă>`,
    fail-closed pe orice eroare (semnătură greșită, D1 jos, payload invalid).
+   **Revendicări orfane (2026-10-07):** o revendicare fără cont (cont șters, utilizator scos din Dashboard,
+   signup eșuat după ce hook-ul a rulat) ținea emailul legat de regiune pentru totdeauna. Înainte să
+   răspundă `wrong_region`, hook-ul (`worker/lib/claimHeal.ts`) întreabă Admin API-ul regiunii revendicate
+   dacă acel cont există și, dacă nu, preia revendicarea (compare-and-swap pe vechea regiune, logat ca
+   `claim_healed` în `reconciliation_log`). Orice îndoială păstrează revendicarea: fără cheie de service,
+   eroare HTTP, timeout (3,5 s), peste 5000 de utilizatori de scanat, sau o revendicare mai tânără de
+   2 minute (un signup poate fi încă în curs). Scanarea completă e intenționată: `filter` din Admin API
+   e un LIKE sensibil la majuscule, iar `auth.users.email` păstrează majusculele trimise de Google.
 4. **`app/auth/callback/page.tsx`** recunoaște `error_description` de forma `wrong_region:<eu|us>` și
    redirecționează la `/login?error=wrong_region&region=<regiune>`; `LoginErrorNotice` arată un toast
    care spune userului regiunea corectă, apoi curăță `?error=` din URL (altfel toast-ul reapărea la
@@ -131,7 +139,9 @@ regiuni:
 
 - **Înscrierea** pornește pe regiunea activă (selectorul/geo-IP, ca la Google). Hook-ul „Before User Created”
   revendică emailul în D1 la fel ca pentru Google; un email al celeilalte regiuni e respins cu
-  `wrong_region:<r>`, iar `/signup` trimite omul la `/login?error=wrong_region&region=<r>`.
+  `wrong_region:<r>`; `/signup` rămâne pe pagină cu mesajul „emailul are deja cont în regiunea X” și un buton
+  „Log in” care comută regiunea (înainte redirecta la `/login?error=wrong_region&region=<r>` și lăsa
+  regiunea greșită persistată în selector).
 - **Login-ul** (`signInWithPasswordAcrossRegions`) încearcă regiunea activă, apoi, doar la
   `invalid_credentials`, și cealaltă; la succes pe cea opusă comută regiunea activă și face încărcare completă
   (`AuthProvider` e legat de regiunea de la montare). Nu există endpoint public email→regiune.
