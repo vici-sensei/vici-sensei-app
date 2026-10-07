@@ -93,6 +93,17 @@ export async function pgUpdateWhere(
   await throwIfNotOk(res, `pgUpdateWhere ${table}`);
 }
 
+/** Calls a `public` function through PostgREST's /rpc endpoint with the service_role key. */
+export async function pgRpc<T = unknown>(cfg: PostgrestConfig, fn: string, args: Record<string, unknown>): Promise<T> {
+  const res = await fetch(new URL(`rest/v1/rpc/${fn}`, cfg.url), {
+    method: "POST",
+    headers: restHeaders(cfg),
+    body: JSON.stringify(args),
+  });
+  await throwIfNotOk(res, `pgRpc ${fn}`);
+  return (await res.json()) as T;
+}
+
 export async function pgDeleteWhere(cfg: PostgrestConfig, table: string, query: Record<string, string>): Promise<void> {
   const res = await fetch(restUrl(cfg, table, query), {
     method: "DELETE",

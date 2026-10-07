@@ -1,7 +1,15 @@
 import type { Env } from "./env";
 import { projectConfig } from "./env";
 import { emailKey, isRegion, type Region } from "./region";
-import { pgDeleteWhere, pgInsertMany, pgSelectAll, pgSelectOne, pgUpdateWhere, type PostgrestConfig } from "./postgrest";
+import {
+  pgDeleteWhere,
+  pgInsertMany,
+  pgRpc,
+  pgSelectAll,
+  pgSelectOne,
+  pgUpdateWhere,
+  type PostgrestConfig,
+} from "./postgrest";
 
 /**
  * Self-service region move: copies a user's identity + all 18 per-user tables from their current
@@ -204,6 +212,69 @@ async function findUserIdByEmail(env: Env, region: Region, email: string): Promi
   }
 }
 
+/** One linked sign-in method of the source account, as the Admin API reports it. */
+interface SourceIdentity {
+  provider: string;
+  provider_id: string;
+  identity_data: Record<string, unknown>;
+  last_sign_in_at: string | null;
+  created_at: string | null;
+}
+
+/** The source account's linked identities (Google), never its `email` one -- createUser makes that
+ * on the target by itself. The Admin API names the provider's own id `id` (the row's uuid is
+ * `identity_id`), which is what auth.identities.provider_id holds. */
+async function fetchSourceIdentities(env: Env, region: Region, userId: string): Promise<SourceIdentity[]> {
+  const { url, serviceRoleKey } = projectConfig(env, region);
+  const res = await fetch(new URL(`auth/v1/admin/users/${userId}`, url), {
+    headers: { apikey: serviceRoleKey!, Authorization: `Bearer ${serviceRoleKey}` },
+  });
+  if (!res.ok) throw new Error(`fetchSourceIdentities ${region}: HTTP ${res.status} ${await res.text()}`);
+  const body = (await res.json()) as {
+    identities?: Array<{
+      id?: string;
+      provider?: string;
+      identity_data?: Record<string, unknown>;
+      last_sign_in_at?: string | null;
+      created_at?: string | null;
+    }>;
+  };
+  const identities: SourceIdentity[] = [];
+  for (const identity of body.identities ?? []) {
+    if (!identity.provider || identity.provider === "email" || !identity.id || !identity.identity_data) continue;
+    identities.push({
+      provider: identity.provider,
+      provider_id: identity.id,
+      identity_data: identity.identity_data,
+      last_sign_in_at: identity.last_sign_in_at ?? null,
+      created_at: identity.created_at ?? null,
+    });
+  }
+  return identities;
+}
+
+/**
+ * Makes the target account's linked identities match the source's, so "Continue with Google" finds
+ * the moved account in its new region -- createUser only ever makes the `email` identity, and
+ * GoTrue has no Admin endpoint that links another one. Goes through the service_role-only
+ * region_move_sync_identities() function (see supabase/migrations/*_region_move_sync_identities.sql),
+ * which is idempotent: a resumed step, or a move back onto a retired copy that still has the same
+ * identity, finds it already in place. Throws on any failure, so the step is retried (nothing has
+ * been copied or retired yet at this point) instead of silently leaving the Google link behind;
+ * an identity that already belongs to a DIFFERENT account in the target project is the one thing
+ * that is skipped (and logged) rather than failed -- retrying could never fix that.
+ */
+async function stepSyncIdentities(env: Env, row: RegionMoveRow, targetUserId: string): Promise<void> {
+  const identities = await fetchSourceIdentities(env, row.source_region, row.source_user_id);
+  const result = await pgRpc<{ linked: number; kept: number; removed: number; taken: number }>(
+    restConfig(env, row.target_region),
+    "region_move_sync_identities",
+    { p_user_id: targetUserId, p_identities: identities }
+  );
+  // Counts only -- the identities themselves are personal data and stay out of the step log.
+  await logStep(env, row.id, "sync_identities", result.taken === 0, JSON.stringify(result));
+}
+
 // ---------------------------------------------------------------------------
 // Step machine
 // ---------------------------------------------------------------------------
@@ -222,6 +293,9 @@ async function stepCreateTargetUser(env: Env, row: RegionMoveRow, password: stri
     profile?.avatar_url ?? null,
     password
   );
+  // Before target_user_id is persisted: if this throws, the next /continue creates (or finds) the
+  // user again and retries it, rather than moving on to copy data into an account Google can't reach.
+  await stepSyncIdentities(env, row, targetUserId);
   await patchMove(env, row.id, { target_user_id: targetUserId, status: "target_created" });
 }
 
