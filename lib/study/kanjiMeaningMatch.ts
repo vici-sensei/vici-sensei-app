@@ -65,8 +65,15 @@ function meaningVariants(meaning: string): MeaningVariant[] {
   return Array.from(variants.values());
 }
 
-function splitAnswer(input: string): string[] {
+// A thousands separator ("10,000", "1,000,000") isn't an answer separator: dropped before the split,
+// so a typed "10,000" is one token, "10000". The comparison ignores punctuation anyway, so both
+// spellings are the same answer. "1,2" or "10, 000" (a comma not followed by exactly three digits)
+// still split as a list.
+const THOUSANDS_COMMA = /(\d),(?=\d{3}(?!\d))/g;
+
+export function splitAnswer(input: string): string[] {
   return input
+    .replace(THOUSANDS_COMMA, "$1")
     .split(/[,;]/)
     .map((token) => token.trim())
     .filter(Boolean);

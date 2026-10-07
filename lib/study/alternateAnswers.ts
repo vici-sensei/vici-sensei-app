@@ -1,7 +1,7 @@
 import type { KanaExtendedRomaji, WordKanji } from "@/lib/types";
 import { matchesExtendedRomaji } from "./extendedRomajiMatch";
 import { kanaToRomaji, toHiragana } from "./kanaToRomaji";
-import { checkKanjiMeaningAnswer, checkVocabMeaningAnswer, type MeaningCheckResult } from "./kanjiMeaningMatch";
+import { checkKanjiMeaningAnswer, checkVocabMeaningAnswer, splitAnswer, type MeaningCheckResult } from "./kanjiMeaningMatch";
 
 /**
  * "Alternate" answers: something the student typed that is real knowledge about the card, but not
@@ -43,13 +43,6 @@ export type ExtendedUnits = KanaExtendedRomaji["units"] | null;
  * normalizeCompare). Kana and ー are letters, so a kana answer survives intact. */
 function normalizeReading(value: string): string {
   return value.replace(/[^\p{L}]/gu, "").toLowerCase();
-}
-
-function splitAnswer(input: string): string[] {
-  return input
-    .split(/[,;]/)
-    .map((token) => token.trim())
-    .filter(Boolean);
 }
 
 function pushUnique(list: ConfirmedAlternate[], item: ConfirmedAlternate) {
