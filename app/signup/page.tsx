@@ -26,6 +26,7 @@ import {
 import { clearRememberedEmail } from "@/lib/auth/rememberedEmail";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
+import { useOnPageRestored } from "@/lib/useOnPageRestored";
 import { setActiveRegion } from "@/lib/supabase/regions";
 
 /** What replaces the whole form once the account exists: just the logo, a green check and the way on.
@@ -75,6 +76,10 @@ export default function SignUpPage() {
   // The security card only slides in once there is something to submit.
   const formComplete = looksLikeEmail(email) && passwordValid && acceptedTerms;
   const captcha = useTurnstile(formComplete);
+
+  // Back from the full-page load to /dashboard (account created with no email confirmation)
+  // restores this form from bfcache still submitting.
+  useOnPageRestored(() => setSubmitting(false));
 
   useEffect(() => {
     // The form only exists once the Dashboard side is ready (NEXT_PUBLIC_PASSWORD_AUTH).

@@ -6,6 +6,7 @@ import { FaUnlock } from "react-icons/fa6";
 import { celebrate } from "@/lib/confetti";
 import { useReadingTestSentences, useReadingTestProgress, useReadingTestAttempt } from "@/lib/client-data/readingTest";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
+import { useOnPageRestored } from "@/lib/useOnPageRestored";
 import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
@@ -47,6 +48,9 @@ function SummaryContent() {
   } = useReadingTestProgress(user.id, TEST_TYPE);
   const { attempt, attemptStartedAt } = useReadingTestAttempt(user.id, TEST_TYPE);
   const [retrying, setRetrying] = useState(false);
+
+  // Back from the full-page load to the test page restores this screen from bfcache still "retrying".
+  useOnPageRestored(() => setRetrying(false));
 
   const total = sentences?.length ?? 0;
   const correct = progress ? [...progress.values()].filter((a) => a.correct).length : 0;

@@ -20,6 +20,7 @@ import { MAX_DISPLAY_NAME_LENGTH, type UserProfile } from "@/lib/types";
 import { ProBadge } from "@/app/components/ui/ProBadge";
 import { ProTimeLeft } from "@/app/components/ui/ProTimeLeft";
 import { scrollIntoViewOnFocus } from "@/lib/scrollFocus";
+import { useOnPageRestored } from "@/lib/useOnPageRestored";
 import { FaCheck } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
 import { SignInMethods } from "./SignInMethods";
@@ -111,6 +112,12 @@ export function ProfileSettingsForm({
   const passwordAuth = isPasswordAuthEnabled();
   const [passwordSet, setPasswordSet] = useState<boolean | null>(null);
   const [linking, setLinking] = useState(false);
+
+  // Back from Google's account chooser restores the page from bfcache with these still spinning.
+  useOnPageRestored(() => {
+    setSwitching(false);
+    setLinking(false);
+  });
 
   useEffect(() => {
     if (!passwordAuth) return;

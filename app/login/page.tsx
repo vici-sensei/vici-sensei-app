@@ -31,6 +31,7 @@ import {
 } from "@/lib/auth/passwordAuth";
 import { useAuthRegion } from "@/lib/auth/useAuthRegion";
 import { useRememberedEmail } from "@/lib/auth/useRememberedEmail";
+import { useOnPageRestored } from "@/lib/useOnPageRestored";
 import { isRegion, setActiveRegion, type Region } from "@/lib/supabase/regions";
 
 function LoginErrorNotice({ onWrongRegion }: { onWrongRegion: (region: Region) => void }) {
@@ -99,6 +100,13 @@ function PasswordLoginForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   // The security card only slides in once there is something to submit.
   const formComplete = looksLikeEmail(email) && password.length > 0;
   const captcha = useTurnstile(formComplete);
+
+  // Hitting Back after the full-page load to /dashboard restores this form from bfcache still
+  // submitting. Clearing `busy` too lets the "already signed in -> /dashboard" redirect run again.
+  useOnPageRestored(() => {
+    setSubmitting(false);
+    onBusyChange(false);
+  });
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

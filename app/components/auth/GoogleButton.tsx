@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { createClient } from "@/lib/supabase/client";
+import { useOnPageRestored } from "@/lib/useOnPageRestored";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 
@@ -12,15 +13,8 @@ export function GoogleButton({ disabled }: { disabled?: boolean }) {
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    // Restoring from bfcache after the user hits Back on Google's account
-    // chooser leaves `loading` stuck true — the page never remounts.
-    function handlePageShow(event: PageTransitionEvent) {
-      if (event.persisted) setLoading(false);
-    }
-    window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
-  }, []);
+  // Back from Google's account chooser restores the page from bfcache with `loading` still true.
+  useOnPageRestored(() => setLoading(false));
 
   async function handleGoogleLogin() {
     setLoading(true);
