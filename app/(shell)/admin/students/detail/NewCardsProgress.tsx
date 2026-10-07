@@ -58,7 +58,7 @@ const START_OPTIONS: { value: PredictionStart; label: string }[] = [
 
 // What "Reset" returns the filters to. Track and levels come from the student, so they're derived per student below.
 const DEFAULT_VIEW: ChartView = "cumulative";
-const DEFAULT_LINES: ChartLines = "combined";
+const DEFAULT_LINES: ChartLines = "overlay";
 const DEFAULT_START: PredictionStart = "today";
 const DEFAULT_PACE_MODE: PaceMode = "settings";
 
