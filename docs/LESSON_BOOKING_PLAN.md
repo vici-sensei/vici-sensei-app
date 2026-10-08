@@ -155,6 +155,15 @@ Zi + oră NY + profesor + **nivel/subiect** (etichetă informativă, nu restric�
   (acum Brevo e folosit de Supabase Auth; există și un client SMTP mic în `worker/lib/smtpHeartbeat.ts`).
 - Push: VAPID + service worker (există `scripts/generate-sw.mjs`); pe iPhone merge doar dacă PWA e instalată.
 
+### Cum funcționează notificările (etapa 4, implementat)
+
+- **Un singur loc care decide:** baza de date. `lessons.materialize_due()` (apelat de `lesson_scheduler_tick()`, din `pg_cron` la fiecare minut și, ca plasă de siguranță, din cron-ul Worker-ului la 5 minute) caută lecțiile din următoarele 14 zile și scrie ce e scadent ACUM. Cheia de deduplicare face ca a doua rulare să nu mai scrie nimic.
+- **Mementouri (24 h / 1 h / 10 min):** pentru fiecare elev al lecției se scrie doar cel mai strâns prag deja atins (un elev care se înscrie cu 5 minute înainte primește doar „în ~10 minute”, nu trei mesaje deodată); niciodată după începerea lecției. Cheia conține instantul lecției, deci o lecție mutată primește din nou mementourile, la ora nouă. Cel de 10 minute conține linkul de întâlnire. Expiră la începutul lecției: un email rămas în coadă după aceea e sărit.
+- **Avertizări DST (14 / 7 / 2 zile):** o lecție „se mută” dacă ora ei pe ceasul elevului diferă de aceeași clasă cu o săptămână înainte (ora din New York nu se schimbă niciodată; ora elevului da, când New York-ul sau țara lui schimbă ceasul). Se avertizează la prima lecție afectată, o singură dată pe etapă, doar etapa în care ne aflăm (un elev înscris cu o zi înainte primește doar avertizarea de 2 zile). Lecțiile mutate de profesor sau cu oră nouă de clasă nu sunt DST. Mesajul spune cu cât, din ce cauză (SUA, fusul elevului sau ambele) și că ora din New York nu se schimbă. Marcajul permanent din calendar există deja (etapa 2).
+- **Comutatoare:** doar cele 3 mementouri × canalele „în aplicație” / email (push din etapa 5). Anulările, schimbările și avertizările DST nu se pot opri. Dacă toate canalele unui memento sunt oprite, nu se scrie nimic.
+- **Livrare email:** cron-ul Worker-ului (`*/5 * * * *`, al 5-lea trigger — limita planului Free) cere coada la scriitor (`lesson_notifications_due`, cu lease de 10 minute ca două rulări să nu trimită același email), caută adresa în regiunea elevului, trimite totul într-o singură sesiune SMTP (Brevo, `no-reply@vici-sensei.com`, text UTF-8 în base64, subiect RFC 2047) și raportează fiecare rezultat: `sent`, `skipped` (fără adresă), `retry` (refuz temporar: până la 5 încercări, cu pauze de 10/20/30… minute), `failed` (permanent) sau `release` (serverul de email nu e accesibil sau loginul e refuzat: nu e vina mesajului, nu numără ca încercare). Fără `SMTP_USER`/`SMTP_PASSWORD` emailurile așteaptă; notificările din aplicație apar oricum. Până la 150 de emailuri pe rulare (3 × 50).
+- **În aplicație:** clopoțel în bara paginii `/lessons` (număr necitite, la 60 s se reîmprospătează), inbox, tab „Reminders” cu comutatoarele și un banner sus pentru ce schimbă lecțiile (DST, anulare, mutare, profesor înlocuitor, vacanță, sfârșit de clasă/acces) până la „Got it”.
+
 ## 8. Vederi
 
 Zi, săptămână, lună, an.
@@ -198,7 +207,7 @@ lună/an + Google + prezență), construit pe etape interne:
    legat în `worker/lib/regionMove.ts`, care are mașină de stări în D1).
 2. Calendarul elevului **(scris și testat local 2026-10-08; migrația `20261008081641` aplicată pe EU; Worker-ul încă nedeployat)**: pagina `/lessons` (săptămână și zi, fusul contului, săptămâna elevului, marcaj DST, dialog cu înscriere fixă / „doar săptămâna asta" / ieșire / anulare mutare, setarea primei zile a săptămânii, stările fără acces și profesor), `lib/lessons/*` (timp, reguli de afișare), `lib/client-data/lessons.ts`, numele profesorilor adăugate de Worker, migrația `20261008081641`. Lună și An rămân la etapa 6.
 3. Admin/profesor: clase, excepții, vacanțe, liste, acces/cotă/mută. **Făcut 2026-10-08** (migrația `20261008103823` aplicată pe EU; panoul `/admin/lessons` și `/teach`; Worker `lessonsStaff.ts`). Fără interfață pentru: notificările și mementourile (etapa 4).
-4. Notificări (în aplicație, email) și job-uri.
+4. Notificări (în aplicație, email) și job-uri. **Făcut 2026-10-08** (migrația `20261008111342` aplicată pe EU; vezi „Cum funcționează notificările” în §7): mementouri, avertizări DST, inbox + banner + comutatoare, trimitere email din Worker (cron la 5 minute), `worker/lib/mailer.ts`. Push-ul web rămâne la etapa 5.
 5. Listă de așteptare, push.
 6. Lună/an, prezență, Google Calendar.
 

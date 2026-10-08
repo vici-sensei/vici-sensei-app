@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { FaChevronLeft, FaChevronRight, FaGlobe } from "react-icons/fa6";
 import { PillSelector } from "@/app/components/ui/PillSelector";
 import { timeZoneCity } from "@/lib/timezone";
@@ -20,9 +21,11 @@ interface LessonsToolbarProps {
   nowMs: number;
   /** The week/day switch; the teachers' schedule only has weeks. */
   showViewSwitch?: boolean;
+  /** Extra controls at the end of the first row (the student's notifications bell). */
+  actions?: ReactNode;
 }
 
-export function LessonsToolbar({ view, onViewChange, label, onPrev, onNext, onToday, isCurrent, tz, nowMs, showViewSwitch = true }: LessonsToolbarProps) {
+export function LessonsToolbar({ view, onViewChange, label, onPrev, onNext, onToday, isCurrent, tz, nowMs, showViewSwitch = true, actions }: LessonsToolbarProps) {
   const navButton =
     "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-border-soft bg-white/[0.03] text-text-muted transition-colors hover:border-white/20 hover:text-white";
 
@@ -59,6 +62,7 @@ export function LessonsToolbar({ view, onViewChange, label, onPrev, onNext, onTo
           ]}
         />
       ) : null}
+      {actions}
 
       <p className="flex basis-full items-center gap-2 text-[0.8rem] text-text-muted">
         <FaGlobe className="shrink-0" aria-hidden="true" />

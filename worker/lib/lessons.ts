@@ -13,6 +13,7 @@ import {
   resolveActor,
   uuid,
 } from "./lessonsCommon";
+import { routeNotifications } from "./lessonsNotify";
 import { routeStaff } from "./lessonsStaff";
 
 /**
@@ -124,6 +125,9 @@ export async function routeLessons(request: Request, env: Env, url: URL): Promis
   if (post && path === "/api/lessons/week-start") {
     return studentAction(request, env, "lesson_set_week_start", (b) => ({ p_week_start: int(b.weekStart, "weekStart", 1, 7) }));
   }
+
+  const notifications = await routeNotifications(request, env, url);
+  if (notifications) return notifications;
 
   const staff = await routeStaff(request, env, url);
   if (staff) return staff;

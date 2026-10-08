@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/app/components/ui/PageHeader";
 import { useToast } from "@/app/components/ui/Toast";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -13,6 +13,7 @@ import {
   lessonErrorMessage,
   useLessonSchedule,
 } from "@/lib/client-data/lessons";
+import { useLessonNotifications } from "@/lib/client-data/lessonsNotifications";
 import { addDaysKey, formatKey, formatWeekLabel, wallToInstant, weekRange, weekStartFor } from "@/lib/lessons/time";
 import { toLessonView } from "@/lib/lessons/types";
 import { useLocalToday } from "@/lib/lessons/useLocalToday";
@@ -21,6 +22,7 @@ import { resolveTimeZone } from "@/lib/timezone";
 import { CalendarSettings } from "./CalendarSettings";
 import type { LessonHandlers } from "./LessonDialog";
 import { LessonsCalendar } from "./LessonsCalendar";
+import { NotificationBanner, NotificationsButton, NotificationsModal } from "./NotificationsPanel";
 import { LessonsError, LessonsNoAccess, LessonsSkeleton, LessonsTeacherNotice } from "./LessonsStates";
 import { LessonsToolbar, type LessonsView } from "./LessonsToolbar";
 
@@ -56,6 +58,16 @@ export default function LessonsPage() {
     [anchorKey, tz]
   );
   const { data, status, error, refetch } = useLessonSchedule(user, range);
+
+  const { data: notifications, mutate: mutateNotifications, refetch: refetchNotifications } = useLessonNotifications(user);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  // New notices (a reminder, a cancellation) appear without a reload while the page is open.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refetchNotifications();
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [refetchNotifications]);
 
   const result = data && range && data.from === range.from && data.to === range.to ? data : null;
   const schedule = result?.kind === "ok" ? result.schedule : null;
@@ -136,6 +148,7 @@ export default function LessonsPage() {
           isCurrent={isCurrent}
           tz={tz}
           nowMs={nowMs}
+          actions={<NotificationsButton unread={notifications?.unread ?? 0} onClick={() => setInboxOpen(true)} />}
         />
         <LessonsCalendar
           lessons={weekLessons}
@@ -161,7 +174,11 @@ export default function LessonsPage() {
   return (
     <div>
       <PageHeader title="Lessons" subtitle="Pick your weekly class, or go to another lesson for a week." />
+      <NotificationBanner list={notifications} mutate={mutateNotifications} />
       {body}
+      {inboxOpen && nowMs !== null ? (
+        <NotificationsModal user={user} list={notifications} nowMs={nowMs} mutate={mutateNotifications} onClose={() => setInboxOpen(false)} />
+      ) : null}
     </div>
   );
 }

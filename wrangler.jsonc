@@ -21,8 +21,11 @@
     // `event.cron` -- daily keep-alive ping (Free-plan projects pause after 7 days idle), weekly
     // D1-vs-auth.users reconciliation, hourly copying of Google profile photos into Storage
     // (worker/lib/avatarMirror.ts), and a monthly SMTP heartbeat (worker/lib/smtpHeartbeat.ts) that
-    // keeps the Brevo SMTP key from expiring after 90 days of inactivity.
-    "crons": ["0 3 * * *", "0 4 * * 1", "17 * * * *", "0 5 1 * *"]
+    // keeps the Brevo SMTP key from expiring after 90 days of inactivity, and every 5 minutes the lesson
+    // notifications (worker/lib/lessonsNotify.ts: stores what is due, sends the emails that are waiting).
+    // Cloudflare Free allows 5 cron triggers per account: this is the fifth, so another Worker on the
+    // same account with a cron of its own would need the paid plan.
+    "crons": ["0 3 * * *", "0 4 * * 1", "17 * * * *", "0 5 1 * *", "*/5 * * * *"]
   },
   // Not secret (see .env.local / lib/supabase/regions.ts, which use the same values) -- safe as
   // plain vars. The AUTH_HOOK_SECRET_EU/US and SUPABASE_SERVICE_ROLE_KEY_EU/US this Worker also

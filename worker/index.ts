@@ -7,6 +7,7 @@ import { runSmtpHeartbeat } from "./lib/smtpHeartbeat";
 import { adminUserPages } from "./lib/supabaseAdmin";
 import { handleEmailChangeCancel, handleEmailChangeFinalize, handleEmailChangeStart } from "./lib/emailChange";
 import { routeLessons } from "./lib/lessons";
+import { runLessonNotifications } from "./lib/lessonsNotify";
 import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
 import { json } from "./lib/http";
 import { verifyStandardWebhook } from "./lib/webhooks";
@@ -279,6 +280,8 @@ const worker: ExportedHandler<Env> = {
       await mirrorGoogleAvatars(env);
     } else if (event.cron === "0 5 1 * *") {
       await runSmtpHeartbeat(env);
+    } else if (event.cron === "*/5 * * * *") {
+      await runLessonNotifications(env);
     }
   },
 };
