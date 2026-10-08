@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { sweepLessonAccounts } from "./lessonsAccounts";
 import { pgRpc } from "./postgrest";
 import { emailKey, type Region } from "./region";
 import { adminFetch, adminUserPages, serviceConfig } from "./supabaseAdmin";
@@ -131,6 +132,13 @@ export async function runAccountSweep(env: Env): Promise<void> {
     }
   } catch (err) {
     await log(env, "account_sweep_error", err instanceof Error ? err.message : String(err));
+  }
+  // Lessons held by accounts that are gone or about to be: their seats are freed.
+  try {
+    const lessons = await sweepLessonAccounts(env);
+    if (lessons.deleted + lessons.freed > 0 || lessons.skipped.length > 0) await log(env, "lesson_accounts_swept", lessons);
+  } catch (err) {
+    await log(env, "lesson_accounts_sweep_error", err instanceof Error ? err.message : String(err));
   }
   // Its own try: a project that doesn't have the function yet (not migrated) must not hide the sweep above.
   try {

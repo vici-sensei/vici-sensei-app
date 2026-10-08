@@ -3,7 +3,10 @@ import { json } from "./http";
 import { pgSelectAll, pgSelectOne } from "./postgrest";
 import { isRegion, type Region } from "./region";
 import { resolveIdentity } from "./regionMove";
-import { serviceAuthHeaders, serviceConfig } from "./supabaseAdmin";
+import { serviceConfig } from "./supabaseAdmin";
+import { callWriter, WRITER_REGION, type WriterResult } from "./lessonsWriter";
+
+export { callWriter, WRITER_REGION, type WriterResult };
 
 /**
  * Shared by the lesson booking endpoints (lessons.ts for students, lessonsStaff.ts for teachers and
@@ -18,9 +21,7 @@ import { serviceAuthHeaders, serviceConfig } from "./supabaseAdmin";
  * The writer never sees a JWT: its RPCs are service_role-only and take the already-verified facts.
  */
 
-/** The region whose database holds the `lessons` schema (the single writer for seats). Moving it is a
- * migration plus changing this constant -- see the plan, section 2. */
-export const WRITER_REGION: Region = "eu";
+
 
 export type Role = "student" | "teacher" | "admin";
 
@@ -124,46 +125,6 @@ export async function resolveActor(request: Request, env: Env, regionRaw: unknow
   if (!facts) return json({ error: "account_unavailable" }, 403);
   const role: Role = facts.isAdmin ? "admin" : facts.isTeacher ? "teacher" : "student";
   return { id: identity.id, region: identity.region, role, isAdmin: facts.isAdmin, isTeacher: facts.isTeacher, tz: facts.tz };
-}
-
-export type WriterResult = { ok: true; data: unknown } | { ok: false; status: number; code: string; detail: string };
-
-const NOT_FOUND = new Set(["class_not_found", "not_enrolled", "not_attending", "not_found", "not_an_occurrence"]);
-const FORBIDDEN = new Set(["forbidden", "no_access"]);
-
-function statusFor(code: string): number {
-  if (FORBIDDEN.has(code)) return 403;
-  if (NOT_FOUND.has(code)) return 404;
-  if (code.startsWith("invalid_") || code === "date_in_past" || code === "reason_required") return 400;
-  return 409; // class_full, quota_reached, already_*, same_class_twice, time_conflict, too_late, cannot_move, cancelled, ...
-}
-
-export async function callWriter(env: Env, fn: string, args: Record<string, unknown>): Promise<WriterResult> {
-  const { url, serviceRoleKey } = serviceConfig(env, WRITER_REGION);
-  const res = await fetch(new URL(`rest/v1/rpc/${fn}`, url), {
-    method: "POST",
-    headers: { ...serviceAuthHeaders(serviceRoleKey), "Content-Type": "application/json" },
-    body: JSON.stringify(args),
-  });
-  const raw = await res.text();
-  if (res.ok) return { ok: true, data: raw ? JSON.parse(raw) : null };
-
-  let body: { code?: string; message?: string; details?: string } = {};
-  try {
-    body = JSON.parse(raw);
-  } catch {
-    // not JSON: fall through to the generic error
-  }
-  const match = /^lesson:([a-z_]+)$/.exec(body.message ?? "");
-  if (body.code === "P0001" && match) {
-    return { ok: false, status: statusFor(match[1]), code: match[1], detail: body.details ?? "" };
-  }
-  // A CHECK constraint (bad weekday/time/capacity/url) or a malformed value: the caller's input.
-  if (body.code === "23514" || body.code === "22P02" || body.code === "22007" || body.code === "22023") {
-    return { ok: false, status: 400, code: "invalid_value", detail: "" };
-  }
-  console.error(`lessons writer ${fn}: HTTP ${res.status} ${raw.slice(0, 300)}`);
-  return { ok: false, status: 502, code: "writer_error", detail: "" };
 }
 
 export function answer(result: WriterResult): Response {

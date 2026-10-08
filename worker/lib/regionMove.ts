@@ -1,6 +1,7 @@
 import type { Env } from "./env";
 import { projectConfig } from "./env";
 import { json } from "./http";
+import { rekeyLessons } from "./lessonsAccounts";
 import { adminFetch, adminUserPages, serviceAuthHeaders, serviceConfig } from "./supabaseAdmin";
 import { emailKey, isRegion, retiredCopyEmail, type Region } from "./region";
 import {
@@ -470,6 +471,18 @@ async function stepStripe(env: Env, row: RegionMoveRow): Promise<void> {
 }
 
 async function stepUpdateLedger(env: Env, row: RegionMoveRow): Promise<void> {
+  // The person's lessons (seats, waitlist, notifications, devices; a teacher's classes) are keyed by the account
+  // that is being retired: they follow the person to the new one. Idempotent, so a retried step is harmless, and
+  // done BEFORE the ledger flips: a failure here leaves the move at this step to be retried, with nothing half done.
+  if (row.target_user_id) {
+    const moved = await rekeyLessons(env, {
+      source_region: row.source_region,
+      source_user_id: row.source_user_id,
+      target_region: row.target_region,
+      target_user_id: row.target_user_id,
+    });
+    await logStep(env, row.id, "rekey_lessons", true, JSON.stringify(moved));
+  }
   await env.ACCOUNTS_DB.prepare("UPDATE accounts SET region = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE email_key = ?2")
     .bind(row.target_region, row.email_key)
     .run();
