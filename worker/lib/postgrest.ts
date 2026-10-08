@@ -3,6 +3,8 @@
  * make in index.ts. Used by regionMove.ts to copy a user's rows from one Supabase project's schema
  * to the other's; nothing here is Region-move-specific, it's generic enough to reuse elsewhere. */
 
+import { serviceAuthHeaders } from "./supabaseAdmin";
+
 export interface PostgrestConfig {
   url: string;
   serviceRoleKey: string;
@@ -11,12 +13,7 @@ export interface PostgrestConfig {
 const PAGE_SIZE = 500;
 
 function restHeaders(cfg: PostgrestConfig, extra?: Record<string, string>): Record<string, string> {
-  return {
-    apikey: cfg.serviceRoleKey,
-    Authorization: `Bearer ${cfg.serviceRoleKey}`,
-    "Content-Type": "application/json",
-    ...extra,
-  };
+  return { ...serviceAuthHeaders(cfg.serviceRoleKey), "Content-Type": "application/json", ...extra };
 }
 
 function restUrl(cfg: PostgrestConfig, table: string, query?: Record<string, string>): URL {

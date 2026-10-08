@@ -1,6 +1,7 @@
 import type { Env } from "./env";
 import { projectConfig } from "./env";
 import { emailKey, type Region } from "./region";
+import { adminUserPages } from "./supabaseAdmin";
 
 /**
  * The email -> region ledger is claimed by the "Before User Created" hook BEFORE Supabase creates the
@@ -37,27 +38,20 @@ interface AdminUser {
  * filtered lookup could miss a real account and let a duplicate in.
  */
 export async function accountExistsInRegion(env: Env, region: Region, key: string): Promise<boolean | null> {
-  const { url, serviceRoleKey } = projectConfig(env, region);
-  if (!serviceRoleKey) return null;
+  if (!projectConfig(env, region).serviceRoleKey) return null;
 
   const signal = AbortSignal.timeout(LOOKUP_TIMEOUT_MS);
   try {
-    for (let page = 1; page <= LOOKUP_MAX_PAGES; page += 1) {
-      const endpoint = new URL("auth/v1/admin/users", url);
-      endpoint.searchParams.set("page", String(page));
-      endpoint.searchParams.set("per_page", String(LOOKUP_PER_PAGE));
-      const response = await fetch(endpoint, {
-        headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
-        signal,
-      });
-      if (!response.ok) return null;
-      const body = (await response.json()) as { users?: AdminUser[] };
-      const users = body.users ?? [];
+    let scanned = 0;
+    for await (const users of adminUserPages<AdminUser>(env, region, { perPage: LOOKUP_PER_PAGE, signal })) {
       if (users.some((user) => user.email && emailKey(user.email) === key)) return true;
       if (users.length < LOOKUP_PER_PAGE) return false;
+      scanned += 1;
+      if (scanned >= LOOKUP_MAX_PAGES) return null;
     }
     return null;
   } catch {
+    // An HTTP error, a timeout or an answer we can't read: doubt, so the caller keeps the claim.
     return null;
   }
 }

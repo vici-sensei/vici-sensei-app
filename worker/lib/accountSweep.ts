@@ -1,7 +1,7 @@
 import type { Env } from "./env";
-import { projectConfig } from "./env";
 import { pgRpc } from "./postgrest";
 import { emailKey, type Region } from "./region";
+import { adminFetch, adminUserPages, serviceConfig } from "./supabaseAdmin";
 
 /**
  * Weekly housekeeping for the two things email + password sign-in leaves behind
@@ -34,24 +34,10 @@ interface AdminUser {
   identities?: Array<{ provider?: string }> | null;
 }
 
-function adminHeaders(serviceRoleKey: string): HeadersInit {
-  return { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
-}
-
 async function listAllUsers(env: Env, region: Region): Promise<AdminUser[]> {
-  const { url, serviceRoleKey } = projectConfig(env, region);
   const users: AdminUser[] = [];
-  const perPage = 1000;
-  for (let page = 1; ; page += 1) {
-    const endpoint = new URL("auth/v1/admin/users", url);
-    endpoint.searchParams.set("page", String(page));
-    endpoint.searchParams.set("per_page", String(perPage));
-    const res = await fetch(endpoint, { headers: adminHeaders(serviceRoleKey!) });
-    if (!res.ok) throw new Error(`admin/users ${region} page ${page}: HTTP ${res.status}`);
-    const body = (await res.json()) as { users: AdminUser[] };
-    users.push(...body.users);
-    if (body.users.length < perPage) return users;
-  }
+  for await (const page of adminUserPages<AdminUser>(env, region)) users.push(...page);
+  return users;
 }
 
 function isStaleUnconfirmed(user: AdminUser, now: number): boolean {
@@ -69,16 +55,12 @@ async function log(env: Env, status: string, detail: unknown): Promise<void> {
 }
 
 async function sweepUnconfirmedSignups(env: Env, region: Region): Promise<number> {
-  const { url, serviceRoleKey } = projectConfig(env, region);
   const now = Date.now();
   const stale = (await listAllUsers(env, region)).filter((user) => isStaleUnconfirmed(user, now));
 
   let removed = 0;
   for (const user of stale.slice(0, MAX_DELETIONS_PER_RUN)) {
-    const res = await fetch(new URL(`auth/v1/admin/users/${user.id}`, url), {
-      method: "DELETE",
-      headers: adminHeaders(serviceRoleKey!),
-    });
+    const res = await adminFetch(env, region, `auth/v1/admin/users/${user.id}`, { method: "DELETE" });
     if (!res.ok) continue;
     // Only this region's own claim: the same email may legitimately be claimed by the other one.
     await env.ACCOUNTS_DB.prepare("DELETE FROM accounts WHERE email_key = ?1 AND region = ?2")
@@ -97,8 +79,7 @@ async function sweepStaleEmailChanges(env: Env): Promise<{ released: number; fin
   let released = 0;
   let finalized = 0;
   for (const row of stale.results) {
-    const { url, serviceRoleKey } = projectConfig(env, row.region);
-    const res = await fetch(new URL(`auth/v1/admin/users/${row.user_id}`, url), { headers: adminHeaders(serviceRoleKey!) });
+    const res = await adminFetch(env, row.region, `auth/v1/admin/users/${row.user_id}`);
     // A user that no longer exists (deleted account): nothing the change could still apply to.
     const user = res.ok ? ((await res.json()) as AdminUser) : null;
     const confirmed = !!user?.email && emailKey(user.email) === row.new_key;
@@ -127,9 +108,8 @@ async function sweepStaleEmailChanges(env: Env): Promise<{ released: number; fin
 async function checkUnreleasedRetiredCopies(env: Env): Promise<void> {
   const found: Partial<Record<Region, Array<{ user_id: string; real_email: boolean; extra_identities: number }>>> = {};
   for (const region of ["eu", "us"] as const) {
-    const { url, serviceRoleKey } = projectConfig(env, region);
     const rows = await pgRpc<Array<{ user_id: string; real_email: boolean; extra_identities: number }>>(
-      { url, serviceRoleKey: serviceRoleKey! },
+      serviceConfig(env, region),
       "region_move_unreleased_sources",
       {}
     );

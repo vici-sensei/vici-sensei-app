@@ -1,6 +1,7 @@
 import type { Env } from "./env";
 import { projectConfig } from "./env";
 import { json } from "./http";
+import { adminFetch, adminUserPages, serviceAuthHeaders, serviceConfig } from "./supabaseAdmin";
 import { emailKey, isRegion, retiredCopyEmail, type Region } from "./region";
 import {
   pgDeleteWhere,
@@ -76,12 +77,6 @@ interface RegionMoveRow {
   source_retired: number;
   status: string;
   last_error: string | null;
-}
-
-function restConfig(env: Env, region: Region): PostgrestConfig {
-  const { url, serviceRoleKey } = projectConfig(env, region);
-  if (!serviceRoleKey) throw new Error(`missing service role key for ${region}`);
-  return { url, serviceRoleKey };
 }
 
 /** Verifies a user's access token against their claimed source project -- never trust a
@@ -162,14 +157,9 @@ async function createTargetAuthUser(
   avatarUrl: string | null,
   password: string | null
 ): Promise<string> {
-  const { url, serviceRoleKey } = projectConfig(env, targetRegion);
-  const res = await fetch(new URL("auth/v1/admin/users", url), {
+  const res = await adminFetch(env, targetRegion, "auth/v1/admin/users", {
     method: "POST",
-    headers: {
-      apikey: serviceRoleKey!,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       email,
       email_confirm: true,
@@ -192,21 +182,12 @@ async function createTargetAuthUser(
 }
 
 async function findUserIdByEmail(env: Env, region: Region, email: string): Promise<string | null> {
-  const { url, serviceRoleKey } = projectConfig(env, region);
-  let page = 1;
-  const perPage = 1000;
-  for (;;) {
-    const endpoint = new URL("auth/v1/admin/users", url);
-    endpoint.searchParams.set("page", String(page));
-    endpoint.searchParams.set("per_page", String(perPage));
-    const res = await fetch(endpoint, { headers: { apikey: serviceRoleKey!, Authorization: `Bearer ${serviceRoleKey}` } });
-    if (!res.ok) throw new Error(`findUserIdByEmail ${region} page ${page}: HTTP ${res.status}`);
-    const body = (await res.json()) as { users: Array<{ id: string; email?: string }> };
-    const match = body.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+  const wanted = email.toLowerCase();
+  for await (const users of adminUserPages<{ id: string; email?: string }>(env, region)) {
+    const match = users.find((u) => u.email?.toLowerCase() === wanted);
     if (match) return match.id;
-    if (body.users.length < perPage) return null;
-    page += 1;
   }
+  return null;
 }
 
 /** One linked sign-in method of the source account, as the Admin API reports it. */
@@ -222,10 +203,7 @@ interface SourceIdentity {
  * on the target by itself. The Admin API names the provider's own id `id` (the row's uuid is
  * `identity_id`), which is what auth.identities.provider_id holds. */
 async function fetchSourceIdentities(env: Env, region: Region, userId: string): Promise<SourceIdentity[]> {
-  const { url, serviceRoleKey } = projectConfig(env, region);
-  const res = await fetch(new URL(`auth/v1/admin/users/${userId}`, url), {
-    headers: { apikey: serviceRoleKey!, Authorization: `Bearer ${serviceRoleKey}` },
-  });
+  const res = await adminFetch(env, region, `auth/v1/admin/users/${userId}`);
   if (!res.ok) throw new Error(`fetchSourceIdentities ${region}: HTTP ${res.status} ${await res.text()}`);
   const body = (await res.json()) as {
     identities?: Array<{
@@ -264,7 +242,7 @@ async function fetchSourceIdentities(env: Env, region: Region, userId: string): 
 async function stepSyncIdentities(env: Env, row: RegionMoveRow, targetUserId: string): Promise<void> {
   const identities = await fetchSourceIdentities(env, row.source_region, row.source_user_id);
   const result = await pgRpc<{ linked: number; kept: number; removed: number; taken: number }>(
-    restConfig(env, row.target_region),
+    serviceConfig(env, row.target_region),
     "region_move_sync_identities",
     { p_user_id: targetUserId, p_identities: identities }
   );
@@ -277,7 +255,7 @@ async function stepSyncIdentities(env: Env, row: RegionMoveRow, targetUserId: st
 // ---------------------------------------------------------------------------
 
 async function stepCreateTargetUser(env: Env, row: RegionMoveRow, password: string | null): Promise<void> {
-  const sourceCfg = restConfig(env, row.source_region);
+  const sourceCfg = serviceConfig(env, row.source_region);
   const profile = await pgSelectOne<{ display_name: string | null; avatar_url: string | null }>(sourceCfg, "users", {
     id: `eq.${row.source_user_id}`,
     select: "display_name,avatar_url",
@@ -307,8 +285,8 @@ async function stepCreateTargetUser(env: Env, row: RegionMoveRow, password: stri
  * with the source's authoritative values, discarding whatever the triggers did in between.
  */
 async function stepSyncProfile(env: Env, row: RegionMoveRow): Promise<void> {
-  const sourceCfg = restConfig(env, row.source_region);
-  const targetCfg = restConfig(env, row.target_region);
+  const sourceCfg = serviceConfig(env, row.source_region);
+  const targetCfg = serviceConfig(env, row.target_region);
 
   const sourceUser = await pgSelectOne<Record<string, unknown>>(sourceCfg, "users", { id: `eq.${row.source_user_id}` });
   if (sourceUser) {
@@ -375,8 +353,8 @@ async function buildSessionIdMap(
 }
 
 async function stepDrainTable(env: Env, row: RegionMoveRow, table: TableSpec): Promise<void> {
-  const sourceCfg = restConfig(env, row.source_region);
-  const targetCfg = restConfig(env, row.target_region);
+  const sourceCfg = serviceConfig(env, row.source_region);
+  const targetCfg = serviceConfig(env, row.target_region);
   const targetUserId = row.target_user_id!;
 
   // Idempotent re-run: clear whatever this table already has for the target user before
@@ -426,8 +404,7 @@ async function copyAvatarObject(
   const uploadRes = await fetch(new URL(`storage/v1/object/avatars/${targetPath}`, targetCfg.url), {
     method: "POST",
     headers: {
-      apikey: targetCfg.serviceRoleKey,
-      Authorization: `Bearer ${targetCfg.serviceRoleKey}`,
+      ...serviceAuthHeaders(targetCfg.serviceRoleKey),
       "Content-Type": bytesRes.headers.get("content-type") ?? "application/octet-stream",
       "cache-control": AVATAR_CACHE_CONTROL,
       "x-upsert": "true",
@@ -438,8 +415,8 @@ async function copyAvatarObject(
 }
 
 async function stepAvatar(env: Env, row: RegionMoveRow): Promise<void> {
-  const sourceCfg = restConfig(env, row.source_region);
-  const targetCfg = restConfig(env, row.target_region);
+  const sourceCfg = serviceConfig(env, row.source_region);
+  const targetCfg = serviceConfig(env, row.target_region);
   const sourceUser = await pgSelectOne<{ avatar_url: string | null }>(sourceCfg, "users", {
     id: `eq.${row.source_user_id}`,
     select: "avatar_url",
@@ -471,8 +448,8 @@ async function stepAvatar(env: Env, row: RegionMoveRow): Promise<void> {
 }
 
 async function stepStripe(env: Env, row: RegionMoveRow): Promise<void> {
-  const sourceCfg = restConfig(env, row.source_region);
-  const targetCfg = restConfig(env, row.target_region);
+  const sourceCfg = serviceConfig(env, row.source_region);
+  const targetCfg = serviceConfig(env, row.target_region);
   const sourceUser = await pgSelectOne<{ stripe_customer_id: string | null; is_premium: boolean }>(sourceCfg, "users", {
     id: `eq.${row.source_user_id}`,
     select: "stripe_customer_id,is_premium",
@@ -519,16 +496,13 @@ interface ReleaseSourceResult {
  * is idempotent).
  */
 async function releaseSourceCopy(env: Env, row: RegionMoveRow, revokeSessions: boolean): Promise<ReleaseSourceResult> {
-  const result = await pgRpc<ReleaseSourceResult>(restConfig(env, row.source_region), "region_move_release_source", {
+  const result = await pgRpc<ReleaseSourceResult>(serviceConfig(env, row.source_region), "region_move_release_source", {
     p_user_id: row.source_user_id,
     p_revoke_sessions: revokeSessions,
   });
   if (revokeSessions) return result;
 
-  const { url, serviceRoleKey } = projectConfig(env, row.source_region);
-  const res = await fetch(new URL(`auth/v1/admin/users/${row.source_user_id}`, url), {
-    headers: { apikey: serviceRoleKey!, Authorization: `Bearer ${serviceRoleKey}` },
-  });
+  const res = await adminFetch(env, row.source_region, `auth/v1/admin/users/${row.source_user_id}`);
   if (!res.ok) throw new Error(`release_source verify ${row.source_region}: HTTP ${res.status} ${await res.text()}`);
   const user = (await res.json()) as { email?: string; identities?: Array<{ provider?: string }> };
   const leftover = (user.identities ?? []).filter((identity) => identity.provider !== "email").length;
@@ -539,7 +513,7 @@ async function releaseSourceCopy(env: Env, row: RegionMoveRow, revokeSessions: b
 }
 
 async function stepRetireSource(env: Env, row: RegionMoveRow): Promise<void> {
-  const sourceCfg = restConfig(env, row.source_region);
+  const sourceCfg = serviceConfig(env, row.source_region);
   const pendingDeletionAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   await pgUpdateWhere(
     sourceCfg,
@@ -572,14 +546,9 @@ async function stepRetireSource(env: Env, row: RegionMoveRow): Promise<void> {
  * attach to the admin-API-created auth.users row at all. Response field confirmed live:
  * `properties.hashed_token`. */
 async function generateMagicLinkTokenHash(env: Env, region: Region, email: string): Promise<string | null> {
-  const { url, serviceRoleKey } = projectConfig(env, region);
-  const res = await fetch(new URL("auth/v1/admin/generate_link", url), {
+  const res = await adminFetch(env, region, "auth/v1/admin/generate_link", {
     method: "POST",
-    headers: {
-      apikey: serviceRoleKey!,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "magiclink", email }),
   });
   if (!res.ok) return null;
@@ -718,7 +687,7 @@ export async function handleRegionMoveStart(request: Request, env: Env): Promise
   }
   const targetRegion = targetRegionRaw;
 
-  const sourceCfg = restConfig(env, sourceRegion);
+  const sourceCfg = serviceConfig(env, sourceRegion);
   const profile = await pgSelectOne<{ pending_deletion_at: string | null }>(sourceCfg, "users", {
     id: `eq.${sourceUserId}`,
     select: "pending_deletion_at",

@@ -1,6 +1,7 @@
 import { type Env, projectConfig } from "./env";
 import { pgSelectAll, pgUpdateWhere, type PostgrestConfig } from "./postgrest";
 import { REGIONS, type Region } from "./region";
+import { serviceAuthHeaders } from "./supabaseAdmin";
 
 /**
  * Copies Google profile photos -- the avatar_url handle_new_user() gives every Google signup --
@@ -28,8 +29,7 @@ async function uploadAvatarObject(cfg: PostgrestConfig, path: string, body: Resp
   const res = await fetch(new URL(`storage/v1/object/avatars/${path}`, cfg.url), {
     method: "POST",
     headers: {
-      apikey: cfg.serviceRoleKey,
-      Authorization: `Bearer ${cfg.serviceRoleKey}`,
+      ...serviceAuthHeaders(cfg.serviceRoleKey),
       "Content-Type": "image/webp",
       "cache-control": CACHE_CONTROL,
     },

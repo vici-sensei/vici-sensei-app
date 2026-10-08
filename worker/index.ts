@@ -4,6 +4,7 @@ import { takeOverOrphanClaim } from "./lib/claimHeal";
 import { type Env, projectConfig } from "./lib/env";
 import { emailKey, isRegion, isRetiredCopyEmail, regionFromCfContinent, type Region } from "./lib/region";
 import { runSmtpHeartbeat } from "./lib/smtpHeartbeat";
+import { adminUserPages } from "./lib/supabaseAdmin";
 import { handleEmailChangeCancel, handleEmailChangeFinalize, handleEmailChangeStart } from "./lib/emailChange";
 import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
 import { json } from "./lib/http";
@@ -183,22 +184,9 @@ async function runReconciliation(env: Env): Promise<void> {
  * copies of moved accounts (retired-<id>@moved.invalid) are left out: they have no ledger row by
  * design, so they'd show up as drift every week. */
 async function listAllUserEmails(env: Env, region: Region): Promise<string[]> {
-  const { url, serviceRoleKey } = projectConfig(env, region);
   const emails: string[] = [];
-  let page = 1;
-  const perPage = 1000;
-  for (;;) {
-    const endpoint = new URL("auth/v1/admin/users", url);
-    endpoint.searchParams.set("page", String(page));
-    endpoint.searchParams.set("per_page", String(perPage));
-    const response = await fetch(endpoint, {
-      headers: { apikey: serviceRoleKey!, Authorization: `Bearer ${serviceRoleKey}` },
-    });
-    if (!response.ok) throw new Error(`admin/users ${region} page ${page}: HTTP ${response.status}`);
-    const body = (await response.json()) as { users: Array<{ email?: string }> };
-    for (const user of body.users) if (user.email && !isRetiredCopyEmail(user.email)) emails.push(user.email);
-    if (body.users.length < perPage) break;
-    page += 1;
+  for await (const users of adminUserPages<{ email?: string }>(env, region)) {
+    for (const user of users) if (user.email && !isRetiredCopyEmail(user.email)) emails.push(user.email);
   }
   return emails;
 }
