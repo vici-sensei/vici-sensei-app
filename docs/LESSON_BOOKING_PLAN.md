@@ -190,8 +190,10 @@ service account (secret Worker, nu în repo), ce se întâmplă la ștergerea co
 Un singur lansabil cu toate cele patru grupuri (baza; excepții + notificări; listă de așteptare + push;
 lună/an + Google + prezență), construit pe etape interne:
 
-1. Schema + scriitorul + RPC-uri + Worker API; `is_teacher`. **Scris și testat local 2026-10-08, NEAPLICAT
-   pe EU/US** (vezi tabelul din `supabase/MIGRATION_PARITY.md`). Replica de citire în US: separat, §13.
+1. Schema + scriitorul + RPC-uri + Worker API; `is_teacher`. **Scris și testat local, apoi aplicat pe EU și US la
+   2026-10-08** (repetiție în tranzacție anulată, apoi aplicare atomică cu rândul din ledger; vezi
+   `supabase/MIGRATION_PARITY.md`). Worker-ul cu rutele `/api/lessons/*` e comis, dar abia se deployează la
+   merge în `main`. Replica de citire în US: separat, §13.
    Rămas din etapa 1: integrarea cu mutarea de regiune (`lesson_rekey_student` există, dar pasul nu e
    legat în `worker/lib/regionMove.ts`, care are mașină de stări în D1).
 2. Calendarul elevului (zi/săptămână), înscriere fixă, mutări, fus orar, DST.
