@@ -64,7 +64,7 @@ export async function switchGoogleAccount(newIdentityId: string): Promise<{ emai
 // not a Supabase Edge Function, since the Worker is the one place with both regions' service-role
 // keys and the D1 email->region ledger. See worker/lib/regionMove.ts.
 
-async function currentAccessToken(): Promise<string> {
+export async function currentAccessToken(): Promise<string> {
   const supabase = createClient();
   const {
     data: { session },

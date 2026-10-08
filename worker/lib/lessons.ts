@@ -1,6 +1,6 @@
 import type { Env } from "./env";
 import { json } from "./http";
-import { pgSelectOne, pgUpdateWhere } from "./postgrest";
+import { pgSelectAll, pgSelectOne, pgUpdateWhere } from "./postgrest";
 import { isRegion, type Region } from "./region";
 import { resolveIdentity } from "./regionMove";
 import { serviceAuthHeaders, serviceConfig } from "./supabaseAdmin";
@@ -196,6 +196,53 @@ async function studentAction(
   });
 }
 
+interface TeacherRef {
+  region?: string;
+  user_id?: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+}
+
+/** The writer only knows a teacher as (region, user id); the page wants a name and a picture. They live
+ * in the teacher's own region (users.display_name / avatar_url), so look them up there, one query per
+ * region. A lookup that fails leaves the name empty -- the schedule is still worth showing. */
+async function addTeacherNames(env: Env, data: unknown): Promise<void> {
+  const occurrences = (data as { occurrences?: Array<{ teacher?: TeacherRef }> } | null)?.occurrences;
+  if (!Array.isArray(occurrences)) return;
+
+  const idsByRegion = new Map<Region, Set<string>>();
+  for (const occ of occurrences) {
+    const t = occ.teacher;
+    if (!t?.region || !isRegion(t.region) || !t.user_id || !UUID_RE.test(t.user_id)) continue;
+    if (!idsByRegion.has(t.region)) idsByRegion.set(t.region, new Set());
+    idsByRegion.get(t.region)!.add(t.user_id);
+  }
+
+  const profiles = new Map<string, { display_name: string | null; avatar_url: string | null }>();
+  await Promise.all(
+    [...idsByRegion].map(async ([region, ids]) => {
+      try {
+        const rows = await pgSelectAll<{ id: string; display_name: string | null; avatar_url: string | null }>(
+          serviceConfig(env, region),
+          "users",
+          { id: `in.(${[...ids].join(",")})`, select: "id,display_name,avatar_url" }
+        );
+        for (const row of rows) profiles.set(`${region}:${row.id}`, row);
+      } catch (err) {
+        console.error(`lessons: teacher names (${region}):`, err instanceof Error ? err.message : String(err));
+      }
+    })
+  );
+
+  for (const occ of occurrences) {
+    const t = occ.teacher;
+    if (!t) continue;
+    const profile = profiles.get(`${t.region}:${t.user_id}`);
+    t.display_name = profile?.display_name ?? null;
+    t.avatar_url = profile?.avatar_url ?? null;
+  }
+}
+
 async function handleSchedule(request: Request, env: Env, url: URL): Promise<Response> {
   return guarded(async () => {
     const actor = await resolveActor(request, env, url.searchParams.get("region"));
@@ -203,15 +250,15 @@ async function handleSchedule(request: Request, env: Env, url: URL): Promise<Res
     if (actor.isTeacher) return json({ error: "teacher_cannot_book" }, 403);
     const from = isoInstant(url.searchParams.get("from"), "from");
     const to = isoInstant(url.searchParams.get("to"), "to");
-    return answer(
-      await callWriter(env, "lesson_get_schedule", {
-        p_region: actor.region,
-        p_user_id: actor.id,
-        p_tz: actor.tz,
-        p_from: from,
-        p_to: to,
-      })
-    );
+    const result = await callWriter(env, "lesson_get_schedule", {
+      p_region: actor.region,
+      p_user_id: actor.id,
+      p_tz: actor.tz,
+      p_from: from,
+      p_to: to,
+    });
+    if (result.ok) await addTeacherNames(env, result.data);
+    return answer(result);
   });
 }
 

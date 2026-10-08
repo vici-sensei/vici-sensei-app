@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaCrown, FaShieldHalved, FaSliders, FaChalkboardUser, FaGauge, FaUserGraduate, FaInbox, FaLanguage } from "react-icons/fa6";
+import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaCrown, FaShieldHalved, FaSliders, FaChalkboardUser, FaGauge, FaUserGraduate, FaInbox, FaLanguage, FaCalendarDays } from "react-icons/fa6";
 
 export interface SubNavItem {
   href: string;
@@ -35,6 +35,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Study",
     isActive: (p) => p.startsWith("/study"),
     icon: <FaBook />,
+  },
+  {
+    href: "/lessons",
+    label: "Lessons",
+    isActive: (p) => p.startsWith("/lessons"),
+    icon: <FaCalendarDays />,
   },
   {
     href: "/browse/kanji",
