@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/app/components/ui/Modal";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
-import { celebrate } from "@/lib/confetti";
+import { useModalConfetti } from "@/app/components/study/useModalConfetti";
 import type { KanaGraduationKind } from "@/lib/types";
 import { FaGraduationCap, FaUnlock } from "react-icons/fa6";
 
 interface KanaGraduationModalProps {
   kind: KanaGraduationKind;
   onClose: () => void;
-  /** False while a new-badge modal is open over this one -- the confetti waits for it to close
-   * instead of raining over the sakura petals. */
+  /** False while a new-badge modal is open over this one -- see useModalConfetti. */
   confettiReady?: boolean;
 }
 
@@ -55,15 +53,9 @@ const READING_TEST_COPY: Record<"hiragana_complete" | "katakana_mastered", {
 export function KanaGraduationModal({ kind, onClose, confettiReady = true }: KanaGraduationModalProps) {
   const router = useRouter();
 
-  // Fires once per mount -- a fresh `kind` always means a brand new modal instance (the page
-  // only ever renders this when a result is non-null), never a re-render of the same one. The ref
-  // keeps it once even if confettiReady flips back and forth.
-  const celebratedRef = useRef(false);
-  useEffect(() => {
-    if (!confettiReady || celebratedRef.current) return;
-    celebratedRef.current = true;
-    void celebrate();
-  }, [confettiReady]);
+  // Once per mount -- a fresh `kind` always means a brand new modal instance (the page only ever
+  // renders this when a result is non-null), never a re-render of the same one.
+  useModalConfetti(confettiReady);
 
   if (kind === "katakana_complete") {
     return (
