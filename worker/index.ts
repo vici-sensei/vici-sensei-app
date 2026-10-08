@@ -6,6 +6,7 @@ import { emailKey, isRegion, isRetiredCopyEmail, regionFromCfContinent, type Reg
 import { runSmtpHeartbeat } from "./lib/smtpHeartbeat";
 import { adminUserPages } from "./lib/supabaseAdmin";
 import { handleEmailChangeCancel, handleEmailChangeFinalize, handleEmailChangeStart } from "./lib/emailChange";
+import { routeLessons } from "./lib/lessons";
 import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
 import { json } from "./lib/http";
 import { verifyStandardWebhook } from "./lib/webhooks";
@@ -245,6 +246,9 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method === "POST" && url.pathname === "/api/email-change/cancel") {
     return handleEmailChangeCancel(request, env);
   }
+
+  const lessons = await routeLessons(request, env, url);
+  if (lessons) return lessons;
 
   return json({ error: "not_found" }, 404);
 }
