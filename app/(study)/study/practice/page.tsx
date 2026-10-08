@@ -17,6 +17,7 @@ import { FullScreenMessage } from "@/app/components/ui/FullScreenMessage";
 import { CelebrationBackdrop } from "@/app/components/ui/CelebrationBackdrop";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
+import { StatBox } from "@/app/components/ui/StatBox";
 import { UsuallyKanaNote } from "@/app/components/ui/UsuallyKanaNote";
 import { FaArrowRotateRight } from "react-icons/fa6";
 import type { DueCard, Rating } from "@/lib/types";
@@ -65,16 +66,6 @@ function missedRowContent(
         correct: item.primaryMeanings.join(", "),
       };
   }
-}
-
-function StatBox({ value, label, accent }: { value: string; label: string; accent?: "blue" | "gold" }) {
-  const accentClass = accent === "gold" ? "text-accent-gold" : accent === "blue" ? "text-accent-blue" : "";
-  return (
-    <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">
-      <div className={`mb-1 text-xl font-extrabold ${accentClass}`}>{value}</div>
-      <div className="text-sm font-semibold text-text-muted">{label}</div>
-    </div>
-  );
 }
 
 /** Formats screen-on practice time as m:ss, or h:mm:ss past an hour -- see usePracticeQueue's
@@ -175,7 +166,7 @@ export default function PracticePage() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             <StatBox value={`${correct}/${total}`} label="Correct" />
-            <StatBox value={`${accuracy}%`} label="Accuracy" accent={isPerfect ? "gold" : "blue"} />
+            <StatBox value={`${accuracy}%`} label="Accuracy" tone={isPerfect ? "gold" : "blue"} />
             <StatBox value={formatDuration(activeMs)} label="Time" />
           </div>
           {wrongAnswers.length > 0 && (

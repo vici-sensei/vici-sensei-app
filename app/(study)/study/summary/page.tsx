@@ -1,24 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { endSession } from "@/lib/client-data/study";
 import { clearStoredSessionId, getStoredSessionId } from "@/lib/study/session";
-import { createClient } from "@/lib/supabase/client";
-import { acknowledgeAchievements, fetchUnacknowledgedAchievements } from "@/lib/data/achievements";
 import { fetchHiraganaMastered, fetchKatakanaMastered, refreshStudySettings } from "@/lib/client-data/studySettings";
 import { clearKanaGraduationWatch, isKanaGraduationWatched } from "@/lib/study/kanaGraduationWatch";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { celebrate } from "@/lib/confetti";
 import type { KanaGraduationKind, StudySessionEnd } from "@/lib/types";
-import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achievements/registry";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
+import { StatBox } from "@/app/components/ui/StatBox";
 import { CelebrationBackdrop } from "@/app/components/ui/CelebrationBackdrop";
 import { NextCardEta } from "@/app/(shell)/dashboard/NextCardEta";
-import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
+import { useUnacknowledgedAchievements } from "@/app/components/study/useUnacknowledgedAchievements";
 import { KanaGraduationModal } from "@/app/components/study/KanaGraduationModal";
 
 function formatDuration(seconds: number): string {
@@ -27,32 +25,11 @@ function formatDuration(seconds: number): string {
   return m === 0 ? `${s}s` : `${m}m ${s}s`;
 }
 
-function StatBox({ children }: { children: ReactNode }) {
-  return <div className="rounded-2xl border border-border-soft bg-bg-cards px-3 py-[22px] backdrop-blur-[10px]">{children}</div>;
-}
-
-function Stat({
-  value,
-  valueClassName = "mb-1 text-[1.7rem] font-extrabold",
-  label,
-}: {
-  value: ReactNode;
-  valueClassName?: string;
-  label: string;
-}) {
-  return (
-    <StatBox>
-      <div className={valueClassName}>{value}</div>
-      <div className="text-[0.78rem] font-semibold text-text-muted">{label}</div>
-    </StatBox>
-  );
-}
-
 export default function StudySummaryPage() {
   const router = useRouter();
   const { user } = useStudyOnboarding();
   const [summary, setSummary] = useState<StudySessionEnd | null>(null);
-  const [newAchievements, setNewAchievements] = useState<AchievementCatalogEntry[]>([]);
+  const achievementsModal = useUnacknowledgedAchievements(user.id);
   const [kanaGraduationResult, setKanaGraduationResult] = useState<KanaGraduationKind | null>(null);
   const hasStarted = useRef(false);
   // No StudyStatsProvider on this route (only (shell) layouts have one) -- fetched directly,
@@ -66,17 +43,6 @@ export default function StudySummaryPage() {
     // exactly once regardless of how many times the effect runs.
     if (hasStarted.current) return;
     hasStarted.current = true;
-
-    fetchUnacknowledgedAchievements(createClient(), user.id)
-      .then((keys) => {
-        if (keys.length === 0) return;
-        const entries = ACHIEVEMENT_CATALOG.filter((entry) => keys.includes(entry.achievementKey));
-        setNewAchievements(entries);
-      })
-      .catch(() => {
-        // Non-critical -- worst case the celebration is missed this visit; the achievement stays
-        // unacknowledged and will still surface next time.
-      });
 
     // Fallback for useStudyQueue's "just mastered hiragana/katakana" (or "finished all of kana")
     // celebration -- see kanaGraduationWatch.ts. If the qualifying review was the LAST card of the
@@ -160,35 +126,21 @@ export default function StudySummaryPage() {
             ))}
         </p>
         <div className="my-8.5 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-          <Stat value={summary ? summary.cards_reviewed : "-"} label="Reviewed" />
-          <Stat value={summary ? summary.new_cards_learned : "-"} label="New" />
-          <Stat
+          <StatBox size="lg" value={summary ? summary.cards_reviewed : "-"} label="Reviewed" />
+          <StatBox size="lg" value={summary ? summary.new_cards_learned : "-"} label="New" />
+          <StatBox
+            size="lg"
             value={accuracyLabel}
-            valueClassName={
-              summary && summary.accuracy != null
-                ? "mb-1 text-[1.7rem] font-extrabold text-accent-gold"
-                : "mb-1 text-[1.7rem] font-semibold text-text-muted"
-            }
+            tone={summary && summary.accuracy != null ? "gold" : "muted"}
             label="Accuracy"
           />
-          <Stat value={summary ? formatDuration(summary.duration_seconds) : "-"} label="Duration" />
+          <StatBox size="lg" value={summary ? formatDuration(summary.duration_seconds) : "-"} label="Duration" />
         </div>
         <Button disabled={!summary} onClick={() => router.push("/dashboard")}>
           Back to Home
         </Button>
       </div>
-      {newAchievements.length > 0 && (
-        <NewAchievementsModal
-          entries={newAchievements}
-          onClose={() => {
-            const keys = newAchievements.map((entry) => entry.achievementKey);
-            setNewAchievements([]);
-            void acknowledgeAchievements(createClient(), keys).catch(() => {
-              // Non-critical -- worst case the same achievement is shown again next session.
-            });
-          }}
-        />
-      )}
+      {achievementsModal}
       {kanaGraduationResult && (
         <KanaGraduationModal kind={kanaGraduationResult} onClose={() => setKanaGraduationResult(null)} />
       )}

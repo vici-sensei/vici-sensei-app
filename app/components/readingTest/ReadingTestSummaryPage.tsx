@@ -13,11 +13,8 @@ import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { FullScreenMessage } from "@/app/components/ui/FullScreenMessage";
 import { CelebrationBackdrop } from "@/app/components/ui/CelebrationBackdrop";
-import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
+import { useUnacknowledgedAchievements } from "@/app/components/study/useUnacknowledgedAchievements";
 import { ReadingTestMissedList } from "@/app/components/readingTest/ReadingTestMissedList";
-import { createClient } from "@/lib/supabase/client";
-import { acknowledgeAchievements, fetchUnacknowledgedAchievements } from "@/lib/data/achievements";
-import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achievements/registry";
 
 type TestType = "hiragana" | "katakana";
 
@@ -34,6 +31,14 @@ const COPY: Record<TestType, { items: string; unlockedBadge: string; passedMessa
     unlockedBadge: "Kanji unlocked",
     passedMessage: "You got every word right — kanji and vocabulary are now unlocked in your queue.",
   },
+};
+
+// Only these two keys can ever be awarded by finishing a test (reading_test_progress_updates_status
+// trigger, 20260925_test_status_feeds_achievements.sql) -- a small, fixed lookup, not a broad
+// "anything recent" scan.
+const TEST_ACHIEVEMENT_KEYS: Record<TestType, string[]> = {
+  hiragana: ["hiragana_test", "hiragana_test_100"],
+  katakana: ["katakana_test", "katakana_test_100"],
 };
 
 /** Score screen for a kana reading test -- correct/total is always freshly derived from
@@ -112,30 +117,9 @@ function SummaryContent({ testType }: { testType: TestType }) {
     }
   }, [passed, justFinished]);
 
-  // Checks for whatever's still unacknowledged rather than "earned since the test page's
-  // redirect" -- that redirect fires off an optimistic local-state change, before the fire-and-
-  // forget markAnswered() for the last item is guaranteed to have reached the server (see the
-  // matching note on the test page's own redirect effect), so a same-instant "earned since X"
-  // query could run before the award_achievement trigger has actually fired and miss it. This
-  // matches /study/summary's own fallback (fetchUnacknowledgedAchievements/acknowledgeAchievements)
-  // -- same "don't lose the celebration to a race, and don't lose it forever if it's missed" fix.
-  const [newAchievements, setNewAchievements] = useState<AchievementCatalogEntry[]>([]);
-  const checkedAchievementsRef = useRef(false);
-  useEffect(() => {
-    if (checkedAchievementsRef.current) return;
-    checkedAchievementsRef.current = true;
-    // Only these two keys can ever be awarded by finishing this test (reading_test_progress_updates_
-    // status trigger, 20260925_test_status_feeds_achievements.sql) -- a small, fixed lookup, not a
-    // broad "anything recent" scan.
-    const candidateKeys = [`${testType}_test`, `${testType}_test_100`];
-    fetchUnacknowledgedAchievements(createClient(), user.id)
-      .then((keys) => {
-        const relevant = keys.filter((key) => candidateKeys.includes(key));
-        if (relevant.length === 0) return;
-        setNewAchievements(ACHIEVEMENT_CATALOG.filter((entry) => relevant.includes(entry.achievementKey)));
-      })
-      .catch(() => {});
-  }, [user.id, testType]);
+  // See the hook for why this checks what's still unacknowledged rather than "earned since the test
+  // page's redirect" (that redirect fires before the last answer is guaranteed to have been saved).
+  const achievementsModal = useUnacknowledgedAchievements(user.id, TEST_ACHIEVEMENT_KEYS[testType]);
 
   const handleRetry = async () => {
     setRetrying(true);
@@ -206,18 +190,7 @@ function SummaryContent({ testType }: { testType: TestType }) {
           </div>
         )}
       </div>
-      {newAchievements.length > 0 && (
-        <NewAchievementsModal
-          entries={newAchievements}
-          onClose={() => {
-            const keys = newAchievements.map((entry) => entry.achievementKey);
-            setNewAchievements([]);
-            void acknowledgeAchievements(createClient(), keys).catch(() => {
-              // Non-critical -- worst case the same achievement is shown again next visit.
-            });
-          }}
-        />
-      )}
+      {achievementsModal}
     </CelebrationBackdrop>
   );
 }
