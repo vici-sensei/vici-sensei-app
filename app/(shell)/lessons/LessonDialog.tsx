@@ -11,11 +11,10 @@ import {
   formatKey,
   formatTimeRange,
   localDateKey,
-  weeklyShiftMinutes,
   zoneAbbreviation,
 } from "@/lib/lessons/time";
 import { lessonKey, type FixedClass, type LessonStudent, type LessonView } from "@/lib/lessons/types";
-import { SeatDots, shiftText } from "./LessonCard";
+import { SeatDots, lessonShiftText } from "./LessonCard";
 
 /** Each resolves to whether the change went through; the calendar closes the dialog on success. */
 export interface LessonHandlers {
@@ -59,7 +58,7 @@ export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy,
   const [confirmingLeave, setConfirmingLeave] = useState(false);
 
   const localKey = localDateKey(lesson.startMs, tz);
-  const shift = shiftText(weeklyShiftMinutes(lesson.startMs, tz));
+  const shift = lesson.cancelled ? null : lessonShiftText(lesson, tz);
   const teacher = lesson.teacher.display_name?.trim() || "Teacher";
   const full = lesson.taken >= lesson.capacity;
   const swapChosen = plan.once?.swaps.find((s) => lessonKey(s) === onceChoice) ?? null;
@@ -81,6 +80,12 @@ export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy,
           ) : null}
         </h3>
 
+        {lesson.cancelled ? (
+          <p className="mt-3 rounded-lg bg-accent-red/10 p-3 text-[0.84rem] font-bold text-[#ff8a93]">
+            Cancelled{lesson.cancel_reason ? `: ${lesson.cancel_reason}` : ""}
+          </p>
+        ) : null}
+
         <ul className="mt-4 space-y-2.5 text-[0.88rem]">
           <li className="flex items-start gap-2.5">
             <FaCalendarDays className="mt-0.5 shrink-0 text-text-muted" aria-hidden="true" />
@@ -88,6 +93,12 @@ export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy,
               <strong>{formatKey(localKey, { weekday: "long", month: "long", day: "numeric" })}</strong>
               <br />
               {formatTimeRange(lesson.startMs, lesson.endMs, tz)} <span className="text-text-muted">({zoneAbbreviation(lesson.startMs, tz)})</span>
+              {lesson.original_starts_at ? (
+                <span className="block text-[0.78rem] text-accent-orange">
+                  Moved: usually {formatKey(localDateKey(Date.parse(lesson.original_starts_at), tz), { weekday: "short", month: "short", day: "numeric" })},{" "}
+                  {formatClock(Date.parse(lesson.original_starts_at), tz)}
+                </span>
+              ) : null}
             </span>
           </li>
           <li className="flex items-start gap-2.5 text-text-muted">
@@ -99,12 +110,15 @@ export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy,
           </li>
           <li className="flex items-center gap-2.5">
             <FaChalkboardUser className="shrink-0 text-text-muted" aria-hidden="true" />
-            <span>{teacher}</span>
+            <span>
+              {teacher}
+              {lesson.teacher_changed ? <span className="text-text-muted"> (substitute)</span> : null}
+            </span>
           </li>
           <li className="flex items-center gap-2.5">
             <SeatDots taken={lesson.taken} capacity={lesson.capacity} />
             <span className="text-text-muted">
-              {lesson.taken} of {lesson.capacity} seats taken{full && !lesson.mine ? " · full" : ""}
+              {lesson.cancelled ? "No seats: the lesson is cancelled" : `${lesson.taken} of ${lesson.capacity} seats taken${full && !lesson.mine ? " · full" : ""}`}
             </span>
           </li>
         </ul>

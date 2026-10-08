@@ -20,6 +20,8 @@ export interface NavItem {
   // Filtered out by NavBar for non-admins -- admin status isn't known statically like the
   // rest of this list, so it's checked at render time rather than baked in here.
   adminOnly?: boolean;
+  // Shown to teacher accounts that are not admins (an admin has the Teacher menu above instead).
+  teacherOnly?: boolean;
 }
 
 // Single source of truth for both the desktop sidebar and the mobile full-screen menu --
@@ -99,6 +101,13 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    href: "/teach",
+    label: "Teaching",
+    isActive: (p) => p.startsWith("/teach"),
+    icon: <FaChalkboardUser />,
+    teacherOnly: true,
+  },
+  {
     href: "/admin",
     label: "Teacher",
     isActive: (p) => p.startsWith("/admin"),
@@ -116,6 +125,12 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Students",
         isActive: (p) => p.startsWith("/admin/students"),
         icon: <FaUserGraduate />,
+      },
+      {
+        href: "/admin/lessons",
+        label: "Lessons",
+        isActive: (p) => p.startsWith("/admin/lessons"),
+        icon: <FaCalendarDays />,
       },
       {
         href: "/admin/leads",

@@ -18,9 +18,11 @@ interface LessonsToolbarProps {
   isCurrent: boolean;
   tz: string;
   nowMs: number;
+  /** The week/day switch; the teachers' schedule only has weeks. */
+  showViewSwitch?: boolean;
 }
 
-export function LessonsToolbar({ view, onViewChange, label, onPrev, onNext, onToday, isCurrent, tz, nowMs }: LessonsToolbarProps) {
+export function LessonsToolbar({ view, onViewChange, label, onPrev, onNext, onToday, isCurrent, tz, nowMs, showViewSwitch = true }: LessonsToolbarProps) {
   const navButton =
     "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-border-soft bg-white/[0.03] text-text-muted transition-colors hover:border-white/20 hover:text-white";
 
@@ -46,15 +48,17 @@ export function LessonsToolbar({ view, onViewChange, label, onPrev, onNext, onTo
         </h2>
       </div>
 
-      <PillSelector
-        variant="tabs"
-        active={view}
-        onChange={onViewChange}
-        options={[
-          { value: "week", label: "Week" },
-          { value: "day", label: "Day" },
-        ]}
-      />
+      {showViewSwitch ? (
+        <PillSelector
+          variant="tabs"
+          active={view}
+          onChange={onViewChange}
+          options={[
+            { value: "week", label: "Week" },
+            { value: "day", label: "Day" },
+          ]}
+        />
+      ) : null}
 
       <p className="flex basis-full items-center gap-2 text-[0.8rem] text-text-muted">
         <FaGlobe className="shrink-0" aria-hidden="true" />

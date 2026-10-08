@@ -41,6 +41,23 @@ const MESSAGES: Record<string, string> = {
   teacher_cannot_book: "Teacher accounts don't book lessons.",
   account_unavailable: "Your account isn't available.",
   invalid_range: "That date range isn't valid.",
+  forbidden: "You aren't allowed to do that.",
+  cancelled: "That lesson is cancelled.",
+  too_early: "That can only be done once the lesson has started.",
+  invalid_date: "That date is too far from the lesson's usual day (6 days at most).",
+  invalid_reason: "Please write a reason.",
+  reason_required: "Please write a reason.",
+  invalid_value: "Some value isn't allowed. Check the times, the dates and that links start with https://.",
+  not_a_weekly_class: "That is a one-off lesson, not a weekly class.",
+  one_off_class: "A one-off lesson has no weekly schedule to edit.",
+  teacher_has_classes: "That teacher still has classes. Give them to someone else first.",
+  not_a_teacher: "That person isn't a teacher account.",
+  teacher_not_found: "That teacher account wasn't found.",
+  teacher_cannot_be_student: "A teacher account can't be a student.",
+  student_not_found: "That student wasn't found.",
+  user_not_found: "That account wasn't found.",
+  target_exists: "That account already has lessons.",
+  date_in_past: "That date has already passed.",
 };
 
 /** Codes after which the schedule on screen is probably out of date and worth reloading. */
@@ -61,7 +78,7 @@ export function lessonErrorMessage(err: unknown): string {
   return getErrorMessage(err, "Something went wrong. Please try again.");
 }
 
-async function lessonsRequest<T>(method: "GET" | "POST", path: string, body?: Record<string, unknown>): Promise<T> {
+export async function lessonsRequest<T>(method: "GET" | "POST", path: string, body?: Record<string, unknown>): Promise<T> {
   const token = await currentAccessToken();
   const region = getActiveRegion();
   const url = `${workerOrigin()}${path}${method === "GET" ? `${path.includes("?") ? "&" : "?"}region=${region}` : ""}`;

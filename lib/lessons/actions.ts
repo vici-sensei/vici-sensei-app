@@ -33,7 +33,7 @@ export interface OncePlan {
 
 export interface LessonPlan {
   /** What the lesson is to this student. */
-  state: "started" | "standing" | "move" | "vacated" | "other";
+  state: "started" | "cancelled" | "standing" | "move" | "extra" | "vacated" | "other";
   /** Leave the fixed class this lesson belongs to. */
   leave: { classId: string } | null;
   /** Take back a one-week move: the lesson the move went TO. */
@@ -57,6 +57,13 @@ export interface PlanInput {
 const NOTHING: Omit<LessonPlan, "state"> = { leave: null, undoMove: null, weekly: null, once: null, note: null };
 
 export function planLesson({ lesson, all, student, nowMs, tz, weekStart }: PlanInput): LessonPlan {
+  if (lesson.cancelled) {
+    return {
+      ...NOTHING,
+      state: "cancelled",
+      note: lesson.was_mine ? "This lesson was cancelled. You can pick another class that week." : "This lesson was cancelled.",
+    };
+  }
   if (lesson.startMs <= nowMs) {
     return { ...NOTHING, state: "started", note: lesson.mine ? null : "This lesson has already started." };
   }
@@ -65,6 +72,9 @@ export function planLesson({ lesson, all, student, nowMs, tz, weekStart }: PlanI
     return student.can_move
       ? { ...NOTHING, state: "standing", leave: { classId: lesson.class_id } }
       : { ...NOTHING, state: "standing", note: REASON_LOCKED };
+  }
+  if (lesson.mine === "extra") {
+    return { ...NOTHING, state: "extra", note: "Your teacher added you to this lesson. Ask them if you need a change." };
   }
   if (lesson.mine === "move") {
     return student.can_move
