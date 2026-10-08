@@ -144,6 +144,12 @@ self.addEventListener("fetch", (event) => {
   // completely untouched by this service worker.
   if (url.origin !== self.location.origin) return;
 
+  // The Worker's API is same-origin in production (app.vici-sensei.com/api/*). Its answers are
+  // per user and change with every write, so they must never be served from this cache: the
+  // stale-while-revalidate branch below would hand back the PREVIOUS answer (one request behind
+  // after every booking, and another account's answer after a log-in switch on the same browser).
+  if (url.pathname.startsWith("/api/")) return;
+
   // Hashed build assets never change for a given URL, so once cached they're correct forever --
   // including ones deliberately left out of install-time precache (e.g. flag SVGs), which land
   // here on their first real request and get cached then instead.
