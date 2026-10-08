@@ -103,6 +103,25 @@ export interface StaffOverview {
   teachers: TeacherEntry[];
 }
 
+/** Someone waiting for a seat in a full class or lesson (public.lesson_staff_waitlist). */
+export interface StaffWaitlistEntry {
+  id: number;
+  region: Region;
+  user_id: string;
+  class_id: string;
+  kind: "fixed" | "once";
+  ny_date: string | null;
+  title: string | null;
+  /** A seat is free right now (they have been told). */
+  available: boolean;
+  created_at: string;
+}
+
+export interface StaffWaitlist {
+  entries: StaffWaitlistEntry[];
+  people: Record<string, Profile>;
+}
+
 export interface StudentLessonState {
   region: Region;
   user_id: string;
@@ -236,6 +255,11 @@ export function useStaffOverview(user: User | null, range: ScheduleRange | null)
     load,
     errorFallback: "Couldn't load the lessons.",
   });
+}
+
+export function useStaffWaitlist(user: User | null) {
+  const load = useCallback(() => lessonsRequest<StaffWaitlist>("GET", "/api/lessons/staff/waitlist"), []);
+  return useRemoteData({ params: user ? { userId: user.id } : null, load, errorFallback: "Couldn't load the waitlist." });
 }
 
 export function useStaffStudents(user: User | null) {

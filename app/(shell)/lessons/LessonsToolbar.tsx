@@ -7,7 +7,9 @@ import { PillSelector } from "@/app/components/ui/PillSelector";
 import { timeZoneCity } from "@/lib/timezone";
 import { zoneAbbreviation } from "@/lib/lessons/time";
 
-export type LessonsView = "week" | "day";
+export type LessonsView = "year" | "month" | "week" | "day";
+
+const UNIT: Record<LessonsView, string> = { year: "year", month: "month", week: "week", day: "day" };
 
 interface LessonsToolbarProps {
   view: LessonsView;
@@ -19,7 +21,7 @@ interface LessonsToolbarProps {
   isCurrent: boolean;
   tz: string;
   nowMs: number;
-  /** The week/day switch; the teachers' schedule only has weeks. */
+  /** The day/week/month/year switch; the teachers' schedule only has weeks. */
   showViewSwitch?: boolean;
   /** Extra controls at the end of the first row (the student's notifications bell). */
   actions?: ReactNode;
@@ -32,10 +34,10 @@ export function LessonsToolbar({ view, onViewChange, label, onPrev, onNext, onTo
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
-        <button type="button" onClick={onPrev} className={navButton} aria-label={view === "week" ? "Previous week" : "Previous day"}>
+        <button type="button" onClick={onPrev} className={navButton} aria-label={`Previous ${UNIT[view]}`}>
           <FaChevronLeft aria-hidden="true" />
         </button>
-        <button type="button" onClick={onNext} className={navButton} aria-label={view === "week" ? "Next week" : "Next day"}>
+        <button type="button" onClick={onNext} className={navButton} aria-label={`Next ${UNIT[view]}`}>
           <FaChevronRight aria-hidden="true" />
         </button>
         <button
@@ -57,8 +59,10 @@ export function LessonsToolbar({ view, onViewChange, label, onPrev, onNext, onTo
           active={view}
           onChange={onViewChange}
           options={[
-            { value: "week", label: "Week" },
             { value: "day", label: "Day" },
+            { value: "week", label: "Week" },
+            { value: "month", label: "Month" },
+            { value: "year", label: "Year" },
           ]}
         />
       ) : null}

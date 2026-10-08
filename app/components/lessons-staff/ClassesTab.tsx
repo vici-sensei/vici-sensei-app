@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/app/components/ui/Button";
 import { GlassCard } from "@/app/components/ui/GlassCard";
-import { personName, type StaffClass, type StaffOverview } from "@/lib/client-data/lessonsStaff";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { personName, useStaffWaitlist, type StaffClass, type StaffOverview } from "@/lib/client-data/lessonsStaff";
 import { formatKey } from "@/lib/lessons/time";
 import { ClassDialog, OneOffDialog, currentVersion } from "./ClassDialogs";
 import type { Act } from "./OccurrenceDialog";
@@ -14,6 +15,8 @@ export function ClassesTab({ overview, todayNy, busy, act }: { overview: StaffOv
   const [editing, setEditing] = useState<StaffClass | "new" | null>(null);
   const [oneOff, setOneOff] = useState(false);
   const people = overview.people;
+  const { user } = useAuth();
+  const { data: waitlist } = useStaffWaitlist(user);
 
   const weekly = overview.classes.filter((c) => c.kind === "weekly");
   const oneOffs = overview.classes.filter((c) => c.kind === "one_off");
@@ -52,6 +55,21 @@ export function ClassesTab({ overview, todayNy, busy, act }: { overview: StaffOv
                 </div>
                 <Pill tone="muted">{c.fixed.length} {c.fixed.length === 1 ? "student" : "students"}</Pill>
               </div>
+              {(() => {
+                const waiting = (waitlist?.entries ?? []).filter((w) => w.class_id === c.class_id);
+                if (waiting.length === 0) return null;
+                return (
+                  <p className="mt-2 text-[0.8rem] text-accent-gold">
+                    Waiting for a seat ({waiting.length}):{" "}
+                    {waiting
+                      .map(
+                        (w) =>
+                          `${personName(waitlist?.people ?? {}, w)} (${w.kind === "fixed" ? "weekly" : formatKey(w.ny_date ?? "", { day: "numeric", month: "short" })}${w.available ? ", seat free" : ""})`
+                      )
+                      .join(", ")}
+                  </p>
+                );
+              })()}
               {upcoming.map((x) => (
                 <p key={x.id} className="mt-2 text-[0.78rem] text-accent-orange">
                   From {formatKey(x.valid_from, { day: "numeric", month: "short", year: "numeric" })}: {WEEKDAYS[x.weekday - 1]} {hhmm(x.start_time)}, {x.capacity} seats

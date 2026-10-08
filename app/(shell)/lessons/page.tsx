@@ -15,7 +15,7 @@ import {
 } from "@/lib/client-data/lessons";
 import { useLessonNotifications } from "@/lib/client-data/lessonsNotifications";
 import { useWaitlist, waitlistActions } from "@/lib/client-data/lessonsWaitlist";
-import { addDaysKey, formatKey, formatWeekLabel, wallToInstant, weekRange, weekStartFor } from "@/lib/lessons/time";
+import { addDaysKey, addMonthsKey, formatKey, formatWeekLabel, monthRange, wallToInstant, weekRange, weekStartFor } from "@/lib/lessons/time";
 import { toLessonView } from "@/lib/lessons/types";
 import { useLocalToday } from "@/lib/lessons/useLocalToday";
 import { useClientClock } from "@/lib/useClientClock";
@@ -23,9 +23,11 @@ import { resolveTimeZone } from "@/lib/timezone";
 import { CalendarSettings } from "./CalendarSettings";
 import type { LessonHandlers } from "./LessonDialog";
 import { LessonsCalendar } from "./LessonsCalendar";
+import { MonthView } from "./MonthView";
 import { NotificationBanner, NotificationsButton, NotificationsModal } from "./NotificationsPanel";
 import { LessonsError, LessonsNoAccess, LessonsSkeleton, LessonsTeacherNotice } from "./LessonsStates";
 import { LessonsToolbar, type LessonsView } from "./LessonsToolbar";
+import { YearView } from "./YearView";
 
 export default function LessonsPage() {
   const { user } = useAuth();
@@ -48,31 +50,37 @@ export default function LessonsPage() {
   // Three weeks around the day on screen, whatever weekday the student's week starts on: any week of
   // theirs that contains that day fits inside, so the range never has to wait for the student's own
   // settings (which come WITH the answer). It also holds the week before and after, for the arrows.
-  const range = useMemo(
-    () =>
-      anchorKey
-        ? {
-            from: new Date(wallToInstant(addDaysKey(anchorKey, -7), 0, 0, tz)).toISOString(),
-            to: new Date(wallToInstant(addDaysKey(anchorKey, 14), 0, 0, tz)).toISOString(),
-          }
-        : null,
-    [anchorKey, tz]
-  );
+  // The month view needs the whole month (and a week either side, whichever weekday the grid starts on); the
+  // year view shows no lessons, so it asks for the same few weeks as the others just to learn about the student.
+  const range = useMemo(() => {
+    if (!anchorKey) return null;
+    const month = view === "month" ? monthRange(anchorKey, 1, tz) : null;
+    const fromKey = month ? addDaysKey(month.firstKey, -7) : addDaysKey(anchorKey, -7);
+    const toKey = month ? addDaysKey(month.lastKey, 8) : addDaysKey(anchorKey, 14);
+    return { from: new Date(wallToInstant(fromKey, 0, 0, tz)).toISOString(), to: new Date(wallToInstant(toKey, 0, 0, tz)).toISOString() };
+  }, [anchorKey, tz, view]);
   const { data, status, error, refetch } = useLessonSchedule(user, range);
 
   const { data: notifications, mutate: mutateNotifications, refetch: refetchNotifications } = useLessonNotifications(user);
   const [inboxOpen, setInboxOpen] = useState(false);
   const { data: waitlistData, refetch: refetchWaitlist } = useWaitlist(user);
   const waitlist = useMemo(() => waitlistData ?? [], [waitlistData]);
-  // New notices (a reminder, a cancellation, a free seat) appear without a reload while the page is open.
+  // New notices (a reminder, a cancellation, a free seat) and the seat counts they are about appear without a
+  // reload: every minute while the page is on screen, and at once when the student comes back to the tab.
   useEffect(() => {
-    const id = window.setInterval(() => {
+    const reload = () => {
       if (document.visibilityState !== "visible") return;
       void refetchNotifications();
       void refetchWaitlist();
-    }, 60_000);
-    return () => window.clearInterval(id);
-  }, [refetchNotifications, refetchWaitlist]);
+      void refetch();
+    };
+    const id = window.setInterval(reload, 60_000);
+    document.addEventListener("visibilitychange", reload);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", reload);
+    };
+  }, [refetchNotifications, refetchWaitlist, refetch]);
 
   const result = data && range && data.from === range.from && data.to === range.to ? data : null;
   const schedule = result?.kind === "ok" ? result.schedule : null;
@@ -172,13 +180,31 @@ export default function LessonsPage() {
     [run, refetchWaitlist]
   );
 
-  const step = view === "week" ? 7 : 1;
-  const move = (days: number) => {
-    if (anchorKey) setAnchor(addDaysKey(anchorKey, days));
+  const move = (direction: 1 | -1) => {
+    if (!anchorKey) return;
+    if (view === "year") setAnchor(addMonthsKey(anchorKey, 12 * direction));
+    else if (view === "month") setAnchor(addMonthsKey(anchorKey, direction));
+    else setAnchor(addDaysKey(anchorKey, direction * (view === "week" ? 7 : 1)));
   };
-  const label = !anchorKey || !week ? "" : view === "week" ? formatWeekLabel(week) : formatKey(anchorKey, { weekday: "long", month: "long", day: "numeric" });
+  const label = !anchorKey || !week
+    ? ""
+    : view === "year"
+      ? anchorKey.slice(0, 4)
+      : view === "month"
+        ? formatKey(anchorKey, { month: "long", year: "numeric" })
+        : view === "week"
+          ? formatWeekLabel(week)
+          : formatKey(anchorKey, { weekday: "long", month: "long", day: "numeric" });
   const isCurrent =
-    anchor === null || (todayKey !== null && (view === "week" ? weekRange(todayKey, weekStart, tz).startKey === week?.startKey : anchor === todayKey));
+    anchor === null ||
+    (todayKey !== null &&
+      (view === "year"
+        ? todayKey.slice(0, 4) === anchorKey?.slice(0, 4)
+        : view === "month"
+          ? todayKey.slice(0, 7) === anchorKey?.slice(0, 7)
+          : view === "week"
+            ? weekRange(todayKey, weekStart, tz).startKey === week?.startKey
+            : anchor === todayKey));
 
   let body;
   if (result?.kind === "teacher") {
@@ -196,27 +222,52 @@ export default function LessonsPage() {
           view={view}
           onViewChange={setView}
           label={label}
-          onPrev={() => move(-step)}
-          onNext={() => move(step)}
+          onPrev={() => move(-1)}
+          onNext={() => move(1)}
           onToday={() => setAnchor(null)}
           isCurrent={isCurrent}
           tz={tz}
           nowMs={nowMs}
           actions={<NotificationsButton unread={notifications?.unread ?? 0} onClick={() => setInboxOpen(true)} />}
         />
-        <LessonsCalendar
-          lessons={weekLessons}
-          student={student}
-          tz={tz}
-          nowMs={nowMs}
-          todayKey={todayKey}
-          view={view}
-          anchorKey={anchorKey}
-          weekStart={weekStart}
-          busy={busy}
-          waitlist={waitlist}
-          handlers={handlers}
-        />
+        {view === "month" ? (
+          <MonthView
+            lessons={lessons}
+            anchorKey={anchorKey}
+            weekStart={weekStart}
+            tz={tz}
+            todayKey={todayKey}
+            onPickDay={(dayKey) => {
+              setAnchor(dayKey);
+              setView("week");
+            }}
+          />
+        ) : view === "year" ? (
+          <YearView
+            anchorKey={anchorKey}
+            weekStart={weekStart}
+            tz={tz}
+            todayKey={todayKey}
+            onPickMonth={(firstKey) => {
+              setAnchor(firstKey);
+              setView("month");
+            }}
+          />
+        ) : (
+          <LessonsCalendar
+            lessons={weekLessons}
+            student={student}
+            tz={tz}
+            nowMs={nowMs}
+            todayKey={todayKey}
+            view={view}
+            anchorKey={anchorKey}
+            weekStart={weekStart}
+            busy={busy}
+            waitlist={waitlist}
+            handlers={handlers}
+          />
+        )}
         <CalendarSettings
           student={student}
           busy={busy}

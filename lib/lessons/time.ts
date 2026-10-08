@@ -137,6 +137,44 @@ export function weekRange(key: string, weekStart: number, tz: string): WeekRange
 
 /** The weekday the student's week starts on for the week containing `key`: their current one, or the one
  * they switched to once that change has taken effect (a change applies from the next week). */
+/** The first day of the month of a date key: "2026-03-17" -> "2026-03-01". */
+export function monthFirstKey(key: string): string {
+  return `${key.slice(0, 7)}-01`;
+}
+
+/** The first day of the month `months` months after (or before, when negative) the month of `key`. */
+export function addMonthsKey(key: string, months: number): string {
+  const total = Number(key.slice(0, 4)) * 12 + (Number(key.slice(5, 7)) - 1) + months;
+  return `${pad4(Math.floor(total / 12))}-${pad(((total % 12) + 12) % 12 + 1)}-01`;
+}
+
+function pad4(n: number): string {
+  return String(n).padStart(4, "0");
+}
+
+export interface MonthRange {
+  /** The first and the last day of the month. */
+  firstKey: string;
+  lastKey: string;
+  /** The calendar grid: whole weeks (starting on the student's first weekday) that cover the month. */
+  weeks: string[][];
+  gridStartKey: string;
+  /** Exclusive. */
+  gridEndKey: string;
+}
+
+export function monthRange(key: string, weekStart: number, tz: string): MonthRange {
+  const firstKey = monthFirstKey(key);
+  const lastKey = addDaysKey(addMonthsKey(firstKey, 1), -1);
+  const gridStartKey = weekRange(firstKey, weekStart, tz).startKey;
+  const gridEndKey = weekRange(lastKey, weekStart, tz).endKey;
+  const weeks: string[][] = [];
+  for (let start = gridStartKey; start < gridEndKey; start = addDaysKey(start, 7)) {
+    weeks.push(Array.from({ length: 7 }, (_, i) => addDaysKey(start, i)));
+  }
+  return { firstKey, lastKey, weeks, gridStartKey, gridEndKey };
+}
+
 export function weekStartFor(
   student: { week_start: number; pending: { effective_from: string; week_start: number } | null },
   key: string,
