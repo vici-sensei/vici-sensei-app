@@ -4,7 +4,6 @@ import { Fragment, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FaChevronDown, FaChevronRight, FaCheck, FaXmark } from "react-icons/fa6";
-import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import {
   useStudentAchievements,
   useStudentDailyActivity,
@@ -61,14 +60,12 @@ function total(counts: ProgressStatusCounts): number {
 }
 
 function AdminStudentDetailContent({ studentId }: { studentId: string }) {
-  const { ready, checking } = useRequireAdmin();
-
-  const { data: student, status: studentStatus } = useStudentDetail(ready ? studentId : null);
-  const { data: dailyActivity, status: activityStatus } = useStudentDailyActivity(ready ? studentId : null);
-  const { data: newCardProgress, status: newCardStatus, error: newCardError } = useStudentNewCardProgress(ready ? studentId : null);
-  const { data: knowledge } = useStudentProgressSummary(ready ? studentId : null);
-  const { data: testResults, status: testStatus } = useStudentTestResults(ready ? studentId : null);
-  const { data: achievements } = useStudentAchievements(ready ? studentId : null);
+  const { data: student, status: studentStatus } = useStudentDetail(studentId);
+  const { data: dailyActivity, status: activityStatus } = useStudentDailyActivity(studentId);
+  const { data: newCardProgress, status: newCardStatus, error: newCardError } = useStudentNewCardProgress(studentId);
+  const { data: knowledge } = useStudentProgressSummary(studentId);
+  const { data: testResults, status: testStatus } = useStudentTestResults(studentId);
+  const { data: achievements } = useStudentAchievements(studentId);
 
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [dayEntries, setDayEntries] = useState<Record<string, StudentActivityEntry[]>>({});
@@ -92,8 +89,6 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
       setLoadingDay(null);
     }
   }
-
-  if (checking || !ready) return <FullScreenLoader />;
 
   if (studentStatus === "loaded" && !student) {
     return (

@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import { useFreeLessonLeads, updateLeadContacted } from "@/lib/client-data/freeLessonLeads";
-import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
-import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 import { Badge } from "@/app/components/ui/Badge";
 import { Toggle } from "@/app/components/ui/Toggle";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -27,15 +25,12 @@ const FILTERS: { value: ContactedFilter; label: string }[] = [
 
 export default function AdminLeadsPage() {
   const { user } = useAuth();
-  const { ready, checking } = useRequireAdmin();
-  const { data: leads, status } = useFreeLessonLeads(ready ? user : null);
+  const { data: leads, status } = useFreeLessonLeads(user);
   const [filter, setFilter] = useState<ContactedFilter>("all");
   // Optimistic per-row overrides for the contacted toggle, keyed by lead id -- keeps the UI
   // snappy without waiting on a full refetch, and reverts silently if the write fails.
   const [contactedOverrides, setContactedOverrides] = useState<Record<number, boolean>>({});
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
-
-  if (checking || !ready) return <FullScreenLoader />;
 
   async function handleToggleContacted(lead: FreeLessonLead) {
     if (pendingIds.has(lead.id)) return;
@@ -69,11 +64,11 @@ export default function AdminLeadsPage() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Leads" }]} />
-      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Leads</h1>
-      <p className="mb-7.5 text-base leading-[1.6] text-text-muted text-center md:text-left">
-        Free lesson leads collected from the public signup form.
-      </p>
+      <PageHeader
+        breadcrumbs={[{ label: "Teacher", href: "/admin" }, { label: "Leads" }]}
+        title="Leads"
+        subtitle="Free lesson leads collected from the public signup form."
+      />
 
       <div className="mb-4.5 flex flex-wrap justify-center gap-2 md:justify-start">
         {FILTERS.map(({ value, label }) => (

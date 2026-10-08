@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { useLeaderboard } from "@/lib/client-data/leaderboard";
 import { useServerClockOffset } from "@/lib/client-data/serverClockOffset";
 import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 import type { LeaderboardMetric, LeaderboardPeriod } from "@/lib/types";
 import { readStoredMetric, readStoredPeriod, writeStoredMetric, writeStoredPeriod } from "@/lib/leaderboard/storage";
 import { LeaderboardTabs } from "./LeaderboardTabs";
@@ -32,10 +33,7 @@ export default function LeaderboardPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Leaderboard</h1>
-      <p className="mb-7.5 text-base leading-[1.6] text-text-muted  text-center md:text-left">
-        See how you stack up against other students.
-      </p>
+      <PageHeader title="Leaderboard" subtitle="See how you stack up against other students." />
 
       <div className="w-fit mx-auto md:mx-0">
         <LeaderboardTabs active={metric} onChange={handleMetricChange} />

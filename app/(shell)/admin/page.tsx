@@ -3,13 +3,11 @@
 import Link from "next/link";
 import { FaUserGraduate, FaInbox, FaLanguage } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import { useAdminDashboardStats } from "@/lib/client-data/adminDashboard";
 import { useKanjiWordsTodoCount } from "@/lib/client-data/adminKanjiWords";
 import { isMultiRegionEnabled } from "@/lib/supabase/regions";
-import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
-import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import type { AdminDashboardStats } from "@/lib/types";
 
@@ -24,21 +22,18 @@ const TILES: { key: keyof AdminDashboardStats; label: string; tone?: "danger"; h
 
 export default function AdminOverviewPage() {
   const { user } = useAuth();
-  const { ready, checking } = useRequireAdmin();
-  const { data: stats, status } = useAdminDashboardStats(ready ? user : null);
+  const { data: stats, status } = useAdminDashboardStats(user);
   // The kanji-words RPCs only exist on the EU/US projects, so the tile (and its request) is multi-region only.
   const multiRegion = isMultiRegionEnabled();
-  const { data: kanjiWords, status: kanjiWordsStatus } = useKanjiWordsTodoCount(ready && multiRegion ? user : null);
-
-  if (checking || !ready) return <FullScreenLoader />;
+  const { data: kanjiWords, status: kanjiWordsStatus } = useKanjiWordsTodoCount(multiRegion ? user : null);
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: "Teacher" }]} />
-      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Overview</h1>
-      <p className="mb-7.5 text-base leading-[1.6] text-text-muted text-center md:text-left">
-        A quick look at how your students are doing.
-      </p>
+      <PageHeader
+        breadcrumbs={[{ label: "Teacher" }]}
+        title="Overview"
+        subtitle="A quick look at how your students are doing."
+      />
 
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {TILES.map((tile) => {

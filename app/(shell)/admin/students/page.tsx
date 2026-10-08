@@ -5,16 +5,15 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FaSliders, FaSort, FaSortDown, FaSortUp } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import { updateStudentPremium, useStudentRoster } from "@/lib/client-data/adminStudents";
 import { useCountries } from "@/lib/client-data/countries";
 import { getErrorMessage } from "@/lib/api/client";
 import { isMultiRegionEnabled } from "@/lib/supabase/regions";
 import { useStudyStats } from "@/lib/study/StudyStatsContext";
-import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { Collapsible } from "@/app/components/ui/Collapsible";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useToast } from "@/app/components/ui/Toast";
 import type { StudentRosterRow } from "@/lib/types";
@@ -86,8 +85,7 @@ function SortableHeader({
 
 function AdminStudents() {
   const { user } = useAuth();
-  const { ready, checking } = useRequireAdmin();
-  const { data: students, status } = useStudentRoster(ready ? user : null);
+  const { data: students, status } = useStudentRoster(user);
   const { data: allCountries } = useCountries();
   const { showToast } = useToast();
   const searchParams = useSearchParams();
@@ -129,8 +127,6 @@ function AdminStudents() {
       .map((code) => ({ code, name: names.get(code) ?? code }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [rows, allCountries]);
-
-  if (checking || !ready) return <FullScreenLoader />;
 
   function updateView(next: RosterView) {
     setView(next);
@@ -186,11 +182,12 @@ function AdminStudents() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Students" }]} />
-      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Students</h1>
-      <p className="mb-5 text-base leading-[1.6] text-text-muted text-center md:text-left">
-        Your students&apos; progress and activity.
-      </p>
+      <PageHeader
+        breadcrumbs={[{ label: "Teacher", href: "/admin" }, { label: "Students" }]}
+        title="Students"
+        subtitle="Your students' progress and activity."
+        compact
+      />
 
       <div className="flex flex-wrap items-center gap-2.5">
         <input

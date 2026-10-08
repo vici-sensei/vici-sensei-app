@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FaArrowDownWideShort, FaArrowUpWideShort, FaClockRotateLeft, FaSliders } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useRequireAdmin } from "@/lib/auth/useRequireAdmin";
 import { useKanjiWordsOverview } from "@/lib/client-data/adminKanjiWords";
 import {
   bulkKanjiWords,
@@ -14,11 +13,11 @@ import {
 } from "@/lib/data/adminKanjiWords";
 import { createClient } from "@/lib/supabase/client";
 import { isMultiRegionEnabled } from "@/lib/supabase/regions";
-import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { Collapsible } from "@/app/components/ui/Collapsible";
 import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useToast } from "@/app/components/ui/Toast";
 import type { KanjiWordsBatch, KanjiWordsBulkResult, KanjiWordsParity } from "@/lib/types";
@@ -87,9 +86,8 @@ function bulkSpec(choice: BulkChoice, ids: number[], versions: Record<number, nu
 
 function AdminKanjiWords() {
   const { user } = useAuth();
-  const { ready, checking } = useRequireAdmin();
   const multiRegion = isMultiRegionEnabled();
-  const { data, status, error, refetch } = useKanjiWordsOverview(ready && multiRegion ? user : null);
+  const { data, status, error, refetch } = useKanjiWordsOverview(multiRegion ? user : null);
   const { showToast } = useToast();
   const searchParams = useSearchParams();
 
@@ -111,7 +109,7 @@ function AdminKanjiWords() {
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!ready || !multiRegion) return;
+    if (!multiRegion) return;
     let cancelled = false;
     fetchKanjiWordsParity(createClient())
       .then((result) => {
@@ -123,7 +121,7 @@ function AdminKanjiWords() {
     return () => {
       cancelled = true;
     };
-  }, [ready, multiRegion]);
+  }, [multiRegion]);
 
   // The list stays pinned while the page scrolls, so a kanji picked far down the list would otherwise open its
   // editor out of sight above; bring it back under the header.
@@ -159,8 +157,6 @@ function AdminKanjiWords() {
     return { total: rows.length, reviewed, byLevel };
   }, [rows]);
   const selectedRow = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
-
-  if (checking || !ready) return <FullScreenLoader />;
 
   function writeUrl(nextView: KanjiView, nextSelected: number | null) {
     const qs = serializeView(nextView, nextSelected);
@@ -256,23 +252,23 @@ function AdminKanjiWords() {
   if (!multiRegion) {
     return (
       <div>
-        <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Kanji words" }]} />
-        <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Kanji words</h1>
-        <p className="text-base leading-[1.6] text-text-muted text-center md:text-left">
-          This page needs the EU/US projects (NEXT_PUBLIC_MULTI_REGION), which hold the kanji-words tables.
-        </p>
+        <PageHeader
+          breadcrumbs={[{ label: "Teacher", href: "/admin" }, { label: "Kanji words" }]}
+          title="Kanji words"
+          subtitle="This page needs the EU/US projects (NEXT_PUBLIC_MULTI_REGION), which hold the kanji-words tables."
+        />
       </div>
     );
   }
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Kanji words" }]} />
-      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px] text-center md:text-left">Kanji words</h1>
-      <p className="mb-5 text-base leading-[1.6] text-text-muted text-center md:text-left">
-        Choose which words each kanji is taught with. The algorithm picks first; what you change is kept on top of it, and
-        every change can be undone.
-      </p>
+      <PageHeader
+        breadcrumbs={[{ label: "Teacher", href: "/admin" }, { label: "Kanji words" }]}
+        title="Kanji words"
+        subtitle="Choose which words each kanji is taught with. The algorithm picks first; what you change is kept on top of it, and every change can be undone."
+        compact
+      />
 
       {parity && parity.in_sync === false ? (
         <GlassCard padding="sm" tone="danger" className="mb-4">
