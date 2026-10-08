@@ -197,7 +197,7 @@ lună/an + Google + prezență), construit pe etape interne:
    Rămas din etapa 1: integrarea cu mutarea de regiune (`lesson_rekey_student` există, dar pasul nu e
    legat în `worker/lib/regionMove.ts`, care are mașină de stări în D1).
 2. Calendarul elevului **(scris și testat local 2026-10-08; migrația `20261008081641` aplicată pe EU; Worker-ul încă nedeployat)**: pagina `/lessons` (săptămână și zi, fusul contului, săptămâna elevului, marcaj DST, dialog cu înscriere fixă / „doar săptămâna asta" / ieșire / anulare mutare, setarea primei zile a săptămânii, stările fără acces și profesor), `lib/lessons/*` (timp, reguli de afișare), `lib/client-data/lessons.ts`, numele profesorilor adăugate de Worker, migrația `20261008081641`. Lună și An rămân la etapa 6.
-3. Admin/profesor: clase, excepții, vacanțe, liste, acces/cotă/mută.
+3. Admin/profesor: clase, excepții, vacanțe, liste, acces/cotă/mută. **Făcut 2026-10-08** (migrația `20261008103823` aplicată pe EU; panoul `/admin/lessons` și `/teach`; Worker `lessonsStaff.ts`). Fără interfață pentru: notificările și mementourile (etapa 4).
 4. Notificări (în aplicație, email) și job-uri.
 5. Listă de așteptare, push.
 6. Lună/an, prezență, Google Calendar.
