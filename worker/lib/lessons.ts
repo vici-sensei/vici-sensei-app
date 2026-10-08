@@ -9,12 +9,13 @@ import {
   isoDate,
   isoInstant,
   profileKey,
-  readBody,
   resolveActor,
+  studentAction,
   uuid,
 } from "./lessonsCommon";
 import { routeNotifications } from "./lessonsNotify";
 import { routeStaff } from "./lessonsStaff";
+import { routeWaitlist } from "./lessonsWaitlist";
 
 /**
  * Lesson booking API (docs/LESSON_BOOKING_PLAN.md) for STUDENTS: their calendar and the changes they
@@ -25,22 +26,6 @@ import { routeStaff } from "./lessonsStaff";
 // ---------------------------------------------------------------------------
 // Student endpoints
 // ---------------------------------------------------------------------------
-
-async function studentAction(
-  request: Request,
-  env: Env,
-  fn: string,
-  args: (body: Record<string, unknown>) => Record<string, unknown>
-): Promise<Response> {
-  return guarded(async () => {
-    const body = await readBody(request);
-    const actor = await resolveActor(request, env, body.region);
-    if (actor instanceof Response) return actor;
-    if (actor.isTeacher) return json({ error: "teacher_cannot_book" }, 403);
-    const built = args(body);
-    return answer(await callWriter(env, fn, { p_region: actor.region, p_user_id: actor.id, p_tz: actor.tz, ...built }));
-  });
-}
 
 interface TeacherRef {
   region?: string;
@@ -128,6 +113,9 @@ export async function routeLessons(request: Request, env: Env, url: URL): Promis
 
   const notifications = await routeNotifications(request, env, url);
   if (notifications) return notifications;
+
+  const waitlist = await routeWaitlist(request, env, url);
+  if (waitlist) return waitlist;
 
   const staff = await routeStaff(request, env, url);
   if (staff) return staff;

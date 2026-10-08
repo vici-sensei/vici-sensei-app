@@ -14,10 +14,13 @@ import {
   zoneAbbreviation,
 } from "@/lib/lessons/time";
 import { lessonKey, type FixedClass, type LessonStudent, type LessonView } from "@/lib/lessons/types";
+import type { WaitlistEntry } from "@/lib/lessons/waitlist";
+import { hintClass, radioClass, rowClass, sectionClass } from "./dialogStyles";
 import { SeatDots, lessonShiftText } from "./LessonCard";
+import { WaitlistSection, type WaitlistHandlers } from "./WaitlistSection";
 
 /** Each resolves to whether the change went through; the calendar closes the dialog on success. */
-export interface LessonHandlers {
+export interface LessonHandlers extends WaitlistHandlers {
   enroll: (classId: string, replaceClassId: string | null) => Promise<boolean>;
   leave: (classId: string) => Promise<boolean>;
   moveOnce: (to: LessonView, from: LessonView | null) => Promise<boolean>;
@@ -32,6 +35,7 @@ interface LessonDialogProps {
   tz: string;
   weekStart: number;
   busy: boolean;
+  waitlist: WaitlistEntry[];
   onClose: () => void;
   handlers: LessonHandlers;
 }
@@ -47,7 +51,7 @@ function describeLesson(l: LessonView, tz: string): string {
   return `${l.title} · ${formatKey(localDateKey(l.startMs, tz), { weekday: "short", month: "short", day: "numeric" })} ${formatClock(l.startMs, tz)}`;
 }
 
-export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy, onClose, handlers }: LessonDialogProps) {
+export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy, waitlist, onClose, handlers }: LessonDialogProps) {
   const plan = useMemo(
     () => planLesson({ lesson, all, student, nowMs, tz, weekStart }),
     [lesson, all, student, nowMs, tz, weekStart]
@@ -63,10 +67,10 @@ export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy,
   const full = lesson.taken >= lesson.capacity;
   const swapChosen = plan.once?.swaps.find((s) => lessonKey(s) === onceChoice) ?? null;
 
-  const radio = "mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[#ff4a5a]";
-  const row = "flex cursor-pointer items-start gap-2.5 rounded-lg border border-border-soft bg-white/[0.03] p-2.5 text-[0.84rem]";
-  const section = "mt-5 rounded-xl border border-border-soft bg-white/[0.02] p-4";
-  const hint = "mt-1.5 text-[0.78rem] leading-normal text-text-muted";
+  const radio = radioClass;
+  const row = rowClass;
+  const section = sectionClass;
+  const hint = hintClass;
 
   return (
     <Modal onClose={onClose} labelledBy="lesson-dialog-title" showCloseButton>
@@ -187,7 +191,8 @@ export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy,
           </div>
         ) : null}
 
-        {plan.weekly ? (
+        {/* A full lesson offers the waitlist instead: both options below would only say "full". */}
+        {plan.weekly && !plan.waitlist ? (
           <div className={section}>
             <p className="text-[0.88rem] font-bold">Every week</p>
             <p className={hint}>Make this your weekly class: you keep the seat and come every week until you change it.</p>
@@ -222,7 +227,9 @@ export function LessonDialog({ lesson, all, student, nowMs, tz, weekStart, busy,
           </div>
         ) : null}
 
-        {plan.once ? (
+        {plan.waitlist ? <WaitlistSection lesson={lesson} plan={plan.waitlist} entries={waitlist} tz={tz} busy={busy} handlers={handlers} /> : null}
+
+        {plan.once && !plan.waitlist ? (
           <div className={section}>
             <p className="text-[0.88rem] font-bold">Just this week</p>
             <p className={hint}>Go to this lesson once. Next week you are back to your usual class.</p>

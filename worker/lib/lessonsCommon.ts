@@ -249,6 +249,23 @@ export function profilesToObject(profiles: Map<string, Profile>): Record<string,
 // Who may do what
 // ---------------------------------------------------------------------------
 
+/** A student acting for themselves: the writer gets the verified region, id and timezone plus `args(body)`. */
+export async function studentAction(
+  request: Request,
+  env: Env,
+  fn: string,
+  args: (body: Record<string, unknown>) => Record<string, unknown>
+): Promise<Response> {
+  return guarded(async () => {
+    const body = await readBody(request);
+    const actor = await resolveActor(request, env, body.region);
+    if (actor instanceof Response) return actor;
+    if (actor.isTeacher) return json({ error: "teacher_cannot_book" }, 403);
+    const built = args(body);
+    return answer(await callWriter(env, fn, { p_region: actor.region, p_user_id: actor.id, p_tz: actor.tz, ...built }));
+  });
+}
+
 /** `staff` = admins and teachers; `admin` = admins only. */
 export async function staffAction(
   request: Request,

@@ -14,6 +14,7 @@ import {
   useLessonSchedule,
 } from "@/lib/client-data/lessons";
 import { useLessonNotifications } from "@/lib/client-data/lessonsNotifications";
+import { useWaitlist, waitlistActions } from "@/lib/client-data/lessonsWaitlist";
 import { addDaysKey, formatKey, formatWeekLabel, wallToInstant, weekRange, weekStartFor } from "@/lib/lessons/time";
 import { toLessonView } from "@/lib/lessons/types";
 import { useLocalToday } from "@/lib/lessons/useLocalToday";
@@ -61,13 +62,17 @@ export default function LessonsPage() {
 
   const { data: notifications, mutate: mutateNotifications, refetch: refetchNotifications } = useLessonNotifications(user);
   const [inboxOpen, setInboxOpen] = useState(false);
-  // New notices (a reminder, a cancellation) appear without a reload while the page is open.
+  const { data: waitlistData, refetch: refetchWaitlist } = useWaitlist(user);
+  const waitlist = useMemo(() => waitlistData ?? [], [waitlistData]);
+  // New notices (a reminder, a cancellation, a free seat) appear without a reload while the page is open.
   useEffect(() => {
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refetchNotifications();
+      if (document.visibilityState !== "visible") return;
+      void refetchNotifications();
+      void refetchWaitlist();
     }, 60_000);
     return () => window.clearInterval(id);
-  }, [refetchNotifications]);
+  }, [refetchNotifications, refetchWaitlist]);
 
   const result = data && range && data.from === range.from && data.to === range.to ? data : null;
   const schedule = result?.kind === "ok" ? result.schedule : null;
@@ -80,23 +85,70 @@ export default function LessonsPage() {
   const weekLessons = week ? lessons.filter((l) => l.startMs >= week.startMs && l.startMs < week.endMs) : [];
 
   const run = useCallback(
-    async (task: () => Promise<unknown>, success: string): Promise<boolean> => {
+    async (task: () => Promise<unknown>, success: string, alsoReload?: () => Promise<unknown>): Promise<boolean> => {
       setBusy(true);
       try {
         await task();
         showToast(success);
-        await refetch();
+        await Promise.all([refetch(), alsoReload?.()]);
         return true;
       } catch (err) {
         showToast(lessonErrorMessage(err), "error");
         // The schedule on screen was out of date (someone took the seat, the lesson moved...): reload it.
-        if (err instanceof LessonsApiError && STALE_SCHEDULE_CODES.has(err.code)) await refetch();
+        if (err instanceof LessonsApiError && STALE_SCHEDULE_CODES.has(err.code)) await Promise.all([refetch(), alsoReload?.()]);
         return false;
       } finally {
         setBusy(false);
       }
     },
     [refetch, showToast]
+  );
+
+  // "A seat opened" -> Confirm, from the banner. The first one to confirm gets the seat; the writer checks
+  // everything again, so a late confirm simply fails and the student stays on the list.
+  const confirmSeat = useCallback(
+    async (entryId: number): Promise<"ok" | "gone" | "failed"> => {
+      setBusy(true);
+      try {
+        await waitlistActions.confirm(entryId);
+        showToast("You got the seat. See you in class!");
+        await Promise.all([refetch(), refetchWaitlist()]);
+        return "ok";
+      } catch (err) {
+        const code = err instanceof LessonsApiError ? err.code : "";
+        showToast(
+          code === "class_full"
+            ? "Someone confirmed before you. You're still on the waitlist."
+            : code === "quota_reached"
+              ? "You're at your weekly limit. Open the lesson to choose what to give up."
+              : lessonErrorMessage(err),
+          "error"
+        );
+        await Promise.all([refetch(), refetchWaitlist()]);
+        return code === "not_found" ? "gone" : "failed";
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refetch, refetchWaitlist, showToast]
+  );
+
+  const leaveWaitlist = useCallback(
+    async (entryId: number): Promise<"ok" | "gone" | "failed"> => {
+      setBusy(true);
+      try {
+        await waitlistActions.leave(entryId);
+        await refetchWaitlist();
+        return "ok";
+      } catch (err) {
+        showToast(lessonErrorMessage(err), "error");
+        await refetchWaitlist();
+        return err instanceof LessonsApiError && err.code === "not_found" ? "gone" : "failed";
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refetchWaitlist, showToast]
   );
 
   const handlers = useMemo<LessonHandlers>(
@@ -114,8 +166,10 @@ export default function LessonsPage() {
           "Done. It's just for this week."
         ),
       undoMove: (toClass, toDate) => run(() => lessonActions.unmove({ classId: toClass, nyDate: toDate }), "You're back to your usual lesson."),
+      waitlistJoin: (join) => run(() => waitlistActions.join(join), "You're on the waitlist. We'll tell you when a seat opens.", refetchWaitlist),
+      waitlistLeave: (entryId) => run(() => waitlistActions.leave(entryId), "You're off the waitlist.", refetchWaitlist),
     }),
-    [run]
+    [run, refetchWaitlist]
   );
 
   const step = view === "week" ? 7 : 1;
@@ -160,6 +214,7 @@ export default function LessonsPage() {
           anchorKey={anchorKey}
           weekStart={weekStart}
           busy={busy}
+          waitlist={waitlist}
           handlers={handlers}
         />
         <CalendarSettings
@@ -174,7 +229,7 @@ export default function LessonsPage() {
   return (
     <div>
       <PageHeader title="Lessons" subtitle="Pick your weekly class, or go to another lesson for a week." />
-      <NotificationBanner list={notifications} mutate={mutateNotifications} />
+      <NotificationBanner list={notifications} mutate={mutateNotifications} busy={busy} onConfirmSeat={confirmSeat} onLeaveWaitlist={leaveWaitlist} />
       {body}
       {inboxOpen && nowMs !== null ? (
         <NotificationsModal user={user} list={notifications} nowMs={nowMs} mutate={mutateNotifications} onClose={() => setInboxOpen(false)} />

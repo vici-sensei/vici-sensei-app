@@ -52,6 +52,7 @@ const BANNER_KINDS = new Set([
   "access_ended",
   "access_ending",
   "removed_by_teacher",
+  "waitlist_seat",
 ]);
 
 export function isBannerKind(kind: string): boolean {

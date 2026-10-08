@@ -1,6 +1,6 @@
 "use client";
 
-import { FaArrowRightArrowLeft, FaClock, FaUserCheck, FaUserPlus } from "react-icons/fa6";
+import { FaArrowRightArrowLeft, FaClock, FaHourglassHalf, FaUserCheck, FaUserPlus } from "react-icons/fa6";
 import { formatTimeRange, weeklyShiftMinutes } from "@/lib/lessons/time";
 import type { LessonView } from "@/lib/lessons/types";
 
@@ -36,9 +36,11 @@ interface LessonCardProps {
   onOpen: (lesson: LessonView) => void;
   /** Roomier layout for the single-day view. */
   large?: boolean;
+  /** The student is on the waitlist for this lesson (or for its weekly class). */
+  waiting?: boolean;
 }
 
-export function LessonCard({ lesson, tz, nowMs, onOpen, large = false }: LessonCardProps) {
+export function LessonCard({ lesson, tz, nowMs, onOpen, large = false, waiting = false }: LessonCardProps) {
   const past = lesson.endMs <= nowMs;
   const started = lesson.startMs <= nowMs;
   const full = lesson.taken >= lesson.capacity;
@@ -65,6 +67,7 @@ export function LessonCard({ lesson, tz, nowMs, onOpen, large = false }: LessonC
     cancelled ? null : full && !lesson.mine ? "full" : `${lesson.taken} of ${lesson.capacity} seats taken`,
     shift,
     lesson.attendance === "present" ? "you were there" : lesson.attendance === "absent" ? "marked absent" : null,
+    waiting ? "you are on the waitlist" : null,
   ]
     .filter(Boolean)
     .join(", ");
@@ -109,6 +112,12 @@ export function LessonCard({ lesson, tz, nowMs, onOpen, large = false }: LessonC
         {lesson.attendance === "present" ? <span className="font-bold text-accent-green">You were there</span> : null}
         {lesson.attendance === "absent" ? <span className="font-bold text-[#ff8a93]">Marked absent</span> : null}
         {started && !past && !cancelled ? <span className="font-bold text-accent-green">In progress</span> : null}
+        {waiting ? (
+          <span className="inline-flex items-center gap-1 font-bold text-accent-gold">
+            <FaHourglassHalf aria-hidden="true" />
+            On the waitlist
+          </span>
+        ) : null}
       </div>
 
       {lesson.original_starts_at && !cancelled ? (

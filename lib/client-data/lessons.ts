@@ -58,6 +58,10 @@ const MESSAGES: Record<string, string> = {
   user_not_found: "That account wasn't found.",
   target_exists: "That account already has lessons.",
   date_in_past: "That date has already passed.",
+  not_full: "That one has a free seat now: you can join it directly.",
+  already_waiting: "You're already on the waitlist for that.",
+  waitlist_limit: "You can wait for up to 3 things at a time. Stop waiting for one to add another.",
+  invalid_swap: "Pick the lesson you'd give up, or none.",
 };
 
 /** Codes after which the schedule on screen is probably out of date and worth reloading. */

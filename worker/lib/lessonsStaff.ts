@@ -155,6 +155,17 @@ async function handleOverview(request: Request, env: Env, url: URL): Promise<Res
   });
 }
 
+/** Who waits for which class: a teacher sees their own classes, an admin all of them. */
+async function handleWaitlist(request: Request, env: Env, url: URL): Promise<Response> {
+  return staffRead(request, env, url, async (actor) => {
+    const result = await callWriter(env, "lesson_staff_waitlist", actorArgs(actor));
+    if (!result.ok) return answer(result);
+    const data = result.data as { entries?: PersonRef[] };
+    const people = await fetchProfiles(env, data.entries ?? [], { email: actor.isAdmin });
+    return json({ ...data, people: profilesToObject(people) });
+  });
+}
+
 async function handleStudents(request: Request, env: Env, url: URL): Promise<Response> {
   return staffRead(request, env, url, async (actor) => {
     const [writer, users] = await Promise.all([
@@ -492,6 +503,7 @@ export async function routeStaff(request: Request, env: Env, url: URL): Promise<
 
   if (get && path === "/api/lessons/staff/overview") return handleOverview(request, env, url);
   if (get && path === "/api/lessons/staff/students") return handleStudents(request, env, url);
+  if (get && path === "/api/lessons/staff/waitlist") return handleWaitlist(request, env, url);
   if (get && path === "/api/lessons/staff/student") return handleStudentDetail(request, env, url);
 
   if (!post) return null;

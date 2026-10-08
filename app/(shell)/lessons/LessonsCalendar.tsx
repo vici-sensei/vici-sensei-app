@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { formatKey, localDateKey, weekRange } from "@/lib/lessons/time";
 import { lessonKey, type LessonStudent, type LessonView } from "@/lib/lessons/types";
+import { isWaitingFor, type WaitlistEntry } from "@/lib/lessons/waitlist";
 import { LessonCard } from "./LessonCard";
 import { LessonDialog, type LessonHandlers } from "./LessonDialog";
 import type { LessonsView } from "./LessonsToolbar";
@@ -17,6 +18,7 @@ interface LessonsCalendarProps {
   anchorKey: string;
   weekStart: number;
   busy: boolean;
+  waitlist: WaitlistEntry[];
   handlers: LessonHandlers;
 }
 
@@ -27,6 +29,7 @@ function DayColumn({
   tz,
   nowMs,
   onOpen,
+  waitlist,
   large = false,
   alwaysShow = false,
 }: {
@@ -36,6 +39,7 @@ function DayColumn({
   tz: string;
   nowMs: number;
   onOpen: (l: LessonView) => void;
+  waitlist: WaitlistEntry[];
   large?: boolean;
   alwaysShow?: boolean;
 }) {
@@ -61,7 +65,7 @@ function DayColumn({
       ) : (
         <div className="space-y-2">
           {lessons.map((l) => (
-            <LessonCard key={lessonKey(l)} lesson={l} tz={tz} nowMs={nowMs} onOpen={onOpen} large={large} />
+            <LessonCard key={lessonKey(l)} lesson={l} tz={tz} nowMs={nowMs} onOpen={onOpen} large={large} waiting={isWaitingFor(waitlist, l)} />
           ))}
         </div>
       )}
@@ -69,7 +73,7 @@ function DayColumn({
   );
 }
 
-export function LessonsCalendar({ lessons, student, tz, nowMs, todayKey, view, anchorKey, weekStart, busy, handlers }: LessonsCalendarProps) {
+export function LessonsCalendar({ lessons, student, tz, nowMs, todayKey, view, anchorKey, weekStart, busy, waitlist, handlers }: LessonsCalendarProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const byDay = useMemo(() => {
@@ -93,7 +97,14 @@ export function LessonsCalendar({ lessons, student, tz, nowMs, todayKey, view, a
       if (ok) setSelectedKey(null);
       return ok;
     };
-    return { enroll: wrap(handlers.enroll), leave: wrap(handlers.leave), moveOnce: wrap(handlers.moveOnce), undoMove: wrap(handlers.undoMove) };
+    return {
+      enroll: wrap(handlers.enroll),
+      leave: wrap(handlers.leave),
+      moveOnce: wrap(handlers.moveOnce),
+      undoMove: wrap(handlers.undoMove),
+      waitlistJoin: wrap(handlers.waitlistJoin),
+      waitlistLeave: wrap(handlers.waitlistLeave),
+    };
   }, [handlers]);
 
   return (
@@ -107,7 +118,7 @@ export function LessonsCalendar({ lessons, student, tz, nowMs, todayKey, view, a
           ) : null}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-7">
             {week.days.map((key) => (
-              <DayColumn key={key} dayKey={key} lessons={byDay.get(key) ?? []} isToday={key === todayKey} tz={tz} nowMs={nowMs} onOpen={(l) => setSelectedKey(lessonKey(l))} />
+              <DayColumn key={key} dayKey={key} lessons={byDay.get(key) ?? []} isToday={key === todayKey} tz={tz} nowMs={nowMs} onOpen={(l) => setSelectedKey(lessonKey(l))} waitlist={waitlist} />
             ))}
           </div>
         </>
@@ -120,6 +131,7 @@ export function LessonsCalendar({ lessons, student, tz, nowMs, todayKey, view, a
             tz={tz}
             nowMs={nowMs}
             onOpen={(l) => setSelectedKey(lessonKey(l))}
+            waitlist={waitlist}
             large
             alwaysShow
           />
@@ -136,6 +148,7 @@ export function LessonsCalendar({ lessons, student, tz, nowMs, todayKey, view, a
           tz={tz}
           weekStart={weekStart}
           busy={busy}
+          waitlist={waitlist}
           onClose={() => setSelectedKey(null)}
           handlers={closeOnSuccess}
         />

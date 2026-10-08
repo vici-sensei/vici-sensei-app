@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FaBell, FaCircleInfo, FaTriangleExclamation } from "react-icons/fa6";
+import { FaBell, FaCircleInfo, FaHourglassHalf, FaTriangleExclamation } from "react-icons/fa6";
 import type { User } from "@supabase/auth-js";
 import { Button } from "@/app/components/ui/Button";
 import { Modal } from "@/app/components/ui/Modal";
@@ -71,7 +71,23 @@ export function NotificationsButton({ unread, onClick }: { unread: number; onCli
 // The banner: what changed in the student's lessons, until they dismiss it
 // ---------------------------------------------------------------------------
 
-export function NotificationBanner({ list, mutate }: { list: NotificationList | null; mutate: Mutate }) {
+type SeatResult = "ok" | "gone" | "failed";
+
+export function NotificationBanner({
+  list,
+  mutate,
+  busy,
+  onConfirmSeat,
+  onLeaveWaitlist,
+}: {
+  list: NotificationList | null;
+  mutate: Mutate;
+  busy: boolean;
+  /** Take the seat that opened (the first to confirm gets it). */
+  onConfirmSeat: (entryId: number) => Promise<SeatResult>;
+  /** Stop waiting for it. */
+  onLeaveWaitlist: (entryId: number) => Promise<SeatResult>;
+}) {
   const markRead = useMarkRead(mutate);
   const notices = (list?.items ?? []).filter((i) => !i.read_at && isBannerKind(i.kind)).slice(0, 3);
   if (notices.length === 0) return null;
@@ -80,25 +96,42 @@ export function NotificationBanner({ list, mutate }: { list: NotificationList | 
     <div className="mb-5 flex flex-col gap-2" role="region" aria-label="Changes to your lessons">
       {notices.map((n) => {
         const warning = n.kind === "dst_warning" || n.kind === "class_cancelled";
-        const Icon = warning ? FaTriangleExclamation : FaCircleInfo;
+        const seat = n.kind === "waitlist_seat";
+        const entryId = typeof n.data.entry_id === "number" ? n.data.entry_id : null;
+        const Icon = seat ? FaHourglassHalf : warning ? FaTriangleExclamation : FaCircleInfo;
+        const tone = seat
+          ? "border-accent-gold/40 bg-accent-gold/10"
+          : warning
+            ? "border-accent-orange/40 bg-accent-orange/10"
+            : "border-accent-blue/40 bg-accent-blue/10";
+        const iconTone = seat ? "text-accent-gold" : warning ? "text-accent-orange" : "text-accent-blue";
+        // A notice about an entry that is gone (served, or the lesson began) is just dismissed.
+        const settle = async (run: Promise<SeatResult>) => {
+          if ((await run) !== "failed") await markRead([n.id]);
+        };
         return (
-          <div
-            key={n.id}
-            className={`flex items-start gap-3 rounded-xl border p-3.5 ${
-              warning ? "border-accent-orange/40 bg-accent-orange/10" : "border-accent-blue/40 bg-accent-blue/10"
-            }`}
-          >
-            <Icon className={`mt-0.5 shrink-0 ${warning ? "text-accent-orange" : "text-accent-blue"}`} aria-hidden="true" />
+          <div key={n.id} className={`flex items-start gap-3 rounded-xl border p-3.5 ${tone}`}>
+            <Icon className={`mt-0.5 shrink-0 ${iconTone}`} aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <p className="text-[0.9rem] font-extrabold">{n.title}</p>
               <p className="mt-0.5 text-[0.84rem] leading-normal text-text-muted">{n.body}</p>
+              {seat && entryId !== null ? (
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <Button size="sm" disabled={busy} onClick={() => void settle(onConfirmSeat(entryId))}>
+                    Confirm the seat
+                  </Button>
+                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => void settle(onLeaveWaitlist(entryId))}>
+                    No thanks
+                  </Button>
+                </div>
+              ) : null}
             </div>
             <button
               type="button"
               onClick={() => void markRead([n.id])}
               className="shrink-0 cursor-pointer rounded-lg px-2.5 py-1 text-[0.8rem] font-bold text-text-muted transition-colors hover:bg-white/10 hover:text-white"
             >
-              Got it
+              {seat ? "Dismiss" : "Got it"}
             </button>
           </div>
         );

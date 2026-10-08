@@ -31,6 +31,13 @@ export interface OncePlan {
   canAdd: boolean;
 }
 
+/** What the student could ask for on the waitlist of a FULL lesson: the same choices as booking it, minus the
+ * seat. null for the part that does not apply (they are already in the class). */
+export interface WaitlistPlan {
+  weekly: WeeklyPlan | null;
+  once: OncePlan | null;
+}
+
 export interface LessonPlan {
   /** What the lesson is to this student. */
   state: "started" | "cancelled" | "standing" | "move" | "extra" | "vacated" | "other";
@@ -42,6 +49,8 @@ export interface LessonPlan {
   once: OncePlan | null;
   /** Why the student cannot change anything here, when that is the case. */
   note: string | null;
+  /** The lesson is full and not theirs: they can wait for a seat. */
+  waitlist: WaitlistPlan | null;
 }
 
 export interface PlanInput {
@@ -54,7 +63,7 @@ export interface PlanInput {
   weekStart: number;
 }
 
-const NOTHING: Omit<LessonPlan, "state"> = { leave: null, undoMove: null, weekly: null, once: null, note: null };
+const NOTHING: Omit<LessonPlan, "state"> = { leave: null, undoMove: null, weekly: null, once: null, note: null, waitlist: null };
 
 export function planLesson({ lesson, all, student, nowMs, tz, weekStart }: PlanInput): LessonPlan {
   if (lesson.cancelled) {
@@ -94,7 +103,14 @@ export function planLesson({ lesson, all, student, nowMs, tz, weekStart }: PlanI
   }
 
   const full = lesson.taken >= lesson.capacity;
-  return { ...NOTHING, state: "other", weekly: planWeekly(lesson, student, full), once: planOnce(lesson, all, student, nowMs, tz, weekStart, full) };
+  return {
+    ...NOTHING,
+    state: "other",
+    weekly: planWeekly(lesson, student, full),
+    once: planOnce(lesson, all, student, nowMs, tz, weekStart, full),
+    // What they could wait for is what they could book if there were a seat.
+    waitlist: full ? { weekly: planWeekly(lesson, student, false), once: planOnce(lesson, all, student, nowMs, tz, weekStart, false) } : null,
+  };
 }
 
 function planWeekly(lesson: LessonView, student: LessonStudent, full: boolean): WeeklyPlan | null {
