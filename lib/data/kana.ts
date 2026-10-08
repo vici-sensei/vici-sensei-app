@@ -1,5 +1,6 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { BrowseKanaEntry, KanaExtendedRomaji, KanaRuleLabel } from "@/lib/types";
+import { KANA_TABLES, type KanaScript } from "./kanaScripts";
 
 // Reference tables only -- under 200 characters total per set, so the whole thing loads once
 // and Browse filters it locally instead of a server-side search RPC (see search_kanji /
@@ -7,16 +8,18 @@ import type { BrowseKanaEntry, KanaExtendedRomaji, KanaRuleLabel } from "@/lib/t
 
 const BROWSE_COLUMNS = "id, character, romaji, gojuon_row, kana_type, entry_kind, sound_origin, frequency_tier, notes";
 
-export async function fetchAllHiragana(supabase: AppSupabaseClient): Promise<BrowseKanaEntry[]> {
-  const { data, error } = await supabase.from("hiragana").select(BROWSE_COLUMNS).order("sort_order");
+async function fetchAllKana(supabase: AppSupabaseClient, script: KanaScript): Promise<BrowseKanaEntry[]> {
+  const { data, error } = await supabase.from(KANA_TABLES[script].table).select(BROWSE_COLUMNS).order("sort_order");
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
-export async function fetchAllKatakana(supabase: AppSupabaseClient): Promise<BrowseKanaEntry[]> {
-  const { data, error } = await supabase.from("katakana").select(BROWSE_COLUMNS).order("sort_order");
-  if (error) throw new Error(error.message);
-  return data ?? [];
+export function fetchAllHiragana(supabase: AppSupabaseClient): Promise<BrowseKanaEntry[]> {
+  return fetchAllKana(supabase, "hiragana");
+}
+
+export function fetchAllKatakana(supabase: AppSupabaseClient): Promise<BrowseKanaEntry[]> {
+  return fetchAllKana(supabase, "katakana");
 }
 
 type ExtendedRomajiRow = {

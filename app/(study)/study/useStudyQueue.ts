@@ -449,7 +449,7 @@ function poolExtraDrillCards(
 const VOCAB_BATCH_KEY = "vocab-batch";
 
 // kana_types whose entry_kind = 'example' rows get batch-introduced together
-// (introduceHiraganaExamples/introduceKatakanaExamples, fetchStudyQueue) and should stay grouped
+// (introduceKanaExamples, fetchStudyQueue) and should stay grouped
 // in the queue the same way -- deliberately excludes 'seion' (handled entirely differently, via
 // the drill pool -- see isDrillCard/submitDrillAnswer) and 'dakuten'/'handakuten' (real
 // entry_kind = 'character' rows, already packed and pushed as one block per gojuon_row by

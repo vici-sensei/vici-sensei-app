@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
+import { KANA_TABLES, type KanaScript } from "./kanaScripts";
 
 export interface PracticeKanaCard {
   id: number;
@@ -10,78 +11,52 @@ export interface PracticeKanaCard {
   bonus: boolean;
 }
 
-interface SeenHiraganaRow {
-  hiragana_id: number;
-  hiragana: { character: string; romaji: string } | null;
-}
-
-interface SeenKatakanaRow {
-  katakana_id: number;
-  katakana: { character: string; romaji: string } | null;
-}
-
-/** Every hiragana character this user has ever been introduced to (any status, including
- * suspended) -- a row existing in user_hiragana_progress at all means it was shown at least
- * once (see introduce_hiragana/introduce_hiragana_examples). Backs the free-practice mode
- * (app/(study)/study/practice), which must never touch SRS state or review history: this is a
+/** Every character of `script` this user has ever been introduced to (any status, including
+ * suspended) -- a row existing in user_hiragana_progress/user_katakana_progress at all means it was
+ * shown at least once (see introduce_hiragana/introduce_hiragana_examples). Backs the free-practice
+ * mode (app/(study)/study/practice), which must never touch SRS state or review history: this is a
  * plain SELECT against tables the existing "Users manage own user_hiragana_progress"/
  * "Authenticated users can read hiragana" RLS policies already allow for this user, not an RPC
  * -- there is nothing here that could write anything. */
-export async function fetchSeenHiragana(supabase: AppSupabaseClient, userId: string): Promise<PracticeKanaCard[]> {
+async function fetchSeenKana(supabase: AppSupabaseClient, userId: string, script: KanaScript): Promise<PracticeKanaCard[]> {
+  const { progressTable, idColumn } = KANA_TABLES[script];
   const { data, error } = await supabase
-    .from("user_hiragana_progress")
-    .select("hiragana_id, hiragana:hiragana_id(character, romaji)")
+    .from(progressTable)
+    .select(`${idColumn}, ${script}:${idColumn}(character, romaji)`)
     .eq("user_id", userId);
   if (error) throw new Error(error.message);
 
-  return ((data ?? []) as unknown as SeenHiraganaRow[])
-    .filter((row) => row.hiragana !== null)
-    .map((row) => ({
-      id: row.hiragana_id,
-      character: row.hiragana!.character,
-      romaji: row.hiragana!.romaji,
-      script: "hiragana" as const,
-      bonus: false,
-    }));
+  // Each row is { <script>_id: number, <script>: { character, romaji } | null }.
+  return ((data ?? []) as unknown as Array<Record<string, unknown>>)
+    .filter((row) => row[script] !== null)
+    .map((row) => {
+      const kana = row[script] as { character: string; romaji: string };
+      return { id: row[idColumn] as number, character: kana.character, romaji: kana.romaji, script, bonus: false };
+    });
+}
+
+export function fetchSeenHiragana(supabase: AppSupabaseClient, userId: string): Promise<PracticeKanaCard[]> {
+  return fetchSeenKana(supabase, userId, "hiragana");
 }
 
 /** Same as fetchSeenHiragana, for katakana. */
-export async function fetchSeenKatakana(supabase: AppSupabaseClient, userId: string): Promise<PracticeKanaCard[]> {
-  const { data, error } = await supabase
-    .from("user_katakana_progress")
-    .select("katakana_id, katakana:katakana_id(character, romaji)")
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
-
-  return ((data ?? []) as unknown as SeenKatakanaRow[])
-    .filter((row) => row.katakana !== null)
-    .map((row) => ({
-      id: row.katakana_id,
-      character: row.katakana!.character,
-      romaji: row.katakana!.romaji,
-      script: "katakana" as const,
-      bonus: false,
-    }));
+export function fetchSeenKatakana(supabase: AppSupabaseClient, userId: string): Promise<PracticeKanaCard[]> {
+  return fetchSeenKana(supabase, userId, "katakana");
 }
 
-interface BonusKanaRow {
-  id: number;
-  character: string;
-  romaji: string;
-}
-
-/** Whether this user has mastered (status review/relearning) every hiragana character that's
+/** Whether this user has mastered (status review/relearning) every character of `script` that's
  * currently enabled for study -- the same "finished learning all hiragana" threshold the DB
  * itself already uses to gate katakana (hiragana_auto_activate_katakana,
  * enforce_katakana_requires_hiragana_mastered) and that fetchStudyStats surfaces as
  * hiragana_mastered on /dashboard. entry_kind != 'rule' matches get_level_progress's
  * hiragana_reading total (character + example rows; rule rows never get a progress row at all,
  * see 20260906_mastery_denominators_respect_study_enabled.sql). */
-export async function fetchHiraganaMastered(supabase: AppSupabaseClient, userId: string): Promise<boolean> {
+async function fetchKanaMastered(supabase: AppSupabaseClient, userId: string, script: KanaScript): Promise<boolean> {
+  const { table, progressTable } = KANA_TABLES[script];
   const [totalResult, learnedResult] = await Promise.all([
-    supabase.from("hiragana").select("id", { count: "exact", head: true }).eq("study_enabled", true).neq("entry_kind", "rule"),
+    supabase.from(table).select("id", { count: "exact", head: true }).eq("study_enabled", true).neq("entry_kind", "rule"),
     supabase
-      .from("user_hiragana_progress")
+      .from(progressTable)
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .in("status", ["review", "relearning"]),
@@ -90,57 +65,42 @@ export async function fetchHiraganaMastered(supabase: AppSupabaseClient, userId:
   if (learnedResult.error) throw new Error(learnedResult.error.message);
   const total = totalResult.count ?? 0;
   return total > 0 && (learnedResult.count ?? 0) >= total;
+}
+
+export function fetchHiraganaMastered(supabase: AppSupabaseClient, userId: string): Promise<boolean> {
+  return fetchKanaMastered(supabase, userId, "hiragana");
 }
 
 /** Same as fetchHiraganaMastered, for katakana. */
-export async function fetchKatakanaMastered(supabase: AppSupabaseClient, userId: string): Promise<boolean> {
-  const [totalResult, learnedResult] = await Promise.all([
-    supabase.from("katakana").select("id", { count: "exact", head: true }).eq("study_enabled", true).neq("entry_kind", "rule"),
-    supabase
-      .from("user_katakana_progress")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .in("status", ["review", "relearning"]),
-  ]);
-  if (totalResult.error) throw new Error(totalResult.error.message);
-  if (learnedResult.error) throw new Error(learnedResult.error.message);
-  const total = totalResult.count ?? 0;
-  return total > 0 && (learnedResult.count ?? 0) >= total;
+export function fetchKatakanaMastered(supabase: AppSupabaseClient, userId: string): Promise<boolean> {
+  return fetchKanaMastered(supabase, userId, "katakana");
 }
 
-/** The rare/historical hiragana characters study_enabled excludes from /study -- these can never
- * gain a user_hiragana_progress row (see introduce_hiragana), so there's no "seen" table to read
- * them from; this reads straight off public.hiragana instead. Only meaningful once
- * fetchHiraganaMastered is true -- callers gate on that, this function doesn't check it itself. */
-export async function fetchBonusHiragana(supabase: AppSupabaseClient): Promise<PracticeKanaCard[]> {
+/** The rare/historical characters of `script` study_enabled excludes from /study -- these can never
+ * gain a progress row (see introduce_hiragana), so there's no "seen" table to read them from; this
+ * reads straight off public.hiragana/public.katakana instead. Only meaningful once the matching
+ * fetch*Mastered is true -- callers gate on that, this function doesn't check it itself. */
+async function fetchBonusKana(supabase: AppSupabaseClient, script: KanaScript): Promise<PracticeKanaCard[]> {
   const { data, error } = await supabase
-    .from("hiragana")
+    .from(KANA_TABLES[script].table)
     .select("id, character, romaji")
     .eq("study_enabled", false)
     .neq("entry_kind", "rule");
   if (error) throw new Error(error.message);
-  return ((data ?? []) as BonusKanaRow[]).map((row) => ({
+  return ((data ?? []) as Array<{ id: number; character: string; romaji: string }>).map((row) => ({
     id: row.id,
     character: row.character,
     romaji: row.romaji,
-    script: "hiragana" as const,
+    script,
     bonus: true,
   }));
+}
+
+export function fetchBonusHiragana(supabase: AppSupabaseClient): Promise<PracticeKanaCard[]> {
+  return fetchBonusKana(supabase, "hiragana");
 }
 
 /** Same as fetchBonusHiragana, for katakana. */
-export async function fetchBonusKatakana(supabase: AppSupabaseClient): Promise<PracticeKanaCard[]> {
-  const { data, error } = await supabase
-    .from("katakana")
-    .select("id, character, romaji")
-    .eq("study_enabled", false)
-    .neq("entry_kind", "rule");
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as BonusKanaRow[]).map((row) => ({
-    id: row.id,
-    character: row.character,
-    romaji: row.romaji,
-    script: "katakana" as const,
-    bonus: true,
-  }));
+export function fetchBonusKatakana(supabase: AppSupabaseClient): Promise<PracticeKanaCard[]> {
+  return fetchBonusKana(supabase, "katakana");
 }

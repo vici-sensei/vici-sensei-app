@@ -207,25 +207,21 @@ export function syncDeviceTimeZone(userId: string): void {
  * Settings can be disabled client-side instead of only failing server-side on submit.
  * get_level_progress's hiragana_reading row ignores its p_level argument (kana has no JLPT
  * level), so "N5" here is just a placeholder to satisfy the RPC's signature. */
-export async function fetchHiraganaMastered(userId: string): Promise<boolean> {
-  const supabase = createClient();
-  const { data, error } = await supabase.rpc("get_level_progress", { p_user_id: userId, p_level: "N5" });
-  if (error) throw new ApiError(500, error.message);
-  const row = (data as { category: string; learned: number; total: number }[] | null)?.find(
-    (r) => r.category === "hiragana_reading"
-  );
-  return row != null && row.total > 0 && row.learned >= row.total;
+export function fetchHiraganaMastered(userId: string): Promise<boolean> {
+  return fetchKanaMastered(userId, "hiragana_reading");
 }
 
 /** Same as fetchHiraganaMastered, but for katakana -- mirrors the condition
  * katakana_auto_activate_standard checks (20260920_reading_test_gates_standard.sql). */
-export async function fetchKatakanaMastered(userId: string): Promise<boolean> {
+export function fetchKatakanaMastered(userId: string): Promise<boolean> {
+  return fetchKanaMastered(userId, "katakana_reading");
+}
+
+async function fetchKanaMastered(userId: string, category: "hiragana_reading" | "katakana_reading"): Promise<boolean> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_level_progress", { p_user_id: userId, p_level: "N5" });
   if (error) throw new ApiError(500, error.message);
-  const row = (data as { category: string; learned: number; total: number }[] | null)?.find(
-    (r) => r.category === "katakana_reading"
-  );
+  const row = (data as { category: string; learned: number; total: number }[] | null)?.find((r) => r.category === category);
   return row != null && row.total > 0 && row.learned >= row.total;
 }
 

@@ -1,5 +1,6 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { ApiError } from "@/lib/api/client";
+import type { KanaScript } from "./kanaScripts";
 
 // Raised by introduce_kanji/introduce_vocabulary/introduce_hiragana/introduce_katakana
 // (supabase/migrations/20260820_enforce_daily_new_card_cap.sql) for both "already introduced"
@@ -59,42 +60,79 @@ export interface KanaPackResult {
   ids: number[] | null;
 }
 
-export async function introduceHiraganaCharacter(
+// The introduce_* functions of the two scripts are twins: they differ only in their names, in the
+// name of the id argument they take and in the name of the id-list column they return.
+const KANA_INTRODUCE = {
+  hiragana: {
+    character: "introduce_hiragana",
+    rule: "introduce_hiragana_rule",
+    idParam: "p_hiragana_id",
+    idsColumn: "hiragana_ids",
+  },
+  katakana: {
+    character: "introduce_katakana",
+    rule: "introduce_katakana_rule",
+    idParam: "p_katakana_id",
+    idsColumn: "katakana_ids",
+  },
+} as const satisfies Record<KanaScript, { character: string; rule: string; idParam: string; idsColumn: string }>;
+
+/** Calls one of the introduce_hiragana / introduce_katakana functions (or their _rule twins) and
+ * returns the first row it answers with (they all return a single-row set). */
+async function callKanaIntroduce(
+  supabase: AppSupabaseClient,
+  rpc: string,
+  idParam: string,
+  userId: string,
+  kanaId: number,
+  timezone: string,
+  sessionId?: number
+): Promise<Record<string, unknown> | undefined> {
+  const { data, error } = await supabase.rpc(rpc, {
+    p_user_id: userId,
+    [idParam]: kanaId,
+    p_timezone: timezone,
+    p_session_id: sessionId ?? null,
+  });
+
+  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
+  return (data as Record<string, unknown>[])[0];
+}
+
+async function introduceKanaCharacter(
+  supabase: AppSupabaseClient,
+  script: KanaScript,
+  userId: string,
+  kanaId: number,
+  timezone: string,
+  sessionId?: number
+): Promise<KanaPackResult> {
+  const { character, idParam, idsColumn } = KANA_INTRODUCE[script];
+  const row = await callKanaIntroduce(supabase, character, idParam, userId, kanaId, timezone, sessionId);
+  return {
+    packCompleted: (row?.pack_completed as boolean | undefined) ?? false,
+    ids: (row?.[idsColumn] as number[] | null | undefined) ?? null,
+  };
+}
+
+export function introduceHiraganaCharacter(
   supabase: AppSupabaseClient,
   userId: string,
   hiraganaId: number,
   timezone: string,
   sessionId?: number
 ): Promise<KanaPackResult> {
-  const { data, error } = await supabase.rpc("introduce_hiragana", {
-    p_user_id: userId,
-    p_hiragana_id: hiraganaId,
-    p_timezone: timezone,
-    p_session_id: sessionId ?? null,
-  });
-
-  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
-  const row = (data as { pack_completed: boolean; hiragana_ids: number[] | null }[])[0];
-  return { packCompleted: row?.pack_completed ?? false, ids: row?.hiragana_ids ?? null };
+  return introduceKanaCharacter(supabase, "hiragana", userId, hiraganaId, timezone, sessionId);
 }
 
-export async function introduceKatakanaCharacter(
+export function introduceKatakanaCharacter(
   supabase: AppSupabaseClient,
   userId: string,
   katakanaId: number,
   timezone: string,
   sessionId?: number
 ): Promise<KanaPackResult> {
-  const { data, error } = await supabase.rpc("introduce_katakana", {
-    p_user_id: userId,
-    p_katakana_id: katakanaId,
-    p_timezone: timezone,
-    p_session_id: sessionId ?? null,
-  });
-
-  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
-  const row = (data as { pack_completed: boolean; katakana_ids: number[] | null }[])[0];
-  return { packCompleted: row?.pack_completed ?? false, ids: row?.katakana_ids ?? null };
+  return introduceKanaCharacter(supabase, "katakana", userId, katakanaId, timezone, sessionId);
 }
 
 // Answering a rule card atomically introduces that kana_type's own example pack too (whatever
@@ -102,40 +140,35 @@ export async function introduceKatakanaCharacter(
 // so useStudyQueue can splice the reading cards in immediately, contiguous with the rule, the
 // same way introduceHiraganaCharacter/introduceKatakanaCharacter above hand off a just-completed
 // gojuon pack. Empty for rule kana_types with no example pack (seion/dakuten/handakuten).
-export async function introduceHiraganaRule(
+async function introduceKanaRule(
+  supabase: AppSupabaseClient,
+  script: KanaScript,
+  userId: string,
+  kanaId: number,
+  timezone: string,
+  sessionId?: number
+): Promise<number[]> {
+  const { rule, idParam, idsColumn } = KANA_INTRODUCE[script];
+  const row = await callKanaIntroduce(supabase, rule, idParam, userId, kanaId, timezone, sessionId);
+  return (row?.[idsColumn] as number[] | null | undefined) ?? [];
+}
+
+export function introduceHiraganaRule(
   supabase: AppSupabaseClient,
   userId: string,
   hiraganaId: number,
   timezone: string,
   sessionId?: number
 ): Promise<number[]> {
-  const { data, error } = await supabase.rpc("introduce_hiragana_rule", {
-    p_user_id: userId,
-    p_hiragana_id: hiraganaId,
-    p_timezone: timezone,
-    p_session_id: sessionId ?? null,
-  });
-
-  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
-  const row = (data as { hiragana_ids: number[] | null }[])[0];
-  return row?.hiragana_ids ?? [];
+  return introduceKanaRule(supabase, "hiragana", userId, hiraganaId, timezone, sessionId);
 }
 
-export async function introduceKatakanaRule(
+export function introduceKatakanaRule(
   supabase: AppSupabaseClient,
   userId: string,
   katakanaId: number,
   timezone: string,
   sessionId?: number
 ): Promise<number[]> {
-  const { data, error } = await supabase.rpc("introduce_katakana_rule", {
-    p_user_id: userId,
-    p_katakana_id: katakanaId,
-    p_timezone: timezone,
-    p_session_id: sessionId ?? null,
-  });
-
-  if (error) throw new ApiError(error.code === CAP_OR_DUPLICATE_ERRCODE ? 409 : 500, error.message);
-  const row = (data as { katakana_ids: number[] | null }[])[0];
-  return row?.katakana_ids ?? [];
+  return introduceKanaRule(supabase, "katakana", userId, katakanaId, timezone, sessionId);
 }
