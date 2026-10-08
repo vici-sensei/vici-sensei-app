@@ -1,6 +1,7 @@
 import type { Env } from "./env";
 import { json } from "./http";
 import { answer, BadRequest, callWriter, fetchProfiles, guarded, int, profileKey, readBody, resolveActor } from "./lessonsCommon";
+import { syncGoogleCalendars } from "./googleCalendarCore";
 import { deliverPush } from "./lessonsPush";
 import { DEFAULT_FROM, sendMails, smtpSettings, type MailOutcome, type OutgoingMail } from "./mailer";
 
@@ -161,6 +162,8 @@ export async function runLessonNotifications(env: Env): Promise<void> {
   } catch (err) {
     console.error("lessons mail: run failed:", err instanceof Error ? err.message : String(err));
   }
+  // The students' Google calendars ride on the same 5-minute job (googleCalendar.ts; never throws).
+  await syncGoogleCalendars(env);
 }
 
 async function deliver(env: Env): Promise<void> {

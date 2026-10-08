@@ -32,6 +32,10 @@ export interface Env {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
+  // Lessons in Google Calendar (worker/lib/googleCalendar.ts): the JSON key of a Google service account that
+  // has the Calendar API switched on (`npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON`, paste the whole
+  // file). Without it the "Add to Google Calendar" option is hidden and nothing is synced.
+  GOOGLE_SERVICE_ACCOUNT_JSON?: string;
 }
 
 export function projectConfig(env: Env, region: Region) {

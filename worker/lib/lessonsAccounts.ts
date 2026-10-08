@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { releaseGoogleCalendar } from "./googleCalendarCore";
 import { callWriter } from "./lessonsWriter";
 import { pgSelectAll } from "./postgrest";
 import { isRegion, type Region } from "./region";
@@ -98,6 +99,12 @@ export async function sweepLessonAccounts(env: Env): Promise<LessonSweepReport> 
       const gone = !seen.has(student.user_id);
       const leaving = !gone && seen.get(student.user_id) !== null;
       if (!gone && !(leaving && student.access)) continue;
+      // Their Google calendar is the app's, not theirs: it goes with the account (before the writer forgets which one it was).
+      try {
+        await releaseGoogleCalendar(env, region, student.user_id);
+      } catch (err) {
+        console.error(`lessons: could not delete the Google calendar of ${student.user_id}:`, err instanceof Error ? err.message : String(err));
+      }
       const result = await callWriter(env, "lesson_student_removed", { p_region: region, p_user_id: student.user_id, p_hard: gone });
       if (!result.ok) throw new Error(`lesson_student_removed: ${result.code}`);
       removals += 1;

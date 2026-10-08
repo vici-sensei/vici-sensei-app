@@ -62,6 +62,10 @@ const MESSAGES: Record<string, string> = {
   already_waiting: "You're already on the waitlist for that.",
   waitlist_limit: "You can wait for up to 3 things at a time. Stop waiting for one to add another.",
   invalid_swap: "Pick the lesson you'd give up, or none.",
+  google_error: "Google Calendar isn't answering. Please try again in a few minutes.",
+  google_not_configured: "Google Calendar isn't available yet.",
+  no_email: "Your account has no email address to share the calendar with.",
+  invalid_email: "That email address isn't valid.",
 };
 
 /** Codes after which the schedule on screen is probably out of date and worth reloading. */

@@ -13,6 +13,7 @@ import {
   studentAction,
   uuid,
 } from "./lessonsCommon";
+import { routeGoogle } from "./googleCalendar";
 import { routeNotifications } from "./lessonsNotify";
 import { routePush } from "./lessonsPush";
 import { routeStaff } from "./lessonsStaff";
@@ -120,6 +121,9 @@ export async function routeLessons(request: Request, env: Env, url: URL): Promis
 
   const push = await routePush(request, env, url);
   if (push) return push;
+
+  const google = await routeGoogle(request, env, url);
+  if (google) return google;
 
   const staff = await routeStaff(request, env, url);
   if (staff) return staff;

@@ -202,6 +202,16 @@ trebuie să accepte partajarea manual, ce primește la Google în email, cum se 
 mutările/anulările/trecerile DST (evenimente individuale vs. serie + excepții), unde se păstrează cheia
 service account (secret Worker, nu în repo), ce se întâmplă la ștergerea contului elevului.
 
+### Google Calendar (etapa 6, implementat și testat cu un Google simulat)
+
+- **Cum arată:** în pagina `/lessons`, secțiunea „Google Calendar” (ascunsă cât timp serverul nu are cheia Google). Elevul apasă „Add to Google Calendar”; Worker-ul creează un calendar „Vici Sensei lessons” deținut de service account și îl partajează **doar cu drept de citire** cu adresa Gmail a contului lui (Google trimite invitația pe email; link „Open in Google Calendar” ca aliniere). „Stop” șterge calendarul.
+- **Evenimente individuale** (nu serie recurentă): fiecare lecție se poate anula/muta singură, iar trecerile DST se rezolvă de la sine (fiecare eveniment are propriul instant). Titlu cu nivel, descriere cu linkul de întâlnire, `location` = link, `source` = aplicația, `guestsCanModify: false`. Fereastra: ieri + următoarele 8 săptămâni.
+- **Cine ține ce:** scriitorul ține evidența (`lessons.google_calendars`: calendarul, `dirty_seq` crește la orice schimbare care poate atinge lecțiile; `lessons.google_events`: ce eveniment Google corespunde cărei lecții, cu hash). Worker-ul (`worker/lib/googleCalendarCore.ts`) cere `lesson_google_due` (ce trebuie să arate calendarul vs. ce arată), face diferența (creează / modifică / șterge) și raportează cu `lesson_google_done`. Rulează în jobul de 5 minute; o rulare fără nicio schimbare nu face niciun apel Google. Buget: 36 de apeluri pe rulare, 30 pe elev, 3 elevi pe rulare (limita de subrequesturi a Worker-ului).
+- **Erori:** limita de rată (429 / 403 `rateLimitExceeded`) oprește rularea; 5xx și restul se înregistrează pe calendarul respectiv și se reîncearcă după 10, 20, 30… minute (maxim 4 h). Elevul nu poate șterge evenimentele (e doar cititor); dacă totuși un eveniment dispare din Google, reapare abia când lecția respectivă se schimbă.
+- **Conturi:** un cont șters sau în așteptarea ștergerii își pierde calendarul (curățenia săptămânală, `sweepLessonAccounts`); o mutare de regiune păstrează calendarul (cheia se mută odată cu elevul, adresa rămâne aceeași).
+- **De configurat (rămâne la tine):** un proiect Google Cloud cu Calendar API activat, un service account cu cheie JSON, apoi `npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON` și lipești tot fișierul JSON. Nu e nevoie de OAuth, de domeniu Workspace sau de variabile la build.
+- **Ce nu s-a putut verifica fără cheie reală:** (1) dacă invitația apare automat în lista elevului sau cere un clic în email (pentru conturi Gmail obișnuite se așteaptă clicul din email; de aceea pagina îl spune); (2) formatul exact al linkului „cid” (se folosește forma cunoscută, base64 fără padding); (3) cotele reale de creare de calendare ale Google pentru un service account (se creează câte unul, la cererea elevului, cu pauză la limita de rată). Testele folosesc un Google simulat care verifică semnătura JWT RS256 și forma apelurilor.
+
 ## 10. Biblioteci
 
 - **Nu** se folosește o bibliotecă de calendar UI (FullCalendar, react-big-calendar, Schedule-X). Ele nu
@@ -220,13 +230,12 @@ lună/an + Google + prezență), construit pe etape interne:
    2026-10-08** (repetiție în tranzacție anulată, apoi aplicare atomică cu rândul din ledger; vezi
    `supabase/MIGRATION_PARITY.md`). Worker-ul cu rutele `/api/lessons/*` e comis, dar abia se deployează la
    merge în `main`. Replica de citire în US: separat, §13.
-   Rămas din etapa 1: integrarea cu mutarea de regiune (`lesson_rekey_student` există, dar pasul nu e
-   legat în `worker/lib/regionMove.ts`, care are mașină de stări în D1).
+   Integrarea cu mutarea de regiune: făcută în etapa 6 (vezi mai jos).
 2. Calendarul elevului **(scris și testat local 2026-10-08; migrația `20261008081641` aplicată pe EU; Worker-ul încă nedeployat)**: pagina `/lessons` (săptămână și zi, fusul contului, săptămâna elevului, marcaj DST, dialog cu înscriere fixă / „doar săptămâna asta" / ieșire / anulare mutare, setarea primei zile a săptămânii, stările fără acces și profesor), `lib/lessons/*` (timp, reguli de afișare), `lib/client-data/lessons.ts`, numele profesorilor adăugate de Worker, migrația `20261008081641`. Lună și An rămân la etapa 6.
 3. Admin/profesor: clase, excepții, vacanțe, liste, acces/cotă/mută. **Făcut 2026-10-08** (migrația `20261008103823` aplicată pe EU; panoul `/admin/lessons` și `/teach`; Worker `lessonsStaff.ts`). Fără interfață pentru: notificările și mementourile (etapa 4).
 4. Notificări (în aplicație, email) și job-uri. **Făcut 2026-10-08** (migrația `20261008111342` aplicată pe EU; vezi „Cum funcționează notificările” în §7): mementouri, avertizări DST, inbox + banner + comutatoare, trimitere email din Worker (cron la 5 minute), `worker/lib/mailer.ts`. Push-ul web rămâne la etapa 5.
 5. Listă de așteptare, push. **Făcut 2026-10-08** (migrațiile `20261008115636` și `20261008142512` aplicate pe EU; vezi „Lista de așteptare” și „Push web” în §7). Rămâne la tine: cheile VAPID (`node scripts/generate-vapid-keys.mjs`) ca secrete/variabile ale Worker-ului.
-6. Lună/an, prezență, Google Calendar.
+6. Lună/an, prezență, Google Calendar. **Făcut 2026-10-08** (migrațiile `20261008143943` și `20261008145017` aplicate pe EU): vederile Lună și An, lista de așteptare pentru staff, mutarea de regiune, curățenia conturilor șterse, Google Calendar. Prezența (marcată de profesor, vizibilă elevului) exista din etapa 3.
 
 Migrațiile urmează regulile din `CLAUDE.md` / `MIGRATION_PARITY.md` (fișiere noi cu timestamp UTC, scop pe
 prima linie, aplicate pe EU și US cu rândul din ledger; nimic pe proiectul înghețat).
@@ -247,6 +256,24 @@ lecțiile nu sunt deschise contului lui). Un elev care o deschide totuși creeaz
 - **Oprire:** ștergi secretul sau îl pui pe altceva decât `true`, și redeployezi.
 - De pornit abia după etapa 3 (panoul de administrare: clase, profesori, acces), altfel elevii văd doar
   „Lessons aren't open for your account yet".
+
+### Checklist de lansare (ce a rămas la tine; tot restul e făcut, testat și aplicat pe EU)
+
+Tot codul e pe `sandbox`; `main` nu a fost atins. Migrațiile sunt deja aplicate pe baza EU (singura care are schema `lessons`), deci
+deployul Worker-ului nu se mai uită la baza de date. În ordine:
+
+1. **Merge `sandbox` → `main`** (deploy = site + Worker prin CI). De acum `/api/lessons/*`, jobul de 5 minute și mementourile
+   rulează; fără nicio altă setare nu trimit email/push/Google (nu au chei), dar notificările din aplicație funcționează.
+2. **Triggerele cron:** planul Cloudflare Free permite 5 per cont, iar acum sunt 5 (`wrangler.jsonc`). Dacă mai ai alt Worker cu cron pe
+   același cont, deployul va fi refuzat până treci pe planul plătit sau scoți unul.
+3. **Email (mementouri, anulări, avertizări DST, loc eliberat):** setează secretele Worker-ului `SMTP_USER` și `SMTP_PASSWORD`
+   (aceleași ca la heartbeat-ul lunar; cheia Brevo). Fără ele emailurile așteaptă în coadă; notificările din aplicație merg oricum.
+4. **Push web (opțional):** `node scripts/generate-vapid-keys.mjs`, apoi `VAPID_PUBLIC_KEY` (variabilă sau secret), `VAPID_PRIVATE_KEY`
+   (secret: `wrangler secret put`) și `VAPID_SUBJECT` (`mailto:...`). Până atunci comutatorul „push” nu apare elevilor.
+5. **Google Calendar (opțional):** vezi „De configurat” de mai sus (`GOOGLE_SERVICE_ACCOUNT_JSON`). Până atunci secțiunea nu apare.
+6. **Datele:** din `/admin/lessons` → Students: marchezi profesorii (`is_teacher`), creezi clasele (Classes), dai acces elevilor (cu
+   cotă/dată de sfârșit). Abia apoi pornești meniul: secretul GitHub `NEXT_PUBLIC_LESSONS=true` și un nou deploy.
+7. **Replica de citire în US** (viteza pentru elevii din America): rămâne decizia din §13; nu blochează lansarea (elevii din US merg prin Worker → EU).
 
 ## 12. Valori implicite alese de Claude (nu au fost întrebate; de respins dacă nu convin)
 
@@ -273,5 +300,5 @@ lecțiile nu sunt deschise contului lui). Un elev care o deschide totuși creeaz
      `students`/`enrollments`/`moves`/`student_week_cfg`): citire 100% locală, dar o a doua funcție de citire
      (contoarele vin din tabelul materializat, nu din `seats_taken`) și logică de întreținut în două locuri.
   Se decide după ce se măsoară latența reală Worker → EU de la un edge american și cu elevi reali din US.
-- Integrarea cu mutarea de regiune (pasul din `regionMove.ts` + coloană în D1 `region_moves`).
-- Cheia service account Google și limitele de calendare/ACL (vezi §9).
+- ~~Integrarea cu mutarea de regiune~~ — făcută: pasul `update_ledger` din `regionMove.ts` cheamă `rekeyLessons` (idempotent, fără coloană nouă în D1).
+- Cheia service account Google (vezi §9, „De configurat”).

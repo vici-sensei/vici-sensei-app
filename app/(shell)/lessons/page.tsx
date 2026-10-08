@@ -13,6 +13,7 @@ import {
   lessonErrorMessage,
   useLessonSchedule,
 } from "@/lib/client-data/lessons";
+import { googleActions, useGoogleCalendar } from "@/lib/client-data/lessonsGoogle";
 import { useLessonNotifications } from "@/lib/client-data/lessonsNotifications";
 import { useWaitlist, waitlistActions } from "@/lib/client-data/lessonsWaitlist";
 import { addDaysKey, addMonthsKey, formatKey, formatWeekLabel, monthRange, wallToInstant, weekRange, weekStartFor } from "@/lib/lessons/time";
@@ -21,6 +22,7 @@ import { useLocalToday } from "@/lib/lessons/useLocalToday";
 import { useClientClock } from "@/lib/useClientClock";
 import { resolveTimeZone } from "@/lib/timezone";
 import { CalendarSettings } from "./CalendarSettings";
+import { GoogleCalendarCard } from "./GoogleCalendarCard";
 import type { LessonHandlers } from "./LessonDialog";
 import { LessonsCalendar } from "./LessonsCalendar";
 import { MonthView } from "./MonthView";
@@ -63,6 +65,7 @@ export default function LessonsPage() {
 
   const { data: notifications, mutate: mutateNotifications, refetch: refetchNotifications } = useLessonNotifications(user);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const { data: googleState, mutate: mutateGoogle } = useGoogleCalendar(user);
   const { data: waitlistData, refetch: refetchWaitlist } = useWaitlist(user);
   const waitlist = useMemo(() => waitlistData ?? [], [waitlistData]);
   // New notices (a reminder, a cancellation, a free seat) and the seat counts they are about appear without a
@@ -272,6 +275,12 @@ export default function LessonsPage() {
           student={student}
           busy={busy}
           onSave={(next) => void run(() => lessonActions.setWeekStart(next), "Saved. It starts with next week.")}
+        />
+        <GoogleCalendarCard
+          state={googleState}
+          nowMs={nowMs}
+          onEnable={async () => mutateGoogle(await googleActions.enable())}
+          onDisable={async () => mutateGoogle(await googleActions.disable())}
         />
       </>
     );
