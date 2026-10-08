@@ -1,4 +1,4 @@
-import { levenshteinAlign, levenshteinDistance, type DiffChar } from "./diff";
+import { levenshteinAlign, levenshteinDistance, normalizeDiffDisplay, type DiffChar } from "./diff";
 
 export interface TokenResult {
   raw: string;
@@ -29,15 +29,6 @@ export interface MeaningCheckResult {
 // correctly.
 function normalizeCompare(value: string): string {
   return value.replace(/[^\p{L}\p{N}]/gu, "");
-}
-
-// For the hint rendered on a wrong answer -- unlike normalizeCompare, punctuation/symbols are
-// kept here (typing "to-       becomem" should show as "to- becomem", not "tobecomem"), only
-// whitespace runs are collapsed to one space and trimmed so the hint still reads cleanly. Only
-// ever fed into a diff once a token has already failed the stricter normalizeCompare match above,
-// so this never affects correct/incorrect -- purely how the hint is displayed.
-function normalizeDiffDisplay(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
 }
 
 interface MeaningVariant {

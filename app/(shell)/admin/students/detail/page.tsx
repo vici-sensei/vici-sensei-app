@@ -16,7 +16,8 @@ import { fetchStudentActivityForDay } from "@/lib/data/adminStudentDetail";
 import { createClient } from "@/lib/supabase/client";
 import { ACHIEVEMENT_CATEGORIES } from "@/lib/achievements/registry";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
-import type { ProgressStatusCounts, ProgressSummaryResponse, StudentActivityEntry } from "@/lib/types";
+import { sumStatusCounts } from "@/lib/srs/statusCounts";
+import type { ProgressSummaryResponse, StudentActivityEntry } from "@/lib/types";
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -54,10 +55,6 @@ const KNOWLEDGE_BLOCKS: { key: keyof ProgressSummaryResponse; title: string }[] 
   { key: "hiragana_reading", title: "Hiragana" },
   { key: "katakana_reading", title: "Katakana" },
 ];
-
-function total(counts: ProgressStatusCounts): number {
-  return PROGRESS_STATUSES.reduce((sum, s) => sum + counts[s], 0);
-}
 
 function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   const { data: student, status: studentStatus } = useStudentDetail(studentId);
@@ -115,7 +112,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
   const isPro = !!student?.is_premium && proEndedAt === null;
 
   const daysWithActivity = (dailyActivity ?? []).slice(0, 90);
-  const knowledgeBlocks = KNOWLEDGE_BLOCKS.filter((b) => knowledge?.[b.key] && total(knowledge[b.key]) > 0);
+  const knowledgeBlocks = KNOWLEDGE_BLOCKS.filter((b) => knowledge?.[b.key] && sumStatusCounts(knowledge[b.key]) > 0);
 
   // Earned achievements grouped by category, each category's entries kept in the registry's own
   // fixed catalog order (not earned_at) -- so the list reads the same way every time regardless of
@@ -279,7 +276,7 @@ function AdminStudentDetailContent({ studentId }: { studentId: string }) {
           <div className="flex flex-col gap-3">
             {knowledgeBlocks.map((block) => {
               const counts = knowledge[block.key];
-              const blockTotal = total(counts);
+              const blockTotal = sumStatusCounts(counts);
               return (
                 <GlassCard key={block.key} padding="sm">
                   <div className="mb-2 flex flex-wrap items-center gap-3">

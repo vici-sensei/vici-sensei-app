@@ -1,4 +1,5 @@
 import type { KanjiWordsRow, KanjiWordTuple } from "@/lib/types";
+import { manyOf, oneOf } from "@/lib/urlParams";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -208,17 +209,8 @@ const REVIEWS: ReviewFilter[] = ["any", "reviewed", "unreviewed", "recheck"];
 const RECENTS: RecentFilter[] = ["any", "1d", "7d"];
 const DEFAULT_SORT: SortKey = "level";
 
-function one<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
-  return allowed.includes(value as T) ? (value as T) : fallback;
-}
-
-function many<T extends string>(value: string | null, allowed: readonly T[]): T[] {
-  if (!value) return [];
-  return allowed.filter((option) => value.split(",").includes(option));
-}
-
 export function parseView(params: URLSearchParams): { view: KanjiView; selected: number | null } {
-  const sort = one(params.get("sort"), SORT_KEYS, DEFAULT_SORT);
+  const sort = oneOf(params.get("sort"), SORT_KEYS, DEFAULT_SORT);
   const gap = Number.parseInt(params.get("gap") ?? "0", 10);
   const selected = Number.parseInt(params.get("k") ?? "", 10);
   return {
@@ -226,16 +218,16 @@ export function parseView(params: URLSearchParams): { view: KanjiView; selected:
     view: {
       query: params.get("q") ?? "",
       sort,
-      dir: one(params.get("dir"), ["asc", "desc"] as const, defaultDir(sort)),
+      dir: oneOf(params.get("dir"), ["asc", "desc"] as const, defaultDir(sort)),
       filters: {
         onAlgo: params.get("algo") === "1",
         gap: GAPS.includes(gap as GapFilter) ? (gap as GapFilter) : 0,
-        levels: many(params.get("lv"), KANJI_LEVELS),
-        counts: many(params.get("cnt"), COUNTS),
-        wordKinds: many(params.get("kind"), KINDS),
-        changed: one(params.get("chg"), CHANGED, "any"),
-        review: one(params.get("rev"), REVIEWS, "any"),
-        recent: one(params.get("rec"), RECENTS, "any"),
+        levels: manyOf(params.get("lv"), KANJI_LEVELS),
+        counts: manyOf(params.get("cnt"), COUNTS),
+        wordKinds: manyOf(params.get("kind"), KINDS),
+        changed: oneOf(params.get("chg"), CHANGED, "any"),
+        review: oneOf(params.get("rev"), REVIEWS, "any"),
+        recent: oneOf(params.get("rec"), RECENTS, "any"),
         admins: (params.get("by") ?? "").split(",").filter(Boolean),
       },
     },

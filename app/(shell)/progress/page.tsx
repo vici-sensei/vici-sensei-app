@@ -6,6 +6,7 @@ import { useProgressSummary } from "@/lib/client-data/progress";
 import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext";
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
+import { sumStatusCounts } from "@/lib/srs/statusCounts";
 import { GlassCard } from "@/app/components/ui/GlassCard";
 import { PageHeader } from "@/app/components/ui/PageHeader";
 import { PiTranslate, PiSpeakerHigh, PiBookBookmark, PiTextAa, PiTextAUnderline } from "react-icons/pi";
@@ -70,11 +71,7 @@ const KANA_BLOCKS: Block[] = [
   },
 ];
 
-function total(counts: ProgressStatusCounts): number {
-  return PROGRESS_STATUSES.reduce((sum, s) => sum + counts[s], 0);
-}
-
-// Shown for each block before the real summary has loaded -- total(EMPTY_COUNTS) is 0, so a
+// Shown for each block before the real summary has loaded -- sumStatusCounts(EMPTY_COUNTS) is 0, so a
 // block reads as "0 total" with an empty bar rather than a skeleton.
 const EMPTY_COUNTS: ProgressStatusCounts = { new: 0, learning: 0, review: 0, relearning: 0, suspended: 0 };
 
@@ -98,7 +95,7 @@ export default function ProgressPage() {
 
   // grandTotal is only meaningful once summary has loaded -- kept at 0 (rather than computed
   // from EMPTY_COUNTS below) so the "no progress yet" empty state can't flash in before load.
-  const grandTotal = summary ? visibleBlocks.reduce((sum, b) => sum + total(summary[b.key]), 0) : 0;
+  const grandTotal = summary ? visibleBlocks.reduce((sum, b) => sum + sumStatusCounts(summary[b.key]), 0) : 0;
 
   return (
     <div>
@@ -113,7 +110,7 @@ export default function ProgressPage() {
       ) : (
         visibleBlocks.map((block, idx) => {
           const counts = summary ? summary[block.key] : EMPTY_COUNTS;
-          const blockTotal = total(counts);
+          const blockTotal = sumStatusCounts(counts);
           return (
             <div className="relative mb-[22px] pl-14" key={block.key}>
               {idx < visibleBlocks.length - 1 && (

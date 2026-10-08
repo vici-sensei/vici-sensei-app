@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/client";
-import { ApiError } from "@/lib/api/client";
 import {
   fetchCompleteVocabBatch,
   fetchFirstDueCard,
@@ -26,6 +25,7 @@ import { checkJlptLevelUp as checkJlptLevelUpData } from "@/lib/data/jlptLevel";
 import { acknowledgeAchievements as acknowledgeAchievementsData } from "@/lib/data/achievements";
 import { getActiveTimeZone, resolveTimeZone } from "@/lib/timezone";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
+import { requireUserId } from "@/lib/client-data/requireUserId";
 import type {
   DueCard,
   JlptLevelUpResult,
@@ -43,15 +43,6 @@ import type {
 // otherwise /study and the dashboard would disagree about how much of today's limit is left.
 // That's the student's "Custom timezone" pick when they've set one, otherwise the browser's --
 // see lib/timezone.ts. Calls that already hold the settings row resolve it from that directly.
-
-async function requireUserId(): Promise<string> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new ApiError(401, "You are not logged in. Please log in.");
-  return user.id;
-}
 
 // userId/settings are the study page's own already-validated copies (from
 // useStudyOnboarding, seeded by the layout gate) -- passing them in skips both the

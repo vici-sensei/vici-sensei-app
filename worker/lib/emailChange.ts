@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { json } from "./http";
 import { emailKey, type Region } from "./region";
 import { resolveIdentity } from "./regionMove";
 
@@ -15,10 +16,6 @@ import { resolveIdentity } from "./regionMove";
  * Every call re-derives the user from their access token (see resolveIdentity); nothing the
  * client says about who it is is trusted.
  */
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
 
 interface EmailChangeRow {
   user_id: string;

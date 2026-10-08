@@ -23,18 +23,10 @@ import { availablePracticeCategories, type PracticeCategory } from "@/lib/study/
 import { practiceCardKey, type PracticeMissedCard, type PracticePoolCard } from "@/lib/study/practicePool";
 import { useStudyOnboarding } from "@/lib/study/StudyOnboardingContext";
 import type { ExerciseType } from "@/lib/srs/constants";
+import { shuffle } from "@/lib/shuffle";
 import type { DueCard, Rating, RatingPreviews } from "@/lib/types";
 
 export type PracticeStatus = "setup" | "loading" | "ready" | "done" | "empty" | "error";
-
-function shuffle<T>(items: T[]): T[] {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
 
 /** Merges a freshly-fetched deck with the last cached queue for this user (if any): cards no
  * longer in the deck (e.g. suspended since) are dropped, and any card in the deck that wasn't

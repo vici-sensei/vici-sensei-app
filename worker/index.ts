@@ -6,13 +6,10 @@ import { emailKey, isRegion, isRetiredCopyEmail, regionFromCfContinent, type Reg
 import { runSmtpHeartbeat } from "./lib/smtpHeartbeat";
 import { handleEmailChangeCancel, handleEmailChangeFinalize, handleEmailChangeStart } from "./lib/emailChange";
 import { handleRegionMoveContinue, handleRegionMoveStart, handleRegionMoveStatus } from "./lib/regionMove";
+import { json } from "./lib/http";
 import { verifyStandardWebhook } from "./lib/webhooks";
 
 export type { Env };
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
 
 /** GET /api/geo -- geo-IP region guess for the login page's region selector (Phase 7). No email
  * involved, nothing to look up: this is the ONLY public endpoint, by design (Decision 3 forbids

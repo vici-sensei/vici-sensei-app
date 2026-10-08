@@ -1,5 +1,6 @@
 import type { Region } from "@/lib/supabase/regions";
 import type { StudentRosterRow } from "@/lib/types";
+import { manyOf, oneOf } from "@/lib/urlParams";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -223,29 +224,20 @@ export function filterStudents(students: StudentRosterRow[], view: RosterView, n
 // back from a student's detail page lands on the same list.
 // ---------------------------------------------------------------------------
 
-function one<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
-  return allowed.includes(value as T) ? (value as T) : fallback;
-}
-
-function many<T extends string>(value: string | null, allowed: readonly T[]): T[] {
-  if (!value) return [];
-  return allowed.filter((option) => value.split(",").includes(option));
-}
-
 export function parseView(params: URLSearchParams): RosterView {
-  const sort = one(params.get("sort"), SORT_KEYS, DEFAULT_SORT);
+  const sort = oneOf(params.get("sort"), SORT_KEYS, DEFAULT_SORT);
   return {
     query: params.get("q") ?? "",
     sort,
-    dir: one(params.get("dir"), ["asc", "desc"] as const, defaultDir(sort)),
+    dir: oneOf(params.get("dir"), ["asc", "desc"] as const, defaultDir(sort)),
     filters: {
-      plan: many(params.get("plan"), PLANS),
-      proEnds: one(params.get("ends"), PRO_ENDS, "any"),
-      activity: one(params.get("activity"), ACTIVITIES, "any"),
-      region: many(params.get("region"), REGIONS),
-      joined: one(params.get("joined"), JOINED, "any"),
-      track: many(params.get("track"), TRACKS),
-      streak: one(params.get("streak"), STREAKS, "any"),
+      plan: manyOf(params.get("plan"), PLANS),
+      proEnds: oneOf(params.get("ends"), PRO_ENDS, "any"),
+      activity: oneOf(params.get("activity"), ACTIVITIES, "any"),
+      region: manyOf(params.get("region"), REGIONS),
+      joined: oneOf(params.get("joined"), JOINED, "any"),
+      track: manyOf(params.get("track"), TRACKS),
+      streak: oneOf(params.get("streak"), STREAKS, "any"),
       country: params.get("country") ?? "",
     },
   };

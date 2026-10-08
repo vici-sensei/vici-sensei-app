@@ -1,4 +1,4 @@
-import { levenshteinAlign, levenshteinDistance, type DiffChar } from "./diff";
+import { levenshteinAlign, levenshteinDistance, normalizeDiffDisplay, type DiffChar } from "./diff";
 
 export interface ReadingCheckResult {
   correct: boolean;
@@ -18,14 +18,6 @@ export type ReadingCheckOutcome =
 // numeral, so there's no legitimate answer that stripping digits could ever break.
 function normalizeCompare(value: string): string {
   return value.replace(/[^\p{L}]/gu, "").toLowerCase();
-}
-
-// For the hint rendered on a wrong/alternate answer -- punctuation/symbols are kept as typed,
-// only whitespace runs are collapsed to one space and trimmed so the hint still reads cleanly.
-// Only ever used once an answer has already failed the stricter normalizeCompare match above, so
-// this never affects correct/incorrect -- purely how the hint is displayed.
-function normalizeDiffDisplay(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
 }
 
 interface ReadingVariant {

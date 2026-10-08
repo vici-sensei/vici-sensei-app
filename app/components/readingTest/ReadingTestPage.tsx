@@ -21,16 +21,8 @@ import { UndoPill } from "@/app/components/study/UndoPill";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { FullScreenMessage } from "@/app/components/ui/FullScreenMessage";
 import { Button } from "@/app/components/ui/Button";
+import { shuffle } from "@/lib/shuffle";
 import type { BrowseKanaEntry } from "@/lib/types";
-
-function shuffle<T>(items: T[]): T[] {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
 
 interface Props {
   testType: "hiragana" | "katakana";

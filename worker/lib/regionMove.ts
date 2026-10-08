@@ -1,5 +1,6 @@
 import type { Env } from "./env";
 import { projectConfig } from "./env";
+import { json } from "./http";
 import { emailKey, isRegion, retiredCopyEmail, type Region } from "./region";
 import {
   pgDeleteWhere,
@@ -75,10 +76,6 @@ interface RegionMoveRow {
   source_retired: number;
   status: string;
   last_error: string | null;
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
 function restConfig(env: Env, region: Region): PostgrestConfig {

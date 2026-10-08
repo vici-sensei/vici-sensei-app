@@ -3,6 +3,15 @@ export interface DiffChar {
   match: boolean;
 }
 
+/** An answer as it is shown in the "what you typed vs. the right answer" hint -- unlike the
+ * letters-only key the answer matchers compare on, punctuation and symbols stay as typed ("to-
+ * become" shows as "to- become", not "tobecome"); only runs of whitespace are collapsed to one space
+ * and trimmed. Only ever fed into a diff after the strict comparison has already failed, so it never
+ * affects correct/incorrect -- purely how the hint is displayed. */
+export function normalizeDiffDisplay(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 function buildEditDistanceTable(a: string, b: string): number[][] {
   const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
   for (let i = 0; i <= a.length; i++) dp[i][0] = i;
