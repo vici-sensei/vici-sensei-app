@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { isLessonsEnabled } from "@/lib/lessons/flag";
 import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaCrown, FaShieldHalved, FaSliders, FaChalkboardUser, FaGauge, FaUserGraduate, FaInbox, FaLanguage, FaCalendarDays } from "react-icons/fa6";
 
 export interface SubNavItem {
@@ -36,12 +37,17 @@ export const NAV_ITEMS: NavItem[] = [
     isActive: (p) => p.startsWith("/study"),
     icon: <FaBook />,
   },
-  {
-    href: "/lessons",
-    label: "Lessons",
-    isActive: (p) => p.startsWith("/lessons"),
-    icon: <FaCalendarDays />,
-  },
+  // Linked only while NEXT_PUBLIC_LESSONS is on (lib/lessons/flag.ts); the page itself stays reachable by URL.
+  ...(isLessonsEnabled()
+    ? [
+        {
+          href: "/lessons",
+          label: "Lessons",
+          isActive: (p: string) => p.startsWith("/lessons"),
+          icon: <FaCalendarDays />,
+        },
+      ]
+    : []),
   {
     href: "/browse/kanji",
     label: "Dictionary",

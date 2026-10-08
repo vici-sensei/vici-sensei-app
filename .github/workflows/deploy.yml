@@ -34,6 +34,10 @@ jobs:
           # empty string: the flag stays off and no captcha widget is rendered -- safe by default.
           NEXT_PUBLIC_PASSWORD_AUTH: ${{ secrets.NEXT_PUBLIC_PASSWORD_AUTH }}
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          # Shows the "Lessons" link in the menu (docs/LESSON_BOOKING_PLAN.md). Read at build time. A
+          # secret that doesn't exist expands to an empty string: the link stays hidden (the page itself
+          # is still reachable by URL).
+          NEXT_PUBLIC_LESSONS: ${{ secrets.NEXT_PUBLIC_LESSONS }}
 
       - name: Deploy to Cloudflare Workers
         run: npx wrangler deploy

@@ -205,6 +205,23 @@ lună/an + Google + prezență), construit pe etape interne:
 Migrațiile urmează regulile din `CLAUDE.md` / `MIGRATION_PARITY.md` (fișiere noi cu timestamp UTC, scop pe
 prima linie, aplicate pe EU și US cu rândul din ledger; nimic pe proiectul înghețat).
 
+### Lansare: linkul din meniu e în spatele `NEXT_PUBLIC_LESSONS`
+
+Pagina `/lessons`, rutele Worker `/api/lessons/*` și migrațiile se deployează înaintea lansării, dar
+**linkul „Lessons” din meniu apare doar când `NEXT_PUBLIC_LESSONS` este exact `true`** în momentul
+build-ului (`lib/lessons/flag.ts`, același tipar ca `NEXT_PUBLIC_PASSWORD_AUTH`). Fără el, meniul e
+identic cu cel de dinainte, iar pagina rămâne accesibilă doar prin URL (un elev fără acces vede că
+lecțiile nu sunt deschise contului lui). Un elev care o deschide totuși creează un rând în
+`lessons.students` (acces oprit).
+
+- **Local:** `NEXT_PUBLIC_LESSONS=true` în `.env.local`, apoi repornești `next dev`.
+- **Producție:** secretul GitHub `NEXT_PUBLIC_LESSONS` = `true` (Settings → Secrets and variables →
+  Actions), apoi un nou deploy (orice push în `main` sau re-rularea workflow-ului „Deploy"). Se citește la
+  build, deci schimbarea secretului singură nu face nimic.
+- **Oprire:** ștergi secretul sau îl pui pe altceva decât `true`, și redeployezi.
+- De pornit abia după etapa 3 (panoul de administrare: clase, profesori, acces), altfel elevii văd doar
+  „Lessons aren't open for your account yet".
+
 ## 12. Valori implicite alese de Claude (nu au fost întrebate; de respins dacă nu convin)
 
 - **Istoric:** lecțiile și prezențele se păstrează cât există contul; se șterg odată cu contul.
