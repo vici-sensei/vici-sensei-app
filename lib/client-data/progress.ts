@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchKanjiProgress, fetchProgressSummary, fetchVocabularyProgress } from "@/lib/data/progress";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
+import { useRemoteData } from "@/lib/client-data/useRemoteData";
 import { getErrorMessage } from "@/lib/api/client";
 import type { AsyncStatus, KanjiProgressResponse, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";
 
@@ -13,60 +14,22 @@ function progressSummaryCacheKey(userId: string): string {
   return `cache:progress-summary:${userId}`;
 }
 
+/** This user's progress on one kanji. `mutate` applies an optimistic edit until `refetch` settles it. */
 export function useKanjiProgress(user: User | null, kanjiId: number | null) {
-  const [status, setStatus] = useState<AsyncStatus>("loading");
-  const [data, setData] = useState<KanjiProgressResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const refetch = useCallback(async () => {
-    if (!user || kanjiId == null) return;
-    setStatus((prev) => (prev === "loaded" ? prev : "loading"));
-    try {
-      const result = await fetchKanjiProgress(createClient(), user.id, kanjiId);
-      setData(result);
-      setStatus("loaded");
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to load progress."));
-      setStatus("error");
-    }
-  }, [user, kanjiId]);
-
-  useEffect(() => {
-    function sync() {
-      void refetch();
-    }
-    sync();
-  }, [refetch]);
-
-  return { data, status, error, refetch, mutate: setData };
+  return useRemoteData<KanjiProgressResponse, { userId: string; kanjiId: number }>({
+    params: user && kanjiId != null ? { userId: user.id, kanjiId } : null,
+    load: (p) => fetchKanjiProgress(createClient(), p.userId, p.kanjiId),
+    errorFallback: "Failed to load progress.",
+  });
 }
 
+/** This user's progress on one vocabulary word. `mutate` applies an optimistic edit until `refetch` settles it. */
 export function useVocabularyProgress(user: User | null, wordId: number | null) {
-  const [status, setStatus] = useState<AsyncStatus>("loading");
-  const [data, setData] = useState<VocabularyProgress | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const refetch = useCallback(async () => {
-    if (!user || wordId == null) return;
-    setStatus((prev) => (prev === "loaded" ? prev : "loading"));
-    try {
-      const result = await fetchVocabularyProgress(createClient(), user.id, wordId);
-      setData(result);
-      setStatus("loaded");
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to load progress."));
-      setStatus("error");
-    }
-  }, [user, wordId]);
-
-  useEffect(() => {
-    function sync() {
-      void refetch();
-    }
-    sync();
-  }, [refetch]);
-
-  return { data, status, error, refetch, mutate: setData };
+  return useRemoteData<VocabularyProgress | null, { userId: string; wordId: number }>({
+    params: user && wordId != null ? { userId: user.id, wordId } : null,
+    load: (p) => fetchVocabularyProgress(createClient(), p.userId, p.wordId),
+    errorFallback: "Failed to load progress.",
+  });
 }
 
 export function useProgressSummary(user: User | null) {
