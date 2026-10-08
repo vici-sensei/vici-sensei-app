@@ -155,31 +155,50 @@ async function logRun(env: Env, totals: Totals): Promise<void> {
   }
 }
 
+/** One line in lessons.worker_runs (Postgres) saying how a run ended. The Worker's own logs are not kept
+ * anywhere that can be queried, so this is how a job that silently does nothing becomes visible with plain
+ * SQL. Never throws: if the writer cannot be reached the console line next to the call is all there is. */
+async function note(env: Env, outcome: string, detail?: string): Promise<void> {
+  try {
+    await callWriter(env, "lesson_worker_note", { p_job: "lesson_mail", p_outcome: outcome, p_detail: detail ?? null });
+  } catch {
+    // no key / no connection: nothing more to do
+  }
+}
+
 /** Runs from the 5-minute cron. Never throws. */
 export async function runLessonNotifications(env: Env): Promise<void> {
   try {
     await deliver(env);
   } catch (err) {
-    console.error("lessons mail: run failed:", err instanceof Error ? err.message : String(err));
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("lessons mail: run failed:", message);
+    await note(env, "run_failed", message);
   }
   // The students' Google calendars ride on the same 5-minute job (googleCalendar.ts; never throws).
   await syncGoogleCalendars(env);
 }
 
 async function deliver(env: Env): Promise<void> {
-  if (!env.SUPABASE_SERVICE_ROLE_KEY_EU) return; // nothing can run before the writer's key is set
+  if (!env.SUPABASE_SERVICE_ROLE_KEY_EU) {
+    // Nothing can run before the writer's key is set (and nothing can be noted in Postgres either).
+    console.error("lessons mail: SUPABASE_SERVICE_ROLE_KEY_EU is not set, the job does nothing");
+    return;
+  }
 
   // pg_cron does this every minute where it exists; doing it here as well is free (the stored rows are
   // deduplicated) and covers a project where the schedule is missing.
   const tick = await callWriter(env, "lesson_scheduler_tick", {});
   if (!tick.ok) {
     console.error(`lessons mail: scheduler tick failed: ${tick.code}`);
+    await note(env, "tick_failed", tick.code);
     return;
   }
 
   const settings = smtpSettings(env);
   if (!settings) {
     // The in-app copies exist; emails wait until SMTP_USER / SMTP_PASSWORD are set. Push does not need them.
+    await note(env, "no_smtp_settings");
     await deliverPush(env);
     return;
   }
@@ -189,6 +208,7 @@ async function deliver(env: Env): Promise<void> {
     const due = await callWriter(env, "lesson_notifications_due", { p_limit: BATCH_SIZE });
     if (!due.ok) {
       console.error(`lessons mail: could not read the queue: ${due.code}`);
+      await note(env, "queue_unreadable", due.code);
       break;
     }
     const rows = (Array.isArray(due.data) ? due.data : []) as DueRow[];
@@ -237,5 +257,7 @@ async function deliver(env: Env): Promise<void> {
     if (released || rows.length < BATCH_SIZE) break; // the mail server is not reachable / the queue is drained
   }
   await logRun(env, totals);
+  console.log("lessons mail: run", JSON.stringify(totals));
+  await note(env, "ok", JSON.stringify(totals));
   await deliverPush(env);
 }

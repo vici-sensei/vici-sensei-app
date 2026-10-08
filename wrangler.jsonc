@@ -27,6 +27,10 @@
     // same account with a cron of its own would need the paid plan.
     "crons": ["0 3 * * *", "0 4 * * 1", "17 * * * *", "0 5 1 * *", "*/5 * * * *"]
   },
+  // Workers Logs: keeps console.log/console.error and one record per invocation (requests and cron runs),
+  // readable in the Cloudflare dashboard -> this Worker -> Observability. Without it nothing the Worker
+  // prints is kept, which hid why the every-5-minutes lesson job did nothing (2026-10-08).
+  "observability": { "enabled": true },
   // Not secret (see .env.local / lib/supabase/regions.ts, which use the same values) -- safe as
   // plain vars. The AUTH_HOOK_SECRET_EU/US and SUPABASE_SERVICE_ROLE_KEY_EU/US this Worker also
   // reads are genuine secrets, set with `wrangler secret put <name>` instead (never committed).
