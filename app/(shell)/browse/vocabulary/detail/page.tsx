@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useVocabularyDetail } from "@/lib/client-data/vocabulary";
 import { useVocabularyProgress } from "@/lib/client-data/progress";
@@ -11,9 +10,12 @@ import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import { CopyWordButton } from "@/app/components/browse/CopyWordButton";
+import { BrowseFact, BrowseSectionTitle } from "@/app/components/browse/BrowseDetailParts";
+import { PlaceholderRubyWord } from "@/app/components/browse/PlaceholderRubyWord";
 import { KanjiHint } from "@/app/components/study/KanjiHint";
 import { usePressableKanji } from "@/app/components/study/usePressableKanji";
 import { renderVocabularyWord, vocabularyDisplayText } from "@/lib/study/furigana";
+import { useNumericIdParam } from "@/lib/browse/useNumericIdParam";
 
 function NotFound() {
   return (
@@ -52,57 +54,36 @@ function DetailSkeleton() {
   );
 }
 
-// Hero word block for the fictional word: 2 kanji, each with its own 2-kana furigana above --
-// same shape as the vocabulary list's PlaceholderWord, scaled up for this page's larger text-5xl
-// display (48px font vs. 30px in the list, hence the bigger ruby/kanji block sizes below).
-function PlaceholderHeroWord() {
-  return (
-    <div className="mb-3 flex h-[81.6px] items-end gap-2.5">
-      {[0, 1].map((k) => (
-        <div key={k} className="flex flex-col items-center gap-1.5">
-          <Skeleton className="h-4 w-8 rounded" />
-          <Skeleton className="h-13 w-12 rounded-lg" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function VocabularyDetailPlaceholder() {
-  const factLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
-
   return (
     <div>
       <BrowseBackLink href="/browse/vocabulary" />
 
       <div className="mb-7.5 flex flex-wrap items-center gap-7.5">
         <div className="min-w-55 flex-1">
-          <PlaceholderHeroWord />
+          <PlaceholderRubyWord size="lg" className="mb-3" />
           <div className="mb-3 flex h-[32.4px] items-center">
             <Skeleton className="h-5 w-full" />
           </div>
           <div className="flex flex-wrap gap-6">
-            <div>
-              <div className={factLabel}>Part of speech</div>
+            <BrowseFact label="Part of speech">
               <div className="flex h-6 items-center">
                 <Skeleton className="h-4 w-20" />
               </div>
-            </div>
-            <div>
-              <div className={factLabel}>JLPT level</div>
+            </BrowseFact>
+            <BrowseFact label="JLPT level">
               <LevelBadge level={null} loading />
-            </div>
-            <div>
-              <div className={factLabel}>Other readings</div>
+            </BrowseFact>
+            <BrowseFact label="Other readings">
               <div className="flex h-6 items-center">
                 <Skeleton className="h-4 w-24" />
               </div>
-            </div>
+            </BrowseFact>
           </div>
         </div>
       </div>
 
-      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
+      <BrowseSectionTitle>Your progress</BrowseSectionTitle>
       <PlaceholderProgressCardRow
         title={
           <>
@@ -131,8 +112,6 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
   if (wordStatus === "loading" || progressStatus === "loading") return <VocabularyDetailPlaceholder />;
   if (!word) return <NotFound />;
 
-  const factLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
-
   return (
     <div>
       <BrowseBackLink href="/browse/vocabulary" />
@@ -151,25 +130,22 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
           <div className="mb-3 text-[1.35rem] font-bold">{word.primary_meanings?.join(", ")}</div>
           <OtherMeaningsToggle otherMeanings={word.other_meanings} className="mb-3" />
           <div className="flex flex-wrap gap-6">
-            <div>
-              <div className={factLabel}>Part of speech</div>
+            <BrowseFact label="Part of speech">
               <div className="text-base font-bold">{word.parts_of_speech?.join(", ") || "—"}</div>
-            </div>
-            <div>
-              <div className={factLabel}>JLPT level</div>
+            </BrowseFact>
+            <BrowseFact label="JLPT level">
               <div className="text-base font-bold">
                 <LevelBadge level={word.jlpt_level} />
               </div>
-            </div>
-            <div>
-              <div className={factLabel}>Other readings</div>
+            </BrowseFact>
+            <BrowseFact label="Other readings">
               <div className="text-base font-bold text-text-muted">{word.other_readings?.join(", ") || "—"}</div>
-            </div>
+            </BrowseFact>
           </div>
         </div>
       </div>
 
-      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
+      <BrowseSectionTitle>Your progress</BrowseSectionTitle>
       {progress ? (
         <ProgressCardRow
           title={<>Meaning — &quot;{word.primary_meanings?.[0] ?? vocabularyDisplayText(word)}&quot;</>}
@@ -199,9 +175,8 @@ function VocabularyDetailContent({ wordId }: { wordId: number }) {
 }
 
 function VocabularyDetailFromQuery() {
-  const searchParams = useSearchParams();
-  const wordId = Number(searchParams.get("id"));
-  if (!searchParams.get("id") || Number.isNaN(wordId)) return <NotFound />;
+  const wordId = useNumericIdParam();
+  if (wordId === null) return <NotFound />;
   return <VocabularyDetailContent wordId={wordId} />;
 }
 

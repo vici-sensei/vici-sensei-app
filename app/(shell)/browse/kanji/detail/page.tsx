@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useKanjiDetail } from "@/lib/client-data/kanji";
 import { useKanjiProgress } from "@/lib/client-data/progress";
@@ -12,9 +11,12 @@ import { ProgressCardRow, PlaceholderProgressCardRow, EmptyProgressNotice } from
 import { BrowseBackLink, BrowseNotFound } from "@/app/components/browse/BrowseDetailNav";
 import { OtherMeaningsToggle, hasOtherMeanings } from "@/app/components/browse/OtherMeaningsToggle";
 import { CopyWordButton } from "@/app/components/browse/CopyWordButton";
+import { BrowseFact, BrowseSectionTitle } from "@/app/components/browse/BrowseDetailParts";
+import { PlaceholderRubyWord } from "@/app/components/browse/PlaceholderRubyWord";
 import { KanjiHint } from "@/app/components/study/KanjiHint";
 import { usePressableKanji } from "@/app/components/study/usePressableKanji";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
+import { useNumericIdParam } from "@/lib/browse/useNumericIdParam";
 
 function NotFound() {
   return <BrowseNotFound title="Kanji not found" message="This kanji doesn't exist or may have been removed." backHref="/browse/kanji" />;
@@ -60,25 +62,7 @@ function DetailSkeleton() {
   );
 }
 
-// Word block for a fictional example word: 2 kanji, each with its own 2-kana furigana above --
-// same shape as PlaceholderWord on the vocabulary list, sized for this row's tighter padding
-// (leading-none here vs. the list's default line-height, so the real box is shorter: 54 vs 57.3px).
-function PlaceholderExampleWord() {
-  return (
-    <div className="flex h-[54px] shrink-0 items-end gap-1.5">
-      {[0, 1].map((k) => (
-        <div key={k} className="flex flex-col items-center gap-1">
-          <Skeleton className="h-3 w-5 rounded" />
-          <Skeleton className="h-9 w-8 rounded-md" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function KanjiDetailPlaceholder() {
-  const colLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
-
   return (
     <div>
       <BrowseBackLink href="/browse/kanji" />
@@ -90,34 +74,31 @@ function KanjiDetailPlaceholder() {
             <Skeleton className="h-5 w-full" />
           </div>
           <div className="flex flex-wrap gap-6">
-            <div>
-              <div className={colLabel}>Kun reading</div>
+            <BrowseFact label="Kun reading">
               <div className="flex h-[26.4px] items-center">
                 <Skeleton className="h-4.5 w-24" />
               </div>
-            </div>
-            <div>
-              <div className={colLabel}>On reading</div>
+            </BrowseFact>
+            <BrowseFact label="On reading">
               <div className="flex h-[26.4px] items-center">
                 <Skeleton className="h-4.5 w-20" />
               </div>
-            </div>
-            <div>
-              <div className={colLabel}>JLPT level</div>
+            </BrowseFact>
+            <BrowseFact label="JLPT level">
               <LevelBadge level={null} loading />
-            </div>
+            </BrowseFact>
           </div>
         </div>
       </div>
 
-      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Example words</div>
+      <BrowseSectionTitle>Example words</BrowseSectionTitle>
       <div className="grid grid-cols-1 gap-3 text-left">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             className="flex flex-wrap items-center gap-x-8 gap-y-1.5 rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-3"
             key={i}
           >
-            <PlaceholderExampleWord />
+            <PlaceholderRubyWord size="md" />
             <div className="min-w-32 flex-1">
               <Skeleton className="h-3.5 w-full" />
             </div>
@@ -126,7 +107,7 @@ function KanjiDetailPlaceholder() {
         ))}
       </div>
 
-      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
+      <BrowseSectionTitle>Your progress</BrowseSectionTitle>
       <div>
         <PlaceholderProgressCardRow
           title={
@@ -184,7 +165,6 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
   if (!kanji) return <NotFound />;
 
   const hasProgress = progress ? progress.meaning !== null || progress.readings.length > 0 : false;
-  const colLabel = "mb-1 text-[0.72rem] font-extrabold uppercase tracking-[1px] text-text-muted";
 
   return (
     <div>
@@ -195,25 +175,22 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
         <div className="min-w-55 flex-1">
           <div className="mb-3 text-[1.35rem] font-bold">{kanji.meanings?.join(", ")}</div>
           <div className="flex flex-wrap gap-6">
-            <div>
-              <div className={colLabel}>Kun reading</div>
+            <BrowseFact label="Kun reading">
               <div className="text-[1.1rem] font-bold">{kanji.kun_readings?.join("、") || "—"}</div>
-            </div>
-            <div>
-              <div className={colLabel}>On reading</div>
+            </BrowseFact>
+            <BrowseFact label="On reading">
               <div className="text-[1.1rem] font-bold">{kanji.on_readings?.join("、") || "—"}</div>
-            </div>
-            <div>
-              <div className={colLabel}>JLPT level</div>
+            </BrowseFact>
+            <BrowseFact label="JLPT level">
               <div className="text-[1.1rem] font-bold">
                 <LevelBadge level={kanji.level} />
               </div>
-            </div>
+            </BrowseFact>
           </div>
         </div>
       </div>
 
-      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Example words</div>
+      <BrowseSectionTitle>Example words</BrowseSectionTitle>
       {showKanjiHint && <KanjiHint className="-mt-1.5 mb-3.5" />}
       {kanjiModal}
       <div {...pressProps} className="grid grid-cols-1 gap-3 text-left">
@@ -261,7 +238,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
         ))}
       </div>
 
-      <div className="mt-8 mb-3.5 text-[0.8rem] font-extrabold uppercase tracking-[1.2px] text-text-muted">Your progress</div>
+      <BrowseSectionTitle>Your progress</BrowseSectionTitle>
       {hasProgress && progress ? (
         <div {...pressProps}>
           {progress.meaning && (
@@ -344,9 +321,8 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
 }
 
 function KanjiDetailFromQuery() {
-  const searchParams = useSearchParams();
-  const kanjiId = Number(searchParams.get("id"));
-  if (!searchParams.get("id") || Number.isNaN(kanjiId)) return <NotFound />;
+  const kanjiId = useNumericIdParam();
+  if (kanjiId === null) return <NotFound />;
   return <KanjiDetailContent kanjiId={kanjiId} />;
 }
 
