@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/auth-js";
 import { createClient } from "@/lib/supabase/client";
-import { fetchUserProfile } from "@/lib/data/userProfile";
+import { fetchUserProfile, PROFILE_COLUMNS } from "@/lib/data/userProfile";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
 import { readCache, writeCache } from "@/lib/client-data/localCache";
 import type { AsyncStatus, UserProfile } from "@/lib/types";
@@ -80,52 +80,30 @@ export function useUserProfile(user: User | null) {
   return { data, status, error, refetch };
 }
 
-export async function updateDisplayName(userId: string, displayName: string): Promise<UserProfile> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("users")
-    .update({ display_name: displayName })
-    .eq("id", userId)
-    .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
-    )
-    .single();
+type ProfilePatch = Partial<
+  Pick<UserProfile, "display_name" | "avatar_url" | "country" | "show_country_on_leaderboard">
+>;
 
+/** Writes `patch` to the user's own `users` row and returns the saved profile, which also replaces
+ * the cached copy so the next mount paints the new values straight away. */
+async function updateProfile(userId: string, patch: ProfilePatch): Promise<UserProfile> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("users").update(patch).eq("id", userId).select(PROFILE_COLUMNS).single();
   if (error) throw new ApiError(500, error.message);
   writeCache(profileCacheKey(userId), data);
   return data;
+}
+
+export async function updateDisplayName(userId: string, displayName: string): Promise<UserProfile> {
+  return updateProfile(userId, { display_name: displayName });
 }
 
 export async function updateCountry(userId: string, country: string): Promise<UserProfile> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("users")
-    .update({ country })
-    .eq("id", userId)
-    .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
-    )
-    .single();
-
-  if (error) throw new ApiError(500, error.message);
-  writeCache(profileCacheKey(userId), data);
-  return data;
+  return updateProfile(userId, { country });
 }
 
 export async function updateShowCountryOnLeaderboard(userId: string, show: boolean): Promise<UserProfile> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("users")
-    .update({ show_country_on_leaderboard: show })
-    .eq("id", userId)
-    .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
-    )
-    .single();
-
-  if (error) throw new ApiError(500, error.message);
-  writeCache(profileCacheKey(userId), data);
-  return data;
+  return updateProfile(userId, { show_country_on_leaderboard: show });
 }
 
 /** Stores `file` plus its small copy `thumb` (same MIME type) as
@@ -155,40 +133,21 @@ export async function uploadAvatar(userId: string, file: Blob, thumb: Blob): Pro
     data: { publicUrl },
   } = bucket.getPublicUrl(path);
 
-  const { data, error } = await supabase
-    .from("users")
-    .update({ avatar_url: publicUrl })
-    .eq("id", userId)
-    .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
-    )
-    .single();
-
-  if (error) {
+  let profile: UserProfile;
+  try {
+    profile = await updateProfile(userId, { avatar_url: publicUrl });
+  } catch (err) {
     await bucket.remove([path, thumbPath]);
-    throw new ApiError(500, error.message);
+    throw err;
   }
-  writeCache(profileCacheKey(userId), data);
   await removeOtherAvatarFiles(supabase, userId, [path, thumbPath]);
-  return data;
+  return profile;
 }
 
 export async function removeAvatar(userId: string): Promise<UserProfile> {
-  const supabase = createClient();
-
   // Row first, files second: a failure in between leaves only unreferenced files (swept up
   // later), never a profile pointing at a photo that's already gone.
-  const { data, error } = await supabase
-    .from("users")
-    .update({ avatar_url: null })
-    .eq("id", userId)
-    .select(
-      "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
-    )
-    .single();
-
-  if (error) throw new ApiError(500, error.message);
-  writeCache(profileCacheKey(userId), data);
-  await removeOtherAvatarFiles(supabase, userId, []);
-  return data;
+  const profile = await updateProfile(userId, { avatar_url: null });
+  await removeOtherAvatarFiles(createClient(), userId, []);
+  return profile;
 }

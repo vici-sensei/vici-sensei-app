@@ -1,6 +1,11 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { UserProfile } from "@/lib/types";
 
+/** The `users` columns a UserProfile is made of -- the one list every read and write of the profile
+ * selects, so a new profile field is added here and in UserProfile, nowhere else. */
+export const PROFILE_COLUMNS =
+  "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at";
+
 const PROFILE_ROW_MISSING = "PGRST116";
 const PROFILE_FETCH_RETRIES = 3;
 const PROFILE_FETCH_RETRY_DELAY_MS = 200;
@@ -20,9 +25,7 @@ export async function fetchUserProfile(supabase: AppSupabaseClient, userId: stri
   for (let attempt = 1; attempt <= PROFILE_FETCH_RETRIES; attempt++) {
     const { data, error } = await supabase
       .from("users")
-      .select(
-        "email, display_name, avatar_url, country, show_country_on_leaderboard, is_premium, premium_until, stripe_customer_id, created_at"
-      )
+      .select(PROFILE_COLUMNS)
       .eq("id", userId)
       .single();
 
