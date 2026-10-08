@@ -14,6 +14,7 @@ import {
   uuid,
 } from "./lessonsCommon";
 import { routeNotifications } from "./lessonsNotify";
+import { routePush } from "./lessonsPush";
 import { routeStaff } from "./lessonsStaff";
 import { routeWaitlist } from "./lessonsWaitlist";
 
@@ -116,6 +117,9 @@ export async function routeLessons(request: Request, env: Env, url: URL): Promis
 
   const waitlist = await routeWaitlist(request, env, url);
   if (waitlist) return waitlist;
+
+  const push = await routePush(request, env, url);
+  if (push) return push;
 
   const staff = await routeStaff(request, env, url);
   if (staff) return staff;

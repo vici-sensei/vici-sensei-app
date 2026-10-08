@@ -25,6 +25,13 @@ export interface Env {
   SMTP_HOST?: string;
   SMTP_PORT?: string;
   SMTP_STARTTLS?: string;
+  // Web push for the lesson notifications (worker/lib/lessonsPush.ts). Make the pair with
+  // `node scripts/generate-vapid-keys.mjs`: VAPID_PUBLIC_KEY is not secret (plain var or secret, as you like),
+  // VAPID_PRIVATE_KEY is a secret (`wrangler secret put VAPID_PRIVATE_KEY`), VAPID_SUBJECT is "mailto:you@...".
+  // Without all three the "push" switch is hidden and nothing is pushed.
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 export function projectConfig(env: Env, region: Region) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaBell, FaCircleInfo, FaHourglassHalf, FaTriangleExclamation } from "react-icons/fa6";
 import type { User } from "@supabase/auth-js";
 import { Button } from "@/app/components/ui/Button";
@@ -10,8 +10,11 @@ import { useToast } from "@/app/components/ui/Toast";
 import { Toggle } from "@/app/components/ui/Toggle";
 import { lessonErrorMessage } from "@/lib/client-data/lessons";
 import { notificationActions, useNotificationPrefs } from "@/lib/client-data/lessonsNotifications";
+import { pushActions, usePushConfig } from "@/lib/client-data/lessonsPush";
+import { currentSubscription, needsInstallForPush, pushSupported, subscribeThisDevice, unsubscribeThisDevice } from "@/lib/lessons/push";
 import {
   CHANNELS,
+  PUSH_CHANNEL,
   REMINDERS,
   isBannerKind,
   timeAgo,
@@ -234,6 +237,7 @@ function InboxItem({ notification: n, nowMs, onOpen }: { notification: LessonNot
 function ReminderSettings({ user }: { user: User | null }) {
   const { showToast } = useToast();
   const { data: prefs, status, mutate, refetch } = useNotificationPrefs(user, true);
+  const { data: pushKey } = usePushConfig(user);
 
   const isOn = (kind: ReminderKind, channel: NotificationChannel) =>
     prefs?.find((p) => p.kind === kind && p.channel === channel)?.enabled ?? true;
@@ -253,16 +257,111 @@ function ReminderSettings({ user }: { user: User | null }) {
     return <p className="py-8 text-center text-[0.88rem] text-text-muted">{status === "error" ? "Couldn't load your settings." : "Loading…"}</p>;
   }
 
-  return <ReminderTable isOn={isOn} onToggle={(kind, channel) => void toggle(kind, channel)} />;
+  return (
+    <>
+      <ReminderTable isOn={isOn} onToggle={(kind, channel) => void toggle(kind, channel)} channels={pushKey ? [...CHANNELS, PUSH_CHANNEL] : CHANNELS} />
+      {pushKey ? <PushSwitch publicKey={pushKey} /> : null}
+    </>
+  );
+}
+
+/** Push for THIS device: asks the browser for permission and tells the server where to send. */
+function PushSwitch({ publicKey }: { publicKey: string }) {
+  const { showToast } = useToast();
+  const supported = pushSupported();
+  const install = needsInstallForPush();
+  const [state, setState] = useState<"checking" | "on" | "off">(supported ? "checking" : "off");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!supported) return;
+    let cancelled = false;
+    void (async () => {
+      const subscription = await currentSubscription();
+      let on = false;
+      if (subscription) {
+        try {
+          on = (await pushActions.state(subscription.endpoint)).this_device;
+        } catch {
+          on = false;
+        }
+      }
+      if (!cancelled) setState(on ? "on" : "off");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supported]);
+
+  const turnOn = async () => {
+    setBusy(true);
+    const result = await subscribeThisDevice(publicKey);
+    if (!result.ok) {
+      showToast(
+        result.reason === "denied"
+          ? "Notifications are blocked for this site. Allow them in your browser settings, then try again."
+          : result.reason === "no_service_worker"
+            ? "Push needs the installed or deployed app: it isn't available here."
+            : "Couldn't turn push on. Please try again.",
+        "error"
+      );
+    } else {
+      try {
+        await pushActions.subscribe(result.device);
+        setState("on");
+        showToast("Push is on for this device.");
+      } catch (err) {
+        showToast(lessonErrorMessage(err), "error");
+      }
+    }
+    setBusy(false);
+  };
+
+  const turnOff = async () => {
+    setBusy(true);
+    try {
+      const endpoint = await unsubscribeThisDevice();
+      if (endpoint) await pushActions.unsubscribe(endpoint);
+      setState("off");
+      showToast("Push is off for this device.");
+    } catch (err) {
+      showToast(lessonErrorMessage(err), "error");
+    }
+    setBusy(false);
+  };
+
+  const hint = !supported
+    ? "This browser can't receive push notifications."
+    : install
+      ? "On iPhone and iPad, add Vici Sensei to your Home Screen and open it from there, then turn this on."
+      : "Get reminders and changes as a notification on this device, even when the app is closed.";
+
+  return (
+    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border-soft p-3.5">
+      <div className="min-w-0">
+        <p className="text-[0.88rem] font-bold">Push notifications on this device</p>
+        <p className="mt-0.5 text-[0.78rem] leading-normal text-text-muted">{hint}</p>
+      </div>
+      <Toggle
+        checked={state === "on"}
+        onChange={() => void (state === "on" ? turnOff() : turnOn())}
+        disabled={busy || state === "checking" || !supported || install}
+        color="blue"
+        aria-label="Push notifications on this device"
+      />
+    </div>
+  );
 }
 
 /** The switches themselves: one row per reminder, one column per channel. */
 export function ReminderTable({
   isOn,
   onToggle,
+  channels = CHANNELS,
 }: {
   isOn: (kind: ReminderKind, channel: NotificationChannel) => boolean;
   onToggle: (kind: ReminderKind, channel: NotificationChannel) => void;
+  channels?: Array<{ channel: NotificationChannel; label: string }>;
 }) {
   return (
     <div className="mt-4">
@@ -270,7 +369,7 @@ export function ReminderTable({
         <thead>
           <tr className="text-left text-[0.72rem] font-bold uppercase tracking-[0.5px] text-text-muted">
             <th className="pb-2 font-bold">Remind me</th>
-            {CHANNELS.map((c) => (
+            {channels.map((c) => (
               <th key={c.channel} className="pb-2 text-center font-bold">
                 {c.label}
               </th>
@@ -284,7 +383,7 @@ export function ReminderTable({
                 {r.label}
                 {r.hint ? <span className="block text-[0.74rem] font-normal text-text-muted">{r.hint}</span> : null}
               </td>
-              {CHANNELS.map((c) => (
+              {channels.map((c) => (
                 <td key={c.channel} className="py-2.5 text-center">
                   <Toggle
                     checked={isOn(r.kind, c.channel)}

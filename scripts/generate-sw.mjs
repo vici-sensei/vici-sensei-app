@@ -102,6 +102,39 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Web push (lesson reminders and changes, see worker/lib/lessonsPush.ts): the Worker sends a small JSON
+// message { title, body, url, tag }; the browser requires a visible notification for every push.
+self.addEventListener("push", (event) => {
+  let message = {};
+  try {
+    message = event.data ? event.data.json() : {};
+  } catch {
+    message = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(message.title || "Vici Sensei", {
+      body: message.body || "",
+      // The same kind of notice replaces the previous one instead of piling up.
+      tag: message.tag || undefined,
+      icon: "/apple-icon.png",
+      data: { url: message.url || "/lessons" },
+    })
+  );
+});
+
+// Tapping the notification opens the page: an open window of the app is reused, otherwise a new one is opened.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || "/lessons", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((w) => "focus" in w);
+      if (open) return open.focus().then(() => ("navigate" in open ? open.navigate(target) : undefined));
+      return self.clients.openWindow(target);
+    })
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;

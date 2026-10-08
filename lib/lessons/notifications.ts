@@ -35,6 +35,9 @@ export const CHANNELS: Array<{ channel: NotificationChannel; label: string }> = 
   { channel: "email", label: "Email" },
 ];
 
+/** Shown as a third column only when the server has push set up. */
+export const PUSH_CHANNEL: { channel: NotificationChannel; label: string } = { channel: "push", label: "Push" };
+
 export function isReminder(kind: string): boolean {
   return kind.startsWith("reminder_");
 }

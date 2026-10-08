@@ -1,6 +1,7 @@
 import type { Env } from "./env";
 import { json } from "./http";
 import { answer, BadRequest, callWriter, fetchProfiles, guarded, int, profileKey, readBody, resolveActor } from "./lessonsCommon";
+import { deliverPush } from "./lessonsPush";
 import { DEFAULT_FROM, sendMails, smtpSettings, type MailOutcome, type OutgoingMail } from "./mailer";
 
 /**
@@ -174,7 +175,11 @@ async function deliver(env: Env): Promise<void> {
   }
 
   const settings = smtpSettings(env);
-  if (!settings) return; // the in-app copies exist; emails wait until SMTP_USER / SMTP_PASSWORD are set
+  if (!settings) {
+    // The in-app copies exist; emails wait until SMTP_USER / SMTP_PASSWORD are set. Push does not need them.
+    await deliverPush(env);
+    return;
+  }
 
   const totals: Totals = { sent: 0, failed: 0, retry: 0, released: 0, skipped: 0 };
   for (let batch = 0; batch < MAX_BATCHES; batch += 1) {
@@ -229,4 +234,5 @@ async function deliver(env: Env): Promise<void> {
     if (released || rows.length < BATCH_SIZE) break; // the mail server is not reachable / the queue is drained
   }
   await logRun(env, totals);
+  await deliverPush(env);
 }
