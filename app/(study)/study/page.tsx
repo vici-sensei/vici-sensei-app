@@ -234,8 +234,20 @@ export default function StudyPage() {
           />
         </div>
       </div>
-      {levelUpResult && <JlptLevelUpModal result={levelUpResult} onClose={actions.dismissLevelUp} />}
-      {kanaGraduationResult && <KanaGraduationModal kind={kanaGraduationResult} onClose={actions.dismissKanaGraduation} />}
+      {levelUpResult && (
+        <JlptLevelUpModal
+          result={levelUpResult}
+          onClose={actions.dismissLevelUp}
+          confettiReady={newAchievements.length === 0}
+        />
+      )}
+      {kanaGraduationResult && (
+        <KanaGraduationModal
+          kind={kanaGraduationResult}
+          onClose={actions.dismissKanaGraduation}
+          confettiReady={newAchievements.length === 0}
+        />
+      )}
       {newAchievements.length > 0 && (
         <NewAchievementsModal
           entries={ACHIEVEMENT_CATALOG.filter((entry) => newAchievements.includes(entry.achievementKey))}

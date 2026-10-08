@@ -7,8 +7,13 @@ import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achieve
 import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
 
 /** The celebration modal for achievements the student has earned but not seen yet, for the screens
- * that end a run of work (/study/summary, the reading-test summary). Returns the modal to render,
- * or null when there is nothing to show.
+ * that end a run of work (/study/summary, the reading-test summary). `modal` is what to render, or
+ * null when there is nothing to show.
+ *
+ * `done` is false until the check has come back AND, if it found anything, the student has closed
+ * the modal -- the caller holds its own confetti until then, so it doesn't rain over the badge
+ * modal's sakura petals. A failed check counts as done (nothing will ever show), so a network
+ * error can't swallow the confetti.
  *
  * It looks for whatever is still unacknowledged on arrival rather than "earned since the last
  * page" -- the page that navigated here does so off an optimistic local-state change, before the
@@ -17,8 +22,12 @@ import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModa
  * unacknowledged doesn't lose the celebration to that race, and doesn't lose it forever if it is
  * missed (it surfaces on the next visit). `onlyKeys` narrows it to the achievements the current
  * screen can actually have earned. */
-export function useUnacknowledgedAchievements(userId: string, onlyKeys?: readonly string[]): ReactNode {
+export function useUnacknowledgedAchievements(
+  userId: string,
+  onlyKeys?: readonly string[]
+): { modal: ReactNode; done: boolean } {
   const [entries, setEntries] = useState<AchievementCatalogEntry[]>([]);
+  const [checked, setChecked] = useState(false);
   // One check per visit, whatever re-renders (or Strict Mode's double effect) do to the effect below.
   const checkedRef = useRef(false);
 
@@ -34,20 +43,25 @@ export function useUnacknowledgedAchievements(userId: string, onlyKeys?: readonl
       .catch(() => {
         // Non-critical -- worst case the celebration is missed this visit; the achievement stays
         // unacknowledged and will still surface next time.
-      });
+      })
+      .finally(() => setChecked(true));
   }, [userId, onlyKeys]);
 
-  if (entries.length === 0) return null;
-  return (
-    <NewAchievementsModal
-      entries={entries}
-      onClose={() => {
-        const keys = entries.map((entry) => entry.achievementKey);
-        setEntries([]);
-        void acknowledgeAchievements(createClient(), keys).catch(() => {
-          // Non-critical -- worst case the same achievement is shown again next visit.
-        });
-      }}
-    />
-  );
+  const done = checked && entries.length === 0;
+  if (entries.length === 0) return { modal: null, done };
+  return {
+    modal: (
+      <NewAchievementsModal
+        entries={entries}
+        onClose={() => {
+          const keys = entries.map((entry) => entry.achievementKey);
+          setEntries([]);
+          void acknowledgeAchievements(createClient(), keys).catch(() => {
+            // Non-critical -- worst case the same achievement is shown again next visit.
+          });
+        }}
+      />
+    ),
+    done,
+  };
 }

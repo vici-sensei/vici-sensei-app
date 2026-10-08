@@ -29,9 +29,10 @@ export default function StudySummaryPage() {
   const router = useRouter();
   const { user } = useStudyOnboarding();
   const [summary, setSummary] = useState<StudySessionEnd | null>(null);
-  const achievementsModal = useUnacknowledgedAchievements(user.id);
+  const { modal: achievementsModal, done: badgesDone } = useUnacknowledgedAchievements(user.id);
   const [kanaGraduationResult, setKanaGraduationResult] = useState<KanaGraduationKind | null>(null);
   const hasStarted = useRef(false);
+  const celebratedRef = useRef(false);
   // No StudyStatsProvider on this route (only (shell) layouts have one) -- fetched directly,
   // same as the leaderboard page does.
   const clockOffsetMs = useServerClockOffset();
@@ -93,13 +94,20 @@ export default function StudySummaryPage() {
         const result = await endSession(sessionId);
         clearStoredSessionId(user.id);
         setSummary(result);
-        void celebrate();
       } catch (err) {
         if (!(err instanceof ApiError)) throw err;
         router.replace("/dashboard");
       }
     })();
   }, [router, user.id]);
+
+  // Held until the new-badge modal (if any) has been closed, so the confetti doesn't rain over
+  // its sakura petals -- see useUnacknowledgedAchievements's `done`.
+  useEffect(() => {
+    if (!summary || !badgesDone || celebratedRef.current) return;
+    celebratedRef.current = true;
+    void celebrate();
+  }, [summary, badgesDone]);
 
   // Rendered immediately with placeholder values instead of a skeleton -- see summary-null
   // fallbacks below -- and only the "next review" line waits on real data, since until
@@ -142,7 +150,11 @@ export default function StudySummaryPage() {
       </div>
       {achievementsModal}
       {kanaGraduationResult && (
-        <KanaGraduationModal kind={kanaGraduationResult} onClose={() => setKanaGraduationResult(null)} />
+        <KanaGraduationModal
+          kind={kanaGraduationResult}
+          onClose={() => setKanaGraduationResult(null)}
+          confettiReady={badgesDone}
+        />
       )}
     </CelebrationBackdrop>
   );

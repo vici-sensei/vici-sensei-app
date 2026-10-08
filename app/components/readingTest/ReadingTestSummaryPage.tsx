@@ -109,17 +109,23 @@ function SummaryContent({ testType }: { testType: TestType }) {
     }
   }, [passed, justFinished, router]);
 
+  // See the hook for why this checks what's still unacknowledged rather than "earned since the test
+  // page's redirect" (that redirect fires before the last answer is guaranteed to have been saved).
+  const { modal: achievementsModal, done: badgesDone } = useUnacknowledgedAchievements(
+    user.id,
+    TEST_ACHIEVEMENT_KEYS[testType]
+  );
+
+  // Held until the new-badge modal (if any) has been closed, so the confetti doesn't rain over its
+  // sakura petals -- a passed test is also what earns the perfect-score badge, so this is the
+  // normal case here, not an edge.
   const celebratedRef = useRef(false);
   useEffect(() => {
-    if (passed && justFinished && !celebratedRef.current) {
+    if (passed && justFinished && badgesDone && !celebratedRef.current) {
       celebratedRef.current = true;
       void celebrate();
     }
-  }, [passed, justFinished]);
-
-  // See the hook for why this checks what's still unacknowledged rather than "earned since the test
-  // page's redirect" (that redirect fires before the last answer is guaranteed to have been saved).
-  const achievementsModal = useUnacknowledgedAchievements(user.id, TEST_ACHIEVEMENT_KEYS[testType]);
+  }, [passed, justFinished, badgesDone]);
 
   const handleRetry = async () => {
     setRetrying(true);

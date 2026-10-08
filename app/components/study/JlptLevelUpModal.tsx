@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Modal } from "@/app/components/ui/Modal";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
@@ -12,14 +12,21 @@ import { FaArrowRightLong, FaTrophy } from "react-icons/fa6";
 interface JlptLevelUpModalProps {
   result: JlptLevelUpResult;
   onClose: () => void;
+  /** False while a new-badge modal is open over this one -- the confetti waits for it to close
+   * instead of raining over the sakura petals. */
+  confettiReady?: boolean;
 }
 
-export function JlptLevelUpModal({ result, onClose }: JlptLevelUpModalProps) {
+export function JlptLevelUpModal({ result, onClose, confettiReady = true }: JlptLevelUpModalProps) {
   // Fires once per mount -- a fresh `result` always means a brand new modal instance (the page
-  // only ever renders this when result is non-null), never a re-render of the same one.
+  // only ever renders this when result is non-null), never a re-render of the same one. The ref
+  // keeps it once even if confettiReady flips back and forth.
+  const celebratedRef = useRef(false);
   useEffect(() => {
+    if (!confettiReady || celebratedRef.current) return;
+    celebratedRef.current = true;
     void celebrate();
-  }, []);
+  }, [confettiReady]);
 
   return (
     <Modal onClose={onClose} labelledBy="level-up-title">
