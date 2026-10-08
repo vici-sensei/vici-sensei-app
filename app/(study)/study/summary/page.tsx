@@ -16,6 +16,7 @@ import type { KanaGraduationKind, StudySessionEnd } from "@/lib/types";
 import { ACHIEVEMENT_CATALOG, type AchievementCatalogEntry } from "@/lib/achievements/registry";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
+import { CelebrationBackdrop } from "@/app/components/ui/CelebrationBackdrop";
 import { NextCardEta } from "@/app/(shell)/dashboard/NextCardEta";
 import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
 import { KanaGraduationModal } from "@/app/components/study/KanaGraduationModal";
@@ -142,7 +143,7 @@ export default function StudySummaryPage() {
   const dueLaterToday = summary ? summary.next_due_is_today : true;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.08)_0%,transparent_55%)]">
+    <CelebrationBackdrop glow="gold" className="min-h-screen px-6 py-[60px]">
       <div className="relative w-full max-w-[560px] text-center">
         <Badge color="gold">Session complete</Badge>
         <h1 className="mb-2 mt-4.5 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">
@@ -191,6 +192,6 @@ export default function StudySummaryPage() {
       {kanaGraduationResult && (
         <KanaGraduationModal kind={kanaGraduationResult} onClose={() => setKanaGraduationResult(null)} />
       )}
-    </div>
+    </CelebrationBackdrop>
   );
 }

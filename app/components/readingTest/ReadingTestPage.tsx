@@ -19,6 +19,7 @@ import { ReadingTestCloseButton } from "@/app/components/readingTest/ReadingTest
 import { StudyCardShell } from "@/app/components/study/StudyCardShell";
 import { UndoPill } from "@/app/components/study/UndoPill";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+import { FullScreenMessage } from "@/app/components/ui/FullScreenMessage";
 import { Button } from "@/app/components/ui/Button";
 import type { BrowseKanaEntry } from "@/lib/types";
 
@@ -234,20 +235,9 @@ export function ReadingTestPage({ testType, kanaEntries }: Props) {
     !session
   ) {
     return (
-      <div
-        className="flex items-center justify-center overflow-y-auto px-6 py-[60px] text-center"
-        style={{ height: "var(--app-height, 100dvh)" }}
-      >
-        <div className="w-full max-w-[380px]">
-          <ReadingTestCloseButton />
-          <h1 className="mb-2 text-lg font-bold text-white">
-            Couldn&apos;t load the reading test
-          </h1>
-          <p className="text-[0.9rem] leading-[1.6] text-text-muted">
-            {sentencesError ?? progressError ?? sessionError ?? "Please try again."}
-          </p>
-        </div>
-      </div>
+      <FullScreenMessage title="Couldn't load the reading test" header={<ReadingTestCloseButton />} viewportHeight>
+        {sentencesError ?? progressError ?? sessionError ?? "Please try again."}
+      </FullScreenMessage>
     );
   }
 

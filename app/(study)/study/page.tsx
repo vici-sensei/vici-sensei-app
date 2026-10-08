@@ -20,6 +20,7 @@ import { KanaGraduationModal } from "@/app/components/study/KanaGraduationModal"
 import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
 import { ACHIEVEMENT_CATALOG } from "@/lib/achievements/registry";
 import { Button } from "@/app/components/ui/Button";
+import { FullScreenMessage } from "@/app/components/ui/FullScreenMessage";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { FaArrowRotateRight, FaXmark } from "react-icons/fa6";
 
@@ -98,16 +99,17 @@ export default function StudyPage() {
 
   if (status === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6 py-[60px] text-center">
-        <div className="w-full max-w-[380px]">
-          <h1 className="mb-2 text-lg font-bold text-white">Couldn&apos;t load your queue</h1>
-          <p className="mb-6 text-[0.9rem] leading-[1.6] text-text-muted">{error ?? "Please try again."}</p>
+      <FullScreenMessage
+        title="Couldn't load your queue"
+        actions={
           <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
             <FaArrowRotateRight className="h-3.5 w-3.5" />
             Try again
           </Button>
-        </div>
-      </div>
+        }
+      >
+        {error ?? "Please try again."}
+      </FullScreenMessage>
     );
   }
 

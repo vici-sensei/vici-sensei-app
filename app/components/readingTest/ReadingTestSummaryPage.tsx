@@ -11,6 +11,8 @@ import { useToast } from "@/app/components/ui/Toast";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+import { FullScreenMessage } from "@/app/components/ui/FullScreenMessage";
+import { CelebrationBackdrop } from "@/app/components/ui/CelebrationBackdrop";
 import { NewAchievementsModal } from "@/app/components/study/NewAchievementsModal";
 import { ReadingTestMissedList } from "@/app/components/readingTest/ReadingTestMissedList";
 import { createClient } from "@/lib/supabase/client";
@@ -155,14 +157,9 @@ function SummaryContent({ testType }: { testType: TestType }) {
 
   if (sentencesStatus === "error" || progressStatus === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6 py-[60px] text-center">
-        <div className="w-full max-w-[380px]">
-          <h1 className="mb-2 text-lg font-bold text-white">Couldn&apos;t load your score</h1>
-          <p className="text-[0.9rem] leading-[1.6] text-text-muted">
-            {sentencesError ?? progressError ?? "Please try again."}
-          </p>
-        </div>
-      </div>
+      <FullScreenMessage title="Couldn't load your score">
+        {sentencesError ?? progressError ?? "Please try again."}
+      </FullScreenMessage>
     );
   }
 
@@ -172,7 +169,7 @@ function SummaryContent({ testType }: { testType: TestType }) {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[60px] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.08)_0%,transparent_55%)]">
+    <CelebrationBackdrop glow="gold" className="min-h-screen px-6 py-[60px]">
       <div className="relative w-full max-w-[480px] text-center">
         <Badge color={passed ? "gold" : "blue"}>
           <span className="inline-flex items-center gap-1.5">
@@ -221,7 +218,7 @@ function SummaryContent({ testType }: { testType: TestType }) {
           }}
         />
       )}
-    </div>
+    </CelebrationBackdrop>
   );
 }
 

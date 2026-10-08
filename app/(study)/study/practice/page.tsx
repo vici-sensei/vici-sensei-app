@@ -13,6 +13,8 @@ import { PracticeCategoryPicker } from "@/app/components/study/PracticeCategoryP
 import { QueueProgressBar } from "@/app/components/study/QueueProgressBar";
 import { UndoPill } from "@/app/components/study/UndoPill";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
+import { FullScreenMessage } from "@/app/components/ui/FullScreenMessage";
+import { CelebrationBackdrop } from "@/app/components/ui/CelebrationBackdrop";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { UsuallyKanaNote } from "@/app/components/ui/UsuallyKanaNote";
@@ -125,50 +127,45 @@ export default function PracticePage() {
 
   if (status === "error") {
     return (
-      <div className="flex flex-col gap-4 h-screen min-h-full items-center justify-between px-4 pb-8 pt-4 text-center">
-        <div className="w-full max-w-[380px]">
-          <h1 className="mb-2 text-lg font-bold text-white">Couldn&apos;t load your practice deck</h1>
-          <p className="mb-6 text-[0.9rem] leading-[1.6] text-text-muted">{error ?? "Please try again."}</p>
+      <FullScreenMessage
+        title="Couldn't load your practice deck"
+        actions={
           <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
             <FaArrowRotateRight className="h-3.5 w-3.5" />
             Try again
           </Button>
-        </div>
-      </div>
+        }
+      >
+        {error ?? "Please try again."}
+      </FullScreenMessage>
     );
   }
 
   if (status === "empty") {
     return (
-      <div className="flex flex-col gap-4 h-screen min-h-full items-center justify-between px-4 pb-8 pt-4 text-center">
-        <div className="w-full max-w-[380px]">
-          <h1 className="mb-2 text-lg font-bold text-white">Nothing to practice yet</h1>
-          <p className="mb-6 text-[0.9rem] leading-[1.6] text-text-muted">
-            You haven&apos;t been introduced to anything in the categories you picked yet — try a different combination, or come back once
-            you&apos;ve learned a bit more.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
+      <FullScreenMessage
+        title="Nothing to practice yet"
+        actions={
+          <>
             <Button variant="secondary" size="sm" onClick={actions.goToSetup}>
               Change categories
             </Button>
             <Button size="sm" onClick={() => router.push("/dashboard")}>
               Back to dashboard
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      >
+        You haven&apos;t been introduced to anything in the categories you picked yet — try a different combination, or come back once
+        you&apos;ve learned a bit more.
+      </FullScreenMessage>
     );
   }
 
   if (status === "done") {
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
-    const bgGlow = isPerfect
-      ? "before:bg-[radial-gradient(circle_at_50%_15%,rgb(255_210_0/0.12)_0%,transparent_55%)]"
-      : "before:bg-[radial-gradient(circle_at_50%_15%,rgb(0_210_255/0.08)_0%,transparent_55%)]";
     return (
-      <div
-        className={`relative flex h-screen items-center justify-center overflow-hidden overflow-y-auto p-4 before:pointer-events-none before:absolute before:inset-0 ${bgGlow}`}
-      >
+      <CelebrationBackdrop glow={isPerfect ? "goldStrong" : "blue"} className="h-screen overflow-y-auto p-4">
         <div className="relative w-full max-w-[420px] flex flex-col items-center justify-evenly text-center gap-4 h-full">
           <div className="flex flex-col items-center gap-2">
             <Badge color={isPerfect ? "gold" : "blue"}>{isPerfect ? "Perfect!" : "Session complete"}</Badge>
@@ -230,7 +227,7 @@ export default function PracticePage() {
             </Button>
           </div>
         </div>
-      </div>
+      </CelebrationBackdrop>
     );
   }
 
