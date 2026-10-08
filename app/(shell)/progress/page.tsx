@@ -7,6 +7,7 @@ import { useStudySettingsContext } from "@/lib/client-data/StudySettingsContext"
 import type { ProgressSummaryResponse, ProgressStatusCounts } from "@/lib/types";
 import { PROGRESS_STATUSES, type ProgressStatus } from "@/lib/srs/constants";
 import { GlassCard } from "@/app/components/ui/GlassCard";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 import { PiTranslate, PiSpeakerHigh, PiBookBookmark, PiTextAa, PiTextAUnderline } from "react-icons/pi";
 import { StartStudyingLink } from "./StartStudyingLink";
 
@@ -101,10 +102,7 @@ export default function ProgressPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-[2.1rem] font-extrabold leading-[1.2] tracking-[-0.8px]">Your progress</h1>
-      <p className="mb-7.5 text-base leading-[1.6] text-text-muted">
-        How your cards are distributed across each exercise type.
-      </p>
+      <PageHeader title="Your progress" subtitle="How your cards are distributed across each exercise type." />
 
       {summary && grandTotal === 0 ? (
         <div className="relative rounded-2xl border border-border-soft bg-bg-cards px-5 py-15 text-center text-text-muted backdrop-blur-[10px]">
