@@ -30,6 +30,15 @@ export function levenshteinDistance(a: string, b: string): number {
   return dp[a.length][b.length];
 }
 
+/** Whether `distance` (levenshteinDistance(a, b)) means not a single char of `a` lines up with one
+ * of `b`: with nothing kept in place, every char is substituted, inserted or deleted, so the
+ * distance is just the longer length. Ranking such answers by distance would only rank them by
+ * length -- the answer matchers skip them when picking the closest one, and fall back to the first
+ * accepted answer when every answer is like this. */
+export function noCharAligned(a: string, b: string, distance: number): boolean {
+  return distance >= Math.max(a.length, b.length);
+}
+
 // Alignment (which chars are "equal") is decided on the lowercased *Compare
 // strings, but the chars pushed into the diff come from the *Display strings
 // -- so the rendered diff keeps original casing while matching stays
