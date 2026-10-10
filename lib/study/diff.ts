@@ -42,23 +42,28 @@ function longestCommonSubsequence(a: string, b: string): number {
   return prev[b.length];
 }
 
-/** Share of letters a wrong answer must have in common with an accepted answer (see
- * resemblesAnswer) to be diffed against it rather than against the first accepted answer. */
+/** Share of each word's letters that must be found in the other (see resemblesAnswer) for a wrong
+ * answer to be diffed against an accepted answer rather than against the first accepted answer. */
 const MIN_SHARED_CHARS = 0.5;
 
 /** Whether wrong answer `a` resembles accepted answer `b` (`distance` = levenshteinDistance(a, b))
  * closely enough for a diff against `b` to mean anything. Two conditions:
- *  - at least half of their chars in common, in order: 2 * LCS / (|a| + |b|) >= MIN_SHARED_CHARS.
- *    Below that the overlap is coincidence ("soul" vs "mood", "death" vs "birth") and the edit
- *    distance mostly measures length, so short answers win ("atmo" was "closest" to "air");
+ *  - at least half of the letters of EACH word found in the other, in order -- i.e. the longest
+ *    common subsequence is at least MIN_SHARED_CHARS of the longer word. Below that the overlap is
+ *    coincidence ("death" vs "birth") and the edit distance mostly measures length, so short
+ *    answers win ("atmo" was "closest" to "air"). Both directions, because either one alone lets
+ *    coincidence through: "heart" -> "air" covers 2/3 of "air" but only 2/5 of "heart", and
+ *    "heart" -> "atmosphere" covers 3/5 of "heart" (h, e, r in order) but only 3/10 of "atmosphere".
+ *    LCS rather than the diff's own matches, so a swap ("ari" for "air") still counts both letters;
  *  - at least one char kept in place by the edit-distance alignment the diff is drawn from -- when
  *    the distance is just the longer length, every char is substituted, inserted or deleted, and
- *    the diff would show no match at all.
+ *    the diff would show no match at all ("ab" vs "ba").
  * The answer matchers only rank answers passing this, and fall back to the first accepted answer
- * when none does. */
+ * when none does. The price: an answer cut short before half the word ("atmo" for "atmosphere")
+ * isn't recognised either. */
 export function resemblesAnswer(a: string, b: string, distance: number): boolean {
   if (distance >= Math.max(a.length, b.length)) return false;
-  return (2 * longestCommonSubsequence(a, b)) / (a.length + b.length) >= MIN_SHARED_CHARS;
+  return longestCommonSubsequence(a, b) >= MIN_SHARED_CHARS * Math.max(a.length, b.length);
 }
 
 // Alignment (which chars are "equal") is decided on the lowercased *Compare
