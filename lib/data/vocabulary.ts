@@ -24,6 +24,30 @@ export async function fetchVocabularyDetail(id: number): Promise<VocabularyDetai
 }
 
 /**
+ * A study card's word's other_meanings (see VocabularyRow.other_meanings) -- none of the card RPCs
+ * carry them, since they only ever sit behind the revealed card's "Show other meanings" toggle. A
+ * vocab_meaning card knows its word by word_id, a kanji_reading card only by kanji_word_id.
+ */
+export async function fetchStudyWordOtherMeanings(
+  ref: { wordId: number } | { kanjiWordId: number }
+): Promise<string[][] | null> {
+  const supabase = createClient();
+  if ("wordId" in ref) {
+    const { data, error } = await supabase.from("vocabulary").select("other_meanings").eq("id", ref.wordId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data?.other_meanings as string[][] | null | undefined) ?? null;
+  }
+  const { data, error } = await supabase
+    .from("kanji_word")
+    .select("vocabulary:id_word(other_meanings)")
+    .eq("id", ref.kanjiWordId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const row = data as unknown as { vocabulary: { other_meanings: string[][] | null } | null } | null;
+  return row?.vocabulary?.other_meanings ?? null;
+}
+
+/**
  * get_due_cards.all_word_readings flattens every sibling row's kana_reading and
  * romaji_reading into one undifferentiated list, so it can't say which romaji
  * belongs to which kana. Querying vocabulary directly keeps each row's own pair

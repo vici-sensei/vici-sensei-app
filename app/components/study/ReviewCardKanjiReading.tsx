@@ -3,7 +3,9 @@
 import type { DueCard, Rating } from "@/lib/types";
 import { FaCheck } from "react-icons/fa6";
 import { renderTargetWord } from "@/lib/study/furigana";
+import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import { useKanjiReadingReviewCard } from "./useKanjiReadingReviewCard";
+import { useWordOtherMeanings } from "./useWordOtherMeanings";
 import { usePressableKanji } from "./usePressableKanji";
 import { KanjiHint } from "./KanjiHint";
 import { ReviewCardShell } from "./ReviewCardShell";
@@ -28,6 +30,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
   // The follow-up question depends on what the last checkmark was for.
   const askingAgain = !revealed ? lastAlternate : null;
   const meanings = card.primary_word_meanings ?? [];
+  const otherMeanings = useWordOtherMeanings(card);
 
   // The word's other kanji open KanjiInfoModal on click (double-tap on touch) -- the one being tested
   // joins them once the answer is revealed.
@@ -59,6 +62,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
           {revealed && meanings.length > 0 && (
             <p className="text-center text-sm italic text-text-muted">{meanings.join(", ")}</p>
           )}
+          {revealed && <OtherMeaningsToggle otherMeanings={otherMeanings} centered className="mt-1" />}
           {card.usually_kana && (
             <div className="mt-1.5">
               <UsuallyKanaNote />

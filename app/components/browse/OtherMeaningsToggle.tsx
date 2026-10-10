@@ -26,7 +26,8 @@ interface Props {
 
 /** "Show other meanings" toggle for a word's other_meanings, placed under its primary meanings on
  * /browse/vocabulary, /browse/vocabulary/detail, and /browse/kanji/detail's word list -- and, with
- * `centered`, under a kanji's first meaning in /study's KanjiInfoModal. Own local
+ * `centered`, under a kanji's first meaning in /study's KanjiInfoModal and under a revealed
+ * Vocabulary / Word reading card's meanings (see useWordOtherMeanings). Own local
  * state, so each row on a list page expands/collapses independently. stopPropagation +
  * preventDefault on click since /browse/vocabulary wraps each row in a Link to the detail page --
  * without them, clicking the toggle would also navigate away.

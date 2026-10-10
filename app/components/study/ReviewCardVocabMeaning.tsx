@@ -2,7 +2,9 @@
 
 import type { DueCard, Rating } from "@/lib/types";
 import { renderVocabularyWord, vocabularyDisplayText } from "@/lib/study/furigana";
+import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import { useVocabMeaningReviewCard } from "./useVocabMeaningReviewCard";
+import { useWordOtherMeanings } from "./useWordOtherMeanings";
 import { usePressableKanji } from "./usePressableKanji";
 import { KanjiHint } from "./KanjiHint";
 import { ReviewCardShell } from "./ReviewCardShell";
@@ -26,6 +28,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
 
   // The follow-up question depends on what the last checkmark was for.
   const askingAgain = !revealed ? lastAlternate : null;
+  const otherMeanings = useWordOtherMeanings(card);
 
   // The word's kanji open KanjiInfoModal on click (double-tap on touch) -- but not in a word of one
   // character until it's revealed: a single kanji's own meaning is the very answer this card asks for.
@@ -99,6 +102,7 @@ export function ReviewCardVocabMeaning({ card, disabled, onRate, onCancelableCha
           <div className="flex flex-col gap-3">
             <ConfirmedAnswersList answers={confirmedAlternates} subdued />
             <MeaningList meanings={card.primary_word_meanings ?? []} matchedMeanings={result.matchedMeanings} correct={result.correct} />
+            <OtherMeaningsToggle otherMeanings={otherMeanings} centered />
             {!result.correct && <TokenDiffList tokens={result.tokens} />}
           </div>
         )
