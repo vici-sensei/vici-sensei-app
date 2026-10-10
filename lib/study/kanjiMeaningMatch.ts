@@ -1,4 +1,4 @@
-import { levenshteinAlign, levenshteinDistance, noCharAligned, normalizeDiffDisplay, type DiffChar } from "./diff";
+import { levenshteinAlign, levenshteinDistance, normalizeDiffDisplay, resemblesAnswer, type DiffChar } from "./diff";
 
 export interface TokenResult {
   raw: string;
@@ -84,9 +84,9 @@ function findClosest(
       // Ranked on the strict (spaces-stripped) form -- how close the letters/digits are is what
       // "closest" should mean, not how many spaces happen to differ.
       const dist = levenshteinDistance(compareToken, variant.compare);
-      // A meaning the token hits no letter of is never "closest" (see noCharAligned) -- if the
-      // token hits nothing anywhere, the diff is drawn against the first meaning instead.
-      if (noCharAligned(compareToken, variant.compare, dist)) continue;
+      // A meaning the token barely resembles is never "closest" (see resemblesAnswer) -- if it
+      // resembles none of them, the diff is drawn against the first meaning instead.
+      if (!resemblesAnswer(compareToken, variant.compare, dist)) continue;
       if (dist < bestDist) {
         bestDist = dist;
         best = candidate;

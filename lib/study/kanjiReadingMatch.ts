@@ -1,4 +1,4 @@
-import { levenshteinAlign, levenshteinDistance, noCharAligned, normalizeDiffDisplay, type DiffChar } from "./diff";
+import { levenshteinAlign, levenshteinDistance, normalizeDiffDisplay, resemblesAnswer, type DiffChar } from "./diff";
 
 export interface ReadingCheckResult {
   correct: boolean;
@@ -40,16 +40,16 @@ function collectVariants(values: (string | null | undefined)[]): ReadingVariant[
   return Array.from(variants.values());
 }
 
-// `variants` starts with kana_reading, so an answer that hits no letter of any reading (romaji
-// typed for a reading whose romaji shares nothing with it, say) is diffed against the kana reading
-// -- not against whichever reading happens to be closest in length (see noCharAligned).
+// `variants` starts with kana_reading, so an answer that barely resembles any reading (romaji
+// typed for a reading whose romaji shares next to nothing with it, say) is diffed against the kana
+// reading -- not against whichever reading happens to be closest in length (see resemblesAnswer).
 function findClosest(compareInput: string, variants: ReadingVariant[]): ReadingVariant {
   let best = variants[0];
   let bestDist = Infinity;
   for (const variant of variants) {
     // Ranked on the strict (spaces-stripped) form -- see normalizeCompare.
     const dist = levenshteinDistance(compareInput, variant.compare);
-    if (noCharAligned(compareInput, variant.compare, dist)) continue;
+    if (!resemblesAnswer(compareInput, variant.compare, dist)) continue;
     if (dist < bestDist) {
       bestDist = dist;
       best = variant;
