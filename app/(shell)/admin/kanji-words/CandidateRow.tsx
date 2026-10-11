@@ -4,6 +4,7 @@ import { FaRotateLeft } from "react-icons/fa6";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 import type { KanjiWordCandidate } from "@/lib/types";
 import { algoReason, gapText, gapToneClasses } from "./wordLabels";
+import { candidateMeanings, WordMeanings } from "./WordMeanings";
 
 function Pill({ className = "border-border-soft bg-white/5 text-text-muted", children }: { className?: string; children: React.ReactNode }) {
   return (
@@ -46,7 +47,8 @@ export function CandidateRow({ candidate: c, checked, onToggle, onRevert }: Cand
             <span className="text-[1.5rem] font-bold leading-[1.9]">
               {renderWordWithFurigana(c.word, c.furiganas, "text-[0.7rem] font-normal text-text-muted")}
             </span>
-            <span className="text-sm text-text-muted">{c.meanings?.slice(0, 3).join("; ") ?? ""}</span>
+            {/* Beside the word when there's room (lined up on its first line), under it otherwise. */}
+            <WordMeanings {...candidateMeanings(c)} className="min-w-[12rem] flex-1" />
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-1.5">
             <Pill className={gapToneClasses(c.gap)}>

@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { FaCircleCheck, FaPenToSquare, FaRotate } from "react-icons/fa6";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
-import type { KanjiWordsRow } from "@/lib/types";
+import type { KanjiWordsMeaningsMap, KanjiWordsRow, KanjiWordTuple } from "@/lib/types";
 import { maxGap } from "./kanjiWordsView";
 import { gapText, gapToneClasses } from "./wordLabels";
+import { useWordPopover, WORD_CHIP_CLASSES } from "./WordPopover";
 
 interface KanjiListProps {
   rows: KanjiWordsRow[];
@@ -15,6 +17,9 @@ interface KanjiListProps {
   onShowMore: () => void;
   onSelect: (id: number) => void;
   onToggleChecked: (id: number) => void;
+  /** The words' meanings for the chips' popover, loaded after the list (null = not yet). */
+  meanings: KanjiWordsMeaningsMap | null;
+  meaningsFailed: boolean;
 }
 
 function Flag({ className, children, title }: { className: string; children: React.ReactNode; title: string }) {
@@ -91,8 +96,8 @@ function KanjiListRow({
             row.f.map((w) => (
               <span
                 key={w[0]}
-                title={`${w[2] ?? "No JLPT level"}${w[4] ? "" : " · not common"}`}
-                className={`rounded-md border px-1.5 py-0.5 text-[0.82rem] ${gapToneClasses(w[3])}`}
+                data-word-id={w[0]}
+                className={`rounded-md border px-1.5 py-0.5 text-[0.82rem] ${gapToneClasses(w[3])} ${WORD_CHIP_CLASSES}`}
               >
                 {w[1]}
               </span>
@@ -104,10 +109,34 @@ function KanjiListRow({
   );
 }
 
-export function KanjiList({ rows, selectedId, checked, limit, onShowMore, onSelect, onToggleChecked }: KanjiListProps) {
+export function KanjiList({
+  rows,
+  selectedId,
+  checked,
+  limit,
+  onShowMore,
+  onSelect,
+  onToggleChecked,
+  meanings,
+  meaningsFailed,
+}: KanjiListProps) {
+  const tuples = useMemo(() => new Map<number, KanjiWordTuple>(rows.flatMap((row) => row.f.map((w) => [w[0], w]))), [rows]);
+  // The chip's level and "not common" used to be its title; they head the popover now.
+  const { handlers, popover } = useWordPopover((id) => {
+    const w = tuples.get(id);
+    if (!w) return null;
+    const m = meanings?.[String(id)];
+    return {
+      word: w[1],
+      jlpt: w[2],
+      common: w[4],
+      meanings: m ? { short: m[0], primary: m[1], other: m[2] } : meaningsFailed ? "error" : "loading",
+    };
+  });
+
   return (
     <>
-      <ul>
+      <ul {...handlers}>
         {rows.slice(0, limit).map((row) => (
           <KanjiListRow
             key={row.id}
@@ -119,6 +148,7 @@ export function KanjiList({ rows, selectedId, checked, limit, onShowMore, onSele
           />
         ))}
       </ul>
+      {popover}
       {rows.length > limit ? (
         <div className="p-3 text-center">
           <button

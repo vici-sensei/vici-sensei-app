@@ -37,6 +37,12 @@ export interface KanjiWordsOverview {
   kanji: KanjiWordsRow[];
 }
 
+/** [short meaning or null, primary meanings, secondary senses] of one word (admin_get_kanji_words_meanings). */
+export type KanjiWordMeaningsTuple = [short: string | null, primary: string[], other: string[][]];
+
+/** kanji_word_id -> the meanings of its word, for the kanji list's word chips. */
+export type KanjiWordsMeaningsMap = Record<string, KanjiWordMeaningsTuple>;
+
 /** Why the algorithm took or skipped a candidate (kanji_word_algo_info). */
 export interface KanjiWordAlgoInfo {
   /** 0 = normal word, 1 = shared-furigana word, 2 = usually-kana word. */
@@ -58,7 +64,14 @@ export interface KanjiWordCandidate {
   word: string;
   kana: string | null;
   furiganas: string[] | null;
+  /** The short meaning glued in front of the primary ones (vocabulary_primary_meanings), like a card shows them. */
   meanings: string[] | null;
+  /** The three kinds of meaning apart (20261011040512_kanji_words_admin_meanings.sql); absent from an RPC
+   *  older than that, see candidateMeanings(). `short` is null when the word has none, `other` holds one
+   *  array of glosses per secondary sense. */
+  short?: string | null;
+  primary?: string[];
+  other?: string[][];
   jlpt: string | null;
   gap: number;
   common: boolean;

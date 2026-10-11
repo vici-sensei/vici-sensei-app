@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FaArrowDownWideShort, FaArrowUpWideShort, FaClockRotateLeft, FaSliders } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useKanjiWordsOverview } from "@/lib/client-data/adminKanjiWords";
+import { useKanjiWordsMeanings, useKanjiWordsOverview } from "@/lib/client-data/adminKanjiWords";
 import {
   bulkKanjiWords,
   fetchKanjiWordsParity,
@@ -88,6 +88,7 @@ function AdminKanjiWords() {
   const { user } = useAuth();
   const multiRegion = isMultiRegionEnabled();
   const { data, status, error, refetch } = useKanjiWordsOverview(multiRegion ? user : null);
+  const { meanings, failed: meaningsFailed } = useKanjiWordsMeanings(data);
   const { showToast } = useToast();
   const searchParams = useSearchParams();
 
@@ -420,6 +421,8 @@ function AdminKanjiWords() {
               onShowMore={() => setLimit((n) => n + LIST_PAGE)}
               onSelect={requestSelect}
               onToggleChecked={toggleChecked}
+              meanings={meanings}
+              meaningsFailed={meaningsFailed}
             />
           ) : null}
         </GlassCard>

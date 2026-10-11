@@ -5,6 +5,7 @@ import type {
   KanjiWordsBulkOp,
   KanjiWordsBulkResult,
   KanjiWordsHistory,
+  KanjiWordsMeaningsMap,
   KanjiWordsOverview,
   KanjiWordsParity,
   KanjiWordsTodoCount,
@@ -68,6 +69,15 @@ async function call<T>(supabase: AppSupabaseClient, fn: string, args?: Record<st
 
 export function fetchKanjiWordsOverview(supabase: AppSupabaseClient): Promise<KanjiWordsOverview> {
   return call(supabase, "admin_get_kanji_words_overview");
+}
+
+/** The meanings of the words in the kanji lists: `kanjiWordIds` null = every word of every final or algorithm
+ *  list (~570 KB), an array = just those words. */
+export function fetchKanjiWordsMeanings(
+  supabase: AppSupabaseClient,
+  kanjiWordIds: number[] | null
+): Promise<KanjiWordsMeaningsMap> {
+  return call(supabase, "admin_get_kanji_words_meanings", { p_kanji_word_ids: kanjiWordIds });
 }
 
 export function fetchKanjiWordCandidates(supabase: AppSupabaseClient, kanjiId: number): Promise<KanjiWordCandidates> {

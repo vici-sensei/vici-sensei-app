@@ -2,6 +2,7 @@
 
 import { renderTargetWord } from "@/lib/study/furigana";
 import type { KanjiWordCandidate } from "@/lib/types";
+import { candidateMeanings, WordMeanings } from "./WordMeanings";
 
 interface StudentPreviewProps {
   kanji: string;
@@ -34,7 +35,7 @@ export function StudentPreview({ kanji, words, currentCount }: StudentPreviewPro
               <div className="text-[1.6rem] font-bold leading-[2]">
                 {renderTargetWord(w.word, kanji, w.furiganas, null)}
               </div>
-              <div className="text-xs text-text-muted">{w.meanings?.[0] ?? ""}</div>
+              <WordMeanings {...candidateMeanings(w)} compact />
             </li>
           ))}
         </ul>
