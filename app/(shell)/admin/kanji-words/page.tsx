@@ -158,6 +158,23 @@ function AdminKanjiWords() {
     return { total: rows.length, reviewed, byLevel };
   }, [rows]);
   const selectedRow = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
+  const editorOpen = selectedRow !== null;
+
+  // Below lg the editor is a full-screen sheet with its own scroll; lock the page behind it so there's only one.
+  useEffect(() => {
+    if (!editorOpen) return;
+    const wide = window.matchMedia("(min-width: 992px)"); // --breakpoint-lg (app/globals.css)
+    const previousOverflow = document.body.style.overflow;
+    const apply = () => {
+      document.body.style.overflow = wide.matches ? previousOverflow : "hidden";
+    };
+    apply();
+    wide.addEventListener("change", apply);
+    return () => {
+      wide.removeEventListener("change", apply);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [editorOpen]);
 
   function writeUrl(nextView: KanjiView, nextSelected: number | null) {
     const qs = serializeView(nextView, nextSelected);
@@ -432,7 +449,7 @@ function AdminKanjiWords() {
           ref={editorRef}
           className={
             selectedRow
-              ? "scroll-mt-20 fixed inset-0 z-[120] overflow-y-auto bg-bg-main p-4 lg:static lg:inset-auto lg:z-auto lg:overflow-visible lg:bg-transparent lg:p-0"
+              ? "scroll-mt-20 fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-bg-main p-4 lg:static lg:inset-auto lg:z-auto lg:overflow-visible lg:bg-transparent lg:p-0"
               : "hidden lg:block"
           }
         >
