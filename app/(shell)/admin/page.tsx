@@ -89,7 +89,7 @@ export default function AdminOverviewPage() {
             >
               <FaLanguage className="h-6 w-6 text-accent-green" />
               <div>
-                <div className="font-bold">Kanji words</div>
+                <div className="font-bold">Words per kanji</div>
                 <div className="text-sm text-text-muted">
                   {kanjiWordsStatus === "loading" ? <Skeleton className="h-4 w-40" /> : null}
                   {kanjiWords

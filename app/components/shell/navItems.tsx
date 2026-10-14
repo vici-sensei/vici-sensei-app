@@ -140,7 +140,7 @@ export const NAV_ITEMS: NavItem[] = [
       },
       {
         href: "/admin/kanji-words",
-        label: "Kanji words",
+        label: "Words per kanji",
         isActive: (p) => p.startsWith("/admin/kanji-words"),
         icon: <FaLanguage />,
       },

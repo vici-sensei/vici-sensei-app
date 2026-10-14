@@ -288,8 +288,8 @@ function AdminKanjiWords() {
     return (
       <div>
         <PageHeader
-          breadcrumbs={[{ label: "Teacher", href: "/admin" }, { label: "Kanji words" }]}
-          title="Kanji words"
+          breadcrumbs={[{ label: "Teacher", href: "/admin" }, { label: "Words per kanji" }]}
+          title="Words per kanji"
           subtitle="This page needs the EU/US projects (NEXT_PUBLIC_MULTI_REGION), which hold the kanji-words tables."
         />
       </div>
@@ -298,8 +298,8 @@ function AdminKanjiWords() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Kanji words" }]} />
-      <h1 className="sr-only">Kanji words</h1>
+      <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Words per kanji" }]} />
+      <h1 className="sr-only">Words per kanji</h1>
 
       {parity && parity.in_sync === false ? (
         <GlassCard padding="sm" tone="danger" className="mb-4">
