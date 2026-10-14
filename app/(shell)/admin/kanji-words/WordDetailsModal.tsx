@@ -9,7 +9,7 @@ import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Modal } from "@/app/components/ui/Modal";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import type { KanjiWordCandidate, KanjiWordVocabulary } from "@/lib/types";
-import { WordMeanings } from "./WordMeanings";
+import { candidateMeanings, WordMeanings } from "./WordMeanings";
 
 function listText(items: string[] | null, separator = ", "): string {
   return items && items.length > 0 ? items.join(separator) : "—";
@@ -79,6 +79,12 @@ export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProp
         <h3 id="word-details-title" className="mt-1 pr-10 text-[2.2rem] font-bold leading-[1.9]">
           {renderWordWithFurigana(v?.word ?? c.word, v ? v.furiganas : c.furiganas, "text-[0.8rem] font-normal text-text-muted")}
         </h3>
+        {/* The meaning, right under the word, unlabelled; the candidate's own copy until the row arrives. */}
+        <WordMeanings
+          {...(v
+            ? { short: v.short_meaning?.trim() || null, primary: v.primary_meanings ?? [], other: v.other_meanings ?? [] }
+            : candidateMeanings(c))}
+        />
 
         {error ? (
           <div className="mt-4 text-sm">
@@ -107,17 +113,6 @@ export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProp
 
         {v ? (
           <>
-            <Group title="Meaning">
-              <Field label="Meaning">
-                <WordMeanings
-                  short={v.short_meaning?.trim() || null}
-                  primary={v.primary_meanings ?? []}
-                  other={v.other_meanings ?? []}
-                />
-              </Field>
-              <Field label="Parts of speech">{listText(v.parts_of_speech)}</Field>
-            </Group>
-
             <Group title="Reading">
               <Field label="Kana reading">{v.kana_reading || "—"}</Field>
               <Field label="Romaji">{v.romaji_reading || "—"}</Field>
@@ -127,6 +122,7 @@ export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProp
             </Group>
 
             <Group title="Usage">
+              <Field label="Parts of speech">{listText(v.parts_of_speech)}</Field>
               <Field label="Common (Jisho)">{yesNo(v.is_common_jisho)}</Field>
               <Field label="Usually written in kana">{yesNo(v.usually_kana)}</Field>
               <Field label="Enabled for study">{yesNo(v.study_enabled)}</Field>
