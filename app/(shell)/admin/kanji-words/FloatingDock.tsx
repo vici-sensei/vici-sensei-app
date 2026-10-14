@@ -35,7 +35,13 @@ interface FloatingCardProps {
   primary?: boolean;
   /** Shown on the closed circle: a number in a bubble, or (dot) just a mark that something is there. */
   count?: number;
+  /** What the count counts, for screen readers: "3 unsaved changes". */
+  countNoun?: string;
   dot?: boolean;
+  /** Which side of the dock the circle sits on; the card grows from there and keeps its chevron on that side. */
+  side?: "right" | "left";
+  /** Width cap of the open card, as a complete Tailwind class so the scanner sees it. */
+  widthClassName?: string;
   open: boolean;
   onOpen: () => void;
   /** Kept stable by the caller: it's a dependency of the listeners the open card sets up. */
@@ -48,7 +54,20 @@ interface FloatingCardProps {
  * outside the dock folds it back; a press on another circle of the dock opens that one's card instead. What was typed
  * in the card lives in the caller, so folding keeps it.
  */
-export function FloatingCard({ label, icon, primary = false, count = 0, dot = false, open, onOpen, onClose, children }: FloatingCardProps) {
+export function FloatingCard({
+  label,
+  icon,
+  primary = false,
+  count = 0,
+  countNoun = "unsaved change",
+  dot = false,
+  side = "right",
+  widthClassName = "max-w-md",
+  open,
+  onOpen,
+  onClose,
+  children,
+}: FloatingCardProps) {
   const cardId = useId();
   const cardRef = useRef<HTMLDivElement>(null);
   const circleRef = useRef<HTMLButtonElement>(null);
@@ -68,6 +87,8 @@ export function FloatingCard({ label, icon, primary = false, count = 0, dot = fa
     }
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
+      // A menu open inside the card (e.g. "Bulk actions") takes this Escape for itself.
+      if (cardRef.current?.querySelector('[aria-haspopup][aria-expanded="true"]')) return;
       refocusCircle.current = true;
       onClose();
     }
@@ -84,7 +105,9 @@ export function FloatingCard({ label, icon, primary = false, count = 0, dot = fa
       <div
         ref={cardRef}
         id={cardId}
-        className="pointer-events-auto flex w-full max-w-md origin-bottom-right items-end gap-3 rounded-2xl border border-border-soft bg-gray-900/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[10px] transition-[opacity,scale] duration-200 ease-out starting:scale-[0.15] starting:opacity-0"
+        className={`pointer-events-auto flex w-full ${widthClassName} ${
+          side === "left" ? "origin-bottom-left flex-row-reverse" : "origin-bottom-right"
+        } items-end gap-3 rounded-2xl border border-border-soft bg-gray-900/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[10px] transition-[opacity,scale] duration-200 ease-out starting:scale-[0.15] starting:opacity-0`}
       >
         <div className="min-w-0 flex-1 space-y-3">{children}</div>
         <button
@@ -109,7 +132,7 @@ export function FloatingCard({ label, icon, primary = false, count = 0, dot = fa
       ref={circleRef}
       type="button"
       onClick={onOpen}
-      aria-label={count > 0 ? `${label} (${count} unsaved change${count === 1 ? "" : "s"})` : label}
+      aria-label={count > 0 ? `${label} (${count} ${countNoun}${count === 1 ? "" : "s"})` : label}
       title={label}
       aria-expanded={false}
       aria-controls={cardId}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FaArrowDownWideShort, FaArrowUpWideShort, FaClockRotateLeft, FaSliders } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -13,7 +13,6 @@ import {
 } from "@/lib/data/adminKanjiWords";
 import { createClient } from "@/lib/supabase/client";
 import { isMultiRegionEnabled } from "@/lib/supabase/regions";
-import { Collapsible } from "@/app/components/ui/Collapsible";
 import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
@@ -26,6 +25,7 @@ import { BatchesModal } from "./BatchesModal";
 import { BulkMenu, type BulkChoice } from "./BulkMenu";
 import { EditorPanel } from "./EditorPanel";
 import { FilterPanel } from "./FilterPanel";
+import { FloatingCard } from "./FloatingDock";
 import { KanjiList } from "./KanjiList";
 import { OperationModal, type OperationSpec } from "./OperationModal";
 import { ReviewProgress } from "./ReviewProgress";
@@ -98,7 +98,8 @@ function AdminKanjiWords() {
   const [initialUrl] = useState(() => parseView(new URLSearchParams(searchParams.toString())));
   const [view, setView] = useState<KanjiView>(initialUrl.view);
   const [selectedId, setSelectedId] = useState<number | null>(initialUrl.selected);
-  const [filtersOpen, setFiltersOpen] = useState(() => activeFilterCount(initialUrl.view.filters) > 0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const closeFilters = useCallback(() => setFiltersOpen(false), []);
   const [limit, setLimit] = useState(LIST_PAGE);
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [dirty, setDirty] = useState(false);
@@ -288,75 +289,7 @@ function AdminKanjiWords() {
 
       <ReviewProgress rows={rows} loading={status !== "loaded"} />
 
-      <div className="flex flex-wrap items-center gap-2.5">
-        <input
-          type="search"
-          value={view.query}
-          onChange={(e) => updateView({ ...view, query: e.target.value })}
-          placeholder="Search a kanji, reading, meaning or word…"
-          className="min-w-0 max-w-sm flex-1 basis-60 rounded-xl border border-border-soft bg-bg-cards px-4 py-2.5 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
-        />
-        <button
-          type="button"
-          aria-expanded={filtersOpen}
-          onClick={() => setFiltersOpen((open) => !open)}
-          className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-2.5 text-[0.85rem] font-extrabold transition-all ${
-            filtersOpen || filterCount > 0
-              ? "border-accent-blue/35 bg-accent-blue/[0.12] text-accent-blue"
-              : "border-border-soft bg-white/[0.03] text-text-muted hover:border-white/20"
-          }`}
-        >
-          <FaSliders className="h-3.5 w-3.5" />
-          Filters{filterCount > 0 ? ` (${filterCount})` : ""}
-        </button>
-        {filterCount > 0 ? (
-          <button
-            type="button"
-            onClick={() => updateView({ ...view, filters: DEFAULT_FILTERS })}
-            className="cursor-pointer px-1 text-[0.85rem] font-bold text-text-muted hover:text-white"
-          >
-            Reset
-          </button>
-        ) : null}
-        <select
-          aria-label="Sort by"
-          value={view.sort}
-          onChange={(e) => handleSort(e.target.value as SortKey)}
-          className="rounded-xl border border-border-soft bg-bg-cards px-3 py-2.5 text-[0.85rem] font-bold text-text-muted outline-none focus:border-accent-red/50"
-        >
-          {SORT_OPTIONS.map((key) => (
-            <option key={key} value={key}>
-              {SORT_LABELS[key]}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => updateView({ ...view, dir: view.dir === "asc" ? "desc" : "asc" })}
-          aria-label={view.dir === "asc" ? "Sorted ascending; switch to descending" : "Sorted descending; switch to ascending"}
-          title={view.dir === "asc" ? "Ascending" : "Descending"}
-          className="inline-flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-xl border border-border-soft bg-white/[0.03] text-text-muted transition-all hover:border-white/20 hover:text-white"
-        >
-          {view.dir === "asc" ? <FaArrowUpWideShort className="h-3.5 w-3.5" /> : <FaArrowDownWideShort className="h-3.5 w-3.5" />}
-        </button>
-        <BulkMenu scopeCount={scopeIds.length} scopeLabel={scopeLabel} onPick={startBulk} />
-        <button
-          type="button"
-          onClick={() => setBatchesOpen(true)}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border-soft bg-white/[0.03] px-4 py-2.5 text-[0.85rem] font-extrabold text-text-muted transition-all hover:border-white/20"
-        >
-          <FaClockRotateLeft className="h-3.5 w-3.5" />
-          Bulk changes
-        </button>
-      </div>
-
-      <Collapsible open={filtersOpen} openClassName="mt-4">
-        <GlassCard padding="sm">
-          <FilterPanel filters={view.filters} onChange={handleFilterChange} adminOptions={adminOptions} />
-        </GlassCard>
-      </Collapsible>
-
-      <div className="mt-4 mb-2.5 flex flex-wrap items-center justify-between gap-2 text-sm text-text-muted">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-sm text-text-muted">
         <label className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
@@ -420,6 +353,78 @@ function AdminKanjiWords() {
               Pick a kanji on the left to see every word it appears in and choose which ones it is taught with.
             </GlassCard>
           )}
+        </div>
+      </div>
+
+      {/* Search, sorting, the filters and the bulk tools all sit behind one round button that floats at the bottom
+          left while the page scrolls (the editor's own circles are on the right). The zero-height sticky strip keeps it
+          out of the flow, so the card grows upwards over the list instead of pushing the page down. */}
+      <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0">
+        <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-start">
+          <FloatingCard
+            label="Filters"
+            icon={<FaSliders className="h-4 w-4" />}
+            count={filterCount + (view.query.trim() ? 1 : 0)}
+            countNoun="active filter"
+            side="left"
+            widthClassName="max-w-2xl"
+            open={filtersOpen}
+            onOpen={() => setFiltersOpen(true)}
+            onClose={closeFilters}
+          >
+            {/* Above the scrolling part, so the "Bulk actions" menu can open over it instead of being cut off. */}
+            <div className="relative z-10 flex flex-wrap items-center gap-2.5">
+              <input
+                type="search"
+                value={view.query}
+                onChange={(e) => updateView({ ...view, query: e.target.value })}
+                placeholder="Search a kanji, reading, meaning or word…"
+                className="min-w-0 w-full rounded-xl border border-border-soft bg-bg-cards px-4 py-2.5 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
+              />
+              <select
+                aria-label="Sort by"
+                value={view.sort}
+                onChange={(e) => handleSort(e.target.value as SortKey)}
+                className="rounded-xl border border-border-soft bg-bg-cards px-3 py-2.5 text-[0.85rem] font-bold text-text-muted outline-none focus:border-accent-red/50"
+              >
+                {SORT_OPTIONS.map((key) => (
+                  <option key={key} value={key}>
+                    {SORT_LABELS[key]}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => updateView({ ...view, dir: view.dir === "asc" ? "desc" : "asc" })}
+                aria-label={view.dir === "asc" ? "Sorted ascending; switch to descending" : "Sorted descending; switch to ascending"}
+                title={view.dir === "asc" ? "Ascending" : "Descending"}
+                className="inline-flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-xl border border-border-soft bg-white/[0.03] text-text-muted transition-all hover:border-white/20 hover:text-white"
+              >
+                {view.dir === "asc" ? <FaArrowUpWideShort className="h-3.5 w-3.5" /> : <FaArrowDownWideShort className="h-3.5 w-3.5" />}
+              </button>
+              <BulkMenu scopeCount={scopeIds.length} scopeLabel={scopeLabel} onPick={startBulk} />
+              <button
+                type="button"
+                onClick={() => setBatchesOpen(true)}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border-soft bg-white/[0.03] px-4 py-2.5 text-[0.85rem] font-extrabold text-text-muted transition-all hover:border-white/20"
+              >
+                <FaClockRotateLeft className="h-3.5 w-3.5" />
+                Bulk changes
+              </button>
+              {filterCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => updateView({ ...view, filters: DEFAULT_FILTERS })}
+                  className="cursor-pointer px-1 text-[0.85rem] font-bold text-text-muted hover:text-white"
+                >
+                  Reset filters
+                </button>
+              ) : null}
+            </div>
+            <div className="max-h-[calc(100dvh-20rem)] overflow-y-auto overscroll-contain border-t border-border-soft pt-3">
+              <FilterPanel filters={view.filters} onChange={handleFilterChange} adminOptions={adminOptions} />
+            </div>
+          </FloatingCard>
         </div>
       </div>
 
