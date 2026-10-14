@@ -130,8 +130,8 @@ function AdminKanjiWords() {
     };
   }, [multiRegion]);
 
-  // The editor scrolls inside its own box (beside the list, or the phone sheet), which outlives the kanji in it: a newly
-  // picked kanji starts at its top, not where the last one was left.
+  // The phone sheet scrolls as a whole and outlives the kanji in it: a newly picked kanji starts at its top, not where
+  // the last one was left. (On a wide screen the editor's card scrolls, and a new kanji brings a new card.)
   useEffect(() => {
     if (editorRef.current) editorRef.current.scrollTop = 0;
   }, [selectedId]);
@@ -366,13 +366,14 @@ function AdminKanjiWords() {
           ) : null}
         </GlassCard>
 
-        {/* A full-screen sheet on a phone; on a wide screen it sits beside the list and, like it, sticks under the
-            header with its own scroll, fitted to the window by the effect above. */}
+        {/* A full-screen sheet on a phone, scrolling as a whole. On a wide screen it sits beside the list and, like it,
+            sticks under the header, fitted to the window by the effect above; there the editor's card shrinks into it
+            and scrolls itself, so its rounded corners and its scrollbar stay inside the card. */}
         <div
           ref={editorRef}
           className={
             selectedRow
-              ? "fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-bg-main p-4 lg:sticky lg:top-[5.25rem] lg:right-auto lg:bottom-auto lg:left-auto lg:z-auto lg:bg-transparent lg:p-0"
+              ? "fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-bg-main p-4 lg:sticky lg:top-[5.25rem] lg:right-auto lg:bottom-auto lg:left-auto lg:z-auto lg:flex lg:flex-col lg:overflow-visible lg:bg-transparent lg:p-0"
               : "hidden lg:block"
           }
         >
@@ -396,8 +397,8 @@ function AdminKanjiWords() {
           right of the kanji list while the page scrolls: the whole width on a phone, the list's 26rem column beside the
           editor (whose own circles hold the far right) on a wide screen. The zero-height sticky strip keeps it out of
           the flow, so the card grows upwards over the list instead of pushing the page down. */}
-      <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0 lg:bottom-9">
-        <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-end pr-4 lg:right-auto lg:w-[26rem]">
+      <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0 lg:bottom-10">
+        <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-end pr-5 lg:right-auto lg:w-[26rem]">
           <FloatingCard
             label="Filters"
             icon={<FaSliders className="h-4 w-4" />}

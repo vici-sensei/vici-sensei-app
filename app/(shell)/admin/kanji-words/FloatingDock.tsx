@@ -19,12 +19,14 @@ const PLAIN_COLORS =
 /**
  * Round buttons stacked at the bottom right of the editor. Sticky, so they stay in sight while the words scroll and
  * settle at the end of the list; only the circles themselves catch presses, the rest of the strip lets them through.
+ * On a wide screen the editor's card is what scrolls, and sticky already keeps clear of its 1.25rem padding, so no
+ * extra offset there (it then lines up with the list's Filters circle).
  */
 export function FloatingDock({ children }: { children: ReactNode }) {
   return (
     <div
       data-floating-dock
-      className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-10 flex flex-col items-end gap-3"
+      className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-10 flex flex-col items-end gap-3 lg:bottom-0"
     >
       {children}
     </div>

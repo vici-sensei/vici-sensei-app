@@ -195,7 +195,9 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
 
   return (
     // !h-auto: GlassCard's h-full would pin it to the phone sheet's height (fixed inset-0) and the words below spill out.
-    <GlassCard padding="sm" className="!h-auto">
+    // On a wide screen the page fits the editor's column to the window; the card shrinks into it (min-h-0) and scrolls
+    // itself, so the scrollbar and the rounded corners stay inside the card.
+    <GlassCard padding="sm" className="!h-auto lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
       <div className="flex items-start gap-4">
         <div className="text-[3.2rem] font-bold leading-none">{row.k}</div>
         <div className="min-w-0 flex-1">
