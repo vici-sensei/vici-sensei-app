@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FaXmark } from "react-icons/fa6";
+import { FaCheck, FaFloppyDisk, FaNoteSticky, FaXmark } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
 import {
   describeKanjiWordsError,
@@ -16,7 +16,7 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useToast } from "@/app/components/ui/Toast";
 import type { AsyncStatus, KanjiWordCandidate, KanjiWordCandidates, KanjiWordsRow } from "@/lib/types";
 import { CandidateRow } from "./CandidateRow";
-import { FloatingSaveCard } from "./FloatingSaveCard";
+import { FloatingCard, FloatingDock, FloatingToggle } from "./FloatingDock";
 import { HistoryPanel } from "./HistoryPanel";
 import { groupReadingLabels } from "./wordLabels";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
@@ -67,7 +67,9 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
   const [note, setNote] = useState("");
   const [markReviewed, setMarkReviewed] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saveOpen, setSaveOpen] = useState(false);
+  // Which of the floating circles at the bottom is grown into its card.
+  const [openCard, setOpenCard] = useState<"note" | "save" | null>(null);
+  const closeCard = useCallback(() => setOpenCard(null), []);
   const [conflict, setConflict] = useState(false);
 
   // Bumping the tick re-reads this kanji from the server and replaces the draft with what is saved there.
@@ -178,7 +180,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
       // What was just saved is the new baseline right away; the re-read below confirms it from the server.
       setInitial(new Set(selected));
       setData({ ...data, version: result.version, reviewed: markReviewed ? true : data.reviewed });
-      setSaveOpen(false);
+      setOpenCard(null);
       onChanged();
       reload();
     } catch (err) {
@@ -410,49 +412,70 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
             ) : null}
           </section>
 
-          <FloatingSaveCard open={saveOpen} onOpenChange={setSaveOpen} pending={addedCount + removedCount}>
-            {removedWithCards.length > 0 ? (
-              <p className="text-[0.82rem] leading-snug text-text-muted">
-                {removedWithCards.map((c) => c.word).join(", ")}: students who already have a card on{" "}
-                {removedWithCards.length === 1 ? "this word" : "these words"} keep it and keep reviewing it. Only new
-                introductions use the new list.
-              </p>
-            ) : null}
-            {addedCount > 0 ? (
-              <p className="text-[0.82rem] leading-snug text-text-muted">
-                Added words only reach students who meet this kanji from now on; those who already learned it don&apos;t get a
-                card for them.
-              </p>
-            ) : null}
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={300}
-              placeholder="Note (optional), kept in the history"
-              className="w-full rounded-xl border border-border-soft bg-bg-cards px-3.5 py-2 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
+          <FloatingDock>
+            <FloatingCard
+              label="Note"
+              icon={<FaNoteSticky className="h-4 w-4" />}
+              dot={note.trim() !== ""}
+              open={openCard === "note"}
+              onOpen={() => setOpenCard("note")}
+              onClose={closeCard}
+            >
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") closeCard();
+                }}
+                maxLength={300}
+                autoFocus
+                aria-label="Note"
+                placeholder="Note (optional), kept in the history"
+                className="w-full rounded-xl border border-border-soft bg-bg-cards px-3.5 py-2 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
+              />
+            </FloatingCard>
+            <FloatingToggle
+              label="Mark this kanji as reviewed when saving"
+              icon={<FaCheck className="h-4 w-4" />}
+              pressed={markReviewed}
+              onToggle={() => setMarkReviewed((on) => !on)}
             />
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={markReviewed}
-                  onChange={(e) => setMarkReviewed(e.target.checked)}
-                  className="h-4 w-4 cursor-pointer accent-accent-blue"
-                />
-                Mark this kanji as reviewed when saving
-              </label>
-              <Button size="sm" onClick={() => void handleSave()} loading={saving} disabled={!canSave}>
-                Save
-              </Button>
-              {dirty ? (
-                <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(initial))} disabled={saving}>
-                  Discard changes
-                </Button>
+            <FloatingCard
+              primary
+              label="Save"
+              icon={<FaFloppyDisk className="h-5 w-5" />}
+              count={addedCount + removedCount}
+              open={openCard === "save"}
+              onOpen={() => setOpenCard("save")}
+              onClose={closeCard}
+            >
+              {removedWithCards.length > 0 ? (
+                <p className="text-[0.82rem] leading-snug text-text-muted">
+                  {removedWithCards.map((c) => c.word).join(", ")}: students who already have a card on{" "}
+                  {removedWithCards.length === 1 ? "this word" : "these words"} keep it and keep reviewing it. Only new
+                  introductions use the new list.
+                </p>
               ) : null}
-              {!dirty && !reviewedChange ? <span className="text-xs text-text-muted">No changes to save.</span> : null}
-            </div>
-          </FloatingSaveCard>
+              {addedCount > 0 ? (
+                <p className="text-[0.82rem] leading-snug text-text-muted">
+                  Added words only reach students who meet this kanji from now on; those who already learned it don&apos;t
+                  get a card for them.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <Button size="sm" onClick={() => void handleSave()} loading={saving} disabled={!canSave}>
+                  Save
+                </Button>
+                {dirty ? (
+                  <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(initial))} disabled={saving}>
+                    Discard changes
+                  </Button>
+                ) : null}
+                {!dirty && !reviewedChange ? <span className="text-xs text-text-muted">No changes to save.</span> : null}
+              </div>
+            </FloatingCard>
+          </FloatingDock>
         </div>
       ) : null}
     </GlassCard>
