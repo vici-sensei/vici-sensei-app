@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FaTriangleExclamation, FaXmark } from "react-icons/fa6";
+import { FaXmark } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
 import {
   describeKanjiWordsError,
@@ -22,8 +22,6 @@ import { groupReadingLabels } from "./wordLabels";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
 
 const REST_PAGE = 40;
-/** Above this many words a kanji adds a lot of Word reading cards to a student's day. */
-const WARN_ABOVE = 5;
 
 function sameSet(a: Set<number>, b: Set<number>): boolean {
   return a.size === b.size && [...a].every((id) => b.has(id));
@@ -300,12 +298,6 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                 Back to the algorithm&apos;s list
               </button>
             </div>
-            {selected.size > WARN_ABOVE ? (
-              <p className="mt-2 flex items-start gap-2 text-[0.82rem] text-accent-orange">
-                <FaTriangleExclamation className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                More than {WARN_ABOVE} words: each one becomes a Word reading card, so this kanji adds a lot of new cards.
-              </p>
-            ) : null}
           </section>
 
           <StudentPreview kanji={row.k} words={chosen} currentCount={initial.size} />
