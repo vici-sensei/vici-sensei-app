@@ -76,7 +76,8 @@ export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProp
         {/* The candidate already knows the level, so the badge shows before the row arrives. A word without one
             gets the badge's grey look. */}
         <LevelBadge level={(v ? v.jlpt_level : c.jlpt) ?? "No level"} />
-        <h3 id="word-details-title" className="mt-1 pr-10 text-[2.2rem] font-bold leading-[1.9]">
+        {/* mt-6: the furigana rides above the heading's own box, so the gap seen under the badge is ~10px less. */}
+        <h3 id="word-details-title" className="mt-6 pr-10 text-[2.2rem] font-bold leading-[1.9]">
           {renderWordWithFurigana(v?.word ?? c.word, v ? v.furiganas : c.furiganas, "text-[0.8rem] font-normal text-text-muted")}
         </h3>
         {/* The meaning, right under the word, unlabelled; the candidate's own copy until the row arrives. */}
