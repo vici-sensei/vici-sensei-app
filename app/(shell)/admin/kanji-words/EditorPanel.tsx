@@ -17,7 +17,6 @@ import { useToast } from "@/app/components/ui/Toast";
 import type { AsyncStatus, KanjiWordCandidate, KanjiWordCandidates, KanjiWordsRow } from "@/lib/types";
 import { CandidateRow } from "./CandidateRow";
 import { HistoryPanel } from "./HistoryPanel";
-import { StudentPreview } from "./StudentPreview";
 import { groupReadingLabels } from "./wordLabels";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
 
@@ -139,7 +138,6 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
     () => candidates.filter((c) => !c.enabled && !(selected.has(c.id) || c.in_algo || c.in_final)).length,
     [candidates, selected]
   );
-  const chosen = useMemo(() => candidates.filter((c) => selected.has(c.id)), [candidates, selected]);
 
   const removedWithCards = candidates.filter((c) => initial.has(c.id) && !selected.has(c.id) && c.students > 0);
   const addedCount = candidates.filter((c) => selected.has(c.id) && !initial.has(c.id)).length;
@@ -294,8 +292,6 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
               Back to the algorithm&apos;s list
             </button>
           </div>
-
-          <StudentPreview kanji={row.k} words={chosen} />
 
           <section>
             <div className="flex flex-wrap items-center gap-2">
