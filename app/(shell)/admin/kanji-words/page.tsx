@@ -14,6 +14,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { isMultiRegionEnabled } from "@/lib/supabase/regions";
 import { Collapsible } from "@/app/components/ui/Collapsible";
+import { Breadcrumbs } from "@/app/components/ui/Breadcrumbs";
 import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -27,12 +28,12 @@ import { EditorPanel } from "./EditorPanel";
 import { FilterPanel } from "./FilterPanel";
 import { KanjiList } from "./KanjiList";
 import { OperationModal, type OperationSpec } from "./OperationModal";
+import { ReviewProgress } from "./ReviewProgress";
 import {
   activeFilterCount,
   DEFAULT_FILTERS,
   defaultDir,
   filterKanji,
-  KANJI_LEVELS,
   parseView,
   serializeView,
   SORT_LABELS,
@@ -142,21 +143,6 @@ function AdminKanjiWords() {
     () => [...new Set(rows.map((r) => r.lb).filter((email): email is string => email !== null))].sort(),
     [rows]
   );
-  const progress = useMemo(() => {
-    const byLevel = new Map<string, { total: number; reviewed: number }>(
-      KANJI_LEVELS.map((level) => [level, { total: 0, reviewed: 0 }])
-    );
-    let reviewed = 0;
-    for (const row of rows) {
-      const entry = byLevel.get(row.lv ?? "");
-      if (entry) {
-        entry.total += 1;
-        if (row.r) entry.reviewed += 1;
-      }
-      if (row.r) reviewed += 1;
-    }
-    return { total: rows.length, reviewed, byLevel };
-  }, [rows]);
   const selectedRow = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
   const editorOpen = selectedRow !== null;
 
@@ -281,12 +267,8 @@ function AdminKanjiWords() {
 
   return (
     <div>
-      <PageHeader
-        breadcrumbs={[{ label: "Teacher", href: "/admin" }, { label: "Kanji words" }]}
-        title="Kanji words"
-        subtitle="Choose which words each kanji is taught with. The algorithm picks first; what you change is kept on top of it, and every change can be undone."
-        compact
-      />
+      <Breadcrumbs items={[{ label: "Teacher", href: "/admin" }, { label: "Kanji words" }]} />
+      <h1 className="sr-only">Kanji words</h1>
 
       {parity && parity.in_sync === false ? (
         <GlassCard padding="sm" tone="danger" className="mb-4">
@@ -304,35 +286,7 @@ function AdminKanjiWords() {
         </GlassCard>
       ) : null}
 
-      <GlassCard padding="sm" className="mb-4">
-        {status === "loaded" ? (
-          <>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-sm font-bold">
-                Reviewed {progress.reviewed} of {progress.total} kanji
-              </span>
-              <span className="flex flex-wrap gap-x-3 text-xs text-text-muted">
-                {KANJI_LEVELS.map((level) => {
-                  const entry = progress.byLevel.get(level);
-                  return (
-                    <span key={level}>
-                      {level} {entry?.reviewed ?? 0}/{entry?.total ?? 0}
-                    </span>
-                  );
-                })}
-              </span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-accent-green transition-[width] duration-300"
-                style={{ width: `${progress.total === 0 ? 0 : (progress.reviewed / progress.total) * 100}%` }}
-              />
-            </div>
-          </>
-        ) : (
-          <Skeleton className="h-9 w-full" />
-        )}
-      </GlassCard>
+      <ReviewProgress rows={rows} loading={status !== "loaded"} />
 
       <div className="flex flex-wrap items-center gap-2.5">
         <input
