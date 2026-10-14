@@ -221,23 +221,36 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
         </button>
       </div>
 
-      <div role="tablist" className="mt-4 flex gap-1.5 border-b border-border-soft pb-3">
-        {(["words", "history"] as const).map((t) => (
+      <div className="mt-4 flex items-center gap-1.5 border-b border-border-soft pb-3">
+        <div role="tablist" className="flex gap-1.5">
+          {(["words", "history"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={`cursor-pointer rounded-lg border px-3.5 py-1.5 text-[0.82rem] font-extrabold transition-all ${
+                tab === t
+                  ? "border-accent-blue/35 bg-accent-blue/[0.12] text-accent-blue"
+                  : "border-border-soft bg-white/[0.03] text-text-muted hover:border-white/20"
+              }`}
+            >
+              {t === "words" ? "Words" : "History"}
+            </button>
+          ))}
+        </div>
+        {status === "loaded" && data && tab === "words" ? (
           <button
-            key={t}
             type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`cursor-pointer rounded-lg border px-3.5 py-1.5 text-[0.82rem] font-extrabold transition-all ${
-              tab === t
-                ? "border-accent-blue/35 bg-accent-blue/[0.12] text-accent-blue"
-                : "border-border-soft bg-white/[0.03] text-text-muted hover:border-white/20"
-            }`}
+            onClick={() => setSelected(new Set(algoIds))}
+            disabled={sameSet(selected, algoIds)}
+            title="Back to the algorithm's list"
+            className="ml-auto cursor-pointer text-[0.8rem] font-bold text-accent-blue hover:underline disabled:cursor-default disabled:text-text-muted disabled:no-underline"
           >
-            {t === "words" ? "Words" : "History"}
+            Reset to algorithm
           </button>
-        ))}
+        ) : null}
       </div>
 
       {status === "loading" ? (
@@ -287,17 +300,6 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
               </button>
             </div>
           ) : null}
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => setSelected(new Set(algoIds))}
-              disabled={sameSet(selected, algoIds)}
-              className="cursor-pointer text-[0.8rem] font-bold text-accent-blue hover:underline disabled:cursor-default disabled:text-text-muted disabled:no-underline"
-            >
-              Back to the algorithm&apos;s list
-            </button>
-          </div>
 
           <section>
             {pinned.length === 0 ? (
