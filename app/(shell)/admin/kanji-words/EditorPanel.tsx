@@ -284,23 +284,18 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
             </div>
           ) : null}
 
-          <section>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-[0.7rem] font-extrabold uppercase tracking-[1px] text-text-muted">
-                List ({selected.size} word{selected.size === 1 ? "" : "s"})
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSelected(new Set(algoIds))}
-                disabled={sameSet(selected, algoIds)}
-                className="cursor-pointer text-[0.8rem] font-bold text-accent-blue hover:underline disabled:cursor-default disabled:text-text-muted disabled:no-underline"
-              >
-                Back to the algorithm&apos;s list
-              </button>
-            </div>
-          </section>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setSelected(new Set(algoIds))}
+              disabled={sameSet(selected, algoIds)}
+              className="cursor-pointer text-[0.8rem] font-bold text-accent-blue hover:underline disabled:cursor-default disabled:text-text-muted disabled:no-underline"
+            >
+              Back to the algorithm&apos;s list
+            </button>
+          </div>
 
-          <StudentPreview kanji={row.k} words={chosen} currentCount={initial.size} />
+          <StudentPreview kanji={row.k} words={chosen} />
 
           <section>
             <div className="flex flex-wrap items-center gap-2">
