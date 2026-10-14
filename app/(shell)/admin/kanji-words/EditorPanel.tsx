@@ -16,6 +16,7 @@ import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useToast } from "@/app/components/ui/Toast";
 import type { AsyncStatus, KanjiWordCandidate, KanjiWordCandidates, KanjiWordsRow } from "@/lib/types";
 import { CandidateRow } from "./CandidateRow";
+import { FloatingSaveCard } from "./FloatingSaveCard";
 import { HistoryPanel } from "./HistoryPanel";
 import { groupReadingLabels } from "./wordLabels";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
@@ -66,6 +67,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
   const [note, setNote] = useState("");
   const [markReviewed, setMarkReviewed] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [conflict, setConflict] = useState(false);
 
   // Bumping the tick re-reads this kanji from the server and replaces the draft with what is saved there.
@@ -139,6 +141,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
 
   const removedWithCards = candidates.filter((c) => initial.has(c.id) && !selected.has(c.id) && c.students > 0);
   const addedCount = candidates.filter((c) => selected.has(c.id) && !initial.has(c.id)).length;
+  const removedCount = candidates.filter((c) => initial.has(c.id) && !selected.has(c.id)).length;
   const reviewedChange = markReviewed && !(data?.reviewed ?? false);
   const canSave = !saving && (dirty || reviewedChange);
 
@@ -175,6 +178,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
       // What was just saved is the new baseline right away; the re-read below confirms it from the server.
       setInitial(new Set(selected));
       setData({ ...data, version: result.version, reviewed: markReviewed ? true : data.reviewed });
+      setSaveOpen(false);
       onChanged();
       reload();
     } catch (err) {
@@ -406,7 +410,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
             ) : null}
           </section>
 
-          <section className="sticky bottom-0 z-10 -mx-5 -mb-5 space-y-3 rounded-b-2xl border-t border-border-soft bg-gray-900/95 px-5 pt-4 pb-5 backdrop-blur-[10px]">
+          <FloatingSaveCard open={saveOpen} onOpenChange={setSaveOpen} pending={addedCount + removedCount}>
             {removedWithCards.length > 0 ? (
               <p className="text-[0.82rem] leading-snug text-text-muted">
                 {removedWithCards.map((c) => c.word).join(", ")}: students who already have a card on{" "}
@@ -448,7 +452,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
               ) : null}
               {!dirty && !reviewedChange ? <span className="text-xs text-text-muted">No changes to save.</span> : null}
             </div>
-          </section>
+          </FloatingSaveCard>
         </div>
       ) : null}
     </GlassCard>
