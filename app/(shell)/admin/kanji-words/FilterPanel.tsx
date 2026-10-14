@@ -131,7 +131,8 @@ interface FilterPanelProps {
 
 export function FilterPanel({ filters, onChange, adminOptions }: FilterPanelProps) {
   return (
-    <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
+    // Two columns only when the card around it is wide enough: on a wide screen it is narrow, pinned to the list.
+    <div className="grid gap-x-8 gap-y-5 @xl:grid-cols-2">
       <Group
         label="Judge the lists on"
         hint="The filters below about words look at this list. Switch it to see what the algorithm alone would give."

@@ -357,16 +357,16 @@ function AdminKanjiWords() {
       </div>
 
       {/* Search, sorting, the filters and the bulk tools all sit behind one round button that floats at the bottom
-          left while the page scrolls (the editor's own circles are on the right). The zero-height sticky strip keeps it
-          out of the flow, so the card grows upwards over the list instead of pushing the page down. */}
+          right of the kanji list while the page scrolls: the whole width on a phone, the list's 26rem column beside the
+          editor (whose own circles hold the far right) on a wide screen. The zero-height sticky strip keeps it out of
+          the flow, so the card grows upwards over the list instead of pushing the page down. */}
       <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0">
-        <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-start">
+        <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-end lg:right-auto lg:w-[26rem]">
           <FloatingCard
             label="Filters"
             icon={<FaSliders className="h-4 w-4" />}
             count={filterCount + (view.query.trim() ? 1 : 0)}
             countNoun="active filter"
-            side="left"
             widthClassName="max-w-2xl"
             open={filtersOpen}
             onOpen={() => setFiltersOpen(true)}
@@ -421,7 +421,7 @@ function AdminKanjiWords() {
                 </button>
               ) : null}
             </div>
-            <div className="max-h-[calc(100dvh-20rem)] overflow-y-auto overscroll-contain border-t border-border-soft pt-3">
+            <div className="@container max-h-[calc(100dvh-20rem)] overflow-y-auto overscroll-contain border-t border-border-soft pt-3">
               <FilterPanel filters={view.filters} onChange={handleFilterChange} adminOptions={adminOptions} />
             </div>
           </FloatingCard>
