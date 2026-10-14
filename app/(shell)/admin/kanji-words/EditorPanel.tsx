@@ -141,7 +141,6 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
     [candidates, selected]
   );
 
-  const removedWithCards = candidates.filter((c) => initial.has(c.id) && !selected.has(c.id) && c.students > 0);
   const addedCount = candidates.filter((c) => selected.has(c.id) && !initial.has(c.id)).length;
   const removedCount = candidates.filter((c) => initial.has(c.id) && !selected.has(c.id)).length;
   const reviewedChange = markReviewed && !(data?.reviewed ?? false);
@@ -444,19 +443,12 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
             <FloatingCard
               primary
               label="Save"
-              icon={<FaFloppyDisk className="h-5 w-5" />}
+              icon={<FaFloppyDisk className="h-4 w-4" />}
               count={addedCount + removedCount}
               open={openCard === "save"}
               onOpen={() => setOpenCard("save")}
               onClose={closeCard}
             >
-              {removedWithCards.length > 0 ? (
-                <p className="text-[0.82rem] leading-snug text-text-muted">
-                  {removedWithCards.map((c) => c.word).join(", ")}: students who already have a card on{" "}
-                  {removedWithCards.length === 1 ? "this word" : "these words"} keep it and keep reviewing it. Only new
-                  introductions use the new list.
-                </p>
-              ) : null}
               {addedCount > 0 ? (
                 <p className="text-[0.82rem] leading-snug text-text-muted">
                   Added words only reach students who meet this kanji from now on; those who already learned it don&apos;t

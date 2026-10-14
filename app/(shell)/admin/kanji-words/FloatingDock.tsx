@@ -4,11 +4,10 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { FaChevronDown } from "react-icons/fa6";
 
 function circleClasses(primary: boolean, colors: string): string {
-  return `pointer-events-auto relative flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-[opacity,scale,translate,box-shadow,background-color,border-color,color] duration-200 ease-out hover:-translate-y-0.5 starting:scale-50 starting:opacity-0 ${
+  return `pointer-events-auto relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-[opacity,scale,translate,box-shadow,background-color,border-color,color] duration-200 ease-out hover:-translate-y-0.5 starting:scale-50 starting:opacity-0 ${
     primary
-      ? "h-14 w-14 shadow-[0_8px_30px_rgba(255,74,90,0.45)] hover:shadow-[0_8px_40px_rgba(255,74,90,0.65)]"
-      : // mr-1 centres the smaller circles over the primary one.
-        "mr-1 h-12 w-12 border shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+      ? "shadow-[0_8px_30px_rgba(255,74,90,0.45)] hover:shadow-[0_8px_40px_rgba(255,74,90,0.65)]"
+      : "border shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
   } ${colors}`;
 }
 
@@ -32,7 +31,7 @@ export function FloatingDock({ children }: { children: ReactNode }) {
 interface FloatingCardProps {
   label: string;
   icon: ReactNode;
-  /** The big red circle; the others are smaller and dark. */
+  /** The red circle; the others are dark. */
   primary?: boolean;
   /** Shown on the closed circle: a number in a bubble, or (dot) just a mark that something is there. */
   count?: number;
