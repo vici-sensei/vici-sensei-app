@@ -20,7 +20,6 @@ import { HistoryPanel } from "./HistoryPanel";
 import { StudentPreview } from "./StudentPreview";
 import { groupReadingLabels } from "./wordLabels";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
-import { useWordPopover, WORD_CHIP_CLASSES } from "./WordPopover";
 
 const REST_PAGE = 40;
 /** Above this many words a kanji adds a lot of Word reading cards to a student's day. */
@@ -143,11 +142,6 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
     [candidates, selected]
   );
   const chosen = useMemo(() => candidates.filter((c) => selected.has(c.id)), [candidates, selected]);
-  const byId = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates]);
-  const { handlers: chipHandlers, popover: chipPopover } = useWordPopover((id) => {
-    const c = byId.get(id);
-    return c ? { word: c.word, jlpt: c.jlpt, common: c.common, meanings: candidateMeanings(c) } : null;
-  });
 
   const removedWithCards = candidates.filter((c) => initial.has(c.id) && !selected.has(c.id) && c.students > 0);
   const addedCount = candidates.filter((c) => selected.has(c.id) && !initial.has(c.id)).length;
@@ -312,22 +306,6 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                 More than {WARN_ABOVE} words: each one becomes a Word reading card, so this kanji adds a lot of new cards.
               </p>
             ) : null}
-            {chosen.length === 0 ? (
-              <p className="mt-2 text-sm italic text-text-muted">No words: pick some below.</p>
-            ) : (
-              <p className="mt-2 flex flex-wrap gap-1.5 text-[1.1rem] font-bold" {...chipHandlers}>
-                {chosen.map((c) => (
-                  <span
-                    key={c.id}
-                    data-word-id={c.id}
-                    className={`cursor-default rounded-lg border border-accent-blue/25 bg-accent-blue/[0.08] px-2 py-0.5 ${WORD_CHIP_CLASSES}`}
-                  >
-                    {c.word}
-                  </span>
-                ))}
-              </p>
-            )}
-            {chipPopover}
           </section>
 
           <StudentPreview kanji={row.k} words={chosen} currentCount={initial.size} />
