@@ -1,6 +1,6 @@
 "use client";
 
-import { FaRotateLeft } from "react-icons/fa6";
+import { FaPencil, FaRotateLeft } from "react-icons/fa6";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 import type { KanjiWordCandidate } from "@/lib/types";
 import { algoReason, gapText, gapToneClasses } from "./wordLabels";
@@ -63,17 +63,28 @@ export function CandidateRow({ candidate: c, checked, onToggle, onRevert }: Cand
           {reason ? <span className="mt-1.5 block text-xs leading-snug text-text-muted">{reason}</span> : null}
         </span>
       </label>
-      {added || removed ? (
+      <span className="mt-1 flex shrink-0 items-center gap-1.5">
+        {added || removed ? (
+          <button
+            type="button"
+            onClick={onRevert}
+            title="Back to what the algorithm chose for this word"
+            aria-label={`Back to the algorithm's choice for ${c.word}`}
+            className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-soft text-text-muted transition-colors hover:border-white/20 hover:text-white"
+          >
+            <FaRotateLeft className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        {/* Placeholder: does nothing yet. */}
         <button
           type="button"
-          onClick={onRevert}
-          title="Back to what the algorithm chose for this word"
-          aria-label={`Back to the algorithm's choice for ${c.word}`}
-          className="mt-1 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-soft text-text-muted transition-colors hover:border-white/20 hover:text-white"
+          title="Edit this word"
+          aria-label={`Edit ${c.word}`}
+          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-soft text-text-muted transition-colors hover:border-white/20 hover:text-white"
         >
-          <FaRotateLeft className="h-3.5 w-3.5" />
+          <FaPencil className="h-3.5 w-3.5" />
         </button>
-      ) : null}
+      </span>
     </li>
   );
 }
