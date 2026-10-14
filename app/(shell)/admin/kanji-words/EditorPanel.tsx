@@ -435,10 +435,10 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                   onChange={(e) => setMarkReviewed(e.target.checked)}
                   className="h-4 w-4 cursor-pointer accent-accent-blue"
                 />
-                Mark as reviewed
+                Mark this kanji as reviewed when saving
               </label>
               <Button size="sm" onClick={() => void handleSave()} loading={saving} disabled={!canSave}>
-                {dirty ? "Save changes" : "Mark as reviewed"}
+                Save
               </Button>
               {dirty ? (
                 <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(initial))} disabled={saving}>
