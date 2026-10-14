@@ -55,14 +55,8 @@ export function CandidateRow({ candidate: c, checked, onToggle, onRevert }: Cand
               {c.jlpt ?? "No level"} {gapText(c.gap)}
             </Pill>
             <Pill>{c.common ? "common" : "not common"}</Pill>
-            <Pill>freq {c.freq}</Pill>
             <Pill>group {c.rg}</Pill>
             {c.usually_kana ? <Pill>usually kana</Pill> : null}
-            {c.students > 0 ? (
-              <Pill className="border-accent-violet/30 bg-accent-violet/10 text-accent-violet">
-                {c.students} student{c.students === 1 ? "" : "s"} with a card
-              </Pill>
-            ) : null}
             {added ? <Pill className="border-accent-green/30 bg-accent-green/10 text-accent-green">added by you</Pill> : null}
             {removed ? <Pill className="border-accent-red/30 bg-accent-red/10 text-accent-red">removed by you</Pill> : null}
           </span>
