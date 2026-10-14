@@ -481,12 +481,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
       ) : null}
 
       {detailsFor ? (
-        <WordDetailsModal
-          candidate={detailsFor}
-          kanji={row.k}
-          readingLabel={readingLabels.get(detailsFor.rg)}
-          onClose={() => setDetailsFor(null)}
-        />
+        <WordDetailsModal candidate={detailsFor} onClose={() => setDetailsFor(null)} />
       ) : null}
     </GlassCard>
   );

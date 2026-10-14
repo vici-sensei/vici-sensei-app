@@ -90,24 +90,23 @@ export interface KanjiWordCandidate {
   info: KanjiWordAlgoInfo | null;
 }
 
-/** One kanji a word is linked to (a kanji_word row), for the word details popup. */
-export interface KanjiWordLink {
-  kanji_word_id: number;
-  kanji_id: number;
-  kanji: string;
-  level: string | null;
-  meanings: string[];
-  reading_group: number;
-  /** Rank in that kanji's final list; null = not in it. */
-  rank: number | null;
-}
-
-/** The word behind one candidate, read straight from the tables (fetchKanjiWordDetails). */
-export interface KanjiWordDetails {
-  /** Every column of the word's vocabulary row, exactly as stored. */
-  vocabulary: Record<string, unknown>;
-  /** Every kanji the word is linked to, in the order they appear in the word. */
-  kanji: KanjiWordLink[];
+/** The dictionary row of one candidate's word (fetchKanjiWordVocabulary), for the word details popup. */
+export interface KanjiWordVocabulary {
+  word: string;
+  kana_reading: string | null;
+  romaji_reading: string | null;
+  furiganas: string[] | null;
+  romaji_furiganas: string[] | null;
+  other_readings: string[] | null;
+  short_meaning: string | null;
+  primary_meanings: string[] | null;
+  /** One array of glosses per secondary sense. */
+  other_meanings: string[][] | null;
+  parts_of_speech: string[] | null;
+  jlpt_level: string | null;
+  is_common_jisho: boolean | null;
+  usually_kana: boolean | null;
+  study_enabled: boolean;
 }
 
 export interface KanjiWordCandidates {
