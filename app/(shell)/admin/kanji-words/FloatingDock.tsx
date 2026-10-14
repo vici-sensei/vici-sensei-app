@@ -3,15 +3,18 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { FaChevronDown } from "react-icons/fa6";
 
+// Keyboard focus (Tab, or coming back to a circle after Escape folds its card) shows the hover look instead of the
+// browser's thick white focus ring.
 function circleClasses(primary: boolean, colors: string): string {
-  return `pointer-events-auto relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-[opacity,scale,translate,box-shadow,background-color,border-color,color] duration-200 ease-out hover:-translate-y-0.5 starting:scale-50 starting:opacity-0 ${
+  return `pointer-events-auto relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full outline-none transition-[opacity,scale,translate,box-shadow,background-color,border-color,color] duration-200 ease-out hover:-translate-y-0.5 focus-visible:-translate-y-0.5 starting:scale-50 starting:opacity-0 ${
     primary
-      ? "shadow-[0_8px_30px_rgba(255,74,90,0.45)] hover:shadow-[0_8px_40px_rgba(255,74,90,0.65)]"
+      ? "shadow-[0_8px_30px_rgba(255,74,90,0.45)] hover:shadow-[0_8px_40px_rgba(255,74,90,0.65)] focus-visible:shadow-[0_8px_40px_rgba(255,74,90,0.65)]"
       : "border shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
   } ${colors}`;
 }
 
-const PLAIN_COLORS = "border-white/10 bg-gray-900/95 text-text-muted hover:border-white/20 hover:text-white";
+const PLAIN_COLORS =
+  "border-white/10 bg-gray-900/95 text-text-muted hover:border-white/20 hover:text-white focus-visible:border-white/20 focus-visible:text-white";
 
 /**
  * Round buttons stacked at the bottom right of the editor. Sticky, so they stay in sight while the words scroll and
@@ -119,7 +122,7 @@ export function FloatingCard({
           aria-label={`Fold the ${label.toLowerCase()} card`}
           aria-expanded
           aria-controls={cardId}
-          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border-soft text-text-muted transition-colors hover:border-white/20 hover:text-white"
+          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border-soft text-text-muted outline-none transition-colors hover:border-white/20 hover:text-white focus-visible:border-white/20 focus-visible:text-white"
         >
           <FaChevronDown className="h-3.5 w-3.5" />
         </button>
