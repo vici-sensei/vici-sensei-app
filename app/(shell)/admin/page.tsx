@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FaUserGraduate, FaInbox, FaLanguage } from "react-icons/fa6";
+import { FaUserGraduate, FaInbox, FaLanguage, FaBookOpen } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useAdminDashboardStats } from "@/lib/client-data/adminDashboard";
 import { useKanjiWordsTodoCount } from "@/lib/client-data/adminKanjiWords";
@@ -77,6 +77,15 @@ export default function AdminOverviewPage() {
             <div>
               <div className="font-bold">Leads</div>
               <div className="text-sm text-text-muted">Free lesson signups waiting to be contacted</div>
+            </div>
+          </GlassCard>
+        </Link>
+        <Link href="/admin/words">
+          <GlassCard padding="sm" className="flex items-center gap-4 transition-colors hover:bg-white/[0.03]">
+            <FaBookOpen className="h-6 w-6 text-accent-red" />
+            <div>
+              <div className="font-bold">All words</div>
+              <div className="text-sm text-text-muted">Every word in the dictionary, with search and filters</div>
             </div>
           </GlassCard>
         </Link>

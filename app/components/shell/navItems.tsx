@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { isLessonsEnabled } from "@/lib/lessons/flag";
-import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaCrown, FaShieldHalved, FaSliders, FaChalkboardUser, FaGauge, FaUserGraduate, FaInbox, FaLanguage, FaCalendarDays } from "react-icons/fa6";
+import { FaHouse, FaBook, FaMagnifyingGlass, FaChartColumn, FaTrophy, FaGear, FaUser, FaCrown, FaShieldHalved, FaSliders, FaChalkboardUser, FaGauge, FaUserGraduate, FaInbox, FaLanguage, FaCalendarDays, FaBookOpen } from "react-icons/fa6";
 
 export interface SubNavItem {
   href: string;
@@ -137,6 +137,12 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Leads",
         isActive: (p) => p.startsWith("/admin/leads"),
         icon: <FaInbox />,
+      },
+      {
+        href: "/admin/words",
+        label: "All words",
+        isActive: (p) => p.startsWith("/admin/words"),
+        icon: <FaBookOpen />,
       },
       {
         href: "/admin/kanji-words",

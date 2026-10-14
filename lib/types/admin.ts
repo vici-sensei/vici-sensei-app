@@ -160,3 +160,21 @@ export interface StudentDetail {
    *  old project predates Pro end dates. */
   premium_until: string | null;
 }
+
+/** One row of the admin "All words" list (/admin/words): the `vocabulary` columns the list shows,
+ *  searches and filters on. */
+export interface AdminWordRow {
+  id: number;
+  word: string;
+  kana_reading: string | null;
+  romaji_reading: string | null;
+  short_meaning: string | null;
+  primary_meanings: string[] | null;
+  parts_of_speech: string[] | null;
+  jlpt_level: string | null;
+  is_common_jisho: boolean | null;
+  usually_kana: boolean | null;
+  study_enabled: boolean;
+  /** How often the word appears in a large text corpus: bigger = more common. null = not in the corpus. */
+  frequency_number: number | null;
+}
