@@ -63,12 +63,12 @@ export function groupReadingLabels(candidates: KanjiWordCandidate[], kanji: stri
   return labels;
 }
 
-/** The sentence under a candidate: why the algorithm did or didn't pick it. */
+/** The sentence under a candidate: why the algorithm did or didn't pick it. None for a group's best word, the usual pick. */
 export function algoReason(c: KanjiWordCandidate): string {
   if (!c.enabled) return "Not enabled for study, so it can't be in a list.";
   const info = c.info;
   if (!info) return "";
-  if (info.pick_kind === "champion") return `Picked by the algorithm: the best word of reading group ${c.rg}.`;
+  if (info.pick_kind === "champion") return "";
   if (info.pick_kind === "fill_in") {
     return "Picked by the algorithm to fill the list: this kanji has fewer than 3 reading groups.";
   }

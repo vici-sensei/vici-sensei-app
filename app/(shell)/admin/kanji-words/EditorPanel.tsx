@@ -280,8 +280,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
             </div>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-text-muted">{candidates.length} candidates</span>
+          <div className="flex justify-end">
             <button
               type="button"
               onClick={() => setSelected(new Set(algoIds))}
@@ -293,11 +292,8 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
           </div>
 
           <section>
-            <h3 className="mb-2 text-[0.7rem] font-extrabold uppercase tracking-[1px] text-text-muted">
-              Chosen and picked by the algorithm
-            </h3>
             {pinned.length === 0 ? (
-              <p className="text-sm italic text-text-muted">None.</p>
+              <p className="text-sm italic text-text-muted">No words.</p>
             ) : (
               <ul className="space-y-2">
                 {pinned.map((c) => (
