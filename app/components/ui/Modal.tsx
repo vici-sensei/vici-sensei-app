@@ -25,6 +25,9 @@ interface ModalProps {
    * otherwise land on the just-appeared backdrop and dismiss it again straight away
    * (KanjiInfoModal). Off by default. */
   backdropGraceMs?: number;
+  /** A 640px card instead of 440px, for dialogs that show a lot of data side by side (the kanji-words
+   * admin's word details). */
+  wide?: boolean;
   children: ReactNode;
 }
 
@@ -48,6 +51,7 @@ export function Modal({
   closeButtonSide = "right",
   fullScreen,
   backdropGraceMs = 0,
+  wide,
   children,
 }: ModalProps) {
   const [shown, setShown] = useState(false);
@@ -118,7 +122,7 @@ export function Modal({
             ? `relative flex h-full w-full flex-col items-center justify-center p-4 transition-all duration-200 ${
                 visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
               }`
-            : `relative isolate w-full max-w-[440px] overflow-hidden rounded-2xl border border-border-soft bg-bg-cards p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[10px] transition-all duration-200 ${
+            : `relative isolate w-full ${wide ? "max-w-[640px]" : "max-w-[440px]"} overflow-hidden rounded-2xl border border-border-soft bg-bg-cards p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[10px] transition-all duration-200 ${
                 visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
               }`
         }

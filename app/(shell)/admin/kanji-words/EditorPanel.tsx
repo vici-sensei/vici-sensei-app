@@ -19,6 +19,7 @@ import { CandidateRow } from "./CandidateRow";
 import { FloatingCard, FloatingDock, FloatingToggle } from "./FloatingDock";
 import { HistoryPanel } from "./HistoryPanel";
 import { groupReadingLabels } from "./wordLabels";
+import { WordDetailsModal } from "./WordDetailsModal";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
 
 const REST_PAGE = 40;
@@ -71,6 +72,8 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
   const [openCard, setOpenCard] = useState<"note" | "save" | null>(null);
   const closeCard = useCallback(() => setOpenCard(null), []);
   const [conflict, setConflict] = useState(false);
+  // The word whose details popup is open (the pencil on its card).
+  const [detailsFor, setDetailsFor] = useState<KanjiWordCandidate | null>(null);
 
   // Bumping the tick re-reads this kanji from the server and replaces the draft with what is saved there.
   const [reloadTick, setReloadTick] = useState(0);
@@ -313,6 +316,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                     checked={selected.has(c.id)}
                     onToggle={() => toggle(c.id)}
                     onRevert={() => revertWord(c)}
+                    onDetails={() => setDetailsFor(c)}
                   />
                 ))}
               </ul>
@@ -398,6 +402,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
                         checked={selected.has(c.id)}
                         onToggle={() => toggle(c.id)}
                         onRevert={() => revertWord(c)}
+                        onDetails={() => setDetailsFor(c)}
                       />
                     ))}
                   </ul>
@@ -473,6 +478,15 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
             </FloatingCard>
           </FloatingDock>
         </div>
+      ) : null}
+
+      {detailsFor ? (
+        <WordDetailsModal
+          candidate={detailsFor}
+          kanji={row.k}
+          readingLabel={readingLabels.get(detailsFor.rg)}
+          onClose={() => setDetailsFor(null)}
+        />
       ) : null}
     </GlassCard>
   );

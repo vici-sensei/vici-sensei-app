@@ -1,6 +1,7 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type {
   KanjiWordCandidates,
+  KanjiWordDetails,
   KanjiWordsBatch,
   KanjiWordsBulkOp,
   KanjiWordsBulkResult,
@@ -82,6 +83,49 @@ export function fetchKanjiWordsMeanings(
 
 export function fetchKanjiWordCandidates(supabase: AppSupabaseClient, kanjiId: number): Promise<KanjiWordCandidates> {
   return call(supabase, "admin_get_kanji_word_candidates", { p_kanji_id: kanjiId });
+}
+
+/**
+ * Everything stored about the word of one candidate (a kanji_word id): its whole vocabulary row and every kanji
+ * it is linked to, with its rank in each of their final lists. Plain table reads (both tables are readable by any
+ * signed-in user), so no RPC is needed and it works the same on both regions.
+ */
+export async function fetchKanjiWordDetails(supabase: AppSupabaseClient, kanjiWordId: number): Promise<KanjiWordDetails> {
+  const { data: own, error: ownError } = await supabase
+    .from("kanji_word")
+    .select("vocabulary:id_word(*)")
+    .eq("id", kanjiWordId)
+    .maybeSingle();
+  if (ownError) throw new KanjiWordsError(ownError.message, ownError.code);
+  const vocabulary = (own as unknown as { vocabulary: Record<string, unknown> | null } | null)?.vocabulary ?? null;
+  if (!vocabulary) throw new KanjiWordsError("This word is no longer in the dictionary.");
+
+  const { data: links, error: linksError } = await supabase
+    .from("kanji_word")
+    .select("id, reading_group, kanji:id_kanji(id, kanji, level, meanings), kanji_detail_words(rank)")
+    .eq("id_word", vocabulary.id as number);
+  if (linksError) throw new KanjiWordsError(linksError.message, linksError.code);
+
+  type LinkRow = {
+    id: number;
+    reading_group: number;
+    kanji: { id: number; kanji: string; level: string | null; meanings: string[] | null } | null;
+    kanji_detail_words: { rank: number }[];
+  };
+  const word = String(vocabulary.word ?? "");
+  const kanji = ((links ?? []) as unknown as LinkRow[])
+    .filter((link) => link.kanji !== null)
+    .map((link) => ({
+      kanji_word_id: link.id,
+      kanji_id: link.kanji!.id,
+      kanji: link.kanji!.kanji,
+      level: link.kanji!.level,
+      meanings: link.kanji!.meanings ?? [],
+      reading_group: link.reading_group,
+      rank: link.kanji_detail_words[0]?.rank ?? null,
+    }))
+    .sort((a, b) => word.indexOf(a.kanji) - word.indexOf(b.kanji) || a.kanji_word_id - b.kanji_word_id);
+  return { vocabulary, kanji };
 }
 
 export function fetchKanjiWordsHistory(supabase: AppSupabaseClient, kanjiId: number): Promise<KanjiWordsHistory> {

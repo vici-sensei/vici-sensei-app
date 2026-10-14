@@ -90,6 +90,26 @@ export interface KanjiWordCandidate {
   info: KanjiWordAlgoInfo | null;
 }
 
+/** One kanji a word is linked to (a kanji_word row), for the word details popup. */
+export interface KanjiWordLink {
+  kanji_word_id: number;
+  kanji_id: number;
+  kanji: string;
+  level: string | null;
+  meanings: string[];
+  reading_group: number;
+  /** Rank in that kanji's final list; null = not in it. */
+  rank: number | null;
+}
+
+/** The word behind one candidate, read straight from the tables (fetchKanjiWordDetails). */
+export interface KanjiWordDetails {
+  /** Every column of the word's vocabulary row, exactly as stored. */
+  vocabulary: Record<string, unknown>;
+  /** Every kanji the word is linked to, in the order they appear in the word. */
+  kanji: KanjiWordLink[];
+}
+
 export interface KanjiWordCandidates {
   kanji: { id: number; k: string; lv: string | null; meanings: string[]; kun: string[]; on: string[] };
   version: number;

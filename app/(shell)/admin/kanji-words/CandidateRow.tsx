@@ -20,9 +20,11 @@ interface CandidateRowProps {
   onToggle: () => void;
   /** Back to what the algorithm chose for this one word, without touching the rest of the list. */
   onRevert: () => void;
+  /** Opens the popup with everything about this word. */
+  onDetails: () => void;
 }
 
-export function CandidateRow({ candidate: c, checked, onToggle, onRevert }: CandidateRowProps) {
+export function CandidateRow({ candidate: c, checked, onToggle, onRevert, onDetails }: CandidateRowProps) {
   // Compared with the ALGORITHM, not with what is saved: this is the per-word "edited" state.
   const added = checked && !c.in_algo;
   const removed = !checked && c.in_algo;
@@ -75,11 +77,11 @@ export function CandidateRow({ candidate: c, checked, onToggle, onRevert }: Cand
             <FaRotateLeft className="h-3.5 w-3.5" />
           </button>
         ) : null}
-        {/* Placeholder: does nothing yet. */}
         <button
           type="button"
-          title="Edit this word"
-          aria-label={`Edit ${c.word}`}
+          onClick={onDetails}
+          title="Everything about this word"
+          aria-label={`Everything about ${c.word}`}
           className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-soft text-text-muted transition-colors hover:border-white/20 hover:text-white"
         >
           <FaPencil className="h-3.5 w-3.5" />
