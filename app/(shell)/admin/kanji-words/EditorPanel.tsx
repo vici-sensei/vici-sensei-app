@@ -189,7 +189,8 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
   const readings = [...(data?.kanji.kun ?? row.kun), ...(data?.kanji.on ?? row.on)].join("、 ");
 
   return (
-    <GlassCard padding="sm">
+    // !h-auto: GlassCard's h-full would pin it to the phone sheet's height (fixed inset-0) and the words below spill out.
+    <GlassCard padding="sm" className="!h-auto">
       <div className="flex items-start gap-4">
         <div className="text-[3.2rem] font-bold leading-none">{row.k}</div>
         <div className="min-w-0 flex-1">
