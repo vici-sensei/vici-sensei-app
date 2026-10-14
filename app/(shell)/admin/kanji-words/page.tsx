@@ -110,6 +110,7 @@ function AdminKanjiWords() {
   const [parity, setParity] = useState<KanjiWordsParity | null>(null);
   const [now] = useState(() => Date.now());
   const editorRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!multiRegion) return;
@@ -146,6 +147,34 @@ function AdminKanjiWords() {
   );
   const selectedRow = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
   const editorOpen = selectedRow !== null;
+
+  // On a wide screen the list keeps its own scroll and reaches down to 1rem above the window's bottom from wherever it
+  // is right now: lower down at the top of the page, higher once it sticks under the header. A fixed height would cut
+  // off one end or the other.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const wide = window.matchMedia("(min-width: 992px)"); // --breakpoint-lg (app/globals.css)
+    let frame = 0;
+    const fit = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        el.style.maxHeight = wide.matches
+          ? `${Math.max(240, window.innerHeight - el.getBoundingClientRect().top - 16)}px`
+          : "";
+      });
+    };
+    fit();
+    window.addEventListener("scroll", fit, { passive: true });
+    window.addEventListener("resize", fit);
+    wide.addEventListener("change", fit);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", fit);
+      window.removeEventListener("resize", fit);
+      wide.removeEventListener("change", fit);
+    };
+  }, []);
 
   // Below lg the editor is a full-screen sheet with its own scroll; lock the page behind it so there's only one.
   useEffect(() => {
@@ -304,7 +333,12 @@ function AdminKanjiWords() {
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
-        <GlassCard padding="sm" className="overflow-hidden lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+        {/* Sticks just under the sticky 4.25rem header; its height is fitted to the window by the effect above. */}
+        <GlassCard
+          ref={listRef}
+          padding="sm"
+          className="overflow-hidden lg:sticky lg:top-[5.25rem] lg:overflow-y-auto"
+        >
           {status === "loading" ? (
             <div className="space-y-3 p-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -360,8 +394,8 @@ function AdminKanjiWords() {
           right of the kanji list while the page scrolls: the whole width on a phone, the list's 26rem column beside the
           editor (whose own circles hold the far right) on a wide screen. The zero-height sticky strip keeps it out of
           the flow, so the card grows upwards over the list instead of pushing the page down. */}
-      <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0">
-        <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-end lg:right-auto lg:w-[26rem]">
+      <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0 lg:bottom-8">
+        <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-end pr-4 lg:right-auto lg:w-[26rem]">
           <FloatingCard
             label="Filters"
             icon={<FaSliders className="h-4 w-4" />}
