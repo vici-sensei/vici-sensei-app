@@ -44,6 +44,9 @@ import {
 } from "./kanjiWordsView";
 
 const LIST_PAGE = 100;
+// The shell's <main> has p-5 (1.25rem); leaving the same gap under the list and the editor makes the page exactly as
+// tall as the window, so only those two scroll, not the page.
+const BOTTOM_GAP_PX = 20;
 const SORT_OPTIONS = Object.keys(SORT_LABELS) as SortKey[];
 
 function bulkSpec(choice: BulkChoice, ids: number[], versions: Record<number, number>): OperationSpec {
@@ -127,13 +130,10 @@ function AdminKanjiWords() {
     };
   }, [multiRegion]);
 
-  // The list stays pinned while the page scrolls, so a kanji picked far down the list would otherwise open its
-  // editor out of sight above; bring it back under the header.
+  // The editor scrolls inside its own box (beside the list, or the phone sheet), which outlives the kanji in it: a newly
+  // picked kanji starts at its top, not where the last one was left.
   useEffect(() => {
-    const el = editorRef.current;
-    if (el && selectedId !== null && el.getBoundingClientRect().top < 80) {
-      el.scrollIntoView({ block: "start", behavior: "smooth" });
-    }
+    if (editorRef.current) editorRef.current.scrollTop = 0;
   }, [selectedId]);
 
   const rows = useMemo(() => data?.kanji ?? [], [data]);
@@ -148,20 +148,21 @@ function AdminKanjiWords() {
   const selectedRow = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
   const editorOpen = selectedRow !== null;
 
-  // On a wide screen the list keeps its own scroll and reaches down to 1rem above the window's bottom from wherever it
-  // is right now: lower down at the top of the page, higher once it sticks under the header. A fixed height would cut
-  // off one end or the other.
+  // On a wide screen the list and the editor each keep their own scroll and reach down to just above the window's
+  // bottom from wherever they are right now: lower down at the top of the page, higher once they stick under the
+  // header. A fixed height would cut off one end or the other.
   useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
+    const boxes = [listRef.current, editorRef.current].filter((el): el is HTMLDivElement => el !== null);
     const wide = window.matchMedia("(min-width: 992px)"); // --breakpoint-lg (app/globals.css)
     let frame = 0;
     const fit = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        el.style.maxHeight = wide.matches
-          ? `${Math.max(240, window.innerHeight - el.getBoundingClientRect().top - 16)}px`
-          : "";
+        for (const el of boxes) {
+          el.style.maxHeight = wide.matches
+            ? `${Math.max(240, window.innerHeight - el.getBoundingClientRect().top - BOTTOM_GAP_PX)}px`
+            : "";
+        }
       });
     };
     fit();
@@ -365,12 +366,13 @@ function AdminKanjiWords() {
           ) : null}
         </GlassCard>
 
-        {/* Beside the list on a wide screen; a full-screen sheet on a phone. */}
+        {/* A full-screen sheet on a phone; on a wide screen it sits beside the list and, like it, sticks under the
+            header with its own scroll, fitted to the window by the effect above. */}
         <div
           ref={editorRef}
           className={
             selectedRow
-              ? "scroll-mt-20 fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-bg-main p-4 lg:static lg:inset-auto lg:z-auto lg:overflow-visible lg:bg-transparent lg:p-0"
+              ? "fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-bg-main p-4 lg:sticky lg:top-[5.25rem] lg:right-auto lg:bottom-auto lg:left-auto lg:z-auto lg:bg-transparent lg:p-0"
               : "hidden lg:block"
           }
         >
@@ -394,7 +396,7 @@ function AdminKanjiWords() {
           right of the kanji list while the page scrolls: the whole width on a phone, the list's 26rem column beside the
           editor (whose own circles hold the far right) on a wide screen. The zero-height sticky strip keeps it out of
           the flow, so the card grows upwards over the list instead of pushing the page down. */}
-      <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0 lg:bottom-8">
+      <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0 lg:bottom-9">
         <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-end pr-4 lg:right-auto lg:w-[26rem]">
           <FloatingCard
             label="Filters"
