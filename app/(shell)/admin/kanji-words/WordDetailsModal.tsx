@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
 import { describeKanjiWordsError, fetchKanjiWordVocabulary } from "@/lib/data/adminKanjiWords";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
+import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Modal } from "@/app/components/ui/Modal";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import type { KanjiWordCandidate, KanjiWordVocabulary } from "@/lib/types";
@@ -42,8 +43,8 @@ interface WordDetailsModalProps {
   onClose: () => void;
 }
 
-/** One candidate word's dictionary data: how it is written (with its furigana), what it means, how it is read,
- *  its level and use. */
+/** One candidate word's dictionary data: its JLPT level, how it is written (with its furigana), what it means,
+ *  how it is read, how it is used. */
 export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProps) {
   const [vocabulary, setVocabulary] = useState<KanjiWordVocabulary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +73,10 @@ export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProp
   return createPortal(
     <Modal onClose={onClose} labelledBy="word-details-title" showCloseButton wide>
       <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1 text-left">
-        <h3 id="word-details-title" className="pr-10 text-[2.2rem] font-bold leading-[1.9]">
+        {/* The candidate already knows the level, so the badge shows before the row arrives. A word without one
+            gets the badge's grey look. */}
+        <LevelBadge level={(v ? v.jlpt_level : c.jlpt) ?? "No level"} />
+        <h3 id="word-details-title" className="mt-1 pr-10 text-[2.2rem] font-bold leading-[1.9]">
           {renderWordWithFurigana(v?.word ?? c.word, v ? v.furiganas : c.furiganas, "text-[0.8rem] font-normal text-text-muted")}
         </h3>
 
@@ -122,8 +126,7 @@ export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProp
               <Field label="Other readings">{listText(v.other_readings)}</Field>
             </Group>
 
-            <Group title="Level and use">
-              <Field label="JLPT level">{v.jlpt_level ?? "None"}</Field>
+            <Group title="Usage">
               <Field label="Common (Jisho)">{yesNo(v.is_common_jisho)}</Field>
               <Field label="Usually written in kana">{yesNo(v.usually_kana)}</Field>
               <Field label="Enabled for study">{yesNo(v.study_enabled)}</Field>
