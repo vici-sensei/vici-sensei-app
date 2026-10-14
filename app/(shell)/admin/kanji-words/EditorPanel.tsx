@@ -57,11 +57,10 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
   const [initial, setInitial] = useState<Set<number>>(new Set());
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [tab, setTab] = useState<"words" | "history">("words");
-  const [text, setText] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [showDisabled, setShowDisabled] = useState(false);
   const [restLimit, setRestLimit] = useState(REST_PAGE);
-  // Filters of the "Other candidates" list only; the filter above it covers the chosen / algorithm words.
+  // Filters of the "Other candidates" list; the chosen / algorithm words are always shown in full.
   const [restText, setRestText] = useState("");
   const [restGroup, setRestGroup] = useState<number | null>(null);
   const [note, setNote] = useState("");
@@ -106,14 +105,13 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
 
   const candidates = useMemo(() => data?.candidates ?? [], [data]);
   const algoIds = useMemo(() => new Set(candidates.filter((c) => c.in_algo).map((c) => c.id)), [candidates]);
-  const q = text.trim().toLowerCase();
   const restQ = restText.trim().toLowerCase();
 
   // Words the admin is looking at by default: everything chosen now or by the algorithm. The rest of the
   // (up to 224) candidates sit behind "Show all candidates".
   const pinned = useMemo(
-    () => candidates.filter((c) => (selected.has(c.id) || c.in_algo || c.in_final) && matchesText(c, q)),
-    [candidates, selected, q]
+    () => candidates.filter((c) => selected.has(c.id) || c.in_algo || c.in_final),
+    [candidates, selected]
   );
   // The other candidates before the search / reading-group filters: what "Show all (N)" counts.
   const restBase = useMemo(
@@ -282,7 +280,8 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
             </div>
           ) : null}
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-text-muted">{candidates.length} candidates</span>
             <button
               type="button"
               onClick={() => setSelected(new Set(algoIds))}
@@ -294,22 +293,11 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
           </div>
 
           <section>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="search"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Filter the chosen and algorithm words…"
-                className="min-w-0 flex-1 basis-48 rounded-xl border border-border-soft bg-bg-cards px-3.5 py-2 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
-              />
-              <span className="text-xs text-text-muted">{candidates.length} candidates</span>
-            </div>
-
-            <h3 className="mt-4 mb-2 text-[0.7rem] font-extrabold uppercase tracking-[1px] text-text-muted">
+            <h3 className="mb-2 text-[0.7rem] font-extrabold uppercase tracking-[1px] text-text-muted">
               Chosen and picked by the algorithm
             </h3>
             {pinned.length === 0 ? (
-              <p className="text-sm italic text-text-muted">{q ? "No match." : "None."}</p>
+              <p className="text-sm italic text-text-muted">None.</p>
             ) : (
               <ul className="space-y-2">
                 {pinned.map((c) => (
