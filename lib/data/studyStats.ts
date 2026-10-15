@@ -2,6 +2,7 @@ import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { KanaRuleProgress, LevelProgressCategory, ReadingTestCtaState, StudyStats, TodayActivityCounts } from "@/lib/types";
 import { getNextDue } from "@/lib/srs/nextDue";
 import { mostAdvancedLevel } from "@/lib/srs/constants";
+import { fetchReadingUnlockCandidates, readingUnlockCardCount } from "@/lib/data/readingUnlocks";
 
 const DEFAULT_NEW_KANJI_PER_DAY = 1;
 const DEFAULT_NEW_VOCAB_PER_DAY = 6;
@@ -127,7 +128,7 @@ export async function fetchStudyStats(
     : 0;
   const enabledLevels = (settingsResult.data?.enabled_levels ?? []) as string[];
 
-  const [kanjiCandidatesResult, vocabCandidatesResult, hiraganaCandidatesResult, katakanaCandidatesResult] =
+  const [kanjiCandidatesResult, vocabCandidatesResult, hiraganaCandidatesResult, katakanaCandidatesResult, readingUnlocks] =
     await Promise.all([
       kanjiRemaining > 0
         ? supabase.rpc("get_new_kanji_candidates", { p_user_id: userId, p_enabled_levels: enabledLevels, p_limit: kanjiRemaining })
@@ -141,6 +142,10 @@ export async function fetchStudyStats(
       katakanaRemaining > 0
         ? supabase.rpc("get_new_katakana_candidates", { p_user_id: userId, p_limit: katakanaRemaining })
         : Promise.resolve({ data: [] as unknown[], error: null }),
+      // Already capped by new_reading_unlocks_per_day server-side -- see get_reading_unlock_candidates.
+      settingsResult.data?.study_kanji && !isKana
+        ? fetchReadingUnlockCandidates(supabase, userId, timezone)
+        : Promise.resolve([]),
     ]);
   if (kanjiCandidatesResult.error) throw new Error(kanjiCandidatesResult.error.message);
   if (vocabCandidatesResult.error) throw new Error(vocabCandidatesResult.error.message);
@@ -189,6 +194,7 @@ export async function fetchStudyStats(
     new_kanji_today: newKanjiToday,
     new_kanji_limit: newKanjiPerDay,
     new_kanji_pending_review_cards: newKanjiPendingReviewCards,
+    reading_unlock_cards: readingUnlockCardCount(readingUnlocks),
     new_kanji_available: newKanjiAvailable,
     new_vocab_available: newVocabAvailable,
     new_hiragana_available: newHiraganaAvailable,

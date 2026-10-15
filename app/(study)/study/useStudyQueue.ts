@@ -26,6 +26,7 @@ import {
   submitKatakanaDrillResult as submitKatakanaDrillResultApi,
   submitReview as submitReviewApi,
   undoReview as undoReviewApi,
+  unlockKanjiReadings as unlockKanjiReadingsApi,
   acknowledgeAchievements as acknowledgeAchievementsApi,
   type KanaPackResult,
 } from "@/lib/client-data/study";
@@ -56,6 +57,7 @@ import {
   newKatakanaKey,
   newHiraganaRuleKey,
   newKatakanaRuleKey,
+  readingUnlockKey,
   reviewKey,
   type QueueItem,
 } from "./types";
@@ -177,6 +179,12 @@ function interleaveNewMaterial(
 function buildQueue(data: StudyQueueResponse, groupSize: number): QueueItem[] {
   const items: QueueItem[] = [];
   for (const card of data.due_cards) items.push({ key: reviewKey(card), kind: "review", card });
+  // "Reading unlock" cards go ahead of the day's brand-new material: they bring back kanji the
+  // student already knows, so they're the gentler start -- one per kanji, in the DB's order
+  // (lowest kanji level first).
+  for (const candidate of data.reading_unlocks_to_introduce ?? []) {
+    items.push({ key: readingUnlockKey(candidate.kanji_id), kind: "reading_unlock", candidate });
+  }
   // Always placed right before interleaveNewMaterial's own output below (never fetched at all
   // unless a "New kanji" candidate exists to follow it -- see fetchStudyQueue), so this lesson's
   // 3 steps finish exactly once, right before the student's very first real kanji card. One queue
@@ -380,9 +388,10 @@ function rearrangeKanjiVocab(
   const g = arrangement.groupSize;
   const arranged = arrangeKanjiVocab(kanji, words, g, kanjiToday * g - wordsPlaced, openBatchId);
 
+  const unlocks = items.filter((i) => i.kind === "reading_unlock");
   const basics = items.filter((i) => i.kind === "new_kanji_basics");
-  const rest = items.filter((i) => !isKanjiOrVocabNew(i) && i.kind !== "new_kanji_basics");
-  return [...basics, ...arranged, ...rest];
+  const rest = items.filter((i) => !isKanjiOrVocabNew(i) && i.kind !== "new_kanji_basics" && i.kind !== "reading_unlock");
+  return [...unlocks, ...basics, ...arranged, ...rest];
 }
 
 // A hiragana_reading/katakana_reading card still in the post-introduction drill (card.drill_mode
@@ -1757,6 +1766,67 @@ export function useStudyQueue() {
     [enqueueMutation, showToast]
   );
 
+  // A "Reading unlock" card works like a New kanji tap (introduceKanji above): unlock_kanji_readings
+  // creates the Word reading cards of every word of this kanji the student's level now allows, in
+  // one call, so the card is held on screen (pendingCardKey) until those cards are fetched, then
+  // swapped for them -- shuffled, nothing else in between -- in one setQueue call. The cards come
+  // from getKanjiIntroCards (same row shape as a New kanji bundle), keeping only the readings this
+  // call reports as unlocked today that are still learning (one another tab already answered is
+  // left to its normal schedule). kanjiInFlightRef keeps a poll that lands in between from queueing
+  // the same fresh rows on its own, exactly like introduceKanji.
+  const unlockReadings = useCallback(
+    (item: QueueItem & { kind: "reading_unlock" }) => {
+      const kanjiId = item.candidate.kanji_id;
+      hasProcessedAnyRef.current = true;
+      setCompletedCount((c) => c + 1);
+      setPendingCardKey(item.key);
+      kanjiInFlightRef.current.add(kanjiId);
+
+      enqueueMutation(async () => {
+        let unlockedIds: number[];
+        try {
+          unlockedIds = await unlockKanjiReadingsApi(kanjiId);
+        } catch (err) {
+          kanjiInFlightRef.current.delete(kanjiId);
+          setPendingCardKey(null);
+          if (err instanceof ApiError && err.status === 409) {
+            // Nothing to unlock any more (today's limit used up in another tab, or already done) --
+            // not a failure, the card just goes.
+            setQueue((prev) => prev.filter((i) => i.key !== item.key));
+            return;
+          }
+          setCompletedCount((c) => Math.max(0, c - 1));
+          showToast(err instanceof ApiError ? err.message : "Could not unlock these words. Please try again.", "error");
+          return;
+        }
+
+        const unlocked = new Set(unlockedIds);
+        const cards = await getKanjiIntroCards(kanjiId).catch(() => [] as DueCard[]);
+        kanjiInFlightRef.current.delete(kanjiId);
+        setPendingCardKey(null);
+
+        const readings = shuffle(
+          cards.filter(
+            (c) =>
+              c.exercise_type === "kanji_reading" &&
+              c.kanji_word_id != null &&
+              unlocked.has(c.kanji_word_id) &&
+              c.status === "learning"
+          )
+        );
+        const block = readings.map((card) => ({ key: reviewKey(card), kind: "review" as const, card }));
+
+        setQueue((prev) => {
+          const withoutItem = prev.filter((i) => i.key !== item.key);
+          const existingKeys = new Set(withoutItem.map((i) => i.key));
+          const newBlock = block.filter((i) => !existingKeys.has(i.key));
+          return [...newBlock, ...withoutItem];
+        });
+      });
+    },
+    [enqueueMutation, showToast]
+  );
+
   // introduce_vocabulary handles new_vocab specially only for the LAST "New vocabulary" card
   // still in the queue FROM THIS ITEM'S OWN INTERLEAVED GROUP (batchKanjiId -- see
   // interleaveNewMaterial) -- every earlier tap in the group uses the plain introduceCard path
@@ -2008,6 +2078,7 @@ export function useStudyQueue() {
     actions: {
       rate,
       introduceKanji,
+      unlockReadings,
       introduceKanjiBasics,
       introduceVocab,
       introduceHiragana,

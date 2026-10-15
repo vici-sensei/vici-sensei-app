@@ -10,6 +10,23 @@ export interface NewKanjiIntroWord {
     usually_kana: boolean | null;
     furiganas: string[] | null;
   };
+  /** The JLPT level that unlocks this word's "Word reading" card for this student, or null when it
+   * isn't locked -- see get_kanji_word_locks. A locked word gets no reading card when the kanji is
+   * introduced; it arrives later through a "Reading unlock" card. */
+  unlock_level?: string | null;
+}
+
+/** One "Reading unlock" card: a kanji the student already learned, plus the words of it whose
+ * "Word reading" cards their level now allows (see get_reading_unlock_candidates, which groups
+ * them by kanji and applies new_reading_unlocks_per_day). */
+export interface ReadingUnlockCandidate {
+  kanji_id: number;
+  kanji: string;
+  meanings: string[] | null;
+  level: string | null;
+  kun_readings: string[] | null;
+  on_readings: string[] | null;
+  words: NewKanjiIntroWord[];
 }
 
 export interface RatingPreviews {
@@ -305,6 +322,8 @@ export interface StudyQueueResponse {
    * lesson finishes right before the student's first real "New kanji" card. */
   new_kanji_basics_to_introduce: NewKanjiBasicsCandidate[];
   new_kanji_to_introduce: NewKanjiCandidate[];
+  /** Today's "Reading unlock" cards, one per kanji -- see ReadingUnlockCandidate. */
+  reading_unlocks_to_introduce: ReadingUnlockCandidate[];
   new_vocab_to_introduce: NewVocabCandidate[];
   /** get_today_activity_counts' new_kanji_today/new_vocab_today as of this fetch -- how many
    * kanji and words the student already introduced today. buildQueue/arrangeKanjiVocab use them
@@ -406,6 +425,9 @@ export interface StudyStats {
    * kanji_reading, N varying per kanji), unlike vocab/hiragana/katakana which are a flat 2 cards
    * each -- so cardsRemainingToday can't derive this from new_kanji_available alone. */
   new_kanji_pending_review_cards: number;
+  /** Today's "Reading unlock" cards plus their Word reading cards (readingUnlockCardCount) --
+   * already capped by new_reading_unlocks_per_day server-side. */
+  reading_unlock_cards: number;
   /** How many new kanji/vocab/hiragana/katakana candidates get_new_*_candidates would actually
    * return right now -- i.e. Math.min(new_X_limit - new_X_today, however many un-introduced
    * candidates genuinely exist). new_X_limit - new_X_today alone (the daily quota still open) is
@@ -524,6 +546,11 @@ export interface JlptLevelUpResult {
   completedLevel: JlptLevel | null;
   newLevel: JlptLevel | null;
   isMaxLevel: boolean;
+  /** How many locked kanji words the new level lets through ("Reading unlock" cards) -- see
+   * count_unlockable_readings. 0 when not leveled up. */
+  unlockedReadings: number;
+  /** The student's new_reading_unlocks_per_day, for the popup's "N a day" -- null when not asked. */
+  readingUnlocksPerDay: number | null;
 }
 
 /** Which kana-track milestone useStudyQueue's checkKanaGraduation just detected, by comparing

@@ -6,7 +6,7 @@ import { Button } from "@/app/components/ui/Button";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { useModalConfetti } from "@/app/components/study/useModalConfetti";
 import type { JlptLevelUpResult } from "@/lib/types";
-import { FaArrowRightLong, FaTrophy } from "react-icons/fa6";
+import { FaArrowRightLong, FaLockOpen, FaTrophy } from "react-icons/fa6";
 
 interface JlptLevelUpModalProps {
   result: JlptLevelUpResult;
@@ -59,6 +59,20 @@ export function JlptLevelUpModal({ result, onClose, confettiReady = true }: Jlpt
             </>
           )}
         </p>
+
+        {/* Kanji words that were locked until this level (see count_unlockable_readings) -- they now
+            come as "Reading unlock" cards, new_reading_unlocks_per_day at a time. */}
+        {result.unlockedReadings > 0 && (
+          <p className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-accent-gold/25 bg-accent-gold/[0.06] px-3 py-2.5 text-[0.88rem] text-white">
+            <FaLockOpen aria-hidden className="h-3.5 w-3.5 shrink-0 text-accent-gold" />
+            <span>
+              {result.unlockedReadings} word {result.unlockedReadings === 1 ? "reading" : "readings"} unlocked
+              {result.readingUnlocksPerDay != null && result.unlockedReadings > result.readingUnlocksPerDay
+                ? ` — they'll arrive ${result.readingUnlocksPerDay} a day`
+                : ""}
+            </span>
+          </p>
+        )}
 
         <Button className="mt-7 w-full" onClick={onClose}>
           Continue

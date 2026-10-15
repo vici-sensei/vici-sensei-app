@@ -3,6 +3,7 @@ import { getNextDue } from "@/lib/srs/nextDue";
 import { fetchKanjiDetailWordsBatch } from "@/lib/kanji/detailWords";
 import { previewRatingLabels, type ProgressRow } from "@/lib/srs/scheduler";
 import { computeTotalCardsToday } from "@/lib/study/totalCardsToday";
+import { fetchReadingUnlockCandidates, readingUnlockCardCount } from "@/lib/data/readingUnlocks";
 import type { KanaScript } from "./kanaScripts";
 import type {
   DueCard,
@@ -198,6 +199,7 @@ function computePredictedTotal(
   katakanaCandidateCount: number,
   hiraganaRuleForecastCount: number,
   katakanaRuleForecastCount: number,
+  readingUnlockCardsTotal: number,
   // Not folded into computeTotalCardsToday/TotalCardsTodayInput: unlike every category that
   // helper already covers, this one is a one-time lesson the dashboard's own cardsRemainingToday
   // has no reason to forecast (it fires at most 3 times ever, per account) -- adding it there
@@ -216,6 +218,7 @@ function computePredictedTotal(
       katakanaCandidateCount,
       hiraganaRuleForecastCount,
       katakanaRuleForecastCount,
+      readingUnlockCardsTotal,
     }) + kanjiBasicsCandidateCount
   );
 }
@@ -273,6 +276,7 @@ export async function fetchStudyQueue(
     katakanaRuleCandidatesResult,
     hiraganaRuleForecastResult,
     katakanaRuleForecastResult,
+    readingUnlocks,
   ] = await Promise.all([
     kanjiRemaining > 0
       ? supabase.rpc("get_new_kanji_candidates", {
@@ -322,6 +326,9 @@ export async function fetchStudyQueue(
     settings.study_katakana
       ? supabase.rpc("get_katakana_rule_forecast", { p_user_id: userId, p_limit: katakanaRemaining }).single()
       : Promise.resolve({ data: { rule_count: 0, example_count: 0 }, error: null }),
+    // "Reading unlock" cards: locked kanji words the student's level now allows, one card per
+    // kanji, already capped by new_reading_unlocks_per_day server-side (no client-side quota).
+    settings.study_kanji ? fetchReadingUnlockCandidates(supabase, userId, timezone) : Promise.resolve([]),
   ]);
 
   if (kanjiCandidatesResult.error) throw new Error(kanjiCandidatesResult.error.message);
@@ -336,7 +343,7 @@ export async function fetchStudyQueue(
 
   const kanjiCandidateRows = (kanjiCandidatesResult.data ?? []) as NewKanjiCandidateRow[];
   if (kanjiCandidateRows.length > 0 && onKanjiWordsReady) {
-    void fetchKanjiDetailWordsBatch(supabase, kanjiCandidateRows.map((c) => c.id)).then(
+    void fetchKanjiDetailWordsBatch(supabase, kanjiCandidateRows.map((c) => c.id), userId).then(
       ({ wordsByKanjiId, error: wordsError }) => {
         if (!wordsError) onKanjiWordsReady(wordsByKanjiId);
         // Errors here just mean the intro cards show with no example words -- not worth
@@ -403,6 +410,7 @@ export async function fetchStudyQueue(
     due_cards: dueCards,
     new_kanji_basics_to_introduce: newKanjiBasicsToIntroduce,
     new_kanji_to_introduce: newKanjiToIntroduce,
+    reading_unlocks_to_introduce: readingUnlocks,
     new_vocab_to_introduce: vocabCandidates,
     new_kanji_today: counts.new_kanji_today ?? 0,
     new_vocab_today: counts.new_vocab_today ?? 0,
@@ -421,6 +429,7 @@ export async function fetchStudyQueue(
       katakanaCandidates.length,
       hiraganaRuleForecast.rule_count + hiraganaRuleForecast.example_count,
       katakanaRuleForecast.rule_count + katakanaRuleForecast.example_count,
+      readingUnlockCardCount(readingUnlocks),
       newKanjiBasicsToIntroduce.length
     ),
   };

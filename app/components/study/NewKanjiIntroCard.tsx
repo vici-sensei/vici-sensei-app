@@ -81,8 +81,9 @@ export function NewKanjiIntroCard({ candidate, disabled, onConfirm }: Props) {
               {...pressProps}
               className="h-full max-h-full overflow-y-auto divide-y divide-border-soft rounded-xl border border-border-soft bg-white/[0.03] text-left"
             >
+              {/* Locked words (unlock_level) already come last -- see withWordLocks. */}
               {words.map((w) => (
-                <WordPreviewRow key={w.id} vocabulary={w.vocabulary} renderKanji={renderKanji} />
+                <WordPreviewRow key={w.id} vocabulary={w.vocabulary} renderKanji={renderKanji} unlockLevel={w.unlock_level} />
               ))}
             </div>
             <div

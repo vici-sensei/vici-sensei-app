@@ -17,6 +17,11 @@ import { KanjiHint } from "@/app/components/study/KanjiHint";
 import { usePressableKanji } from "@/app/components/study/usePressableKanji";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 import { useNumericIdParam } from "@/lib/browse/useNumericIdParam";
+import { withWordLocks } from "@/lib/kanji/detailWords";
+import { FaLock } from "react-icons/fa6";
+
+// Same look as a locked word on the New kanji card (WordPreviewRow): grayed out, still readable.
+const LOCKED_FADE = "opacity-45 grayscale";
 
 function NotFound() {
   return <BrowseNotFound title="Kanji not found" message="This kanji doesn't exist or may have been removed." backHref="/browse/kanji" />;
@@ -165,6 +170,9 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
   if (!kanji) return <NotFound />;
 
   const hasProgress = progress ? progress.meaning !== null || progress.readings.length > 0 : false;
+  // Words locked for this student (get_kanji_word_locks) are grayed out and listed last, like on
+  // the New kanji card.
+  const exampleWords = withWordLocks(kanji.words, (id) => progress?.wordLocks[id]);
 
   return (
     <div>
@@ -194,7 +202,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       {showKanjiHint && <KanjiHint className="-mt-1.5 mb-3.5" />}
       {kanjiModal}
       <div {...pressProps} className="grid grid-cols-1 gap-3 text-left">
-        {kanji.words.map((w) => (
+        {exampleWords.map((w) => (
           <div
             // gap-y only matters once the meaning block wraps below the word (narrow screens): a
             // usually-kana row gets a bit more room there, so the note doesn't touch the word.
@@ -204,7 +212,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
             key={w.id}
           >
             <div className="flex items-end gap-2">
-              <div className="pt-[0.6em] text-3xl leading-none">
+              <div className={`pt-[0.6em] text-3xl leading-none ${w.unlock_level ? LOCKED_FADE : ""}`}>
                 {renderWordWithFurigana(
                   w.vocabulary.word,
                   w.vocabulary.furiganas,
@@ -225,15 +233,27 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
                   <UsuallyKanaNote />
                 </div>
               )}
-              <div className="text-[0.85rem] text-text-muted">{w.vocabulary.primary_meanings?.join(", ")}</div>
+              <div className={`text-[0.85rem] text-text-muted ${w.unlock_level ? LOCKED_FADE : ""}`}>
+                {w.vocabulary.primary_meanings?.join(", ")}
+              </div>
               {w.vocabulary.usually_kana && !hasOtherMeanings(w.vocabulary.other_meanings) && (
                 <div className="mt-1.5">
                   <UsuallyKanaNote />
                 </div>
               )}
+              {w.unlock_level && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
+                  <FaLock aria-hidden className="h-2.5 w-2.5 shrink-0" />
+                  Unlocks at {w.unlock_level}
+                </div>
+              )}
               <OtherMeaningsToggle otherMeanings={w.vocabulary.other_meanings} className="mt-2" />
             </div>
-            <LevelBadge level={w.vocabulary.jlpt_level} size="md" className="ml-auto shrink-0" />
+            <LevelBadge
+              level={w.vocabulary.jlpt_level}
+              size="md"
+              className={`ml-auto shrink-0 ${w.unlock_level ? LOCKED_FADE : ""}`}
+            />
           </div>
         ))}
       </div>

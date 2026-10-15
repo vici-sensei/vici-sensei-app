@@ -27,6 +27,15 @@ export async function resetCard(supabase: AppSupabaseClient, userId: string, typ
       .eq("user_id", userId)
       .eq("kanji_id", id);
     if (readingsError) throw new ApiError(500, readingsError.message);
+
+    // Its locked words (user_kanji_reading_pending) go too -- they belong to this introduction.
+    // introduce_kanji clears any left over itself, so this is only tidiness, not correctness.
+    const { error: pendingError } = await supabase
+      .from("user_kanji_reading_pending")
+      .delete()
+      .eq("user_id", userId)
+      .eq("kanji_id", id);
+    if (pendingError) throw new ApiError(500, pendingError.message);
   }
 }
 

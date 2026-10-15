@@ -1,6 +1,7 @@
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { KanjiProgressResponse, KanjiReadingProgress, ProgressStatusCounts, ProgressSummaryResponse, VocabularyProgress } from "@/lib/types";
 import { PROGRESS_STATUSES } from "@/lib/srs/constants";
+import { fetchKanjiWordLocks } from "@/lib/kanji/detailWords";
 
 function countByStatus(rows: { status: string }[]): ProgressStatusCounts {
   const counts = Object.fromEntries(PROGRESS_STATUSES.map((s) => [s, 0])) as unknown as ProgressStatusCounts;
@@ -15,19 +16,25 @@ export async function fetchKanjiProgress(
   userId: string,
   kanjiId: number
 ): Promise<KanjiProgressResponse> {
-  const [meaningResult, readingsResult] = await Promise.all([
+  const [meaningResult, readingsResult, locksResult] = await Promise.all([
     supabase.from("user_kanji_meaning_progress").select("status, due_at").eq("user_id", userId).eq("kanji_id", kanjiId).maybeSingle(),
     supabase
       .from("user_kanji_reading_progress")
       .select("id, status, due_at, kanji_word_id, kanji_word:kanji_word_id(reading_group, vocabulary:id_word(word, kana_reading, usually_kana))")
       .eq("user_id", userId)
       .eq("kanji_id", kanjiId),
+    fetchKanjiWordLocks(supabase, userId, [kanjiId]),
   ]);
 
   if (meaningResult.error) throw new Error(meaningResult.error.message);
   if (readingsResult.error) throw new Error(readingsResult.error.message);
 
-  return { meaning: meaningResult.data, readings: readingsResult.data as unknown as KanjiReadingProgress[] };
+  // A failed lock lookup only loses the padlocks on Example words -- not worth failing the page.
+  return {
+    meaning: meaningResult.data,
+    readings: readingsResult.data as unknown as KanjiReadingProgress[],
+    wordLocks: Object.fromEntries(locksResult.locks),
+  };
 }
 
 export async function fetchVocabularyProgress(

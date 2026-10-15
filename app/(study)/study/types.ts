@@ -7,6 +7,7 @@ import type {
   NewKatakanaCandidate,
   NewHiraganaRuleCandidate,
   NewKatakanaRuleCandidate,
+  ReadingUnlockCandidate,
 } from "@/lib/types";
 
 export type QueueItem =
@@ -32,6 +33,9 @@ export type QueueItem =
       candidates: NewKanjiBasicsCandidate[];
     }
   | { key: string; kind: "new_kanji"; candidate: NewKanjiCandidate }
+  /** A kanji the student already learned, with the words of it their level now unlocks -- its
+   * Next creates those words' Word reading cards (unlockReadings in useStudyQueue.ts). */
+  | { key: string; kind: "reading_unlock"; candidate: ReadingUnlockCandidate }
   | {
       key: string;
       kind: "new_vocab";
@@ -56,6 +60,10 @@ export function reviewKey(card: DueCard): string {
 
 export function newKanjiKey(id: number): string {
   return `new_kanji-${id}`;
+}
+
+export function readingUnlockKey(kanjiId: number): string {
+  return `reading_unlock-${kanjiId}`;
 }
 
 export function newKanjiBasicsKey(ids: number[]): string {

@@ -22,6 +22,7 @@ import {
 export type { KanaPackResult } from "@/lib/data/introduce";
 import { recordHiraganaDrillResult, recordKatakanaDrillResult, type KanaDrillResult } from "@/lib/data/kanaDrill";
 import { checkJlptLevelUp as checkJlptLevelUpData } from "@/lib/data/jlptLevel";
+import { unlockKanjiReadings as unlockKanjiReadingsData } from "@/lib/data/readingUnlocks";
 import { acknowledgeAchievements as acknowledgeAchievementsData } from "@/lib/data/achievements";
 import { getActiveTimeZone, resolveTimeZone } from "@/lib/timezone";
 import { createPrefetcher } from "@/lib/client-data/createPrefetcher";
@@ -171,6 +172,15 @@ export async function getKanjiIntroCards(kanjiId: number): Promise<DueCard[]> {
   const supabase = createClient();
   const userId = await requireUserId();
   return fetchKanjiIntroCards(supabase, userId, kanjiId);
+}
+
+/** A "Reading unlock" card's Next -- creates the Word reading cards of this kanji's newly allowed
+ * words and returns the kanji_word ids unlocked today (see unlock_kanji_readings). 409 = drop the
+ * card. Hand the ids to getKanjiIntroCards' kanji_reading cards to get the cards themselves. */
+export async function unlockKanjiReadings(kanjiId: number): Promise<number[]> {
+  const supabase = createClient();
+  const userId = await requireUserId();
+  return unlockKanjiReadingsData(supabase, userId, kanjiId, getActiveTimeZone());
 }
 
 export function introduceVocabulary(wordId: number, sessionId?: number): Promise<void> {

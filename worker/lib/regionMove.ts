@@ -30,7 +30,7 @@ import {
 
 interface TableSpec {
   name: string;
-  /** false for the 2 tables with a natural composite PK (no identity `id` column to strip). */
+  /** false for the 3 tables with a natural composite PK (no identity `id` column to strip). */
   hasIdentityId: boolean;
   /** true for the 8 tables with a `session_id` FK into study_sessions.id that must be remapped. */
   hasSessionId: boolean;
@@ -59,6 +59,8 @@ const COPY_TABLES: TableSpec[] = [
   { name: "user_reading_test_attempts", hasIdentityId: false, hasSessionId: false },
   { name: "user_reading_test_progress", hasIdentityId: true, hasSessionId: false },
   { name: "user_vocabulary_progress", hasIdentityId: true, hasSessionId: true },
+  // Locked kanji words waiting for a "Reading unlock" card (20261015183526_kanji_reading_unlocks.sql).
+  { name: "user_kanji_reading_pending", hasIdentityId: false, hasSessionId: false },
   { name: "user_achievements", hasIdentityId: true, hasSessionId: false },
 ];
 

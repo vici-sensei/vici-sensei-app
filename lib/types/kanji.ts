@@ -31,6 +31,9 @@ export interface KanjiDetailWord {
     /** get_kanji_detail_words (20261233_usually_kana_on_kanji_word_rpcs.sql) -- absent from an older DB. */
     usually_kana?: boolean | null;
   };
+  /** The JLPT level that unlocks this word's "Word reading" card for the signed-in student, or
+   * null when it isn't locked -- see get_kanji_word_locks. */
+  unlock_level?: string | null;
 }
 
 export interface KanjiDetail extends KanjiRow {

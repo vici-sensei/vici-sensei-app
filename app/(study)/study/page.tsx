@@ -12,6 +12,7 @@ import { ReviewCardVocabMeaning } from "@/app/components/study/ReviewCardVocabMe
 import { ReviewCardKanaReading } from "@/app/components/study/ReviewCardKanaReading";
 import { NewKanjiBasicsIntroCard } from "@/app/components/study/NewKanjiBasicsIntroCard";
 import { NewKanjiIntroCard } from "@/app/components/study/NewKanjiIntroCard";
+import { ReadingUnlockCard } from "@/app/components/study/ReadingUnlockCard";
 import { NewVocabIntroCard } from "@/app/components/study/NewVocabIntroCard";
 import { NewKanaIntroCard } from "@/app/components/study/NewKanaIntroCard";
 import { NewKanaRuleIntroCard } from "@/app/components/study/NewKanaRuleIntroCard";
@@ -180,6 +181,14 @@ export default function StudyPage() {
             candidate={current.candidate}
             disabled={cardPending}
             onConfirm={() => actions.introduceKanji(current)}
+          />
+        )}
+        {current.kind === "reading_unlock" && (
+          <ReadingUnlockCard
+            key={current.key}
+            candidate={current.candidate}
+            disabled={cardPending}
+            onConfirm={() => actions.unlockReadings(current)}
           />
         )}
         {current.kind === "new_vocab" && (

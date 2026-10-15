@@ -25,6 +25,9 @@ export interface VocabularyProgress {
 export interface KanjiProgressResponse {
   meaning: KanjiMeaningProgress | null;
   readings: KanjiReadingProgress[];
+  /** kanji_word_id -> the JLPT level that unlocks it, for this kanji's words that are locked for
+   * the student right now (see get_kanji_word_locks). Words missing here aren't locked. */
+  wordLocks: Record<number, string>;
 }
 
 export interface ProgressStatusCounts {

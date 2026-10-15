@@ -33,6 +33,7 @@ export function cardsRemainingToday(stats: StudyStats): number {
       katakanaCandidateCount: stats.study_katakana ? stats.new_katakana_available : 0,
       hiraganaRuleForecastCount: 0,
       katakanaRuleForecastCount: 0,
+      readingUnlockCardsTotal: 0,
     });
   }
   return computeTotalCardsToday({
@@ -44,5 +45,6 @@ export function cardsRemainingToday(stats: StudyStats): number {
     katakanaCandidateCount: 0,
     hiraganaRuleForecastCount: 0,
     katakanaRuleForecastCount: 0,
+    readingUnlockCardsTotal: stats.study_kanji ? stats.reading_unlock_cards : 0,
   });
 }

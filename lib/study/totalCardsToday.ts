@@ -37,6 +37,9 @@ export interface TotalCardsTodayInput {
   katakanaCandidateCount: number;
   hiraganaRuleForecastCount: number;
   katakanaRuleForecastCount: number;
+  /** Today's "Reading unlock" cards plus the Word reading card each of their words brings -- see
+   * readingUnlockCardCount (lib/data/readingUnlocks.ts). 0 off the standard track. */
+  readingUnlockCardsTotal: number;
 }
 
 export function computeTotalCardsToday(input: TotalCardsTodayInput): number {
@@ -48,6 +51,7 @@ export function computeTotalCardsToday(input: TotalCardsTodayInput): number {
     input.hiraganaCandidateCount * 2 +
     input.katakanaCandidateCount * 2 +
     input.hiraganaRuleForecastCount +
-    input.katakanaRuleForecastCount
+    input.katakanaRuleForecastCount +
+    input.readingUnlockCardsTotal
   );
 }

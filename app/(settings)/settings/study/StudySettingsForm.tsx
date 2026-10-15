@@ -42,6 +42,10 @@ import { TimezonePreferenceCard, type TimezonePreference } from "./TimezonePrefe
 const REVIEWS_STEP = 10;
 const KANA_STEP = 5;
 const KANA_MIN = 5;
+// user_study_settings_new_reading_unlocks_per_day_check: 1-50, default 10.
+const READING_UNLOCKS_MIN = 1;
+const READING_UNLOCKS_MAX = 50;
+const READING_UNLOCKS_DEFAULT = 10;
 const AUTOSAVE_DELAY_MS = 500;
 
 type Snapshot = {
@@ -50,6 +54,7 @@ type Snapshot = {
   newHiraganaPerDay: number;
   newKatakanaPerDay: number;
   maxReviewsPerDay: number;
+  readingUnlocksPerDay: number;
   level: JlptLevel;
   floor: JlptLevel;
   studyKanji: boolean;
@@ -70,6 +75,8 @@ function snapshotFrom(settings: StudySettings): Snapshot {
     newHiraganaPerDay: settings.new_hiragana_per_day,
     newKatakanaPerDay: settings.new_katakana_per_day,
     maxReviewsPerDay: settings.max_reviews_per_day,
+    // Same `??` reasoning as extendedRomajiEnabled below.
+    readingUnlocksPerDay: settings.new_reading_unlocks_per_day ?? READING_UNLOCKS_DEFAULT,
     level: mostAdvancedLevel(settings.enabled_levels),
     floor: leastAdvancedLevel(settings.enabled_levels),
     studyKanji: settings.study_kanji,
@@ -94,6 +101,7 @@ function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
     a.newHiraganaPerDay === b.newHiraganaPerDay &&
     a.newKatakanaPerDay === b.newKatakanaPerDay &&
     a.maxReviewsPerDay === b.maxReviewsPerDay &&
+    a.readingUnlocksPerDay === b.readingUnlocksPerDay &&
     a.level === b.level &&
     a.floor === b.floor &&
     a.studyKanji === b.studyKanji &&
@@ -135,6 +143,9 @@ export function StudySettingsForm({
   );
   const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(
     initial.max_reviews_per_day,
+  );
+  const [readingUnlocksPerDay, setReadingUnlocksPerDay] = useState(
+    initial.new_reading_unlocks_per_day ?? READING_UNLOCKS_DEFAULT,
   );
   const [level, setLevel] = useState<JlptLevel>(
     mostAdvancedLevel(initial.enabled_levels),
@@ -343,6 +354,12 @@ export function StudySettingsForm({
     );
   }
 
+  function adjustReadingUnlocks(delta: number) {
+    setReadingUnlocksPerDay((v) =>
+      Math.min(READING_UNLOCKS_MAX, Math.max(READING_UNLOCKS_MIN, v + delta)),
+    );
+  }
+
   function adjustHiragana(delta: number) {
     setNewHiraganaPerDay((v) => Math.max(KANA_MIN, v + delta * KANA_STEP));
   }
@@ -486,6 +503,7 @@ export function StudySettingsForm({
     setNewHiraganaPerDay(snapshot.newHiraganaPerDay);
     setNewKatakanaPerDay(snapshot.newKatakanaPerDay);
     setMaxReviewsPerDay(snapshot.maxReviewsPerDay);
+    setReadingUnlocksPerDay(snapshot.readingUnlocksPerDay);
     setLevel(snapshot.level);
     setFloor(snapshot.floor);
     setStudyKanji(snapshot.studyKanji);
@@ -592,6 +610,7 @@ export function StudySettingsForm({
       newHiraganaPerDay,
       newKatakanaPerDay,
       maxReviewsPerDay,
+      readingUnlocksPerDay,
       level,
       floor,
       studyKanji,
@@ -613,6 +632,7 @@ export function StudySettingsForm({
         new_hiragana_per_day: current.newHiraganaPerDay,
         new_katakana_per_day: current.newKatakanaPerDay,
         max_reviews_per_day: current.maxReviewsPerDay,
+        new_reading_unlocks_per_day: current.readingUnlocksPerDay,
         enabled_levels: levelsInRange(current.floor, current.level),
         include_lower_levels: current.floor !== current.level,
         study_kanji: current.studyKanji,
@@ -680,6 +700,7 @@ export function StudySettingsForm({
     newHiraganaPerDay,
     newKatakanaPerDay,
     maxReviewsPerDay,
+    readingUnlocksPerDay,
     level,
     floor,
     studyKanji,
@@ -771,6 +792,25 @@ export function StudySettingsForm({
                 newCardCaps != null && newVocabPerDay + 6 > newCardCaps.vocabMax
               }
               disabled={disabled}
+            />
+          </GlassCard>
+
+          <GlassCard padding="lg" className="mb-5.5">
+            <Stepper
+              label="Unlocked word readings per day"
+              value={readingUnlocksPerDay}
+              onDecrement={() => adjustReadingUnlocks(-1)}
+              onIncrement={() => adjustReadingUnlocks(1)}
+              decrementDisabled={readingUnlocksPerDay <= READING_UNLOCKS_MIN}
+              incrementDisabled={readingUnlocksPerDay >= READING_UNLOCKS_MAX}
+              disabled={disabled}
+              hint={
+                <div className={fieldHint}>
+                  Words far above a kanji&apos;s level stay locked when you
+                  learn the kanji. Once your level gets close, they come back
+                  as Reading unlock cards — this many words a day.
+                </div>
+              }
             />
           </GlassCard>
 

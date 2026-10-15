@@ -24,6 +24,9 @@ export interface StudySettings {
   study_katakana: boolean;
   new_hiragana_per_day: number;
   new_katakana_per_day: number;
+  /** How many locked kanji words may unlock per study day, through "Reading unlock" cards (1-50,
+   * default 10). A kanji's words unlock together, so the day's last kanji may go over by a few. */
+  new_reading_unlocks_per_day: number;
   /** Kana-track only -- shows a "Practice" button on the dashboard once the user is done for the
    * day, linking to /study/practice (an unscored, single-pass review of every hiragana/katakana
    * character they've seen). Purely a display preference; ignored on the standard track. */
@@ -68,6 +71,7 @@ export interface StudySettingsPatch {
   study_katakana?: boolean;
   new_hiragana_per_day?: number;
   new_katakana_per_day?: number;
+  new_reading_unlocks_per_day?: number;
   kana_practice_enabled?: boolean;
   extended_romaji_enabled?: boolean;
   timezone_preference_enabled?: boolean;
