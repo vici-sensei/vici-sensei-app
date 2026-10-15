@@ -209,19 +209,22 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
           <div
             // gap-y only matters once the meaning block wraps below the word (narrow screens): a
             // usually-kana row gets a bit more room there, so the note doesn't touch the word.
+            // A locked word's card turns into a grid from sm up, so its level badge can span both
+            // lines (the "Unlocks at" line and the word) and stay vertically centered on the card,
+            // like on an unlocked one. Below sm the card wraps the way an unlocked one does.
             className={`flex flex-wrap items-center gap-x-8 rounded-xl border border-border-soft px-3.5 py-3 ${
-              w.unlock_level ? LOCKED_ROW_BG : "bg-white/[0.03]"
+              w.unlock_level ? `${LOCKED_ROW_BG} sm:grid sm:grid-cols-[auto_minmax(0,1fr)_auto]` : "bg-white/[0.03]"
             } ${w.vocabulary.usually_kana ? "gap-y-3" : "gap-y-1.5"}`}
             key={w.id}
           >
             {/* A full-width first line, so the lock reads before the word itself. */}
             {w.unlock_level && (
-              <div className="flex basis-full items-center justify-center gap-1.5 text-[0.75rem] font-semibold text-text-muted md:justify-start">
+              <div className="flex basis-full items-center justify-center gap-1.5 text-[0.75rem] font-semibold text-text-muted sm:col-start-1 sm:col-end-4 sm:row-start-1 md:justify-start">
                 <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
                 Unlocks at {w.unlock_level}
               </div>
             )}
-            <div className="flex items-end gap-2">
+            <div className={`flex items-end gap-2 ${w.unlock_level ? "sm:col-start-1 sm:row-start-2" : ""}`}>
               <div className={`pt-[0.6em] text-3xl leading-none ${w.unlock_level ? LOCKED_FADE : ""}`}>
                 {renderWordWithFurigana(
                   w.vocabulary.word,
@@ -235,7 +238,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
               {/* Pressable kanji can't be selected -- this is how the word gets copied. */}
               <CopyWordButton text={w.vocabulary.word} />
             </div>
-            <div>
+            <div className={w.unlock_level ? "sm:col-start-2 sm:row-start-2" : undefined}>
               {/* With the "Show other meanings" toggle under the meaning, the note goes above the
                   meaning instead of between the two. */}
               {w.vocabulary.usually_kana && hasOtherMeanings(w.vocabulary.other_meanings) && (
@@ -256,7 +259,9 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
             <LevelBadge
               level={w.vocabulary.jlpt_level}
               size="md"
-              className={`ml-auto shrink-0 ${w.unlock_level ? LOCKED_FADE : ""}`}
+              className={`ml-auto shrink-0 ${
+                w.unlock_level ? `${LOCKED_FADE} sm:col-start-3 sm:row-start-1 sm:row-end-3 sm:self-center` : ""
+              }`}
             />
           </div>
         ))}

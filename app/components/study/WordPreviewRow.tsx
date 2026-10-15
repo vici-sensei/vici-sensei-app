@@ -22,16 +22,19 @@ const LOCKED_ROW_BG = "bg-black/15";
 /** One row of the word list shown on a new-kanji intro card. */
 export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) {
   const fade = unlockLevel ? LOCKED_FADE : "";
+  // A grid, so the level badge can span both lines of a locked row (its "Unlocks at" line and the
+  // word itself) and stay vertically centered on the whole row, like on an unlocked one. The
+  // "Unlocks at" line spans the badge's column too, so on mobile it centers on the full row width.
   return (
-    <div className={`px-3 py-2.5 ${unlockLevel ? LOCKED_ROW_BG : ""}`}>
+    <div className={`grid grid-cols-[minmax(0,1fr)_auto] items-center px-3 py-2.5 ${unlockLevel ? LOCKED_ROW_BG : ""}`}>
       {/* On its own line above the word, so the lock reads before the word itself. */}
       {unlockLevel && (
-        <div className="mb-0.5 flex items-center justify-center gap-1.5 text-[0.75rem] font-semibold text-text-muted md:justify-start">
+        <div className="col-start-1 col-end-3 row-start-1 mb-0.5 flex items-center justify-center gap-1.5 text-[0.75rem] font-semibold text-text-muted md:justify-start">
           <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
           Unlocks at {unlockLevel}
         </div>
       )}
-      <div className="flex items-center gap-3">
+      <div className={`col-start-1 flex items-center gap-3 ${unlockLevel ? "row-start-2" : "row-start-1"}`}>
         <div className={`shrink-0 pt-[0.4em] text-3xl leading-none ${fade}`}>
           {renderWordWithFurigana(vocabulary.word, vocabulary.furiganas, undefined, undefined, undefined, renderKanji)}
         </div>
@@ -43,10 +46,14 @@ export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) 
             </div>
           )}
         </div>
-        {vocabulary.jlpt_level && (
-          <LevelBadge level={vocabulary.jlpt_level} size="sm" className={`shrink-0 ${fade}`} />
-        )}
       </div>
+      {vocabulary.jlpt_level && (
+        <LevelBadge
+          level={vocabulary.jlpt_level}
+          size="sm"
+          className={`col-start-2 row-start-1 ml-3 self-center ${unlockLevel ? "row-end-3" : ""} ${fade}`}
+        />
+      )}
     </div>
   );
 }
