@@ -14,14 +14,16 @@ interface Props {
   unlockLevel?: string | null;
 }
 
-// Grayed out, not hidden: the word and its meaning stay readable (and its kanji pressable).
+// Grayed out, not hidden: the word and its meaning stay readable (and its kanji pressable). The
+// darker row background sets the locked words apart as one inactive block, at a glance.
 const LOCKED_FADE = "opacity-45 grayscale";
+const LOCKED_ROW_BG = "bg-black/30";
 
 /** One row of the word list shown on a new-kanji intro card. */
 export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) {
   const fade = unlockLevel ? LOCKED_FADE : "";
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5">
+    <div className={`flex items-center gap-3 px-3 py-2.5 ${unlockLevel ? LOCKED_ROW_BG : ""}`}>
       <div className={`shrink-0 pt-[0.4em] text-3xl leading-none ${fade}`}>
         {renderWordWithFurigana(vocabulary.word, vocabulary.furiganas, undefined, undefined, undefined, renderKanji)}
       </div>
@@ -34,7 +36,7 @@ export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) 
         )}
         {unlockLevel && (
           <div className="mt-1 flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
-            <FaLock aria-hidden className="h-2.5 w-2.5 shrink-0" />
+            <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
             Unlocks at {unlockLevel}
           </div>
         )}

@@ -20,8 +20,10 @@ import { useNumericIdParam } from "@/lib/browse/useNumericIdParam";
 import { withWordLocks } from "@/lib/kanji/detailWords";
 import { FaLock } from "react-icons/fa6";
 
-// Same look as a locked word on the New kanji card (WordPreviewRow): grayed out, still readable.
+// Same look as a locked word on the New kanji card (WordPreviewRow): grayed out, still readable,
+// on a darker background.
 const LOCKED_FADE = "opacity-45 grayscale";
+const LOCKED_ROW_BG = "bg-black/30";
 
 function NotFound() {
   return <BrowseNotFound title="Kanji not found" message="This kanji doesn't exist or may have been removed." backHref="/browse/kanji" />;
@@ -206,9 +208,9 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
           <div
             // gap-y only matters once the meaning block wraps below the word (narrow screens): a
             // usually-kana row gets a bit more room there, so the note doesn't touch the word.
-            className={`flex flex-wrap items-center gap-x-8 rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-3 ${
-              w.vocabulary.usually_kana ? "gap-y-3" : "gap-y-1.5"
-            }`}
+            className={`flex flex-wrap items-center gap-x-8 rounded-xl border border-border-soft px-3.5 py-3 ${
+              w.unlock_level ? LOCKED_ROW_BG : "bg-white/[0.03]"
+            } ${w.vocabulary.usually_kana ? "gap-y-3" : "gap-y-1.5"}`}
             key={w.id}
           >
             <div className="flex items-end gap-2">
@@ -243,7 +245,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
               )}
               {w.unlock_level && (
                 <div className="mt-1.5 flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
-                  <FaLock aria-hidden className="h-2.5 w-2.5 shrink-0" />
+                  <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
                   Unlocks at {w.unlock_level}
                 </div>
               )}
