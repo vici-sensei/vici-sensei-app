@@ -1,7 +1,12 @@
 # Cuvinte blocate pe cartonașul „New kanji” și cartonașe „Reading unlock”
 
-Cerut pe 2026-10-15. Migrația: `supabase/migrations/20261015183526_kanji_reading_unlocks.sql` (aplicată pe EU
-și US în aceeași zi, ledger completat; vezi `supabase/MIGRATION_PARITY.md`).
+Cerut pe 2026-10-15. Migrațiile: `supabase/migrations/20261015183526_kanji_reading_unlocks.sql` și reparația
+`20261015185947_reading_unlocks_respect_enabled_levels.sql` (ambele aplicate pe EU și US în aceeași zi, ledger completat;
+vezi `supabase/MIGRATION_PARITY.md`).
+
+Testat în aplicație pe 2026-10-15 cu contul vici.sensei (US): lacăte pe New kanji (先日 → „Unlocks at N4”, 日本人 →
+„Unlocks at N1”) și în dicționar, setarea salvează, iar la N4+N5 cartonașul Reading unlock pentru 日 vine după
+recapitulările lui și e urmat de Word reading-ul lui 先日; doar N4 activ → nicio deblocare, fără eroare.
 
 ## Ce face
 
@@ -26,6 +31,11 @@ Ranguri: N5 = 1 … N1 = 5; **un cuvânt fără nivel JLPT = 6 („peste N1”)*
 | Blocabil | rang cuvânt − rang kanji **≥ 2** (la un kanji N5: cuvintele N3, N2, N1 și cele fără nivel) | `kanji_word_unlock_rank` |
 | Se deblochează | când nivelul elevului (cel mai înalt nivel activ) ajunge la **rang cuvânt − 1** (N3 → la N4, N1 → la N2, fără nivel → la N1) | idem |
 | Blocat pentru un elev | blocabil **și** nivelul lui e încă sub nivelul de deblocare (un elev N4 care învață un kanji N5 primește direct cuvântul N3) | `kanji_word_is_locked` |
+
+Un cuvânt se deblochează și contează la progres **doar cât timp nivelul kanji-ului e activat** (`enabled_levels`),
+la fel ca recapitulările: un elev care alege N4 fără „Also study lower levels” nu vede recapitulările kanji-urilor N5,
+deci nici deblocări pentru ele (`20261015185947_reading_unlocks_respect_enabled_levels.sql`). După o trecere automată
+de nivel, nivelurile de dedesubt rămân activate, deci cazul obișnuit nu e afectat.
 
 Cifre pe 2026-10-15 (5189 de cuvinte în listele kanji-urilor): 691 blocabile. Un elev care parcurge totul
 deblochează ~35 la N4, ~57 la N3, ~182 la N2 și ~417 la N1.
