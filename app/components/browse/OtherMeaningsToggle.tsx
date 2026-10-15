@@ -22,9 +22,6 @@ interface Props {
   /** Centers the button under centered text (KanjiInfoModal) instead of lining it up with a
    * left-aligned list row. */
   centered?: boolean;
-  /** Gives the button its background chip on every pointer, not just touchscreens -- for /study's
-   * revealed cards, where a plain text link got lost among the answer's own text. */
-  chip?: boolean;
 }
 
 /** "Show other meanings" toggle for a word's other_meanings, placed under its primary meanings on
@@ -40,11 +37,11 @@ interface Props {
  * content height. Content stays mounted at all times (never conditionally rendered), which is
  * what makes both directions animatable.
  *
- * The button only grows a touch-friendly hit area and background chip under `(pointer: coarse)`
- * (touchscreens, via Tailwind's pointer-coarse: variant) -- a mouse/trackpad pointer sees the
- * original plain text link, unchanged -- unless `chip` is set, which keeps the chip on every pointer.
+ * The button is a small background chip on every pointer (a plain text link got lost among the
+ * text around it); under `(pointer: coarse)` (touchscreens, via Tailwind's pointer-coarse: variant)
+ * it also grows a touch-friendly hit area and slightly larger text.
  */
-export function OtherMeaningsToggle({ otherMeanings, className, centered = false, chip = false }: Props) {
+export function OtherMeaningsToggle({ otherMeanings, className, centered = false }: Props) {
   const [open, setOpen] = useState(false);
   if (!hasOtherMeanings(otherMeanings)) return null;
 
@@ -58,11 +55,9 @@ export function OtherMeaningsToggle({ otherMeanings, className, centered = false
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className={`flex items-center gap-1.5 text-[0.72rem] font-semibold text-text-muted/80 transition-colors hover:text-white pointer-coarse:py-2.5 pointer-coarse:text-[0.8rem] pointer-coarse:active:bg-white/10 pointer-coarse:active:text-white ${
-          chip
-            ? "rounded-lg bg-white/[0.06] px-3 py-1.5 hover:bg-white/10"
-            : "pointer-coarse:rounded-lg pointer-coarse:bg-white/[0.04] pointer-coarse:px-3"
-        } ${centered ? "mx-auto w-fit" : "pointer-coarse:-mx-3 pointer-coarse:ml-0"}`}
+        className={`flex items-center gap-1.5 rounded-lg bg-white/[0.06] px-3 py-1.5 text-[0.72rem] font-semibold text-text-muted/80 transition-colors hover:bg-white/10 hover:text-white pointer-coarse:py-2.5 pointer-coarse:text-[0.8rem] pointer-coarse:active:bg-white/10 pointer-coarse:active:text-white ${
+          centered ? "mx-auto w-fit" : "-mx-3 ml-0"
+        }`}
       >
         <Chevron open={open} />
         {open ? "Hide other meanings" : "Show other meanings"}
