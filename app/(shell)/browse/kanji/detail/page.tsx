@@ -214,6 +214,13 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
             } ${w.vocabulary.usually_kana ? "gap-y-3" : "gap-y-1.5"}`}
             key={w.id}
           >
+            {/* A full-width first line, so the lock reads before the word itself. */}
+            {w.unlock_level && (
+              <div className="flex basis-full items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
+                <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
+                Unlocks at {w.unlock_level}
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <div className={`pt-[0.6em] text-3xl leading-none ${w.unlock_level ? LOCKED_FADE : ""}`}>
                 {renderWordWithFurigana(
@@ -242,12 +249,6 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
               {w.vocabulary.usually_kana && !hasOtherMeanings(w.vocabulary.other_meanings) && (
                 <div className="mt-1.5">
                   <UsuallyKanaNote />
-                </div>
-              )}
-              {w.unlock_level && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
-                  <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
-                  Unlocks at {w.unlock_level}
                 </div>
               )}
               <OtherMeaningsToggle otherMeanings={w.vocabulary.other_meanings} className="mt-2" />
