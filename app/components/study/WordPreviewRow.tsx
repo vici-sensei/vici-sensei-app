@@ -17,7 +17,7 @@ interface Props {
 // Grayed out, not hidden: the word and its meaning stay readable (and its kanji pressable). The
 // darker row background sets the locked words apart as one inactive block, at a glance.
 const LOCKED_FADE = "opacity-45 grayscale";
-const LOCKED_ROW_BG = "bg-black/15";
+const LOCKED_ROW_BG = "bg-black/8";
 
 /** One row of the word list shown on a new-kanji intro card. */
 export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) {
