@@ -45,6 +45,7 @@ export function cardsRemainingToday(stats: StudyStats): number {
     katakanaCandidateCount: 0,
     hiraganaRuleForecastCount: 0,
     katakanaRuleForecastCount: 0,
-    readingUnlockCardsTotal: stats.study_kanji ? stats.reading_unlock_cards : 0,
+    // `?? 0`: stats hydrated from a localStorage cache written before this field existed lack it.
+    readingUnlockCardsTotal: stats.study_kanji ? (stats.reading_unlock_cards ?? 0) : 0,
   });
 }
