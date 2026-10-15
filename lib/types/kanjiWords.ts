@@ -120,6 +120,22 @@ export interface VocabularyUpdateResult {
   vocabulary: VocabularyEditable;
   /** Every kanji_word row of the word (one per kanji it contains), for refreshing the page. */
   kanji_word_ids: number[];
+  /** The log row of this change (what "Undo" reverts); null when nothing changed. */
+  edit_id: string | null;
+}
+
+/** One logged change of a word (admin_get_vocabulary_edits), newest first. */
+export interface VocabularyEdit {
+  id: string;
+  /** "edit" = a save from the popup; "restore" = the word put back as it was around an earlier row (an undo too). */
+  kind: "edit" | "restore";
+  /** restore only: the row whose state was put back, and which side of it ("before" = an undo of that row). */
+  restored_from: string | null;
+  restored_side: "before" | "after" | null;
+  before: VocabularyEditable;
+  after: VocabularyEditable;
+  admin_email: string | null;
+  created_at: string;
 }
 
 export interface KanjiWordCandidates {

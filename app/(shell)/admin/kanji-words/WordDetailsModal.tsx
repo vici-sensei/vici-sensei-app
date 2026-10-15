@@ -7,7 +7,9 @@ import { createClient } from "@/lib/supabase/client";
 import {
   describeKanjiWordsError,
   fetchKanjiWordVocabulary,
+  fetchVocabularyEdits,
   isVocabularyConflict,
+  restoreVocabulary,
   updateVocabulary,
 } from "@/lib/data/adminKanjiWords";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
@@ -17,8 +19,15 @@ import { Modal } from "@/app/components/ui/Modal";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { Toggle } from "@/app/components/ui/Toggle";
 import { useToast } from "@/app/components/ui/Toast";
-import type { KanjiWordCandidate, KanjiWordVocabulary, VocabularyEditable, VocabularyUpdateResult } from "@/lib/types";
+import type {
+  KanjiWordCandidate,
+  KanjiWordVocabulary,
+  VocabularyEdit,
+  VocabularyEditable,
+  VocabularyUpdateResult,
+} from "@/lib/types";
 import { PARTS_OF_SPEECH } from "./wordLabels";
+import { WordHistory } from "./WordHistory";
 import { Tag } from "./WordMeanings";
 
 const LEVELS = ["N5", "N4", "N3", "N2", "N1"];
@@ -239,7 +248,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 interface WordDetailsModalProps {
   candidate: KanjiWordCandidate;
   onClose: () => void;
-  /** A save changed the word (on both regions). */
+  /** A save, an undo or a restore changed the word (on both regions). */
   onSaved: (result: VocabularyUpdateResult) => void;
 }
 
@@ -247,6 +256,9 @@ interface WordDetailsModalProps {
  * Edit one candidate word's dictionary data: its JLPT level, meanings, readings and usage. The word itself is fixed
  * and so is the furigana above it, which only previews the Furigana field. Nothing is written until Save, which
  * writes both regions at once and is refused if the word changed since it was loaded.
+ *
+ * Every write is logged (vocabulary_edits): right after one, "Undo" takes it back; History lists them all and can go
+ * back to any version, the original included. Going back is logged too, so it can be undone as well.
  */
 export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetailsModalProps) {
   const { showToast } = useToast();
@@ -254,9 +266,21 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
   const [draft, setDraft] = useState<Draft | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
-  const [saving, setSaving] = useState(false);
+  // A write in flight, and which: only a save spins the Save button; any of them blocks the others.
+  const [writing, setWriting] = useState<"save" | "restore" | null>(null);
+  const saving = writing !== null;
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
+  const [view, setView] = useState<"edit" | "history">("edit");
+  // The last write made from this popup (a save, an undo, a restore), until the next edit: what "Undo" takes back.
+  const [lastWrite, setLastWrite] = useState<{ editId: string; message: string } | null>(null);
+  // The History list with the read it came from: a list from before the latest write isn't shown (the placeholder is).
+  const [history, setHistory] = useState<{ key: string; edits: VocabularyEdit[] } | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyTick, setHistoryTick] = useState(0);
+  const vocabularyId = loaded?.id ?? null;
+  const historyKey = `${vocabularyId}:${historyTick}`;
+  const edits = history?.key === historyKey ? history.edits : null;
 
   // Also runs again from "Try again" and "Load the latest version", which drop the edits.
   useEffect(() => {
@@ -269,6 +293,8 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
         setLoadError(null);
         setSaveError(null);
         setConflict(false);
+        setLastWrite(null);
+        setHistoryTick((tick) => tick + 1);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(describeKanjiWordsError(err, "Couldn't load this word."));
@@ -278,6 +304,25 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
     };
   }, [c.id, reloadTick]);
 
+  // The History view's list, read again after every write (historyTick).
+  useEffect(() => {
+    if (view !== "history" || vocabularyId === null) return;
+    let cancelled = false;
+    const key = `${vocabularyId}:${historyTick}`;
+    fetchVocabularyEdits(createClient(), vocabularyId)
+      .then((list) => {
+        if (cancelled) return;
+        setHistory({ key, edits: list });
+        setHistoryError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setHistoryError(describeKanjiWordsError(err, "Couldn't load this word's history."));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [view, vocabularyId, historyTick]);
+
   const values = draft ? toValues(draft) : null;
   const dirty = loaded !== null && values !== null && JSON.stringify(values) !== JSON.stringify(toValues(toDraft(loaded)));
   const problems = values ? problemsOf(values) : [];
@@ -285,35 +330,62 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
   function set(patch: Partial<Draft>) {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
     setSaveError(null);
+    setLastWrite(null);
   }
 
-  async function save() {
-    if (!loaded || !values) return;
-    setSaving(true);
+  // A save, an undo and a restore all end the same way: the popup shows what is stored now and can undo it. `done`
+  // says what happened, in the past tense ("Saved").
+  async function write(
+    kind: "save" | "restore",
+    run: (expected: VocabularyEditable, id: number) => Promise<VocabularyUpdateResult>,
+    done: string
+  ) {
+    if (!loaded) return;
+    setWriting(kind);
     setSaveError(null);
     setConflict(false);
     try {
-      const result = await updateVocabulary(createClient(), {
-        vocabularyId: loaded.id,
-        expected: editableOf(loaded),
-        values,
-      });
+      const result = await run(editableOf(loaded), loaded.id);
       const next = { ...loaded, ...result.vocabulary };
       setLoaded(next);
       setDraft(toDraft(next));
-      showToast(result.changed ? `Saved ${loaded.word}.` : "Nothing had changed.");
-      if (result.changed) onSaved(result);
+      if (result.changed) {
+        showToast(`${done}: ${loaded.word}.`);
+        setLastWrite(result.edit_id ? { editId: result.edit_id, message: `${done}.` } : null);
+        setHistoryTick((tick) => tick + 1);
+        onSaved(result);
+      } else {
+        showToast("It was already like that.");
+      }
     } catch (err) {
       setConflict(isVocabularyConflict(err));
       setSaveError(describeKanjiWordsError(err, "Failed to save."));
     } finally {
-      setSaving(false);
+      setWriting(null);
     }
+  }
+
+  function save() {
+    if (!values) return;
+    void write(
+      "save",
+      (expected, vocabularyId) => updateVocabulary(createClient(), { vocabularyId, expected, values }),
+      "Saved"
+    );
+  }
+
+  function restore(editId: string, side: "before" | "after", done: string) {
+    if (dirty && !window.confirm(`Drop your unsaved changes to ${loaded?.word ?? c.word}?`)) return;
+    void write(
+      "restore",
+      (expected, vocabularyId) => restoreVocabulary(createClient(), { vocabularyId, expected, editId, side }),
+      done
+    );
   }
 
   const word = loaded?.word ?? c.word;
   const level = draft ? draft.jlpt_level : c.jlpt;
-  const shownProblem = dirty ? problems[0] : undefined;
+  const shownProblem = dirty && view === "edit" ? problems[0] : undefined;
 
   // Portalled: the editor is a GlassCard, whose backdrop-filter would make the Modal's fixed backdrop cover just
   // the card instead of the whole screen.
@@ -331,7 +403,7 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
           <select
             value={level ?? ""}
             onChange={(e) => set({ jlpt_level: e.target.value || null })}
-            disabled={!draft}
+            disabled={!draft || view === "history"}
             aria-label="JLPT level"
             className="cursor-pointer appearance-none bg-transparent py-1 pl-2.5 pr-6 text-[0.78rem] font-extrabold outline-none disabled:cursor-default md:tracking-[0.5px] [&_option]:bg-gray-900 [&_option]:text-white"
           >
@@ -374,7 +446,23 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
           </div>
         ) : null}
 
-        {draft ? (
+        {draft && loaded && view === "history" ? (
+          <WordHistory
+            edits={edits}
+            error={historyError}
+            onRetry={() => {
+              setHistoryError(null);
+              setHistoryTick((tick) => tick + 1);
+            }}
+            current={editableOf(loaded)}
+            busy={saving}
+            onRestore={(editId, side) =>
+              restore(editId, side, side === "before" ? "Restored the original" : "Went back to that version")
+            }
+          />
+        ) : null}
+
+        {draft && view === "edit" ? (
           <>
             {/* The meaning, right under the word, unlabelled: S, then P, then the secondary senses. */}
             <div className="mt-1 space-y-2 text-sm">
@@ -543,29 +631,60 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
       </div>
 
       {draft ? (
-        <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-border-soft pt-4">
-          {saveError || shownProblem ? (
-            <div role="alert" className="mr-auto min-w-0 text-sm text-accent-red">
-              <p>{saveError ?? shownProblem}</p>
-              {conflict ? (
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border-soft pt-4">
+          <div className="mr-auto flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setView((v) => (v === "edit" ? "history" : "edit"))}
+              className="cursor-pointer font-bold text-accent-blue hover:underline"
+            >
+              {view === "edit" ? "History" : "Back to the word"}
+            </button>
+            {saveError || shownProblem ? (
+              <div role="alert" className="min-w-0 text-accent-red">
+                <p>{saveError ?? shownProblem}</p>
+                {conflict ? (
+                  <button
+                    type="button"
+                    onClick={() => setReloadTick((tick) => tick + 1)}
+                    className="mt-1 cursor-pointer font-bold text-accent-blue hover:underline"
+                  >
+                    Load the latest version (drops your changes)
+                  </button>
+                ) : null}
+              </div>
+            ) : lastWrite ? (
+              <span className="text-text-muted">
+                {lastWrite.message}{" "}
+                {/* Undoing an undo puts the change back, so it reads "Redo" then. */}
                 <button
                   type="button"
-                  onClick={() => setReloadTick((tick) => tick + 1)}
-                  className="mt-1 cursor-pointer font-bold text-accent-blue hover:underline"
+                  onClick={() =>
+                    restore(lastWrite.editId, "before", lastWrite.message === "Undone." ? "Redone" : "Undone")
+                  }
+                  disabled={saving}
+                  className="cursor-pointer font-bold text-accent-blue hover:underline disabled:cursor-default disabled:opacity-50"
                 >
-                  Load the latest version (drops your changes)
+                  {lastWrite.message === "Undone." ? "Redo" : "Undo"}
                 </button>
-              ) : null}
-            </div>
-          ) : null}
-          {dirty ? (
+              </span>
+            ) : null}
+          </div>
+          {view === "edit" && dirty ? (
             <Button size="sm" variant="secondary" onClick={() => loaded && setDraft(toDraft(loaded))} disabled={saving}>
               Discard changes
             </Button>
           ) : null}
-          <Button size="sm" onClick={() => void save()} loading={saving} disabled={!dirty || problems.length > 0}>
-            Save
-          </Button>
+          {view === "edit" ? (
+            <Button
+              size="sm"
+              onClick={save}
+              loading={writing === "save"}
+              disabled={saving || !dirty || problems.length > 0}
+            >
+              Save
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </Modal>,

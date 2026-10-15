@@ -10,6 +10,7 @@ import type {
   KanjiWordsOverview,
   KanjiWordsParity,
   KanjiWordsTodoCount,
+  VocabularyEdit,
   VocabularyEditable,
   VocabularyUpdateResult,
 } from "@/lib/types";
@@ -71,6 +72,8 @@ export function describeKanjiWordsError(err: unknown, fallback: string): string 
       return (err instanceof KanjiWordsError && err.details) || "Some of the values aren't valid.";
     case "vocabulary_unknown":
       return "This word is no longer in the dictionary.";
+    case "vocabulary_unknown_version":
+      return "That version isn't in this word's history.";
     case "vocabulary_remote_missing":
       return "The other region isn't linked for word edits yet, so nothing can be saved.";
     case "Not authorized":
@@ -126,7 +129,7 @@ export async function fetchKanjiWordVocabulary(
 
 /**
  * Save one word's dictionary data (20261015011213_vocabulary_admin_edit.sql): on the admin's region and the other
- * one in the same transaction, with a log row on both. `expected` is the row as the popup loaded it; if either
+ * one in the same transaction, with a log row on both (vocabulary_edits, append-only). `expected` is the row as the popup loaded it; if either
  * region holds something else now, it is refused with vocabulary_conflict and nothing is written.
  */
 export function updateVocabulary(
@@ -138,6 +141,25 @@ export function updateVocabulary(
     p_expected: args.expected,
     p_values: args.values,
   });
+}
+
+/** Put a word back as it was before ("before": an undo of that change) or after one of its logged changes. Logged
+ *  too, so it can be undone in turn; refused like a save when the word changed since `expected` was loaded. */
+export function restoreVocabulary(
+  supabase: AppSupabaseClient,
+  args: { vocabularyId: number; expected: VocabularyEditable; editId: string; side: "before" | "after" }
+): Promise<VocabularyUpdateResult> {
+  return call(supabase, "admin_restore_vocabulary", {
+    p_vocabulary_id: args.vocabularyId,
+    p_expected: args.expected,
+    p_edit_id: args.editId,
+    p_side: args.side,
+  });
+}
+
+/** Every logged change of one word, newest first. */
+export function fetchVocabularyEdits(supabase: AppSupabaseClient, vocabularyId: number): Promise<VocabularyEdit[]> {
+  return call(supabase, "admin_get_vocabulary_edits", { p_vocabulary_id: vocabularyId });
 }
 
 export function fetchKanjiWordsHistory(supabase: AppSupabaseClient, kanjiId: number): Promise<KanjiWordsHistory> {

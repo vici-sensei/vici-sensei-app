@@ -1,14 +1,19 @@
 -- EU-new + US-new BOTH, identical text. Part 1 of 3 of editing a word's dictionary data from /admin/kanji-words
--- (the pencil on a word card): an append-only log of every edit and the admin RPC that saves one word. Parts 2/3
--- (_remote_eu / _remote_us) import the two tables it writes on the other region as foreign tables.
+-- (the pencil on a word card): an append-only log of every edit, the admin RPCs that save, undo / restore and list
+-- them. Parts 2/3 (_remote_eu / _remote_us) import the two tables they write on the other region as foreign tables.
 --
--- vocabulary is reference data, identical on EU and US (17,349 rows, same hash on both, 2026-10-15). The RPC writes
--- the admin's own region, then the other one through the same postgres_fdw link the kanji-words push uses
+-- vocabulary is reference data, identical on EU and US (17,349 rows, same hash on both, 2026-10-15). Every write
+-- goes to the admin's own region, then the other one through the same postgres_fdw link the kanji-words push uses
 -- (kw_remote_schema()), in ONE transaction: if the other region refuses, nothing stays written here either.
 --
 -- Editable columns (the popup's fields): kana_reading, romaji_reading, furiganas, romaji_furiganas, other_readings,
 -- short_meaning, primary_meanings, other_meanings, parts_of_speech, jlpt_level, is_common_jisho, usually_kana,
 -- study_enabled. The word itself, ids_kanji and frequency_number are not.
+--
+-- Fully reversible: every change (a save, an undo, a restore) is one row of vocabulary_edits holding the editable
+-- columns before and after it, on both regions. admin_restore_vocabulary puts a word back as it was before or after
+-- any of its rows -- the state before its first row is the original -- and is itself logged, so it can be undone
+-- too. The log is append-only (no update / delete / truncate).
 --
 -- The kanji lists are NOT recomputed here. The algorithm (rebuild_kanji_detail_words) reads jlpt_level,
 -- is_common_jisho, usually_kana, furiganas and study_enabled and picks an edit up at its next rebuild (run on both
@@ -17,7 +22,8 @@
 --
 -- Errors the page maps (message text): vocabulary_conflict (SQLSTATE 40001, the word changed since the popup loaded
 -- it, here or on the other region), vocabulary_invalid (22023, DETAIL says what is wrong), vocabulary_unknown,
--- vocabulary_remote_missing (parts 2/3 not applied yet).
+-- vocabulary_unknown_version (a restore of a log row that isn't this word's), vocabulary_remote_missing (parts 2/3
+-- not applied yet).
 
 -- ---------- The log ----------
 
@@ -26,12 +32,18 @@ create table public.vocabulary_edits (
   -- no foreign key on purpose, like kanji_word_history: nothing a reference-data refresh does may delete or block
   -- a log row
   vocabulary_id bigint not null,
-  -- the editable columns before and after (vocabulary_editable()), so any edit can be undone by hand
+  -- 'edit' = a save from the popup; 'restore' = the word put back as it was around an earlier row (an undo too)
+  kind text not null check (kind in ('edit', 'restore')),
+  -- restore only: the row whose state was put back, and which side of it ('before' = undo of that row)
+  restored_from uuid,
+  restored_side text check (restored_side in ('before', 'after')),
+  -- the editable columns before and after (vocabulary_editable())
   before jsonb not null,
   after jsonb not null,
   admin_id uuid,
   admin_email text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  check ((kind = 'restore') = (restored_from is not null and restored_side is not null))
 );
 create index idx_vocabulary_edits_vocabulary on public.vocabulary_edits (vocabulary_id, created_at desc);
 
@@ -42,7 +54,7 @@ create trigger vocabulary_edits_append_only_truncate
   before truncate on public.vocabulary_edits
   for each statement execute function public.kanji_words_block_mutation();
 
--- New public tables are granted ALL to anon/authenticated by default here; clients only ever go through the RPC.
+-- New public tables are granted ALL to anon/authenticated by default here; clients only ever go through the RPCs.
 alter table public.vocabulary_edits enable row level security;
 revoke all on table public.vocabulary_edits from public, anon, authenticated;
 
@@ -87,19 +99,21 @@ begin
 end;
 $function$;
 
-revoke all on function public.vocabulary_editable(jsonb) from public, anon, authenticated;
-revoke all on function public.vocabulary_text_list(jsonb, text, boolean) from public, anon, authenticated;
-
--- ---------- Admin RPC ----------
-
--- Save one word. p_expected: the editable columns as the popup loaded them (a mismatch, here or on the other region,
--- is a conflict); p_values: every editable column as the admin wants it. Returns {changed, vocabulary (the editable
--- columns now), kanji_word_ids (every kanji_word row of the word, for the page to refresh)}. Nothing different from
--- what is stored = nothing written, no log row.
-create or replace function public.admin_update_vocabulary(p_vocabulary_id bigint, p_expected jsonb, p_values jsonb)
+-- Write one word on both regions and log it there. p_expected: the editable columns as the caller last saw them (a
+-- mismatch, here or on the other region, is a conflict); p_values: every editable column as wanted. Validates and
+-- cleans like the popup. Returns {changed, vocabulary (the editable columns now), kanji_word_ids (every kanji_word
+-- row of the word, for the page to refresh), edit_id (the log row, null when nothing changed)}. Values equal to
+-- what is stored = nothing written, no log row. Callers check is_admin().
+create or replace function public.vocabulary_apply(
+  p_vocabulary_id bigint,
+  p_expected jsonb,
+  p_values jsonb,
+  p_kind text,
+  p_restored_from uuid,
+  p_restored_side text
+)
 returns jsonb
 language plpgsql
-security definer
 set search_path to 'public'
 as $function$
 declare
@@ -129,9 +143,6 @@ declare
   v_n integer;
   v_kanji_word_ids jsonb;
 begin
-  if not public.is_admin() then
-    raise exception 'Not authorized' using errcode = '42501';
-  end if;
   if p_values is null or jsonb_typeof(p_values) <> 'object' then
     raise exception 'vocabulary_invalid' using errcode = '22023', detail = 'No values were sent.';
   end if;
@@ -230,7 +241,8 @@ begin
     select kw.id from public.kanji_word kw where kw.id_word = p_vocabulary_id order by kw.id));
 
   if v_after = v_before then
-    return jsonb_build_object('changed', false, 'vocabulary', v_before, 'kanji_word_ids', v_kanji_word_ids);
+    return jsonb_build_object('changed', false, 'vocabulary', v_before, 'kanji_word_ids', v_kanji_word_ids,
+      'edit_id', null);
   end if;
 
   -- ----- The other region: same row as here before the edit, or nothing is written -----
@@ -279,17 +291,117 @@ begin
   end if;
 
   v_email := (select u.email from public.users u where u.id = v_uid);
-  insert into public.vocabulary_edits (vocabulary_id, before, after, admin_id, admin_email)
-  values (p_vocabulary_id, v_before, v_after, v_uid, v_email)
+  insert into public.vocabulary_edits
+    (vocabulary_id, kind, restored_from, restored_side, before, after, admin_id, admin_email)
+  values (p_vocabulary_id, p_kind, p_restored_from, p_restored_side, v_before, v_after, v_uid, v_email)
   returning id, created_at into v_edit_id, v_at;
   execute format(
-    'insert into %I.vocabulary_edits (id, vocabulary_id, before, after, admin_id, admin_email, created_at) '
-    'values ($1, $2, $3, $4, $5, $6, $7)', s)
-  using v_edit_id, p_vocabulary_id, v_before, v_after, v_uid, v_email, v_at;
+    'insert into %I.vocabulary_edits '
+    '(id, vocabulary_id, kind, restored_from, restored_side, before, after, admin_id, admin_email, created_at) '
+    'values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)', s)
+  using v_edit_id, p_vocabulary_id, p_kind, p_restored_from, p_restored_side, v_before, v_after, v_uid, v_email, v_at;
 
-  return jsonb_build_object('changed', true, 'vocabulary', v_after, 'kanji_word_ids', v_kanji_word_ids);
+  return jsonb_build_object('changed', true, 'vocabulary', v_after, 'kanji_word_ids', v_kanji_word_ids,
+    'edit_id', v_edit_id);
 end;
 $function$;
 
-revoke all on function public.admin_update_vocabulary(bigint, jsonb, jsonb) from public, anon, authenticated;
-grant execute on function public.admin_update_vocabulary(bigint, jsonb, jsonb) to authenticated;
+revoke all on function public.vocabulary_editable(jsonb) from public, anon, authenticated;
+revoke all on function public.vocabulary_text_list(jsonb, text, boolean) from public, anon, authenticated;
+revoke all on function public.vocabulary_apply(bigint, jsonb, jsonb, text, uuid, text) from public, anon, authenticated;
+
+-- ---------- Admin RPCs ----------
+
+-- Save one word from the popup: p_expected = the editable columns as the popup loaded them, p_values = every
+-- editable column as the admin wants it. Returns what vocabulary_apply returns.
+create or replace function public.admin_update_vocabulary(p_vocabulary_id bigint, p_expected jsonb, p_values jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  return public.vocabulary_apply(p_vocabulary_id, p_expected, p_values, 'edit', null, null);
+end;
+$function$;
+
+-- Put one word back as it was before ('before': an undo of that row) or after ('after') one of its log rows. The
+-- state before the word's first row is its original. Logged as a 'restore' row, so it can be undone in turn.
+create or replace function public.admin_restore_vocabulary(
+  p_vocabulary_id bigint,
+  p_expected jsonb,
+  p_edit_id uuid,
+  p_side text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_state jsonb;
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  if p_side is null or p_side not in ('before', 'after') then
+    raise exception 'vocabulary_invalid' using errcode = '22023', detail = 'A restore puts back the state before or after a change.';
+  end if;
+
+  select case when p_side = 'before' then e.before else e.after end
+  into v_state
+  from public.vocabulary_edits e
+  where e.id = p_edit_id and e.vocabulary_id = p_vocabulary_id;
+  if v_state is null then
+    raise exception 'vocabulary_unknown_version' using errcode = '22023';
+  end if;
+
+  return public.vocabulary_apply(p_vocabulary_id, p_expected, v_state, 'restore', p_edit_id, p_side);
+end;
+$function$;
+
+-- Every logged change of one word, newest first.
+create or replace function public.admin_get_vocabulary_edits(p_vocabulary_id bigint)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path to 'public'
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id', e.id,
+      'kind', e.kind,
+      'restored_from', e.restored_from,
+      'restored_side', e.restored_side,
+      'before', e.before,
+      'after', e.after,
+      'admin_email', e.admin_email,
+      'created_at', e.created_at) order by e.created_at desc, e.id)
+    from public.vocabulary_edits e
+    where e.vocabulary_id = p_vocabulary_id), '[]'::jsonb);
+end;
+$function$;
+
+do $$
+declare
+  f text;
+begin
+  foreach f in array array[
+    'admin_update_vocabulary(bigint, jsonb, jsonb)',
+    'admin_restore_vocabulary(bigint, jsonb, uuid, text)',
+    'admin_get_vocabulary_edits(bigint)'
+  ]
+  loop
+    execute format('revoke all on function public.%s from public, anon, authenticated', f);
+    execute format('grant execute on function public.%s to authenticated', f);
+  end loop;
+end;
+$$;
