@@ -2,21 +2,216 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { FaChevronDown, FaPlus, FaXmark } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
-import { describeKanjiWordsError, fetchKanjiWordVocabulary } from "@/lib/data/adminKanjiWords";
+import {
+  describeKanjiWordsError,
+  fetchKanjiWordVocabulary,
+  isVocabularyConflict,
+  updateVocabulary,
+} from "@/lib/data/adminKanjiWords";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
-import { LevelBadge } from "@/app/components/ui/LevelBadge";
+import { Button } from "@/app/components/ui/Button";
+import { levelColorClasses } from "@/app/components/ui/LevelBadge";
 import { Modal } from "@/app/components/ui/Modal";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import type { KanjiWordCandidate, KanjiWordVocabulary } from "@/lib/types";
-import { candidateMeanings, WordMeanings } from "./WordMeanings";
+import { Toggle } from "@/app/components/ui/Toggle";
+import { useToast } from "@/app/components/ui/Toast";
+import type { KanjiWordCandidate, KanjiWordVocabulary, VocabularyEditable, VocabularyUpdateResult } from "@/lib/types";
+import { PARTS_OF_SPEECH } from "./wordLabels";
+import { Tag } from "./WordMeanings";
 
-function listText(items: string[] | null, separator = ", "): string {
-  return items && items.length > 0 ? items.join(separator) : "—";
+const LEVELS = ["N5", "N4", "N3", "N2", "N1"];
+
+const INPUT =
+  "rounded-lg border border-border-soft bg-white/[0.03] px-2.5 py-1.5 text-sm text-white outline-none transition-colors placeholder:text-text-muted/60 focus:border-accent-blue/40";
+
+/** What the form edits: the editable columns with every text and list present (empty instead of null), and the
+ *  furigana lists exactly one entry per character of the word. */
+interface Draft {
+  kana_reading: string;
+  romaji_reading: string;
+  furiganas: string[];
+  romaji_furiganas: string[];
+  other_readings: string[];
+  short_meaning: string;
+  primary_meanings: string[];
+  other_meanings: string[][];
+  parts_of_speech: string[];
+  jlpt_level: string | null;
+  is_common_jisho: boolean;
+  usually_kana: boolean;
+  study_enabled: boolean;
 }
 
-function yesNo(value: boolean | null): string {
-  return value ? "Yes" : "No";
+function toDraft(v: KanjiWordVocabulary): Draft {
+  const chars = Array.from(v.word).length;
+  const perChar = (list: string[] | null) => Array.from({ length: chars }, (_, i) => list?.[i] ?? "");
+  return {
+    kana_reading: v.kana_reading ?? "",
+    romaji_reading: v.romaji_reading ?? "",
+    furiganas: perChar(v.furiganas),
+    romaji_furiganas: perChar(v.romaji_furiganas),
+    other_readings: v.other_readings ?? [],
+    short_meaning: v.short_meaning ?? "",
+    primary_meanings: v.primary_meanings ?? [],
+    other_meanings: v.other_meanings ?? [],
+    parts_of_speech: v.parts_of_speech ?? [],
+    jlpt_level: v.jlpt_level,
+    is_common_jisho: v.is_common_jisho ?? false,
+    usually_kana: v.usually_kana ?? false,
+    study_enabled: v.study_enabled,
+  };
+}
+
+/** The editable columns exactly as loaded: what a save quotes as "expected". */
+function editableOf(v: KanjiWordVocabulary): VocabularyEditable {
+  return {
+    kana_reading: v.kana_reading,
+    romaji_reading: v.romaji_reading,
+    furiganas: v.furiganas,
+    romaji_furiganas: v.romaji_furiganas,
+    other_readings: v.other_readings,
+    short_meaning: v.short_meaning,
+    primary_meanings: v.primary_meanings,
+    other_meanings: v.other_meanings,
+    parts_of_speech: v.parts_of_speech,
+    jlpt_level: v.jlpt_level,
+    is_common_jisho: v.is_common_jisho,
+    usually_kana: v.usually_kana,
+    study_enabled: v.study_enabled,
+  };
+}
+
+const tidy = (list: string[]) => list.map((text) => text.trim()).filter((text) => text !== "");
+
+/** What a save sends, cleaned the way the RPC cleans it (trimmed, blank entries and emptied senses dropped), so
+ *  "anything to save?" is answered the way the server would answer it. */
+function toValues(d: Draft): VocabularyEditable {
+  return {
+    kana_reading: d.kana_reading.trim(),
+    romaji_reading: d.romaji_reading.trim(),
+    furiganas: d.furiganas.map((text) => text.trim()),
+    romaji_furiganas: d.romaji_furiganas.map((text) => text.trim()),
+    other_readings: tidy(d.other_readings),
+    short_meaning: d.short_meaning.trim() || null,
+    primary_meanings: tidy(d.primary_meanings),
+    other_meanings: d.other_meanings.map(tidy).filter((sense) => sense.length > 0),
+    parts_of_speech: tidy(d.parts_of_speech),
+    jlpt_level: d.jlpt_level,
+    is_common_jisho: d.is_common_jisho,
+    usually_kana: d.usually_kana,
+    study_enabled: d.study_enabled,
+  };
+}
+
+/** The same checks the RPC makes, so Save says what's missing before a round trip. */
+function problemsOf(values: VocabularyEditable): string[] {
+  const problems: string[] = [];
+  if (!values.kana_reading) problems.push("The kana reading can't be empty.");
+  if (!values.romaji_reading) problems.push("The romaji can't be empty.");
+  if (!values.primary_meanings?.length) problems.push("At least one primary meaning is needed.");
+  return problems;
+}
+
+function AddButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-dashed border-border-soft px-2 py-1 text-xs font-bold text-text-muted transition-colors hover:border-white/25 hover:text-white"
+    >
+      <FaPlus className="h-2.5 w-2.5" />
+      {children}
+    </button>
+  );
+}
+
+function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Remove"
+      aria-label={label}
+      className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-muted transition-colors hover:text-white"
+    >
+      <FaXmark className="h-3 w-3" />
+    </button>
+  );
+}
+
+/** A list of short texts, each in its own input that grows with its text, side by side; × removes one, + adds one. */
+function TextList({
+  values,
+  onChange,
+  label,
+  addLabel,
+}: {
+  values: string[];
+  onChange: (next: string[]) => void;
+  /** Names one entry, for screen readers ("Primary meaning 2"). */
+  label: string;
+  addLabel: string;
+}) {
+  // Only an entry added by the + button takes the focus, not the ones there when the popup opened.
+  const [added, setAdded] = useState(false);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {values.map((value, i) => (
+        <span
+          key={i}
+          className="inline-flex max-w-full items-center rounded-lg border border-border-soft bg-white/[0.03] transition-colors focus-within:border-accent-blue/40"
+        >
+          <input
+            value={value}
+            onChange={(e) => onChange(values.map((v, j) => (j === i ? e.target.value : v)))}
+            autoFocus={added && i === values.length - 1}
+            aria-label={`${label} ${i + 1}`}
+            className="min-w-[3rem] max-w-full bg-transparent py-1 pl-2.5 text-sm text-white outline-none [field-sizing:content]"
+          />
+          <RemoveButton label={`Remove ${label.toLowerCase()} ${i + 1}`} onClick={() => onChange(values.filter((_, j) => j !== i))} />
+        </span>
+      ))}
+      <AddButton
+        onClick={() => {
+          setAdded(true);
+          onChange([...values, ""]);
+        }}
+      >
+        {addLabel}
+      </AddButton>
+    </div>
+  );
+}
+
+/** One input under each character of the word (furigana, romaji furigana). */
+function PerCharInputs({
+  word,
+  values,
+  onChange,
+  label,
+}: {
+  word: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {Array.from(word).map((char, i) => (
+        <label key={i} className="flex w-[4.5rem] flex-col items-center gap-1">
+          <span className="text-base font-bold leading-none">{char}</span>
+          <input
+            value={values[i] ?? ""}
+            onChange={(e) => onChange(values.map((v, j) => (j === i ? e.target.value : v)))}
+            aria-label={`${label} of ${char} (character ${i + 1})`}
+            className={`${INPUT} w-full px-1.5 py-1 text-center`}
+          />
+        </label>
+      ))}
+    </div>
+  );
 }
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
@@ -24,16 +219,19 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
     <section className="mt-5 border-t border-border-soft pt-4">
       <h4 className="mb-2.5 text-[0.7rem] font-extrabold uppercase tracking-[1px] text-text-muted">{title}</h4>
       {/* Label beside its value, the same label column in every group; on a phone the label sits above the value. */}
-      <dl className="grid grid-cols-1 text-sm sm:grid-cols-[10rem_1fr] sm:gap-x-4 sm:gap-y-1.5">{children}</dl>
+      <dl className="grid grid-cols-1 items-start text-sm sm:grid-cols-[10rem_1fr] sm:gap-x-4 sm:gap-y-2.5">{children}</dl>
     </section>
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <>
-      <dt className="text-xs text-text-muted sm:text-sm">{label}</dt>
-      <dd className="mb-2 min-w-0 break-words last:mb-0 sm:mb-0">{children}</dd>
+      <dt className="text-xs text-text-muted sm:pt-1.5 sm:text-sm">{label}</dt>
+      <dd className="mb-3 min-w-0 last:mb-0 sm:mb-0">
+        {children}
+        {hint ? <p className="mt-1 text-xs leading-snug text-text-muted">{hint}</p> : null}
+      </dd>
     </>
   );
 }
@@ -41,60 +239,124 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 interface WordDetailsModalProps {
   candidate: KanjiWordCandidate;
   onClose: () => void;
+  /** A save changed the word (on both regions). */
+  onSaved: (result: VocabularyUpdateResult) => void;
 }
 
-/** One candidate word's dictionary data: its JLPT level, how it is written (with its furigana), what it means,
- *  how it is read, how it is used. */
-export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProps) {
-  const [vocabulary, setVocabulary] = useState<KanjiWordVocabulary | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [retryTick, setRetryTick] = useState(0);
+/**
+ * Edit one candidate word's dictionary data: its JLPT level, meanings, readings and usage. The word itself is fixed
+ * and so is the furigana above it, which only previews the Furigana field. Nothing is written until Save, which
+ * writes both regions at once and is refused if the word changed since it was loaded.
+ */
+export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetailsModalProps) {
+  const { showToast } = useToast();
+  const [loaded, setLoaded] = useState<KanjiWordVocabulary | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
 
+  // Also runs again from "Try again" and "Load the latest version", which drop the edits.
   useEffect(() => {
     let cancelled = false;
     fetchKanjiWordVocabulary(createClient(), c.id)
       .then((v) => {
         if (cancelled) return;
-        setVocabulary(v);
-        setError(null);
+        setLoaded(v);
+        setDraft(toDraft(v));
+        setLoadError(null);
+        setSaveError(null);
+        setConflict(false);
       })
       .catch((err) => {
-        if (!cancelled) setError(describeKanjiWordsError(err, "Couldn't load this word."));
+        if (!cancelled) setLoadError(describeKanjiWordsError(err, "Couldn't load this word."));
       });
     return () => {
       cancelled = true;
     };
-  }, [c.id, retryTick]);
+  }, [c.id, reloadTick]);
 
-  const v = vocabulary;
+  const values = draft ? toValues(draft) : null;
+  const dirty = loaded !== null && values !== null && JSON.stringify(values) !== JSON.stringify(toValues(toDraft(loaded)));
+  const problems = values ? problemsOf(values) : [];
+
+  function set(patch: Partial<Draft>) {
+    setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+    setSaveError(null);
+  }
+
+  async function save() {
+    if (!loaded || !values) return;
+    setSaving(true);
+    setSaveError(null);
+    setConflict(false);
+    try {
+      const result = await updateVocabulary(createClient(), {
+        vocabularyId: loaded.id,
+        expected: editableOf(loaded),
+        values,
+      });
+      const next = { ...loaded, ...result.vocabulary };
+      setLoaded(next);
+      setDraft(toDraft(next));
+      showToast(result.changed ? `Saved ${loaded.word}.` : "Nothing had changed.");
+      if (result.changed) onSaved(result);
+    } catch (err) {
+      setConflict(isVocabularyConflict(err));
+      setSaveError(describeKanjiWordsError(err, "Failed to save."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const word = loaded?.word ?? c.word;
+  const level = draft ? draft.jlpt_level : c.jlpt;
+  const shownProblem = dirty ? problems[0] : undefined;
 
   // Portalled: the editor is a GlassCard, whose backdrop-filter would make the Modal's fixed backdrop cover just
   // the card instead of the whole screen.
   return createPortal(
-    <Modal onClose={onClose} labelledBy="word-details-title" showCloseButton wide>
-      <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1 text-left">
-        {/* The candidate already knows the level, so the badge shows before the row arrives. A word without one
-            gets the badge's grey look. */}
-        <LevelBadge level={(v ? v.jlpt_level : c.jlpt) ?? "No level"} />
+    <Modal
+      onClose={onClose}
+      labelledBy="word-details-title"
+      showCloseButton
+      wide
+      confirmClose={() => !dirty || window.confirm(`Drop your unsaved changes to ${word}?`)}
+    >
+      <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1 text-left">
+        {/* The JLPT level, a select dressed as the level badge. */}
+        <span className={`relative inline-flex items-center rounded-lg border ${levelColorClasses(level)}`}>
+          <select
+            value={level ?? ""}
+            onChange={(e) => set({ jlpt_level: e.target.value || null })}
+            disabled={!draft}
+            aria-label="JLPT level"
+            className="cursor-pointer appearance-none bg-transparent py-1 pl-2.5 pr-6 text-[0.78rem] font-extrabold outline-none disabled:cursor-default md:tracking-[0.5px] [&_option]:bg-gray-900 [&_option]:text-white"
+          >
+            {LEVELS.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+            <option value="">No level</option>
+          </select>
+          <FaChevronDown className="pointer-events-none absolute right-2 h-2.5 w-2.5" />
+        </span>
         {/* mt-6: the furigana rides above the heading's own box, so the gap seen under the badge is ~10px less. */}
         <h3 id="word-details-title" className="mt-6 pr-10 text-[2.2rem] font-bold leading-[1.9]">
-          {renderWordWithFurigana(v?.word ?? c.word, v ? v.furiganas : c.furiganas, "text-[0.8rem] font-normal text-text-muted")}
+          {renderWordWithFurigana(word, draft ? draft.furiganas : c.furiganas, "text-[0.8rem] font-normal text-text-muted")}
         </h3>
-        {/* The meaning, right under the word, unlabelled; the candidate's own copy until the row arrives. */}
-        <WordMeanings
-          {...(v
-            ? { short: v.short_meaning?.trim() || null, primary: v.primary_meanings ?? [], other: v.other_meanings ?? [] }
-            : candidateMeanings(c))}
-        />
 
-        {error ? (
+        {loadError ? (
           <div className="mt-4 text-sm">
-            <p className="text-text-muted">{error}</p>
+            <p className="text-text-muted">{loadError}</p>
             <button
               type="button"
               onClick={() => {
-                setError(null);
-                setRetryTick((tick) => tick + 1);
+                setLoadError(null);
+                setReloadTick((tick) => tick + 1);
               }}
               className="mt-2 cursor-pointer font-bold text-accent-blue hover:underline"
             >
@@ -103,34 +365,209 @@ export function WordDetailsModal({ candidate: c, onClose }: WordDetailsModalProp
           </div>
         ) : null}
 
-        {!v && !error ? (
-          <div className="mt-5 space-y-2.5">
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-4 w-1/2" />
+        {!draft && !loadError ? (
+          <div className="mt-4 space-y-2.5">
+            <Skeleton className="h-6 w-2/3" />
+            <Skeleton className="h-6 w-1/2" />
             <Skeleton className="h-4 w-3/5" />
             <Skeleton className="h-4 w-1/2" />
           </div>
         ) : null}
 
-        {v ? (
+        {draft ? (
           <>
+            {/* The meaning, right under the word, unlabelled: S, then P, then the secondary senses. */}
+            <div className="mt-1 space-y-2 text-sm">
+              <div className="flex items-center gap-1.5">
+                <Tag title="Short meaning">S</Tag>
+                <input
+                  value={draft.short_meaning}
+                  onChange={(e) => set({ short_meaning: e.target.value })}
+                  placeholder="Short meaning (optional)"
+                  aria-label="Short meaning"
+                  className="min-w-0 flex-1 rounded-md border border-accent-gold/30 bg-accent-gold/10 px-2 py-1 font-bold text-accent-gold outline-none transition-colors placeholder:font-normal placeholder:text-accent-gold/50 focus:border-accent-gold/60"
+                />
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="mt-1.5 flex">
+                  <Tag title="Primary meanings">P</Tag>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <TextList
+                    values={draft.primary_meanings}
+                    onChange={(next) => set({ primary_meanings: next })}
+                    label="Primary meaning"
+                    addLabel="Meaning"
+                  />
+                </div>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="mt-1.5 flex">
+                  <Tag title="Secondary meanings">2nd</Tag>
+                </span>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {draft.other_meanings.map((sense, i) => (
+                    <div key={i} className="flex items-start gap-1.5 rounded-lg border border-border-soft p-1.5">
+                      <span className="mt-1.5 w-4 shrink-0 text-right text-xs text-text-muted">{i + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <TextList
+                          values={sense}
+                          onChange={(next) =>
+                            set({ other_meanings: draft.other_meanings.map((s, j) => (j === i ? next : s)) })
+                          }
+                          label={`Sense ${i + 1} meaning`}
+                          addLabel="Meaning"
+                        />
+                      </div>
+                      <RemoveButton
+                        label={`Remove secondary sense ${i + 1}`}
+                        onClick={() => set({ other_meanings: draft.other_meanings.filter((_, j) => j !== i) })}
+                      />
+                    </div>
+                  ))}
+                  <AddButton onClick={() => set({ other_meanings: [...draft.other_meanings, [""]] })}>Sense</AddButton>
+                </div>
+              </div>
+            </div>
+
             <Group title="Reading">
-              <Field label="Kana reading">{v.kana_reading || "—"}</Field>
-              <Field label="Romaji">{v.romaji_reading || "—"}</Field>
-              <Field label="Furigana">{listText(v.furiganas, " · ")}</Field>
-              <Field label="Romaji furigana">{listText(v.romaji_furiganas, " · ")}</Field>
-              <Field label="Other readings">{listText(v.other_readings)}</Field>
+              <Field label="Kana reading">
+                <input
+                  value={draft.kana_reading}
+                  onChange={(e) => set({ kana_reading: e.target.value })}
+                  aria-label="Kana reading"
+                  className={`${INPUT} w-full max-w-[18rem]`}
+                />
+              </Field>
+              <Field label="Romaji">
+                <input
+                  value={draft.romaji_reading}
+                  onChange={(e) => set({ romaji_reading: e.target.value })}
+                  aria-label="Romaji"
+                  className={`${INPUT} w-full max-w-[18rem]`}
+                />
+              </Field>
+              <Field
+                label="Furigana"
+                hint="One box per character: empty under kana, “-” when the reading of the character before covers this one too."
+              >
+                <PerCharInputs word={word} values={draft.furiganas} onChange={(next) => set({ furiganas: next })} label="Furigana" />
+              </Field>
+              <Field label="Romaji furigana">
+                <PerCharInputs
+                  word={word}
+                  values={draft.romaji_furiganas}
+                  onChange={(next) => set({ romaji_furiganas: next })}
+                  label="Romaji furigana"
+                />
+              </Field>
+              <Field label="Other readings">
+                <TextList
+                  values={draft.other_readings}
+                  onChange={(next) => set({ other_readings: next })}
+                  label="Other reading"
+                  addLabel="Reading"
+                />
+              </Field>
             </Group>
 
             <Group title="Usage">
-              <Field label="Parts of speech">{listText(v.parts_of_speech)}</Field>
-              <Field label="Common (Jisho)">{yesNo(v.is_common_jisho)}</Field>
-              <Field label="Usually written in kana">{yesNo(v.usually_kana)}</Field>
-              <Field label="Enabled for study">{yesNo(v.study_enabled)}</Field>
+              <Field label="Parts of speech">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {draft.parts_of_speech.map((pos, i) => (
+                    <span
+                      key={`${pos}-${i}`}
+                      className="inline-flex max-w-full items-center rounded-lg border border-border-soft bg-white/[0.03] pl-2.5"
+                    >
+                      <span className="min-w-0 py-1">{pos}</span>
+                      <RemoveButton
+                        label={`Remove ${pos}`}
+                        onClick={() => set({ parts_of_speech: draft.parts_of_speech.filter((_, j) => j !== i) })}
+                      />
+                    </span>
+                  ))}
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) set({ parts_of_speech: [...draft.parts_of_speech, e.target.value] });
+                    }}
+                    aria-label="Add a part of speech"
+                    className="max-w-full cursor-pointer rounded-lg border border-dashed [field-sizing:content] border-border-soft bg-transparent px-2 py-1 text-xs font-bold text-text-muted outline-none transition-colors hover:border-white/25 hover:text-white focus:border-accent-blue/40 [&_option]:bg-gray-900 [&_option]:font-normal [&_option]:text-white"
+                  >
+                    <option value="">+ Part of speech</option>
+                    {PARTS_OF_SPEECH.filter((pos) => !draft.parts_of_speech.includes(pos)).map((pos) => (
+                      <option key={pos} value={pos}>
+                        {pos}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </Field>
+              <Field label="Common (Jisho)">
+                <Toggle
+                  checked={draft.is_common_jisho}
+                  onChange={() => set({ is_common_jisho: !draft.is_common_jisho })}
+                  color="blue"
+                  aria-label="Common (Jisho)"
+                  className="mt-0.5"
+                />
+              </Field>
+              <Field label="Usually written in kana">
+                <Toggle
+                  checked={draft.usually_kana}
+                  onChange={() => set({ usually_kana: !draft.usually_kana })}
+                  color="blue"
+                  aria-label="Usually written in kana"
+                  className="mt-0.5"
+                />
+              </Field>
+              <Field
+                label="Enabled for study"
+                hint={
+                  draft.study_enabled
+                    ? undefined
+                    : "Not enabled: no student gets a new card for it, and it can't be chosen for any kanji."
+                }
+              >
+                <Toggle
+                  checked={draft.study_enabled}
+                  onChange={() => set({ study_enabled: !draft.study_enabled })}
+                  color="blue"
+                  aria-label="Enabled for study"
+                  className="mt-0.5"
+                />
+              </Field>
             </Group>
           </>
         ) : null}
       </div>
+
+      {draft ? (
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-border-soft pt-4">
+          {saveError || shownProblem ? (
+            <div role="alert" className="mr-auto min-w-0 text-sm text-accent-red">
+              <p>{saveError ?? shownProblem}</p>
+              {conflict ? (
+                <button
+                  type="button"
+                  onClick={() => setReloadTick((tick) => tick + 1)}
+                  className="mt-1 cursor-pointer font-bold text-accent-blue hover:underline"
+                >
+                  Load the latest version (drops your changes)
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {dirty ? (
+            <Button size="sm" variant="secondary" onClick={() => loaded && setDraft(toDraft(loaded))} disabled={saving}>
+              Discard changes
+            </Button>
+          ) : null}
+          <Button size="sm" onClick={() => void save()} loading={saving} disabled={!dirty || problems.length > 0}>
+            Save
+          </Button>
+        </div>
+      ) : null}
     </Modal>,
     document.body
   );

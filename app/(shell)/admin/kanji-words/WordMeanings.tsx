@@ -20,7 +20,8 @@ export function meaningsText(m: WordMeaningsValue): string[] {
   return [m.short ?? "", ...m.primary, ...m.other.flat()].map((text) => text.toLowerCase());
 }
 
-function Tag({ title, children }: { title: string; children: React.ReactNode }) {
+/** The S / P / 2nd mark in front of a kind of meaning (also used by the word popup's meaning editor). */
+export function Tag({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <abbr
       title={title}

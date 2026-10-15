@@ -69,7 +69,15 @@ export function useKanjiWordsMeanings(overview: KanjiWordsOverview | null) {
       .catch(() => setFailed(true));
   }, [overview]);
 
-  return { meanings, failed };
+  /** Reload these words' meanings (a word was just edited); a failure keeps the old ones on screen. */
+  const refresh = useCallback((kanjiWordIds: number[]) => {
+    if (kanjiWordIds.length === 0) return;
+    fetchKanjiWordsMeanings(createClient(), kanjiWordIds)
+      .then((loaded) => setMeanings((prev) => ({ ...(prev ?? {}), ...loaded })))
+      .catch(() => {});
+  }, []);
+
+  return { meanings, failed, refresh };
 }
 
 /** The Overview tile: kanji still to review, and how many of them are flagged "algorithm changed". */

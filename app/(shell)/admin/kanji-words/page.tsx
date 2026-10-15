@@ -92,7 +92,7 @@ function AdminKanjiWords() {
   const { user } = useAuth();
   const multiRegion = isMultiRegionEnabled();
   const { data, status, error, refetch } = useKanjiWordsOverview(multiRegion ? user : null);
-  const { meanings, failed: meaningsFailed } = useKanjiWordsMeanings(data);
+  const { meanings, failed: meaningsFailed, refresh: refreshMeanings } = useKanjiWordsMeanings(data);
   const { showToast } = useToast();
   const searchParams = useSearchParams();
 
@@ -382,6 +382,10 @@ function AdminKanjiWords() {
               key={selectedRow.id}
               row={selectedRow}
               onChanged={refetch}
+              onWordChanged={(kanjiWordIds) => {
+                refetch();
+                refreshMeanings(kanjiWordIds);
+              }}
               onClose={() => requestSelect(null)}
               onDirtyChange={setDirty}
             />

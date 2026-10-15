@@ -92,6 +92,7 @@ export interface KanjiWordCandidate {
 
 /** The dictionary row of one candidate's word (fetchKanjiWordVocabulary), for the word details popup. */
 export interface KanjiWordVocabulary {
+  id: number;
   word: string;
   kana_reading: string | null;
   romaji_reading: string | null;
@@ -107,6 +108,18 @@ export interface KanjiWordVocabulary {
   is_common_jisho: boolean | null;
   usually_kana: boolean | null;
   study_enabled: boolean;
+}
+
+/** The columns of a word the popup can edit (admin_update_vocabulary): everything but its id and the word itself. */
+export type VocabularyEditable = Omit<KanjiWordVocabulary, "id" | "word">;
+
+export interface VocabularyUpdateResult {
+  /** false = what was sent equals what is stored: nothing was written. */
+  changed: boolean;
+  /** The editable columns as stored now. */
+  vocabulary: VocabularyEditable;
+  /** Every kanji_word row of the word (one per kanji it contains), for refreshing the page. */
+  kanji_word_ids: number[];
 }
 
 export interface KanjiWordCandidates {

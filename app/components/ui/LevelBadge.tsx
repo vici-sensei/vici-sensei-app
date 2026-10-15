@@ -10,7 +10,8 @@ const LEVEL_COLOR_CLASSES: Record<string, string> = {
 
 const FALLBACK_COLOR_CLASSES = "border-border-soft bg-white/5 text-text-muted";
 
-function levelColorClasses(level: string | null | undefined): string {
+/** Border, background and text colour of a JLPT level (grey for none / anything else). */
+export function levelColorClasses(level: string | null | undefined): string {
   if (!level) return FALLBACK_COLOR_CLASSES;
   return LEVEL_COLOR_CLASSES[level] ?? FALLBACK_COLOR_CLASSES;
 }

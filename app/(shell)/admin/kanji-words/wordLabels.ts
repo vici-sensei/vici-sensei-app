@@ -148,7 +148,70 @@ export function describeBulkResult(result: KanjiWordsBulkResult): string[] {
   return lines;
 }
 
-export const dateTimeFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+/** Every part of speech used in vocabulary (JMdict's labels, read from both regions on 2026-10-15), most used first:
+ *  what the word popup offers to add. A word holding one that isn't here still shows it. */
+export const PARTS_OF_SPEECH = [
+  "Noun",
+  "Suru verb",
+  "Transitive verb",
+  "Intransitive verb",
+  "Noun which may take the genitive case particle 'no'",
+  "Na-adjective (keiyodoshi)",
+  "Adverb (fukushi)",
+  "Ichidan verb",
+  "Expressions (phrases, clauses, etc.)",
+  "Godan verb with 'ru' ending",
+  "I-adjective (keiyoushi)",
+  "Godan verb with 'su' ending",
+  "Noun, used as a suffix",
+  "Adverb taking the 'to' particle",
+  "Godan verb with 'ku' ending",
+  "Godan verb with 'mu' ending",
+  "Godan verb with 'u' ending",
+  "Conjunction",
+  "Suffix",
+  "Particle",
+  "Pronoun",
+  "Prefix",
+  "Numeric",
+  "Noun or verb acting prenominally",
+  "Counter",
+  "Godan verb with 'gu' ending",
+  "Pre-noun adjectival (rentaishi)",
+  "Suru verb - special class",
+  "Godan verb with 'tsu' ending",
+  "'taru' adjective",
+  "Godan verb with 'bu' ending",
+  "Noun, used as a prefix",
+  "Ichidan verb - zuru verb (alternative form of -jiru verbs)",
+  "Suru verb - included",
+  "Auxiliary",
+  "Auxiliary verb",
+  "Godan verb - Iku/Yuku special class",
+  "Kuru verb - special class",
+  "I-Adjective (keiyoushi) - yoi/ii class",
+  "Copula",
+  "Godan verb - -aru special class",
+  "Godan verb with 'ru' ending (irregular verb)",
+  "Godan verb with 'u' ending (special class)",
+  "Wikipedia definition",
+  "Auxiliary adjective",
+  "Su verb - precursor to the modern suru",
+  "Verb unspecified",
+  "Godan verb with 'nu' ending",
+  "Irregular nu verb",
+  "Ichidan verb - kureru special class",
+];
+
+const JLPT_RANKS = ["N5", "N4", "N3", "N2", "N1"];
+
+/** The signed level gap of a word against its kanji, as the RPCs compute it: a missing level counts as beyond N1. */
+export function levelGap(wordLevel: string | null, kanjiLevel: string | null): number {
+  const rank = (level: string | null) => (level && JLPT_RANKS.includes(level) ? JLPT_RANKS.indexOf(level) + 1 : 6);
+  return rank(wordLevel) - rank(kanjiLevel);
+}
+
+export const dateTimeFormatter =new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 export function formatWhen(iso: string): string {
   return dateTimeFormatter.format(new Date(iso));

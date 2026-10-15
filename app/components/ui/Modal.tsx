@@ -28,6 +28,9 @@ interface ModalProps {
   /** A 640px card instead of 440px, for dialogs that show a lot of data side by side (the kanji-words
    * admin's word details). */
   wide?: boolean;
+  /** Asked before Escape, a backdrop click or the "x" close the dialog; false keeps it open (a dialog holding
+   * unsaved edits asks whether to drop them). The caller's own buttons call onClose directly and skip it. */
+  confirmClose?: () => boolean;
   children: ReactNode;
 }
 
@@ -52,14 +55,17 @@ export function Modal({
   fullScreen,
   backdropGraceMs = 0,
   wide,
+  confirmClose,
   children,
 }: ModalProps) {
   const [shown, setShown] = useState(false);
   const [closing, setClosing] = useState(false);
   const onCloseRef = useRef(onClose);
+  const confirmCloseRef = useRef(confirmClose);
   useEffect(() => {
     onCloseRef.current = onClose;
-  }, [onClose]);
+    confirmCloseRef.current = confirmClose;
+  }, [onClose, confirmClose]);
 
   const openedAtRef = useRef(0);
   useEffect(() => {
@@ -82,6 +88,7 @@ export function Modal({
   }, []);
 
   const closeAnimated = useCallback(() => {
+    if (confirmCloseRef.current && !confirmCloseRef.current()) return;
     setClosing((already) => {
       if (!already) setTimeout(() => onCloseRef.current(), TRANSITION_MS);
       return true;

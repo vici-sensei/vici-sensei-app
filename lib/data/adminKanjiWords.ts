@@ -10,6 +10,8 @@ import type {
   KanjiWordsOverview,
   KanjiWordsParity,
   KanjiWordsTodoCount,
+  VocabularyEditable,
+  VocabularyUpdateResult,
 } from "@/lib/types";
 
 /**
@@ -30,12 +32,20 @@ export type KanjiWordsErrorCode =
 
 export class KanjiWordsError extends Error {
   code: string | undefined;
+  /** The RPC's DETAIL: for vocabulary_invalid, the sentence saying what is wrong. */
+  details: string | undefined;
 
-  constructor(message: string, code?: string) {
+  constructor(message: string, code?: string, details?: string) {
     super(message);
     this.name = "KanjiWordsError";
     this.code = code;
+    this.details = details || undefined;
   }
+}
+
+/** The word changed (on either region) since the popup loaded it. */
+export function isVocabularyConflict(err: unknown): boolean {
+  return err instanceof KanjiWordsError && err.message === "vocabulary_conflict";
 }
 
 /** The kanji changed (on either region) since the page loaded it: SQLSTATE 40001 / "kanji_words_conflict". */
@@ -55,6 +65,14 @@ export function describeKanjiWordsError(err: unknown, fallback: string): string 
       return "Two of the chosen entries are the same word. Keep only one of them.";
     case "kanji_words_remote_missing":
       return "The other region isn't linked yet, so nothing can be saved.";
+    case "vocabulary_conflict":
+      return "This word was changed by someone else (or on the other region) since you opened it.";
+    case "vocabulary_invalid":
+      return (err instanceof KanjiWordsError && err.details) || "Some of the values aren't valid.";
+    case "vocabulary_unknown":
+      return "This word is no longer in the dictionary.";
+    case "vocabulary_remote_missing":
+      return "The other region isn't linked for word edits yet, so nothing can be saved.";
     case "Not authorized":
       return "Only teachers can edit kanji words.";
     default:
@@ -64,7 +82,7 @@ export function describeKanjiWordsError(err: unknown, fallback: string): string 
 
 async function call<T>(supabase: AppSupabaseClient, fn: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.rpc(fn, args);
-  if (error) throw new KanjiWordsError(error.message, error.code);
+  if (error) throw new KanjiWordsError(error.message, error.code, error.details);
   return data as T;
 }
 
@@ -96,7 +114,7 @@ export async function fetchKanjiWordVocabulary(
   const { data, error } = await supabase
     .from("kanji_word")
     .select(
-      "vocabulary:id_word(word, kana_reading, romaji_reading, furiganas, romaji_furiganas, other_readings, short_meaning, primary_meanings, other_meanings, parts_of_speech, jlpt_level, is_common_jisho, usually_kana, study_enabled)"
+      "vocabulary:id_word(id, word, kana_reading, romaji_reading, furiganas, romaji_furiganas, other_readings, short_meaning, primary_meanings, other_meanings, parts_of_speech, jlpt_level, is_common_jisho, usually_kana, study_enabled)"
     )
     .eq("id", kanjiWordId)
     .maybeSingle();
@@ -104,6 +122,22 @@ export async function fetchKanjiWordVocabulary(
   const vocabulary = (data as unknown as { vocabulary: KanjiWordVocabulary | null } | null)?.vocabulary ?? null;
   if (!vocabulary) throw new KanjiWordsError("This word is no longer in the dictionary.");
   return vocabulary;
+}
+
+/**
+ * Save one word's dictionary data (20261015011213_vocabulary_admin_edit.sql): on the admin's region and the other
+ * one in the same transaction, with a log row on both. `expected` is the row as the popup loaded it; if either
+ * region holds something else now, it is refused with vocabulary_conflict and nothing is written.
+ */
+export function updateVocabulary(
+  supabase: AppSupabaseClient,
+  args: { vocabularyId: number; expected: VocabularyEditable; values: VocabularyEditable }
+): Promise<VocabularyUpdateResult> {
+  return call(supabase, "admin_update_vocabulary", {
+    p_vocabulary_id: args.vocabularyId,
+    p_expected: args.expected,
+    p_values: args.values,
+  });
 }
 
 export function fetchKanjiWordsHistory(supabase: AppSupabaseClient, kanjiId: number): Promise<KanjiWordsHistory> {

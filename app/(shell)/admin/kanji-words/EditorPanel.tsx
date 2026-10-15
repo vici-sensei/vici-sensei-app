@@ -14,11 +14,17 @@ import { GlassCard } from "@/app/components/ui/GlassCard";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useToast } from "@/app/components/ui/Toast";
-import type { AsyncStatus, KanjiWordCandidate, KanjiWordCandidates, KanjiWordsRow } from "@/lib/types";
+import type {
+  AsyncStatus,
+  KanjiWordCandidate,
+  KanjiWordCandidates,
+  KanjiWordsRow,
+  VocabularyUpdateResult,
+} from "@/lib/types";
 import { CandidateRow } from "./CandidateRow";
 import { FloatingCard, FloatingDock, FloatingToggle } from "./FloatingDock";
 import { HistoryPanel } from "./HistoryPanel";
-import { groupReadingLabels } from "./wordLabels";
+import { groupReadingLabels, levelGap } from "./wordLabels";
 import { WordDetailsModal } from "./WordDetailsModal";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
 
@@ -41,6 +47,8 @@ interface EditorPanelProps {
   row: KanjiWordsRow;
   /** Something was written: the page re-reads its overview. */
   onChanged: () => void;
+  /** A word's dictionary data was edited (these are all its kanji_word ids): the page re-reads what shows it. */
+  onWordChanged: (kanjiWordIds: number[]) => void;
   onClose: () => void;
   /** Unsaved edits exist (or not), so the page can ask before switching to another kanji. */
   onDirtyChange: (dirty: boolean) => void;
@@ -51,7 +59,7 @@ interface EditorPanelProps {
  * list wanted plus the version this panel loaded, so a change made meanwhile (by another admin, or on the other
  * region) is refused instead of silently overwritten. The page mounts it with key={kanji id}.
  */
-export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPanelProps) {
+export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyChange }: EditorPanelProps) {
   const { showToast } = useToast();
   const [status, setStatus] = useState<AsyncStatus>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -165,6 +173,39 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
       else next.delete(c.id);
       return next;
     });
+  }
+
+  // A word's dictionary data was edited in its popup: patch its card here instead of re-reading the kanji, which
+  // would throw away the ticks not saved yet, and let the page refresh its list and the chips' meanings.
+  function applyWordEdit(result: VocabularyUpdateResult) {
+    const v = result.vocabulary;
+    const ids = new Set(result.kanji_word_ids);
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            candidates: prev.candidates.map((c) =>
+              ids.has(c.id)
+                ? {
+                    ...c,
+                    kana: v.kana_reading,
+                    furiganas: v.furiganas,
+                    meanings: v.short_meaning ? [v.short_meaning, ...(v.primary_meanings ?? [])] : v.primary_meanings,
+                    short: v.short_meaning,
+                    primary: v.primary_meanings ?? [],
+                    other: v.other_meanings ?? [],
+                    jlpt: v.jlpt_level,
+                    gap: levelGap(v.jlpt_level, prev.kanji.lv),
+                    common: v.is_common_jisho ?? false,
+                    usually_kana: v.usually_kana ?? false,
+                    enabled: v.study_enabled,
+                  }
+                : c
+            ),
+          }
+        : prev
+    );
+    onWordChanged(result.kanji_word_ids);
   }
 
   async function handleSave() {
@@ -481,7 +522,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
       ) : null}
 
       {detailsFor ? (
-        <WordDetailsModal candidate={detailsFor} onClose={() => setDetailsFor(null)} />
+        <WordDetailsModal candidate={detailsFor} onClose={() => setDetailsFor(null)} onSaved={applyWordEdit} />
       ) : null}
     </GlassCard>
   );
