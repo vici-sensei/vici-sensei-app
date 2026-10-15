@@ -23,27 +23,30 @@ const LOCKED_ROW_BG = "bg-black/15";
 export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) {
   const fade = unlockLevel ? LOCKED_FADE : "";
   return (
-    <div className={`flex items-center gap-3 px-3 py-2.5 ${unlockLevel ? LOCKED_ROW_BG : ""}`}>
-      <div className={`shrink-0 pt-[0.4em] text-3xl leading-none ${fade}`}>
-        {renderWordWithFurigana(vocabulary.word, vocabulary.furiganas, undefined, undefined, undefined, renderKanji)}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className={`leading-[1.4] text-text-muted ${fade}`}>{vocabulary.primary_meanings?.join(", ")}</div>
-        {vocabulary.usually_kana && (
-          <div className={`mt-1.5 ${fade}`}>
-            <UsuallyKanaNote />
-          </div>
-        )}
-        {unlockLevel && (
-          <div className="mt-1 flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
-            <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
-            Unlocks at {unlockLevel}
-          </div>
-        )}
-      </div>
-      {vocabulary.jlpt_level && (
-        <LevelBadge level={vocabulary.jlpt_level} size="sm" className={`shrink-0 ${fade}`} />
+    <div className={`px-3 py-2.5 ${unlockLevel ? LOCKED_ROW_BG : ""}`}>
+      {/* On its own line above the word, so the lock reads before the word itself. */}
+      {unlockLevel && (
+        <div className="mb-0.5 flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
+          <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
+          Unlocks at {unlockLevel}
+        </div>
       )}
+      <div className="flex items-center gap-3">
+        <div className={`shrink-0 pt-[0.4em] text-3xl leading-none ${fade}`}>
+          {renderWordWithFurigana(vocabulary.word, vocabulary.furiganas, undefined, undefined, undefined, renderKanji)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className={`leading-[1.4] text-text-muted ${fade}`}>{vocabulary.primary_meanings?.join(", ")}</div>
+          {vocabulary.usually_kana && (
+            <div className={`mt-1.5 ${fade}`}>
+              <UsuallyKanaNote />
+            </div>
+          )}
+        </div>
+        {vocabulary.jlpt_level && (
+          <LevelBadge level={vocabulary.jlpt_level} size="sm" className={`shrink-0 ${fade}`} />
+        )}
+      </div>
     </div>
   );
 }
