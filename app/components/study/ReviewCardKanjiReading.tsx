@@ -62,7 +62,7 @@ export function ReviewCardKanjiReading({ card, disabled, onRate, onCancelableCha
           {revealed && meanings.length > 0 && (
             <p className="text-center text-sm italic text-text-muted">{meanings.join(", ")}</p>
           )}
-          {revealed && <OtherMeaningsToggle otherMeanings={otherMeanings} centered className="mt-1" />}
+          {revealed && <OtherMeaningsToggle otherMeanings={otherMeanings} centered chip className="mt-1" />}
           {card.usually_kana && (
             <div className="mt-1.5">
               <UsuallyKanaNote />
