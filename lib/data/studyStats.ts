@@ -28,7 +28,12 @@ export async function fetchStudyStats(
 
   if (settingsResult.error) throw new Error(settingsResult.error.message);
 
-  const level = settingsResult.data ? mostAdvancedLevel(settingsResult.data.enabled_levels as string[]) : null;
+  // enabled_levels is NULL while onboarding hasn't had a level picked yet (its kana step clears it),
+  // and a late onboarding write can leave it NULL on a finished standard-track account too. Treated
+  // like a missing row: no level (no level-progress card) and no new kanji/words below -- the same
+  // nothing the database's own functions (get_due_cards, the level-up check) see for NULL.
+  const enabledLevels = (settingsResult.data?.enabled_levels ?? []) as string[];
+  const level = enabledLevels.length > 0 ? mostAdvancedLevel(enabledLevels) : null;
 
   const isKana = settingsResult.data?.study_track === "kana";
 
@@ -126,7 +131,6 @@ export async function fetchStudyStats(
   const katakanaRemaining = settingsResult.data?.study_katakana
     ? Math.max(newKatakanaPerDay - newKatakanaToday, 0)
     : 0;
-  const enabledLevels = (settingsResult.data?.enabled_levels ?? []) as string[];
 
   const [kanjiCandidatesResult, vocabCandidatesResult, hiraganaCandidatesResult, katakanaCandidatesResult, readingUnlocks] =
     await Promise.all([

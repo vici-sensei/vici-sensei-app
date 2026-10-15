@@ -12,7 +12,9 @@ export interface StudySettings {
   user_id: string;
   new_kanji_per_day: number;
   max_reviews_per_day: number;
-  enabled_levels: JlptLevel[];
+  /** null = no level picked yet: onboarding's kana step clears it until the level step is answered,
+   * and a late onboarding write (e.g. from a second, stale tab) can leave it null after onboarding too. */
+  enabled_levels: JlptLevel[] | null;
   include_lower_levels: boolean;
   study_kanji: boolean;
   study_vocabulary: boolean;

@@ -1,24 +1,26 @@
 export const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const
 export type JlptLevel = (typeof JLPT_LEVELS)[number]
 
-/** The most advanced level present in an enabled_levels array (defaults to N5). */
-export function mostAdvancedLevel(levels: readonly string[]): JlptLevel {
+/** The most advanced level present in an enabled_levels array (defaults to N5) -- also for NULL,
+ * which the column allows ("no level picked yet", see StudySettings.enabled_levels). */
+export function mostAdvancedLevel(levels: readonly string[] | null | undefined): JlptLevel {
   let best = 0
-  for (const level of levels) {
+  for (const level of levels ?? []) {
     const idx = JLPT_LEVELS.indexOf(level as JlptLevel)
     if (idx > best) best = idx
   }
   return JLPT_LEVELS[best]
 }
 
-/** The least advanced level present in an enabled_levels array (defaults to N1). */
-export function leastAdvancedLevel(levels: readonly string[]): JlptLevel {
-  let worst = JLPT_LEVELS.length - 1
-  for (const level of levels) {
+/** The least advanced level present in an enabled_levels array. Defaults to N5 like
+ * mostAdvancedLevel (not N1), so the pair always forms a valid levelsInRange(floor, level). */
+export function leastAdvancedLevel(levels: readonly string[] | null | undefined): JlptLevel {
+  let worst = -1
+  for (const level of levels ?? []) {
     const idx = JLPT_LEVELS.indexOf(level as JlptLevel)
-    if (idx >= 0 && idx < worst) worst = idx
+    if (idx >= 0 && (worst < 0 || idx < worst)) worst = idx
   }
-  return JLPT_LEVELS[worst]
+  return JLPT_LEVELS[Math.max(worst, 0)]
 }
 
 /** Every level from `floor` up to and including `ceiling`. */

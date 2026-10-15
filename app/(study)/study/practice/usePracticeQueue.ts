@@ -322,7 +322,8 @@ export function usePracticeQueue(): PracticeQueueState {
       cancelPendingLoadRef.current = () => {
         cancelled = true;
       };
-      getPracticeDeck(user.id, categories, settings.enabled_levels)
+      // No level picked (null) -> no level-scoped vocab, same as get_due_cards sees it.
+      getPracticeDeck(user.id, categories, settings.enabled_levels ?? [])
         .then((deck) => {
           if (cancelled) return;
           if (deck.length === 0) {
