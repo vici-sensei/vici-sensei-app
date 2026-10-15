@@ -27,9 +27,9 @@ function KanjiListing() {
               kun: {row.kun_readings?.join("、") || "—"} &nbsp;·&nbsp; on: {row.on_readings?.join("、") || "—"}
             </div>
           </div>
-          <LevelBadge level={row.level} className="ml-auto shrink-0" />
         </>
       )}
+      renderBadge={(row) => <LevelBadge level={row.level} />}
       renderPlaceholderRow={() => (
         <>
           <Skeleton className="h-9 w-7.5 shrink-0 rounded-md" />
@@ -45,9 +45,9 @@ function KanjiListing() {
               <Skeleton className="h-3.5 w-14" />
             </div>
           </div>
-          <LevelBadge level={null} loading className="ml-auto shrink-0" />
         </>
       )}
+      renderPlaceholderBadge={() => <LevelBadge level={null} loading />}
     />
   );
 }

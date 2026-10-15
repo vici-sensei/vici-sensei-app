@@ -46,11 +46,22 @@ interface BrowseListPageProps<T> {
   itemKey: (item: T) => number;
   detailHref: (item: T) => string;
   renderRow: (item: T) => ReactNode;
+  /** The row's level badge, kept out of renderRow: it gets a column of its own on the right (see
+   * ROW_CLASSES), in the row's top-right corner however the rest of it wraps. */
+  renderBadge: (item: T) => ReactNode;
   /** When set, shown as a handful of fake rows (each field its own skeleton) in place of the
    * default full-row ListSkeleton while the first page of real data hasn't landed yet. Receives
    * the row index so placeholders can vary (e.g. word width) instead of repeating identically. */
   renderPlaceholderRow?: (index: number) => ReactNode;
+  /** The placeholder rows' badge column -- see renderBadge. */
+  renderPlaceholderBadge?: () => ReactNode;
 }
+
+// Every row: its content (wrapping freely) on the left, and a column on the right reserved for the
+// level badge, which sits in the row's top-right corner.
+const ROW_CLASSES = "grid grid-cols-[minmax(0,1fr)_auto] items-center rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px]";
+const ROW_CONTENT_CLASSES = "flex flex-wrap items-center gap-x-8 gap-y-2";
+const ROW_BADGE_CLASSES = "ml-4 self-start";
 
 function BrowseListResults<T>({
   active,
@@ -61,7 +72,9 @@ function BrowseListResults<T>({
   itemKey,
   detailHref,
   renderRow,
+  renderBadge,
   renderPlaceholderRow,
+  renderPlaceholderBadge,
   search,
   levels,
   rawLevel,
@@ -93,11 +106,9 @@ function BrowseListResults<T>({
         renderPlaceholderRow ? (
           <div className="mb-6 flex flex-col gap-2.5">
             {Array.from({ length: PLACEHOLDER_ROW_COUNT }).map((_, i) => (
-              <div
-                key={i}
-                className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px]"
-              >
-                {renderPlaceholderRow(i)}
+              <div key={i} className={ROW_CLASSES}>
+                <div className={ROW_CONTENT_CLASSES}>{renderPlaceholderRow(i)}</div>
+                {renderPlaceholderBadge && <div className={ROW_BADGE_CLASSES}>{renderPlaceholderBadge()}</div>}
               </div>
             ))}
           </div>
@@ -119,10 +130,11 @@ function BrowseListResults<T>({
               <Link
                 key={itemKey(row)}
                 href={detailHref(row)}
-                className="flex flex-wrap cursor-pointer items-center gap-x-8 gap-y-2 rounded-2xl border border-border-soft bg-bg-cards px-5 py-4 backdrop-blur-[10px] transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15"
+                className={`${ROW_CLASSES} cursor-pointer transition-[transform,border-color] duration-200 hover:translate-x-1 hover:border-white/15`}
                 {...createHoverIntent(() => prefetchDetail(itemKey(row)))}
               >
-                {renderRow(row)}
+                <div className={ROW_CONTENT_CLASSES}>{renderRow(row)}</div>
+                <div className={ROW_BADGE_CLASSES}>{renderBadge(row)}</div>
               </Link>
             ))}
           </div>

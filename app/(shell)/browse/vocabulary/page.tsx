@@ -28,9 +28,9 @@ function VocabularyListing() {
             <div className="mb-0.5 text-base font-bold">{row.primary_meanings?.join(", ")}</div>
             <OtherMeaningsToggle otherMeanings={row.other_meanings} className="mt-2" />
           </div>
-          <LevelBadge level={row.jlpt_level} className="ml-auto shrink-0" />
         </>
       )}
+      renderBadge={(row) => <LevelBadge level={row.jlpt_level} />}
       renderPlaceholderRow={() => (
         <>
           <PlaceholderRubyWord size="sm" />
@@ -39,9 +39,9 @@ function VocabularyListing() {
               <Skeleton className="h-4 w-full" />
             </div>
           </div>
-          <LevelBadge level={null} loading className="ml-auto shrink-0" />
         </>
       )}
+      renderPlaceholderBadge={() => <LevelBadge level={null} loading />}
     />
   );
 }

@@ -22,9 +22,9 @@ const LOCKED_ROW_BG = "bg-black/15";
 /** One row of the word list shown on a new-kanji intro card. */
 export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) {
   const fade = unlockLevel ? LOCKED_FADE : "";
-  // A grid, so the level badge can span both lines of a locked row (its "Unlocks at" line and the
-  // word itself) and stay vertically centered on the whole row, like on an unlocked one. The
-  // "Unlocks at" line spans the badge's column too, so on mobile it centers on the full row width.
+  // A grid with a column on the right reserved for the level badge, which sits in the row's top-right
+  // corner (spanning both lines of a locked row: its "Unlocks at" line and the word). The "Unlocks
+  // at" line spans the badge's column too, so on mobile it centers on the full row width.
   return (
     <div className={`grid grid-cols-[minmax(0,1fr)_auto] items-center px-3 py-2.5 ${unlockLevel ? LOCKED_ROW_BG : ""}`}>
       {/* On its own line above the word, so the lock reads before the word itself. */}
@@ -51,7 +51,7 @@ export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) 
         <LevelBadge
           level={vocabulary.jlpt_level}
           size="sm"
-          className={`col-start-2 row-start-1 ml-3 self-center ${unlockLevel ? "row-end-3" : ""} ${fade}`}
+          className={`col-start-2 row-start-1 ml-3 self-start ${unlockLevel ? "row-end-3" : ""} ${fade}`}
         />
       )}
     </div>

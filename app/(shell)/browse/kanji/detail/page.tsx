@@ -103,14 +103,17 @@ function KanjiDetailPlaceholder() {
       <div className="grid grid-cols-1 gap-3 text-left">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
-            className="flex flex-wrap items-center gap-x-8 gap-y-1.5 rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-3"
+            // Same grid as the real cards below: content left, the badge's own column right.
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center rounded-xl border border-border-soft bg-white/[0.03] px-3.5 py-3"
             key={i}
           >
-            <PlaceholderRubyWord size="md" />
-            <div className="min-w-32 flex-1">
-              <Skeleton className="h-3.5 w-full" />
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-1.5">
+              <PlaceholderRubyWord size="md" />
+              <div className="min-w-32 flex-1">
+                <Skeleton className="h-3.5 w-full" />
+              </div>
             </div>
-            <LevelBadge level={null} loading size="md" className="ml-auto shrink-0" />
+            <LevelBadge level={null} loading size="md" className="ml-4 self-start" />
           </div>
         ))}
       </div>
@@ -207,9 +210,9 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
       <div {...pressProps} className="grid grid-cols-1 gap-3 text-left">
         {exampleWords.map((w) => (
           <div
-            // A grid with a column on the right reserved for the level badge: the badge stays
-            // vertically centered on the whole card at every width (spanning the "Unlocks at" line
-            // too, on a locked word), and the word/meaning never run underneath it.
+            // A grid with a column on the right reserved for the level badge: the badge sits in the
+            // card's top-right corner at every width (spanning the "Unlocks at" line too, on a locked
+            // word), and the word/meaning never run underneath it.
             className={`grid grid-cols-[minmax(0,1fr)_auto] items-center rounded-xl border border-border-soft px-3.5 py-3 ${
               w.unlock_level ? LOCKED_ROW_BG : "bg-white/[0.03]"
             }`}
@@ -266,7 +269,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
             <LevelBadge
               level={w.vocabulary.jlpt_level}
               size="md"
-              className={`col-start-2 row-start-1 ml-4 self-center ${
+              className={`col-start-2 row-start-1 ml-4 self-start ${
                 w.unlock_level ? `row-end-3 ${LOCKED_FADE}` : ""
               }`}
             />
