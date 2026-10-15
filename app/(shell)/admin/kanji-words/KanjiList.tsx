@@ -47,14 +47,18 @@ function KanjiListRow({
   onToggleChecked: () => void;
 }) {
   const worst = maxGap(row.f);
-  // Reviewed rows get a faint green wash so they stand out while scrolling; the selection's blue wins.
+  // Reviewed rows get a faint green wash so they stand out while scrolling; the selection's blue wins the
+  // background, and the green bar on the left (alone, the two washes look alike) keeps them apart.
   const background = selected
     ? "bg-accent-blue/[0.08]"
     : row.r
-      ? "bg-accent-green/[0.06] hover:bg-accent-green/[0.09]"
+      ? "bg-accent-green/[0.07] hover:bg-accent-green/[0.1]"
       : "hover:bg-white/[0.03]";
+  const reviewedBar = row.r ? "shadow-[inset_3px_0_0_rgba(52,211,153,0.7)]" : "";
   return (
-    <li className={`flex items-start gap-2.5 border-b border-border-soft/50 px-3 py-2.5 last:border-0 ${background}`}>
+    <li
+      className={`flex items-start gap-2.5 border-b border-border-soft/50 px-3 py-2.5 last:border-0 ${background} ${reviewedBar}`}
+    >
       <input
         type="checkbox"
         checked={checked}
