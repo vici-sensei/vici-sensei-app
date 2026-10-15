@@ -47,12 +47,14 @@ function KanjiListRow({
   onToggleChecked: () => void;
 }) {
   const worst = maxGap(row.f);
+  // Reviewed rows get a faint green wash so they stand out while scrolling; the selection's blue wins.
+  const background = selected
+    ? "bg-accent-blue/[0.08]"
+    : row.r
+      ? "bg-accent-green/[0.06] hover:bg-accent-green/[0.09]"
+      : "hover:bg-white/[0.03]";
   return (
-    <li
-      className={`flex items-start gap-2.5 border-b border-border-soft/50 px-3 py-2.5 last:border-0 ${
-        selected ? "bg-accent-blue/[0.08]" : "hover:bg-white/[0.03]"
-      }`}
-    >
+    <li className={`flex items-start gap-2.5 border-b border-border-soft/50 px-3 py-2.5 last:border-0 ${background}`}>
       <input
         type="checkbox"
         checked={checked}
@@ -64,11 +66,6 @@ function KanjiListRow({
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-[1.7rem] font-bold leading-none">{row.k}</span>
           <LevelBadge level={row.lv} size="sm" />
-          {row.r ? (
-            <Flag title="Reviewed" className="border-accent-green/30 bg-accent-green/10 text-accent-green">
-              <FaCircleCheck className="h-2.5 w-2.5" />
-            </Flag>
-          ) : null}
           {row.ac ? (
             <Flag
               title="The algorithm's result changed since this kanji was reviewed"
@@ -85,6 +82,11 @@ function KanjiListRow({
           {worst >= 2 ? (
             <Flag title="Highest word level above the kanji's own" className={gapToneClasses(worst)}>
               {gapText(worst)}
+            </Flag>
+          ) : null}
+          {row.r ? (
+            <Flag title="Reviewed" className="border-accent-green/30 bg-accent-green/10 text-accent-green">
+              <FaCircleCheck className="h-2.5 w-2.5" />
             </Flag>
           ) : null}
         </span>
