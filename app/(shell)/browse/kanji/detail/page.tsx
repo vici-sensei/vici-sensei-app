@@ -23,7 +23,7 @@ import { FaLock } from "react-icons/fa6";
 // Same look as a locked word on the New kanji card (WordPreviewRow): grayed out, still readable,
 // on a darker background.
 const LOCKED_FADE = "opacity-45 grayscale";
-const LOCKED_ROW_BG = "bg-black/8";
+const LOCKED_ROW_BG = "bg-black/15";
 
 function NotFound() {
   return <BrowseNotFound title="Kanji not found" message="This kanji doesn't exist or may have been removed." backHref="/browse/kanji" />;
