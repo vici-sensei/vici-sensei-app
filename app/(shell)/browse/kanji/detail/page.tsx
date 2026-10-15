@@ -216,7 +216,7 @@ function KanjiDetailContent({ kanjiId }: { kanjiId: number }) {
           >
             {/* A full-width first line, so the lock reads before the word itself. */}
             {w.unlock_level && (
-              <div className="flex basis-full items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
+              <div className="flex basis-full items-center justify-center gap-1.5 text-[0.75rem] font-semibold text-text-muted md:justify-start">
                 <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
                 Unlocks at {w.unlock_level}
               </div>

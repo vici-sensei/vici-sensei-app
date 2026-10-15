@@ -26,7 +26,7 @@ export function WordPreviewRow({ vocabulary, renderKanji, unlockLevel }: Props) 
     <div className={`px-3 py-2.5 ${unlockLevel ? LOCKED_ROW_BG : ""}`}>
       {/* On its own line above the word, so the lock reads before the word itself. */}
       {unlockLevel && (
-        <div className="mb-0.5 flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-muted">
+        <div className="mb-0.5 flex items-center justify-center gap-1.5 text-[0.75rem] font-semibold text-text-muted md:justify-start">
           <FaLock aria-hidden className="h-3.5 w-3.5 shrink-0" />
           Unlocks at {unlockLevel}
         </div>
