@@ -1,6 +1,6 @@
 "use client";
 
-import { FaPencil, FaRotateLeft } from "react-icons/fa6";
+import { FaCircleCheck, FaPencil, FaRotateLeft } from "react-icons/fa6";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
 import type { KanjiWordCandidate } from "@/lib/types";
 import { algoReason, gapText, gapToneClasses } from "./wordLabels";
@@ -29,13 +29,17 @@ export function CandidateRow({ candidate: c, checked, onToggle, onRevert, onDeta
   const added = checked && !c.in_algo;
   const removed = !checked && c.in_algo;
   const reason = algoReason(c);
+  // A reviewed word gets the kanji list's faint green wash and green bar on the left; a ticked one keeps its blue
+  // border, so the two still read apart.
+  const border = checked ? "border-accent-blue/30" : "border-border-soft";
+  const background = c.reviewed
+    ? "bg-accent-green/[0.07] shadow-[inset_3px_0_0_rgba(52,211,153,0.7)]"
+    : checked
+      ? "bg-accent-blue/[0.06]"
+      : "bg-white/[0.02]";
 
   return (
-    <li
-      className={`flex items-start gap-3 rounded-xl border p-3 ${
-        checked ? "border-accent-blue/30 bg-accent-blue/[0.06]" : "border-border-soft bg-white/[0.02]"
-      } ${c.enabled ? "" : "opacity-50"}`}
-    >
+    <li className={`flex items-start gap-3 rounded-xl border p-3 ${border} ${background} ${c.enabled ? "" : "opacity-50"}`}>
       <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
         <input
           type="checkbox"
@@ -61,6 +65,12 @@ export function CandidateRow({ candidate: c, checked, onToggle, onRevert, onDeta
             {c.usually_kana ? <Pill>usually kana</Pill> : null}
             {added ? <Pill className="border-accent-green/30 bg-accent-green/10 text-accent-green">added by you</Pill> : null}
             {removed ? <Pill className="border-accent-red/30 bg-accent-red/10 text-accent-red">removed by you</Pill> : null}
+            {c.reviewed ? (
+              <Pill className="gap-1 border-accent-green/30 bg-accent-green/10 text-accent-green">
+                <FaCircleCheck className="h-2.5 w-2.5" />
+                reviewed
+              </Pill>
+            ) : null}
           </span>
           {reason ? <span className="mt-1.5 block text-xs leading-snug text-text-muted">{reason}</span> : null}
         </span>

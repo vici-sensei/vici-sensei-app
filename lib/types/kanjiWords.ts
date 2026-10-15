@@ -87,7 +87,26 @@ export interface KanjiWordCandidate {
   override: "add" | "remove" | null;
   /** Students (both regions) holding a Word reading card on this word. */
   students: number;
+  /** An admin checked the word's dictionary data (20261015200558_vocabulary_review_mark.sql); null = not yet.
+   *  Absent from an RPC older than that. The mark is the word's, so it shows under every kanji of the word. */
+  reviewed?: VocabularyReviewMark | null;
   info: KanjiWordAlgoInfo | null;
+}
+
+/** Who marked a word as reviewed, and when. */
+export interface VocabularyReviewMark {
+  at: string;
+  /** The admin's email; null if they no longer exist. */
+  by: string | null;
+}
+
+/** What admin_set_vocabulary_reviewed returns. */
+export interface VocabularyReviewResult {
+  /** false = the word was already like that: nothing changed. */
+  changed: boolean;
+  reviewed: VocabularyReviewMark | null;
+  /** Every kanji_word row of the word (one per kanji it contains), for refreshing the page. */
+  kanji_word_ids: number[];
 }
 
 /** The dictionary row of one candidate's word (fetchKanjiWordVocabulary), for the word details popup. */

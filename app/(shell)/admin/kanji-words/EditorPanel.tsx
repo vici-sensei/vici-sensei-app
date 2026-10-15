@@ -19,6 +19,7 @@ import type {
   KanjiWordCandidate,
   KanjiWordCandidates,
   KanjiWordsRow,
+  VocabularyReviewResult,
   VocabularyUpdateResult,
 } from "@/lib/types";
 import { CandidateRow } from "./CandidateRow";
@@ -206,6 +207,16 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
         : prev
     );
     onWordChanged(result.kanji_word_ids);
+  }
+
+  // The same for the word's reviewed mark; nothing else on the page shows it.
+  function applyWordReview(result: VocabularyReviewResult) {
+    const ids = new Set(result.kanji_word_ids);
+    setData((prev) =>
+      prev
+        ? { ...prev, candidates: prev.candidates.map((c) => (ids.has(c.id) ? { ...c, reviewed: result.reviewed } : c)) }
+        : prev
+    );
   }
 
   async function handleSave() {
@@ -522,7 +533,12 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
       ) : null}
 
       {detailsFor ? (
-        <WordDetailsModal candidate={detailsFor} onClose={() => setDetailsFor(null)} onSaved={applyWordEdit} />
+        <WordDetailsModal
+          candidate={detailsFor}
+          onClose={() => setDetailsFor(null)}
+          onSaved={applyWordEdit}
+          onReviewed={applyWordReview}
+        />
       ) : null}
     </GlassCard>
   );

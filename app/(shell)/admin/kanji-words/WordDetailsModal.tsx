@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { FaChevronDown, FaPlus, FaXmark } from "react-icons/fa6";
+import { FaChevronDown, FaCircleCheck, FaPlus, FaXmark } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
 import {
   describeKanjiWordsError,
@@ -10,6 +10,7 @@ import {
   fetchVocabularyEdits,
   isVocabularyConflict,
   restoreVocabulary,
+  setVocabularyReviewed,
   updateVocabulary,
 } from "@/lib/data/adminKanjiWords";
 import { renderWordWithFurigana } from "@/lib/study/furigana";
@@ -24,9 +25,11 @@ import type {
   KanjiWordVocabulary,
   VocabularyEdit,
   VocabularyEditable,
+  VocabularyReviewMark,
+  VocabularyReviewResult,
   VocabularyUpdateResult,
 } from "@/lib/types";
-import { PARTS_OF_SPEECH } from "./wordLabels";
+import { formatWhen, PARTS_OF_SPEECH } from "./wordLabels";
 import { WordHistory } from "./WordHistory";
 import { Tag } from "./WordMeanings";
 
@@ -250,6 +253,8 @@ interface WordDetailsModalProps {
   onClose: () => void;
   /** A save, an undo or a restore changed the word (on both regions). */
   onSaved: (result: VocabularyUpdateResult) => void;
+  /** The word was marked as reviewed, or the mark was taken away (on both regions). */
+  onReviewed: (result: VocabularyReviewResult) => void;
 }
 
 /**
@@ -259,15 +264,20 @@ interface WordDetailsModalProps {
  *
  * Every write is logged (vocabulary_edits): right after one, "Undo" takes it back; History lists them all and can go
  * back to any version, the original included. Going back is logged too, so it can be undone as well.
+ *
+ * "Mark as reviewed" says the word's data has been checked; the mark is the word's (every kanji's list shows it) and
+ * "Mark as not reviewed" takes it away. It isn't part of the word's data, so it isn't in the History.
  */
-export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetailsModalProps) {
+export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }: WordDetailsModalProps) {
   const { showToast } = useToast();
   const [loaded, setLoaded] = useState<KanjiWordVocabulary | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
-  // A write in flight, and which: only a save spins the Save button; any of them blocks the others.
-  const [writing, setWriting] = useState<"save" | "restore" | null>(null);
+  // As the list had it when the popup opened, then as the last mark / unmark from here left it.
+  const [reviewed, setReviewed] = useState<VocabularyReviewMark | null>(c.reviewed ?? null);
+  // A write in flight, and which: a save and a review spin their own button; any of them blocks the others.
+  const [writing, setWriting] = useState<"save" | "restore" | "review" | null>(null);
   const saving = writing !== null;
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
@@ -383,6 +393,25 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
     );
   }
 
+  async function markReviewed(next: boolean) {
+    if (!loaded) return;
+    setWriting("review");
+    setSaveError(null);
+    setConflict(false);
+    try {
+      const result = await setVocabularyReviewed(createClient(), { vocabularyId: loaded.id, reviewed: next });
+      setReviewed(result.reviewed);
+      showToast(
+        result.changed ? `${next ? "Marked as reviewed" : "Marked as not reviewed"}: ${loaded.word}.` : "It was already like that."
+      );
+      onReviewed(result);
+    } catch (err) {
+      setSaveError(describeKanjiWordsError(err, "Failed to save."));
+    } finally {
+      setWriting(null);
+    }
+  }
+
   const word = loaded?.word ?? c.word;
   const level = draft ? draft.jlpt_level : c.jlpt;
   const shownProblem = dirty && view === "edit" ? problems[0] : undefined;
@@ -398,24 +427,37 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
       confirmClose={() => !dirty || window.confirm(`Drop your unsaved changes to ${word}?`)}
     >
       <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1 text-left">
-        {/* The JLPT level, a select dressed as the level badge. */}
-        <span className={`relative inline-flex items-center rounded-lg border ${levelColorClasses(level)}`}>
-          <select
-            value={level ?? ""}
-            onChange={(e) => set({ jlpt_level: e.target.value || null })}
-            disabled={!draft || view === "history"}
-            aria-label="JLPT level"
-            className="cursor-pointer appearance-none bg-transparent py-1 pl-2.5 pr-6 text-[0.78rem] font-extrabold outline-none disabled:cursor-default md:tracking-[0.5px] [&_option]:bg-gray-900 [&_option]:text-white"
-          >
-            {LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-            <option value="">No level</option>
-          </select>
-          <FaChevronDown className="pointer-events-none absolute right-2 h-2.5 w-2.5" />
-        </span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pr-10">
+          {/* The JLPT level, a select dressed as the level badge. */}
+          <span className={`relative inline-flex items-center rounded-lg border ${levelColorClasses(level)}`}>
+            <select
+              value={level ?? ""}
+              onChange={(e) => set({ jlpt_level: e.target.value || null })}
+              disabled={!draft || view === "history"}
+              aria-label="JLPT level"
+              className="cursor-pointer appearance-none bg-transparent py-1 pl-2.5 pr-6 text-[0.78rem] font-extrabold outline-none disabled:cursor-default md:tracking-[0.5px] [&_option]:bg-gray-900 [&_option]:text-white"
+            >
+              {LEVELS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+              <option value="">No level</option>
+            </select>
+            <FaChevronDown className="pointer-events-none absolute right-2 h-2.5 w-2.5" />
+          </span>
+          {reviewed ? (
+            <>
+              <span className="inline-flex items-center gap-1 rounded-lg border border-accent-green/30 bg-accent-green/10 px-2 py-1 text-[0.78rem] font-extrabold text-accent-green">
+                <FaCircleCheck className="h-3 w-3" />
+                Reviewed
+              </span>
+              <span className="text-xs text-text-muted">
+                {reviewed.by ?? "unknown admin"} · {formatWhen(reviewed.at)}
+              </span>
+            </>
+          ) : null}
+        </div>
         {/* mt-6: the furigana rides above the heading's own box, so the gap seen under the badge is ~10px less. */}
         <h3 id="word-details-title" className="mt-6 pr-10 text-[2.2rem] font-bold leading-[1.9]">
           {renderWordWithFurigana(word, draft ? draft.furiganas : c.furiganas, "text-[0.8rem] font-normal text-text-muted")}
@@ -670,6 +712,27 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved }: WordDetails
               </span>
             ) : null}
           </div>
+          {view === "edit" ? (
+            reviewed ? (
+              <Button size="sm" variant="secondary" onClick={() => void markReviewed(false)} loading={writing === "review"} disabled={saving}>
+                Mark as not reviewed
+              </Button>
+            ) : (
+              // Reviewed means "the data as stored is right", so unsaved edits go first.
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => void markReviewed(true)}
+                loading={writing === "review"}
+                disabled={saving || dirty}
+                title={dirty ? "Save or discard your changes first" : undefined}
+                className="!border-accent-green/30 !bg-accent-green/10 !text-accent-green enabled:hover:!border-accent-green/50 enabled:hover:!bg-accent-green/[0.16]"
+              >
+                <FaCircleCheck className="h-3.5 w-3.5" />
+                Mark as reviewed
+              </Button>
+            )
+          ) : null}
           {view === "edit" && dirty ? (
             <Button size="sm" variant="secondary" onClick={() => loaded && setDraft(toDraft(loaded))} disabled={saving}>
               Discard changes

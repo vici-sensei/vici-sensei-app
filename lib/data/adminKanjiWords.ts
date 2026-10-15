@@ -12,6 +12,7 @@ import type {
   KanjiWordsTodoCount,
   VocabularyEdit,
   VocabularyEditable,
+  VocabularyReviewResult,
   VocabularyUpdateResult,
 } from "@/lib/types";
 
@@ -154,6 +155,18 @@ export function restoreVocabulary(
     p_expected: args.expected,
     p_edit_id: args.editId,
     p_side: args.side,
+  });
+}
+
+/** Mark one word as reviewed (its dictionary data was checked), or take the mark away, on both regions at once
+ *  (20261015200558_vocabulary_review_mark.sql). Marking a word already marked keeps the first mark. */
+export function setVocabularyReviewed(
+  supabase: AppSupabaseClient,
+  args: { vocabularyId: number; reviewed: boolean }
+): Promise<VocabularyReviewResult> {
+  return call(supabase, "admin_set_vocabulary_reviewed", {
+    p_vocabulary_id: args.vocabularyId,
+    p_reviewed: args.reviewed,
   });
 }
 
