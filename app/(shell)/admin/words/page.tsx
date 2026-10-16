@@ -89,7 +89,6 @@ function WordRow({ entry }: { entry: WordEntry }) {
       <td className="px-3 py-2.5">
         <div className="text-lg font-bold leading-snug">{w.word}</div>
         {kana ? <div className="text-xs text-text-muted">{kana}</div> : null}
-        {w.romaji_reading ? <div className="text-xs text-text-muted/70">{w.romaji_reading}</div> : null}
       </td>
       <td className="max-w-[24rem] px-3 py-2.5">
         <div className="line-clamp-2">
