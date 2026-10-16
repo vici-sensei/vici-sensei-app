@@ -36,6 +36,78 @@ function formatValue(key: keyof VocabularyEditable, value: unknown): string {
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
+const keyOf = (text: string) => text.trim().toLowerCase();
+
+/** Each meaning -> its one place: "S", "P" or the index of its secondary sense; null when it is in several. */
+function meaningSpots(v: VocabularyEditable): Map<string, { text: string; place: string | number } | null> {
+  const spots = new Map<string, { text: string; place: string | number } | null>();
+  const add = (text: string, place: string | number) => {
+    const key = keyOf(text);
+    if (key) spots.set(key, spots.has(key) ? null : { text: text.trim(), place });
+  };
+  if (v.short_meaning) add(v.short_meaning, "S");
+  (v.primary_meanings ?? []).forEach((text) => add(text, "P"));
+  (v.other_meanings ?? []).forEach((sense, s) => sense.forEach((text) => add(text, s)));
+  return spots;
+}
+
+/** For each secondary sense after a change, the one before it that it shares the most meanings with. */
+function matchSenses(before: string[][], after: string[][]): Map<number, number> {
+  const pairs: [shared: number, after: number, before: number][] = [];
+  after.forEach((a, ai) => {
+    const keys = new Set(a.map(keyOf));
+    before.forEach((b, bi) => {
+      const shared = b.filter((text) => keys.has(keyOf(text))).length;
+      if (shared) pairs.push([shared, ai, bi]);
+    });
+  });
+  pairs.sort((x, y) => y[0] - x[0] || Math.abs(x[1] - x[2]) - Math.abs(y[1] - y[2]));
+  const match = new Map<number, number>();
+  const taken = new Set<number>();
+  for (const [, ai, bi] of pairs) {
+    if (match.has(ai) || taken.has(bi)) continue;
+    match.set(ai, bi);
+    taken.add(bi);
+  }
+  return match;
+}
+
+const placeName = (place: string | number) => (typeof place === "number" ? `2nd·${place + 1}` : place);
+const reordered = (a: string[], b: string[]) =>
+  a.length === b.length && a.join("\n") !== b.join("\n") && [...a].sort().join("\n") === [...b].sort().join("\n");
+
+/**
+ * The moves a change made, worked out from its two states (nothing about them is stored): a meaning that went to
+ * another place (S, P, another secondary sense) and the lists whose order alone changed. A meaning that appears
+ * twice is left out, since where it went can't be told.
+ */
+function movesOf(before: VocabularyEditable, after: VocabularyEditable): string[] {
+  const moves: string[] = [];
+  const sensesBefore = before.other_meanings ?? [];
+  const sensesAfter = after.other_meanings ?? [];
+  const match = matchSenses(sensesBefore, sensesAfter);
+  const was = meaningSpots(before);
+  for (const [key, now] of meaningSpots(after)) {
+    const then = was.get(key);
+    if (!now || !then) continue;
+    const moved =
+      typeof now.place === "number" && typeof then.place === "number"
+        ? match.get(now.place) !== then.place
+        : now.place !== then.place;
+    if (moved) moves.push(`“${now.text}” ${placeName(then.place)} → ${placeName(now.place)}`);
+  }
+  if (reordered(before.primary_meanings ?? [], after.primary_meanings ?? [])) moves.push("P reordered");
+  const order = sensesAfter.map((_, ai) => match.get(ai)).filter((bi): bi is number => bi !== undefined);
+  if (order.some((bi, k) => k > 0 && bi < order[k - 1])) moves.push("2nd senses reordered");
+  sensesAfter.forEach((sense, ai) => {
+    const bi = match.get(ai);
+    if (bi !== undefined && reordered(sensesBefore[bi], sense)) moves.push(`2nd·${ai + 1} reordered`);
+  });
+  if (reordered(before.other_readings ?? [], after.other_readings ?? [])) moves.push("Other readings reordered");
+  if (reordered(before.parts_of_speech ?? [], after.parts_of_speech ?? [])) moves.push("Parts of speech reordered");
+  return moves;
+}
+
 /** Two states of a word hold the same values (key order and null vs missing don't matter). */
 export function sameState(a: VocabularyEditable, b: VocabularyEditable): boolean {
   return FIELDS.every(([key]) => same(a[key], b[key]));
@@ -44,8 +116,15 @@ export function sameState(a: VocabularyEditable, b: VocabularyEditable): boolean
 function Changes({ edit }: { edit: VocabularyEdit }) {
   const changed = FIELDS.filter(([key]) => !same(edit.before[key], edit.after[key]));
   if (changed.length === 0) return <p className="mt-2 text-sm italic text-text-muted">No visible change.</p>;
+  const moves = movesOf(edit.before, edit.after);
   return (
     <ul className="mt-2 space-y-1 text-sm">
+      {moves.length ? (
+        <li className="break-words">
+          <span className="text-text-muted">Moves: </span>
+          <span>{moves.join(" · ")}</span>
+        </li>
+      ) : null}
       {changed.map(([key, label]) => (
         <li key={key} className="break-words">
           <span className="text-text-muted">{label}: </span>

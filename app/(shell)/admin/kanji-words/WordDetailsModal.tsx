@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { FaChevronDown, FaCircleCheck, FaPlus, FaXmark } from "react-icons/fa6";
+import { FaChevronDown, FaCircleCheck } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
 import {
   describeKanjiWordsError,
@@ -29,29 +29,42 @@ import type {
   VocabularyReviewResult,
   VocabularyUpdateResult,
 } from "@/lib/types";
+import {
+  applyMove,
+  blankItem,
+  itemMoved,
+  newId,
+  placesOf,
+  textsOf,
+  toItems,
+  toSenses,
+  type DragLists,
+  type Item,
+} from "./meaningsDraft";
+import { MeaningsEditor } from "./MeaningsEditor";
+import { highlightOf, listPlaceholder, useListDrag } from "./useListDrag";
+import {
+  box,
+  CHANGED_OUTLINE,
+  ChangedDot,
+  DragDock,
+  dropRing,
+  Grip,
+  Placeholder,
+  RemoveButton,
+  TextList,
+} from "./wordEditorParts";
 import { formatWhen, PARTS_OF_SPEECH } from "./wordLabels";
 import { WordHistory } from "./WordHistory";
-import { Tag } from "./WordMeanings";
 
 const LEVELS = ["N5", "N4", "N3", "N2", "N1"];
 
 const INPUT =
   "rounded-lg border px-2.5 py-1.5 text-sm text-white outline-none transition-colors placeholder:text-text-muted/60 focus:border-accent-blue/40";
 
-// What differs from the word as stored (an edit not saved yet) is tinted violet, a colour nothing else in the popup
-// uses: blue is the focus, gold the short meaning, green the reviewed mark. A save or a discard clears it.
-const box = (changed: boolean) =>
-  changed ? "border-accent-violet/50 bg-accent-violet/[0.08]" : "border-border-soft bg-white/[0.03]";
-const CHANGED_OUTLINE = "outline-2 outline-offset-2 outline-accent-violet/60";
-const CHANGED_TAG = "border-accent-violet/50 bg-accent-violet/15 text-accent-violet";
-
-function ChangedDot() {
-  return <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-accent-violet" />;
-}
-
-/** What the form edits: the editable columns with every text and list present (empty instead of null), and the
+/** The editable columns as the form shows them: every text and list present (empty instead of null), and the
  *  furigana lists exactly one entry per character of the word. */
-interface Draft {
+interface FormValues {
   kana_reading: string;
   romaji_reading: string;
   furiganas: string[];
@@ -67,7 +80,10 @@ interface Draft {
   study_enabled: boolean;
 }
 
-function toDraft(v: KanjiWordVocabulary): Draft {
+/** What the form edits: FormValues, with the lists that can be rearranged by dragging held as entries with ids. */
+type Draft = Omit<FormValues, keyof DragLists> & DragLists;
+
+function formOf(v: KanjiWordVocabulary): FormValues {
   const chars = Array.from(v.word).length;
   const perChar = (list: string[] | null) => Array.from({ length: chars }, (_, i) => list?.[i] ?? "");
   return {
@@ -84,6 +100,31 @@ function toDraft(v: KanjiWordVocabulary): Draft {
     is_common_jisho: v.is_common_jisho ?? false,
     usually_kana: v.usually_kana ?? false,
     study_enabled: v.study_enabled,
+  };
+}
+
+/** A fresh form for the word: every entry gets an id, nothing counts as moved. */
+function toDraft(v: KanjiWordVocabulary): Draft {
+  const form = formOf(v);
+  return {
+    ...form,
+    short_meaning: { id: newId(), text: form.short_meaning, home: "S" },
+    primary_meanings: toItems(form.primary_meanings, "P"),
+    other_meanings: toSenses(form.other_meanings),
+    other_readings: toItems(form.other_readings, "R"),
+    parts_of_speech: toItems(form.parts_of_speech, "POS"),
+    moved: [],
+  };
+}
+
+function formOfDraft(d: Draft): FormValues {
+  return {
+    ...d,
+    short_meaning: d.short_meaning.text,
+    primary_meanings: textsOf(d.primary_meanings),
+    other_meanings: d.other_meanings.map((sense) => textsOf(sense.items)),
+    other_readings: textsOf(d.other_readings),
+    parts_of_speech: textsOf(d.parts_of_speech),
   };
 }
 
@@ -110,7 +151,7 @@ const tidy = (list: string[]) => list.map((text) => text.trim()).filter((text) =
 
 /** What a save sends, cleaned the way the RPC cleans it (trimmed, blank entries and emptied senses dropped), so
  *  "anything to save?" is answered the way the server would answer it. */
-function toValues(d: Draft): VocabularyEditable {
+function tidyForm(d: FormValues): VocabularyEditable {
   return {
     kana_reading: d.kana_reading.trim(),
     romaji_reading: d.romaji_reading.trim(),
@@ -128,6 +169,8 @@ function toValues(d: Draft): VocabularyEditable {
   };
 }
 
+const toValues = (d: Draft) => tidyForm(formOfDraft(d));
+
 /** The same checks the RPC makes, so Save says what's missing before a round trip. */
 function problemsOf(values: VocabularyEditable): string[] {
   const problems: string[] = [];
@@ -135,82 +178,6 @@ function problemsOf(values: VocabularyEditable): string[] {
   if (!values.romaji_reading) problems.push("The romaji can't be empty.");
   if (!values.primary_meanings?.length) problems.push("At least one primary meaning is needed.");
   return problems;
-}
-
-function AddButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-dashed border-border-soft px-2 py-1 text-xs font-bold text-text-muted transition-colors hover:border-white/25 hover:text-white"
-    >
-      <FaPlus className="h-2.5 w-2.5" />
-      {children}
-    </button>
-  );
-}
-
-function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title="Remove"
-      aria-label={label}
-      className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-muted transition-colors hover:text-white"
-    >
-      <FaXmark className="h-3 w-3" />
-    </button>
-  );
-}
-
-/** A list of short texts, each in its own input that grows with its text, side by side; × removes one, + adds one. */
-function TextList({
-  values,
-  stored,
-  onChange,
-  label,
-  addLabel,
-}: {
-  values: string[];
-  /** The entries as stored: one that isn't among them (new or edited) is tinted. A removed one shows on the label. */
-  stored: string[];
-  onChange: (next: string[]) => void;
-  /** Names one entry, for screen readers ("Primary meaning 2"). */
-  label: string;
-  addLabel: string;
-}) {
-  // Only an entry added by the + button takes the focus, not the ones there when the popup opened.
-  const [added, setAdded] = useState(false);
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {values.map((value, i) => (
-        <span
-          key={i}
-          className={`inline-flex max-w-full items-center rounded-lg border transition-colors focus-within:border-accent-blue/40 ${box(
-            value.trim() !== "" && !stored.includes(value.trim())
-          )}`}
-        >
-          <input
-            value={value}
-            onChange={(e) => onChange(values.map((v, j) => (j === i ? e.target.value : v)))}
-            autoFocus={added && i === values.length - 1}
-            aria-label={`${label} ${i + 1}`}
-            className="min-w-[3rem] max-w-full bg-transparent py-1 pl-2.5 text-sm text-white outline-none [field-sizing:content]"
-          />
-          <RemoveButton label={`Remove ${label.toLowerCase()} ${i + 1}`} onClick={() => onChange(values.filter((_, j) => j !== i))} />
-        </span>
-      ))}
-      <AddButton
-        onClick={() => {
-          setAdded(true);
-          onChange([...values, ""]);
-        }}
-      >
-        {addLabel}
-      </AddButton>
-    </div>
-  );
 }
 
 /** One input under each character of the word (furigana, romaji furigana). */
@@ -326,6 +293,9 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
   const [history, setHistory] = useState<{ key: string; edits: VocabularyEdit[] } | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyTick, setHistoryTick] = useState(0);
+  // The scroll box, which dragging scrolls near its edges; and what the last drag did, for screen readers.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [announcement, setAnnouncement] = useState("");
   const vocabularyId = loaded?.id ?? null;
   const historyKey = `${vocabularyId}:${historyTick}`;
   const edits = history?.key === historyKey ? history.edits : null;
@@ -373,7 +343,7 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
 
   const values = draft ? toValues(draft) : null;
   // The word as stored, cleaned the same way: what the draft is compared with, as a whole and field by field.
-  const stored = loaded ? toValues(toDraft(loaded)) : null;
+  const stored = loaded ? tidyForm(formOf(loaded)) : null;
   const dirty = values !== null && stored !== null && JSON.stringify(values) !== JSON.stringify(stored);
   const changed = (key: keyof VocabularyEditable) =>
     values !== null && stored !== null && JSON.stringify(values[key]) !== JSON.stringify(stored[key]);
@@ -384,6 +354,28 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
     setSaveError(null);
     setLastWrite(null);
   }
+
+  // Meanings, other readings and parts of speech are rearranged by dragging their handles; a drop is an edit like
+  // any other (tinted until Save, undone by Discard).
+  const { drag, startDrag } = useListDrag({
+    scrollRef,
+    lists: draft,
+    enabled: view === "edit" && !saving,
+    onDrop: (src, target) => {
+      if (!draft) return null;
+      const result = applyMove(draft, src, target);
+      set(result.lists);
+      setAnnouncement(result.message);
+      return result.flashId;
+    },
+    onBlocked: setAnnouncement,
+  });
+  const places = draft ? placesOf(draft) : null;
+  const movedItem = (item: Item) => (draft && places ? itemMoved(draft, places, item) : false);
+  const highlight = highlightOf(drag);
+  const ringOf = (key: string) => (highlight?.key === key ? dropRing(highlight.bad) : "");
+  const placeholder = drag ? <Placeholder width={drag.width} height={drag.height} /> : null;
+  const posPlaceholder = listPlaceholder(drag, "POS", 0);
 
   // A save, an undo and a restore all end the same way: the popup shows what is stored now and can undo it. `done`
   // says what happened, in the past tense ("Saved").
@@ -472,7 +464,10 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
           would be clipped at its edges; the content stays where it was. -mr-7: the box reaches the card's right edge,
           so its scrollbar runs along that edge, clear of the Modal's "x" (16px to 52px in), not under it. pr-13 with
           the scrollbar's room always kept: the content ends 10px left of the "x", so nothing scrolls under it. */}
-      <div className="-m-1 -mr-7 max-h-[calc(100dvh-11rem)] overflow-y-auto p-1 pr-13 text-left [scrollbar-gutter:stable]">
+      <div
+        ref={scrollRef}
+        className="-m-1 -mr-7 max-h-[calc(100dvh-11rem)] overflow-y-auto p-1 pr-13 text-left [scrollbar-gutter:stable]"
+      >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
           {/* The JLPT level, a select dressed as the level badge. */}
           <span
@@ -556,82 +551,14 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
 
         {draft && stored && view === "edit" ? (
           <>
-            {/* The meaning, right under the word, unlabelled: S, then P, then the secondary senses. A line that
-                differs from what is stored has its tag tinted, like a field's label. */}
-            <div className="mt-1 space-y-2 text-sm">
-              <div className="flex items-center gap-1.5">
-                <Tag title="Short meaning" className={changed("short_meaning") ? CHANGED_TAG : undefined}>
-                  S
-                </Tag>
-                <input
-                  value={draft.short_meaning}
-                  onChange={(e) => set({ short_meaning: e.target.value })}
-                  placeholder="Short meaning (optional)"
-                  aria-label="Short meaning"
-                  // On the gold a violet border doesn't read: the outline the level badge gets instead. Its colour is
-                  // set even while there is no outline, or transition-colors fades it in from the gold text colour.
-                  className={`min-w-0 flex-1 rounded-md border border-accent-gold/30 bg-accent-gold/10 px-2 py-1 font-bold text-accent-gold outline-accent-violet/60 transition-colors placeholder:font-normal placeholder:text-accent-gold/50 focus:border-accent-gold/60 ${
-                    changed("short_meaning") ? CHANGED_OUTLINE : "outline-none"
-                  }`}
-                />
-              </div>
-              <div className="flex items-start gap-1.5">
-                <span className="mt-1.5 flex">
-                  <Tag title="Primary meanings" className={changed("primary_meanings") ? CHANGED_TAG : undefined}>
-                    P
-                  </Tag>
-                </span>
-                <div className="min-w-0 flex-1">
-                  <TextList
-                    values={draft.primary_meanings}
-                    stored={stored.primary_meanings ?? []}
-                    onChange={(next) => set({ primary_meanings: next })}
-                    label="Primary meaning"
-                    addLabel="Meaning"
-                  />
-                </div>
-              </div>
-              <div className="flex items-start gap-1.5">
-                <span className="mt-1.5 flex">
-                  <Tag title="Secondary meanings" className={changed("other_meanings") ? CHANGED_TAG : undefined}>
-                    2nd
-                  </Tag>
-                </span>
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  {draft.other_meanings.map((sense, i) => (
-                    // A sense that isn't one of the stored senses (new, or edited) is tinted; inside it, so is each
-                    // meaning that no stored sense has.
-                    <div
-                      key={i}
-                      className={`flex items-start gap-1.5 rounded-lg border p-1.5 ${
-                        tidy(sense).length > 0 &&
-                        !(stored.other_meanings ?? []).some((s) => JSON.stringify(s) === JSON.stringify(tidy(sense)))
-                          ? "border-accent-violet/50"
-                          : "border-border-soft"
-                      }`}
-                    >
-                      <span className="mt-1.5 w-4 shrink-0 text-right text-xs text-text-muted">{i + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <TextList
-                          values={sense}
-                          stored={(stored.other_meanings ?? []).flat()}
-                          onChange={(next) =>
-                            set({ other_meanings: draft.other_meanings.map((s, j) => (j === i ? next : s)) })
-                          }
-                          label={`Sense ${i + 1} meaning`}
-                          addLabel="Meaning"
-                        />
-                      </div>
-                      <RemoveButton
-                        label={`Remove secondary sense ${i + 1}`}
-                        onClick={() => set({ other_meanings: draft.other_meanings.filter((_, j) => j !== i) })}
-                      />
-                    </div>
-                  ))}
-                  <AddButton onClick={() => set({ other_meanings: [...draft.other_meanings, [""]] })}>Sense</AddButton>
-                </div>
-              </div>
-            </div>
+            <MeaningsEditor
+              lists={draft}
+              stored={stored}
+              changed={changed}
+              onChange={set}
+              drag={drag}
+              startDrag={startDrag}
+            />
 
             <Group title="Reading">
               <Field label="Kana reading" changed={changed("kana_reading")}>
@@ -673,43 +600,59 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
                 />
               </Field>
               <Field label="Other readings" changed={changed("other_readings")}>
-                <TextList
-                  values={draft.other_readings}
-                  stored={stored.other_readings ?? []}
-                  onChange={(next) => set({ other_readings: next })}
-                  label="Other reading"
-                  addLabel="Reading"
-                />
+                <div data-dnd-zone="R" className={`rounded-lg ${ringOf("R")}`}>
+                  <TextList
+                    items={draft.other_readings}
+                    stored={stored.other_readings ?? []}
+                    onChange={(next) => set({ other_readings: next })}
+                    label="Other reading"
+                    addLabel="Reading"
+                    dnd={{ list: "R", s: 0, drag, startDrag, moved: movedItem }}
+                  />
+                </div>
               </Field>
             </Group>
 
             <Group title="Usage">
               <Field label="Parts of speech" changed={changed("parts_of_speech")}>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div
+                  data-dnd-zone="POS"
+                  data-dnd-list="POS"
+                  className={`flex flex-wrap items-center gap-1.5 rounded-lg ${ringOf("POS")}`}
+                >
                   {draft.parts_of_speech.map((pos, i) => (
-                    <span
-                      key={`${pos}-${i}`}
-                      className={`inline-flex max-w-full items-center rounded-lg border pl-2.5 ${box(
-                        !(stored.parts_of_speech ?? []).includes(pos)
-                      )}`}
-                    >
-                      <span className="min-w-0 py-1">{pos}</span>
-                      <RemoveButton
-                        label={`Remove ${pos}`}
-                        onClick={() => set({ parts_of_speech: draft.parts_of_speech.filter((_, j) => j !== i) })}
-                      />
-                    </span>
+                    <Fragment key={pos.id}>
+                      {posPlaceholder === i ? placeholder : null}
+                      <span
+                        data-dnd-key={pos.id}
+                        data-dnd-item=""
+                        data-dnd-idx={i}
+                        className={`inline-flex max-w-full items-center rounded-lg border ${box(
+                          !(stored.parts_of_speech ?? []).includes(pos.text) || movedItem(pos)
+                        )} ${drag?.src.id === pos.id ? "hidden" : ""}`}
+                      >
+                        <Grip
+                          onPointerDown={(e) => startDrag(e, { type: "item", id: pos.id, loc: { list: "POS", s: 0, i } })}
+                        />
+                        <span className="min-w-0 py-1 pl-0.5">{pos.text}</span>
+                        <RemoveButton
+                          label={`Remove ${pos.text}`}
+                          onClick={() => set({ parts_of_speech: draft.parts_of_speech.filter((other) => other.id !== pos.id) })}
+                        />
+                      </span>
+                    </Fragment>
                   ))}
+                  {posPlaceholder === draft.parts_of_speech.length ? placeholder : null}
                   <select
                     value=""
                     onChange={(e) => {
-                      if (e.target.value) set({ parts_of_speech: [...draft.parts_of_speech, e.target.value] });
+                      if (e.target.value) set({ parts_of_speech: [...draft.parts_of_speech, blankItem(e.target.value)] });
                     }}
                     aria-label="Add a part of speech"
                     className="max-w-full cursor-pointer rounded-lg border border-dashed [field-sizing:content] border-border-soft bg-transparent px-2 py-1 text-xs font-bold text-text-muted outline-none transition-colors hover:border-white/25 hover:text-white focus:border-accent-blue/40 [&_option]:bg-gray-900 [&_option]:font-normal [&_option]:text-white"
                   >
                     <option value="">+ Part of speech</option>
-                    {PARTS_OF_SPEECH.filter((pos) => !draft.parts_of_speech.includes(pos)).map((pos) => (
+                    {PARTS_OF_SPEECH.filter((pos) => !draft.parts_of_speech.some((item) => item.text === pos)).map((pos) => (
                       <option key={pos} value={pos}>
                         {pos}
                       </option>
@@ -756,6 +699,12 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
           </>
         ) : null}
       </div>
+
+      {/* Over the top of the popup while a meaning or a sense is dragged and S and P are scrolled out of view. */}
+      {drag?.dock ? <DragDock drag={drag} /> : null}
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
 
       {draft ? (
         <div className="mt-4 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border-soft pt-4">
