@@ -157,23 +157,36 @@ export function FloatingCard({
 
 interface FloatingToggleProps {
   label: string;
+  /** The tooltip, when it should say what a press does now rather than repeat the label. */
+  title?: string;
   icon: ReactNode;
   pressed: boolean;
+  /** A press is being written: the circle spins and takes no other press until it is done. */
+  busy?: boolean;
+  disabled?: boolean;
   onToggle: () => void;
 }
 
 /** A circle of the dock that is a switch: filled green while on. */
-export function FloatingToggle({ label, icon, pressed, onToggle }: FloatingToggleProps) {
+export function FloatingToggle({ label, title, icon, pressed, busy = false, disabled = false, onToggle }: FloatingToggleProps) {
   return (
     <button
       type="button"
       onClick={onToggle}
+      disabled={disabled || busy}
       aria-pressed={pressed}
+      aria-busy={busy}
       aria-label={label}
-      title={label}
-      className={circleClasses(false, pressed ? "border-accent-green bg-accent-green text-gray-900" : PLAIN_COLORS)}
+      title={title ?? label}
+      className={`${circleClasses(false, pressed ? "border-accent-green bg-accent-green text-gray-900" : PLAIN_COLORS)} ${
+        busy ? "disabled:cursor-wait" : "disabled:cursor-not-allowed disabled:opacity-60"
+      }`}
     >
-      {icon}
+      {busy ? (
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : (
+        icon
+      )}
     </button>
   );
 }

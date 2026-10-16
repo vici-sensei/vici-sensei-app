@@ -192,20 +192,37 @@ export function fetchKanjiWordsParity(supabase: AppSupabaseClient): Promise<Kanj
 }
 
 /**
- * Save one kanji: `wordIds` is the COMPLETE list wanted (kanji_word ids). `reviewed` true also marks the
- * kanji reviewed, null leaves the mark as it is. Resolves with the new version, or the old one with
- * `changed: false` when nothing differed (no history row is written then).
+ * Save one kanji: `wordIds` is the COMPLETE list wanted (kanji_word ids). The reviewed mark is left as it is
+ * (it has its own RPC, setKanjiReviewed). Resolves with the new version, or the old one with `changed: false`
+ * when nothing differed (no history row is written then).
  */
 export function saveKanjiWords(
   supabase: AppSupabaseClient,
-  args: { kanjiId: number; wordIds: number[]; expectedVersion: number; note: string | null; reviewed: boolean | null }
+  args: { kanjiId: number; wordIds: number[]; expectedVersion: number; note: string | null }
 ): Promise<{ kanji_id: number; changed: boolean; version: number }> {
   return call(supabase, "admin_save_kanji_words", {
     p_kanji_id: args.kanjiId,
     p_word_ids: args.wordIds,
     p_expected_version: args.expectedVersion,
     p_note: args.note,
+    // Sent explicitly: left out, the RPC's default (true) would mark the kanji reviewed.
+    p_reviewed: null,
+  });
+}
+
+/**
+ * Mark one kanji as reviewed, or take the mark away, right now (20261016020152_kanji_words_set_reviewed.sql). Its
+ * words stay exactly as saved; a draft not saved yet isn't touched. A new version with a "review" history row, on
+ * both regions; refused with kanji_words_conflict when the kanji moved past `expectedVersion`.
+ */
+export function setKanjiReviewed(
+  supabase: AppSupabaseClient,
+  args: { kanjiId: number; reviewed: boolean; expectedVersion: number }
+): Promise<{ kanji_id: number; changed: boolean; version: number; reviewed: boolean }> {
+  return call(supabase, "admin_set_kanji_reviewed", {
+    p_kanji_id: args.kanjiId,
     p_reviewed: args.reviewed,
+    p_expected_version: args.expectedVersion,
   });
 }
 

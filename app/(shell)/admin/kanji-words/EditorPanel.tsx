@@ -8,6 +8,7 @@ import {
   fetchKanjiWordCandidates,
   isKanjiWordsConflict,
   saveKanjiWords,
+  setKanjiReviewed,
 } from "@/lib/data/adminKanjiWords";
 import { Button } from "@/app/components/ui/Button";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -56,9 +57,10 @@ interface EditorPanelProps {
 }
 
 /**
- * The side panel for one kanji. The draft lives here; nothing is written until "Save". A save sends the whole
- * list wanted plus the version this panel loaded, so a change made meanwhile (by another admin, or on the other
- * region) is refused instead of silently overwritten. The page mounts it with key={kanji id}.
+ * The side panel for one kanji. The draft lives here; nothing is written until "Save" (the red circle). A save sends
+ * the whole list wanted plus the version this panel loaded, so a change made meanwhile (by another admin, or on the
+ * other region) is refused instead of silently overwritten. The reviewed mark is not part of the draft: the green
+ * circle writes it the moment it is pressed, with the same version check. The page mounts it with key={kanji id}.
  */
 export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyChange }: EditorPanelProps) {
   const { showToast } = useToast();
@@ -75,8 +77,9 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
   const [restText, setRestText] = useState("");
   const [restGroup, setRestGroup] = useState<number | null>(null);
   const [note, setNote] = useState("");
-  const [markReviewed, setMarkReviewed] = useState(true);
   const [saving, setSaving] = useState(false);
+  // The green circle's mark / unmark is being written.
+  const [reviewing, setReviewing] = useState(false);
   // Which of the floating circles at the bottom is grown into its card.
   const [openCard, setOpenCard] = useState<"note" | "save" | null>(null);
   const closeCard = useCallback(() => setOpenCard(null), []);
@@ -155,8 +158,7 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
 
   const addedCount = candidates.filter((c) => selected.has(c.id) && !initial.has(c.id)).length;
   const removedCount = candidates.filter((c) => initial.has(c.id) && !selected.has(c.id)).length;
-  const reviewedChange = markReviewed && !(data?.reviewed ?? false);
-  const canSave = !saving && (dirty || reviewedChange);
+  const canSave = !saving && !reviewing && dirty;
 
   function toggle(id: number) {
     setSelected((prev) => {
@@ -228,12 +230,11 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
         wordIds: [...selected],
         expectedVersion: data.version,
         note: note.trim() || null,
-        reviewed: markReviewed ? true : null,
       });
       showToast(result.changed ? `Saved ${row.k} (version ${result.version}).` : "Nothing had changed.");
       // What was just saved is the new baseline right away; the re-read below confirms it from the server.
       setInitial(new Set(selected));
-      setData({ ...data, version: result.version, reviewed: markReviewed ? true : data.reviewed });
+      setData({ ...data, version: result.version });
       setOpenCard(null);
       onChanged();
       reload();
@@ -242,6 +243,29 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
       else showToast(describeKanjiWordsError(err, "Failed to save."), "error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // The green circle: marks the kanji as reviewed (or takes the mark away) right away, for the words as saved. Ticks
+  // not saved yet stay in the draft, so no re-read here; the new version is what the next save quotes.
+  async function handleToggleReviewed() {
+    if (!data) return;
+    const next = !data.reviewed;
+    setReviewing(true);
+    try {
+      const result = await setKanjiReviewed(createClient(), {
+        kanjiId: row.id,
+        reviewed: next,
+        expectedVersion: data.version,
+      });
+      setData((prev) => (prev ? { ...prev, version: result.version, reviewed: next } : prev));
+      showToast(next ? `${row.k} marked as reviewed.` : `${row.k} marked as not reviewed.`);
+      onChanged();
+    } catch (err) {
+      if (isKanjiWordsConflict(err)) setConflict(true);
+      else showToast(describeKanjiWordsError(err, "Failed to change the reviewed mark."), "error");
+    } finally {
+      setReviewing(false);
     }
   }
 
@@ -496,10 +520,13 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
               />
             </FloatingCard>
             <FloatingToggle
-              label="Mark this kanji as reviewed when saving"
+              label="Reviewed"
+              title={data.reviewed ? "Reviewed. Press to mark it as not reviewed" : "Mark this kanji as reviewed"}
               icon={<FaCheck className="h-4 w-4" />}
-              pressed={markReviewed}
-              onToggle={() => setMarkReviewed((on) => !on)}
+              pressed={data.reviewed}
+              busy={reviewing}
+              disabled={saving || conflict}
+              onToggle={() => void handleToggleReviewed()}
             />
             <FloatingCard
               primary
@@ -525,7 +552,7 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
                     Discard changes
                   </Button>
                 ) : null}
-                {!dirty && !reviewedChange ? <span className="text-xs text-text-muted">No changes to save.</span> : null}
+                {!dirty ? <span className="text-xs text-text-muted">No changes to save.</span> : null}
               </div>
             </FloatingCard>
           </FloatingDock>
