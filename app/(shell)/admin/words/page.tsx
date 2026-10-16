@@ -106,17 +106,14 @@ function Tag({ className, title, children }: { className: string; title: string;
   );
 }
 
+// Most words are common, so only the exceptions get a tag. No tag for usually-kana words: the Word column
+// already shows them in kana.
 function WordTags({ w }: { w: WordEntry["row"] }) {
   return (
     <>
-      {w.is_common_jisho ? (
-        <Tag className="border-green-400/30 bg-green-400/10 text-green-400" title="Marked common on Jisho">
-          Common
-        </Tag>
-      ) : null}
-      {w.usually_kana ? (
-        <Tag className="border-blue-400/30 bg-blue-400/10 text-blue-400" title={`Usually written in kana (kanji: ${w.word})`}>
-          Kana
+      {!w.is_common_jisho ? (
+        <Tag className="border-orange-400/30 bg-orange-400/10 text-orange-400" title="Not marked common on Jisho">
+          Uncommon
         </Tag>
       ) : null}
       {!w.study_enabled ? (
