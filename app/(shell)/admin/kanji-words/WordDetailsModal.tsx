@@ -469,8 +469,10 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
       confirmClose={() => !dirty || window.confirm(`Drop your unsaved changes to ${word}?`)}
     >
       {/* -m-1 p-1: room inside the scroll box for the outline of a changed badge, short meaning or toggle, which
-          would be clipped at its edges; the content stays where it was. */}
-      <div className="-m-1 max-h-[calc(100dvh-11rem)] overflow-y-auto p-1 pr-2 text-left">
+          would be clipped at its edges; the content stays where it was. -mr-7 pr-8: the box reaches the card's right
+          edge, so its scrollbar runs along that edge, clear of the Modal's "x" (16px in), not under it; the content
+          stays where it was. */}
+      <div className="-m-1 -mr-7 max-h-[calc(100dvh-11rem)] overflow-y-auto p-1 pr-8 text-left">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pr-10">
           {/* The JLPT level, a select dressed as the level badge. */}
           <span
