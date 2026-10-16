@@ -173,6 +173,9 @@ export interface AdminWordRow {
   furiganas: string[] | null;
   short_meaning: string | null;
   primary_meanings: string[] | null;
+  /** The senses not covered by primary_meanings, one array of glosses each -- behind the row's "Show other
+   *  meanings" toggle. null or [] for most words. */
+  other_meanings: string[][] | null;
   jlpt_level: string | null;
   is_common_jisho: boolean | null;
   usually_kana: boolean | null;

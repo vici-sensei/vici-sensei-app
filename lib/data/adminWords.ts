@@ -8,12 +8,12 @@ import type { AdminWordRow } from "@/lib/types";
  */
 
 const WORD_LIST_COLUMNS =
-  "id, word, kana_reading, romaji_reading, furiganas, short_meaning, primary_meanings, jlpt_level, is_common_jisho, usually_kana, study_enabled, frequency_number";
+  "id, word, kana_reading, romaji_reading, furiganas, short_meaning, primary_meanings, other_meanings, jlpt_level, is_common_jisho, usually_kana, study_enabled, frequency_number";
 
 /** Asked for per request; the API may hand back fewer (its max-rows cap, 1000 on Supabase by default). */
 const REQUESTED_PAGE_SIZE = 1000;
 
-/** Every word in the dictionary, study-enabled or not, in id order. ~6 MB of JSON, so the pages after the
+/** Every word in the dictionary, study-enabled or not, in id order. ~7 MB of JSON, so the pages after the
  *  first are fetched in parallel. */
 export async function fetchAllWords(supabase: AppSupabaseClient): Promise<AdminWordRow[]> {
   const first = await supabase

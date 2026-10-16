@@ -6,6 +6,7 @@ import { FaChevronLeft, FaChevronRight, FaSliders, FaSort, FaSortDown, FaSortUp 
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useAllWords } from "@/lib/client-data/adminWords";
 import { buildFuriganaSegments, renderVocabularyWord, showsKanaOnly } from "@/lib/study/furigana";
+import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
 import { Collapsible } from "@/app/components/ui/Collapsible";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -103,6 +104,7 @@ function WordRow({ entry }: { entry: WordEntry }) {
           ) : null}
           {entry.primaryText || (short ? null : <span className="text-text-muted">—</span>)}
         </div>
+        <OtherMeaningsToggle otherMeanings={w.other_meanings} className="mt-1.5" />
       </td>
       <td className="px-3 py-2.5">
         <LevelBadge level={w.jlpt_level} size="sm" />
