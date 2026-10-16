@@ -168,6 +168,9 @@ export interface AdminWordRow {
   word: string;
   kana_reading: string | null;
   romaji_reading: string | null;
+  /** One entry per character of `word`: its furigana, or "-" when it's part of the reading before it
+   *  (see buildFuriganaSegments). */
+  furiganas: string[] | null;
   short_meaning: string | null;
   primary_meanings: string[] | null;
   parts_of_speech: string[] | null;

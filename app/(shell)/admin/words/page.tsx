@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { FaChevronLeft, FaChevronRight, FaSliders, FaSort, FaSortDown, FaSortUp } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useAllWords } from "@/lib/client-data/adminWords";
+import { buildFuriganaSegments, renderVocabularyWord, showsKanaOnly } from "@/lib/study/furigana";
 import { Collapsible } from "@/app/components/ui/Collapsible";
 import { FullScreenLoader } from "@/app/components/ui/FullScreenLoader";
 import { GlassCard } from "@/app/components/ui/GlassCard";
@@ -81,12 +82,17 @@ function Tag({ className, title, children }: { className: string; title: string;
 function WordRow({ entry }: { entry: WordEntry }) {
   const w = entry.row;
   const short = w.short_meaning?.trim();
-  // A word written in kana only already shows its kana reading as the word itself.
-  const kana = w.kana_reading !== w.word ? w.kana_reading : null;
+  // The reading is the furigana above the kanji, or the word itself for a usually-kana word (shown in kana).
+  // Only a word whose furigana is missing or doesn't line up with it gets its reading on a line below.
+  const hasFurigana = !showsKanaOnly(w) && buildFuriganaSegments(w.word, w.furiganas).some((s) => s.furigana);
+  const kana = !showsKanaOnly(w) && !hasFurigana && w.kana_reading !== w.word ? w.kana_reading : null;
   return (
-    <tr className="border-b border-border-soft/50 align-top last:border-0 hover:bg-white/[0.03]">
+    // Baseline, not top: the other cells line up with the kanji instead of the furigana above them.
+    <tr className="border-b border-border-soft/50 align-baseline last:border-0 hover:bg-white/[0.03]">
       <td className="px-3 py-2.5">
-        <div className="text-lg font-bold leading-snug">{w.word}</div>
+        <div className={`whitespace-nowrap text-lg font-bold leading-snug ${hasFurigana ? "pt-[0.6em]" : ""}`}>
+          {renderVocabularyWord(w, "text-xs font-normal text-text-muted")}
+        </div>
         {kana ? <div className="text-xs text-text-muted">{kana}</div> : null}
       </td>
       <td className="max-w-[24rem] px-3 py-2.5">
@@ -110,7 +116,7 @@ function WordRow({ entry }: { entry: WordEntry }) {
             </Tag>
           ) : null}
           {w.usually_kana ? (
-            <Tag className="border-blue-400/30 bg-blue-400/10 text-blue-400" title="Usually written in kana">
+            <Tag className="border-blue-400/30 bg-blue-400/10 text-blue-400" title={`Usually written in kana (kanji: ${w.word})`}>
               Kana
             </Tag>
           ) : null}
