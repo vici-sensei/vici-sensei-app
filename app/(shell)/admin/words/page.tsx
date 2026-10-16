@@ -32,14 +32,19 @@ import {
 
 const PAGE_SIZE = 100;
 
-const COLUMNS: { key: string; label: string; sort?: SortKey }[] = [
+// On a phone (below md, where the side nav goes away too) the table is only Word + Meaning, so it fits the
+// screen instead of scrolling sideways: the level and the tags move under the word (see WordRow) and the
+// Level sort moves into the Word header.
+const WIDE_ONLY = "max-md:hidden";
+
+const COLUMNS: { key: string; label: string; sort?: SortKey; className?: string }[] = [
   { key: "word", label: "Word", sort: "word" },
   { key: "meaning", label: "Meaning", sort: "meaning" },
-  { key: "level", label: "Level", sort: "level" },
-  { key: "tags", label: "Tags" },
+  { key: "level", label: "Level", sort: "level", className: WIDE_ONLY },
+  { key: "tags", label: "Tags", className: WIDE_ONLY },
 ];
 
-function SortableHeader({
+function SortButton({
   label,
   sortKey,
   view,
@@ -53,20 +58,42 @@ function SortableHeader({
   const active = view.sort === sortKey;
   const Icon = !active ? FaSort : view.dir === "asc" ? FaSortUp : FaSortDown;
   return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap transition-colors hover:text-white ${
+        active ? "text-white" : ""
+      }`}
+    >
+      {label}
+      <Icon className={`h-3 w-3 ${active ? "text-accent-blue" : "opacity-40"}`} />
+    </button>
+  );
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  view,
+  onSort,
+  className = "",
+  children,
+}: {
+  label: string;
+  sortKey: SortKey;
+  view: WordsView;
+  onSort: (key: SortKey) => void;
+  className?: string;
+  children?: ReactNode;
+}) {
+  const active = view.sort === sortKey;
+  return (
     <th
-      className="px-3 py-2.5 font-semibold"
+      className={`px-3 py-2.5 font-semibold ${className}`}
       aria-sort={active ? (view.dir === "asc" ? "ascending" : "descending") : "none"}
     >
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap transition-colors hover:text-white ${
-          active ? "text-white" : ""
-        }`}
-      >
-        {label}
-        <Icon className={`h-3 w-3 ${active ? "text-accent-blue" : "opacity-40"}`} />
-      </button>
+      <SortButton label={label} sortKey={sortKey} view={view} onSort={onSort} />
+      {children}
     </th>
   );
 }
@@ -76,6 +103,28 @@ function Tag({ className, title, children }: { className: string; title: string;
     <span title={title} className={`rounded-md border px-1.5 py-0.5 text-[0.65rem] font-extrabold whitespace-nowrap ${className}`}>
       {children}
     </span>
+  );
+}
+
+function WordTags({ w }: { w: WordEntry["row"] }) {
+  return (
+    <>
+      {w.is_common_jisho ? (
+        <Tag className="border-green-400/30 bg-green-400/10 text-green-400" title="Marked common on Jisho">
+          Common
+        </Tag>
+      ) : null}
+      {w.usually_kana ? (
+        <Tag className="border-blue-400/30 bg-blue-400/10 text-blue-400" title={`Usually written in kana (kanji: ${w.word})`}>
+          Kana
+        </Tag>
+      ) : null}
+      {!w.study_enabled ? (
+        <Tag className="border-accent-red/30 bg-accent-red/10 text-accent-red" title="Not enabled for study">
+          Not studied
+        </Tag>
+      ) : null}
+    </>
   );
 }
 
@@ -94,6 +143,10 @@ function WordRow({ entry }: { entry: WordEntry }) {
           {renderVocabularyWord(w, "text-xs font-normal text-text-muted")}
         </div>
         {kana ? <div className="text-xs text-text-muted">{kana}</div> : null}
+        <div className="mt-1.5 flex flex-wrap gap-1 md:hidden">
+          <LevelBadge level={w.jlpt_level} size="sm" />
+          <WordTags w={w} />
+        </div>
       </td>
       <td className="max-w-[24rem] px-3 py-2.5">
         <div className="line-clamp-2">
@@ -106,26 +159,12 @@ function WordRow({ entry }: { entry: WordEntry }) {
         </div>
         <OtherMeaningsToggle otherMeanings={w.other_meanings} className="mt-1.5" />
       </td>
-      <td className="px-3 py-2.5">
+      <td className={`px-3 py-2.5 ${WIDE_ONLY}`}>
         <LevelBadge level={w.jlpt_level} size="sm" />
       </td>
-      <td className="px-3 py-2.5">
+      <td className={`px-3 py-2.5 ${WIDE_ONLY}`}>
         <div className="flex flex-wrap gap-1">
-          {w.is_common_jisho ? (
-            <Tag className="border-green-400/30 bg-green-400/10 text-green-400" title="Marked common on Jisho">
-              Common
-            </Tag>
-          ) : null}
-          {w.usually_kana ? (
-            <Tag className="border-blue-400/30 bg-blue-400/10 text-blue-400" title={`Usually written in kana (kanji: ${w.word})`}>
-              Kana
-            </Tag>
-          ) : null}
-          {!w.study_enabled ? (
-            <Tag className="border-accent-red/30 bg-accent-red/10 text-accent-red" title="Not enabled for study">
-              Not studied
-            </Tag>
-          ) : null}
+          <WordTags w={w} />
         </div>
       </td>
     </tr>
@@ -254,15 +293,29 @@ function AdminWords() {
           : " "}
       </p>
 
-      <GlassCard padding="sm" className="overflow-x-auto">
-        <table className="w-full min-w-200 break-words text-left text-sm">
+      <GlassCard padding="sm" className="overflow-x-auto max-md:px-1.5 max-md:py-2">
+        <table className="w-full break-words text-left text-sm md:min-w-200">
           <thead>
-            <tr className="border-b border-border-soft text-text-muted">
+            <tr className="border-b border-border-soft align-top text-text-muted">
               {COLUMNS.map((column) =>
                 column.sort ? (
-                  <SortableHeader key={column.key} label={column.label} sortKey={column.sort} view={view} onSort={handleSort} />
+                  <SortableHeader
+                    key={column.key}
+                    label={column.label}
+                    sortKey={column.sort}
+                    view={view}
+                    onSort={handleSort}
+                    className={column.className}
+                  >
+                    {/* Under "Word", like the level badge sits under the word in the rows. */}
+                    {column.key === "word" ? (
+                      <div className="mt-1 md:hidden">
+                        <SortButton label="Level" sortKey="level" view={view} onSort={handleSort} />
+                      </div>
+                    ) : null}
+                  </SortableHeader>
                 ) : (
-                  <th key={column.key} className="whitespace-nowrap px-3 py-2.5 font-semibold">
+                  <th key={column.key} className={`whitespace-nowrap px-3 py-2.5 font-semibold ${column.className ?? ""}`}>
                     {column.label}
                   </th>
                 )
