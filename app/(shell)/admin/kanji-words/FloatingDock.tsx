@@ -4,17 +4,19 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { FaChevronDown } from "react-icons/fa6";
 
 // Keyboard focus (Tab, or coming back to a circle after Escape folds its card) shows the hover look instead of the
-// browser's thick white focus ring.
+// browser's thick white focus ring. A disabled circle doesn't lift or light up under the mouse.
 function circleClasses(primary: boolean, colors: string): string {
-  return `pointer-events-auto relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full outline-none transition-[opacity,scale,translate,box-shadow,background-color,border-color,color] duration-200 ease-out hover:-translate-y-0.5 focus-visible:-translate-y-0.5 starting:scale-50 starting:opacity-0 ${
+  return `pointer-events-auto relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full outline-none transition-[opacity,scale,translate,box-shadow,background-color,border-color,color] duration-200 ease-out enabled:hover:-translate-y-0.5 focus-visible:-translate-y-0.5 starting:scale-50 starting:opacity-0 ${
     primary
-      ? "shadow-[0_8px_30px_rgba(255,74,90,0.45)] hover:shadow-[0_8px_40px_rgba(255,74,90,0.65)] focus-visible:shadow-[0_8px_40px_rgba(255,74,90,0.65)]"
+      ? "shadow-[0_8px_30px_rgba(255,74,90,0.45)] enabled:hover:shadow-[0_8px_40px_rgba(255,74,90,0.65)] focus-visible:shadow-[0_8px_40px_rgba(255,74,90,0.65)]"
       : "border shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
   } ${colors}`;
 }
 
 const PLAIN_COLORS =
-  "border-white/10 bg-gray-900/95 text-text-muted hover:border-white/20 hover:text-white focus-visible:border-white/20 focus-visible:text-white";
+  "border-white/10 bg-gray-900/95 text-text-muted enabled:hover:border-white/20 enabled:hover:text-white focus-visible:border-white/20 focus-visible:text-white";
+
+const DISABLED = "disabled:cursor-not-allowed disabled:opacity-60";
 
 /**
  * Round buttons stacked at the bottom right of the editor. Sticky, so they stay in sight while the words scroll and
@@ -47,6 +49,9 @@ interface FloatingCardProps {
   side?: "right" | "left";
   /** Width cap of the open card, as a complete Tailwind class so the scanner sees it. */
   widthClassName?: string;
+  /** Set while the card would have nothing to do: the circle goes dark and dim, takes no press, and this is its
+   *  tooltip. An open card stays open. */
+  disabledReason?: string | null;
   open: boolean;
   onOpen: () => void;
   /** Kept stable by the caller: it's a dependency of the listeners the open card sets up. */
@@ -68,11 +73,13 @@ export function FloatingCard({
   dot = false,
   side = "right",
   widthClassName = "max-w-md",
+  disabledReason = null,
   open,
   onOpen,
   onClose,
   children,
 }: FloatingCardProps) {
+  const disabled = disabledReason !== null;
   const cardId = useId();
   const cardRef = useRef<HTMLDivElement>(null);
   const circleRef = useRef<HTMLButtonElement>(null);
@@ -137,11 +144,12 @@ export function FloatingCard({
       ref={circleRef}
       type="button"
       onClick={onOpen}
+      disabled={disabled}
       aria-label={count > 0 ? `${label} (${count} ${countNoun}${count === 1 ? "" : "s"})` : label}
-      title={label}
+      title={disabledReason ?? label}
       aria-expanded={false}
       aria-controls={cardId}
-      className={circleClasses(primary, primary ? "bg-accent-red text-white" : PLAIN_COLORS)}
+      className={`${circleClasses(primary && !disabled, primary && !disabled ? "bg-accent-red text-white" : PLAIN_COLORS)} ${DISABLED}`}
     >
       {icon}
       {count > 0 ? (
@@ -179,7 +187,7 @@ export function FloatingToggle({ label, title, icon, pressed, busy = false, disa
       aria-label={label}
       title={title ?? label}
       className={`${circleClasses(false, pressed ? "border-accent-green bg-accent-green text-gray-900" : PLAIN_COLORS)} ${
-        busy ? "disabled:cursor-wait" : "disabled:cursor-not-allowed disabled:opacity-60"
+        busy ? "disabled:cursor-wait" : DISABLED
       }`}
     >
       {busy ? (

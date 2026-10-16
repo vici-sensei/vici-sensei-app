@@ -246,8 +246,8 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
     }
   }
 
-  // The green circle: marks the kanji as reviewed (or takes the mark away) right away, for the words as saved. Ticks
-  // not saved yet stay in the draft, so no re-read here; the new version is what the next save quotes.
+  // The green circle: marks the kanji as reviewed (only with nothing left to save) or takes the mark away (any time)
+  // right away. Ticks not saved yet stay in the draft, so no re-read here; the new version is what the next save quotes.
   async function handleToggleReviewed() {
     if (!data) return;
     const next = !data.reviewed;
@@ -519,13 +519,21 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
                 className="w-full rounded-xl border border-border-soft bg-bg-cards px-3.5 py-2 text-sm outline-none placeholder:text-text-muted focus:border-accent-red/50"
               />
             </FloatingCard>
+            {/* The mark is about the list as saved, so it can't be set while the list on screen differs from it;
+                taking it away is always fine. */}
             <FloatingToggle
               label="Reviewed"
-              title={data.reviewed ? "Reviewed. Press to mark it as not reviewed" : "Mark this kanji as reviewed"}
+              title={
+                data.reviewed
+                  ? "Reviewed. Press to mark it as not reviewed"
+                  : dirty
+                    ? "Save your changes first"
+                    : "Mark this kanji as reviewed"
+              }
               icon={<FaCheck className="h-4 w-4" />}
               pressed={data.reviewed}
               busy={reviewing}
-              disabled={saving || conflict}
+              disabled={saving || conflict || (dirty && !data.reviewed)}
               onToggle={() => void handleToggleReviewed()}
             />
             <FloatingCard
@@ -533,6 +541,7 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
               label="Save"
               icon={<FaFloppyDisk className="h-4 w-4" />}
               count={addedCount + removedCount}
+              disabledReason={dirty ? null : "No changes to save"}
               open={openCard === "save"}
               onOpen={() => setOpenCard("save")}
               onClose={closeCard}
