@@ -136,8 +136,9 @@ function WordRow({ entry }: { entry: WordEntry }) {
   const hasFurigana = !showsKanaOnly(w) && buildFuriganaSegments(w.word, w.furiganas).some((s) => s.furigana);
   const kana = !showsKanaOnly(w) && !hasFurigana && w.kana_reading !== w.word ? w.kana_reading : null;
   return (
-    // Baseline, not top: the other cells line up with the kanji instead of the furigana above them.
-    <tr className="border-b border-border-soft/50 align-baseline last:border-0 hover:bg-white/[0.03]">
+    // Top, not baseline: lined up with the kanji, the meaning of a word with furigana started a furigana's
+    // height lower than in the other rows, with empty space above it.
+    <tr className="border-b border-border-soft/50 align-top last:border-0 hover:bg-white/[0.03]">
       <td className="px-3 py-2.5">
         <div className={`whitespace-nowrap text-lg font-bold leading-snug ${hasFurigana ? "pt-[0.6em]" : ""}`}>
           {renderVocabularyWord(w, "text-xs font-normal text-text-muted")}
