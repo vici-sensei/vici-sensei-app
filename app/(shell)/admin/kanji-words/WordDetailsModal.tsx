@@ -469,11 +469,11 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
       confirmClose={() => !dirty || window.confirm(`Drop your unsaved changes to ${word}?`)}
     >
       {/* -m-1 p-1: room inside the scroll box for the outline of a changed badge, short meaning or toggle, which
-          would be clipped at its edges; the content stays where it was. -mr-7 pr-8: the box reaches the card's right
-          edge, so its scrollbar runs along that edge, clear of the Modal's "x" (16px in), not under it; the content
-          stays where it was. */}
-      <div className="-m-1 -mr-7 max-h-[calc(100dvh-11rem)] overflow-y-auto p-1 pr-8 text-left">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pr-10">
+          would be clipped at its edges; the content stays where it was. -mr-7: the box reaches the card's right edge,
+          so its scrollbar runs along that edge, clear of the Modal's "x" (16px to 52px in), not under it. pr-13 with
+          the scrollbar's room always kept: the content ends 10px left of the "x", so nothing scrolls under it. */}
+      <div className="-m-1 -mr-7 max-h-[calc(100dvh-11rem)] overflow-y-auto p-1 pr-13 text-left [scrollbar-gutter:stable]">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
           {/* The JLPT level, a select dressed as the level badge. */}
           <span
             className={`relative inline-flex items-center rounded-lg border ${levelColorClasses(level)} ${
@@ -509,7 +509,7 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
           ) : null}
         </div>
         {/* mt-6: the furigana rides above the heading's own box, so the gap seen under the badge is ~10px less. */}
-        <h3 id="word-details-title" className="mt-6 pr-10 text-[2.2rem] font-bold leading-[1.9]">
+        <h3 id="word-details-title" className="mt-6 text-[2.2rem] font-bold leading-[1.9]">
           {renderWordWithFurigana(word, draft ? draft.furiganas : c.furiganas, "text-[0.8rem] font-normal text-text-muted")}
         </h3>
 
