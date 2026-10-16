@@ -36,7 +36,18 @@ import { Tag } from "./WordMeanings";
 const LEVELS = ["N5", "N4", "N3", "N2", "N1"];
 
 const INPUT =
-  "rounded-lg border border-border-soft bg-white/[0.03] px-2.5 py-1.5 text-sm text-white outline-none transition-colors placeholder:text-text-muted/60 focus:border-accent-blue/40";
+  "rounded-lg border px-2.5 py-1.5 text-sm text-white outline-none transition-colors placeholder:text-text-muted/60 focus:border-accent-blue/40";
+
+// What differs from the word as stored (an edit not saved yet) is tinted violet, a colour nothing else in the popup
+// uses: blue is the focus, gold the short meaning, green the reviewed mark. A save or a discard clears it.
+const box = (changed: boolean) =>
+  changed ? "border-accent-violet/50 bg-accent-violet/[0.08]" : "border-border-soft bg-white/[0.03]";
+const CHANGED_OUTLINE = "outline-2 outline-offset-2 outline-accent-violet/60";
+const CHANGED_TAG = "border-accent-violet/50 bg-accent-violet/15 text-accent-violet";
+
+function ChangedDot() {
+  return <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-accent-violet" />;
+}
 
 /** What the form edits: the editable columns with every text and list present (empty instead of null), and the
  *  furigana lists exactly one entry per character of the word. */
@@ -156,11 +167,14 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
 /** A list of short texts, each in its own input that grows with its text, side by side; × removes one, + adds one. */
 function TextList({
   values,
+  stored,
   onChange,
   label,
   addLabel,
 }: {
   values: string[];
+  /** The entries as stored: one that isn't among them (new or edited) is tinted. A removed one shows on the label. */
+  stored: string[];
   onChange: (next: string[]) => void;
   /** Names one entry, for screen readers ("Primary meaning 2"). */
   label: string;
@@ -173,7 +187,9 @@ function TextList({
       {values.map((value, i) => (
         <span
           key={i}
-          className="inline-flex max-w-full items-center rounded-lg border border-border-soft bg-white/[0.03] transition-colors focus-within:border-accent-blue/40"
+          className={`inline-flex max-w-full items-center rounded-lg border transition-colors focus-within:border-accent-blue/40 ${box(
+            value.trim() !== "" && !stored.includes(value.trim())
+          )}`}
         >
           <input
             value={value}
@@ -201,11 +217,14 @@ function TextList({
 function PerCharInputs({
   word,
   values,
+  stored,
   onChange,
   label,
 }: {
   word: string;
   values: string[];
+  /** As stored, one entry per character: a box that differs is tinted. */
+  stored: string[];
   onChange: (next: string[]) => void;
   label: string;
 }) {
@@ -218,7 +237,7 @@ function PerCharInputs({
             value={values[i] ?? ""}
             onChange={(e) => onChange(values.map((v, j) => (j === i ? e.target.value : v)))}
             aria-label={`${label} of ${char} (character ${i + 1})`}
-            className={`${INPUT} w-full px-1.5 py-1 text-center`}
+            className={`${INPUT} ${box((values[i] ?? "").trim() !== (stored[i] ?? ""))} w-full px-1.5 py-1 text-center`}
           />
         </label>
       ))}
@@ -236,10 +255,29 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function Field({
+  label,
+  hint,
+  changed = false,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  /** The value differs from the stored one: the label turns violet, with a dot. */
+  changed?: boolean;
+  children: ReactNode;
+}) {
   return (
     <>
-      <dt className="text-xs text-text-muted sm:pt-1.5 sm:text-sm">{label}</dt>
+      <dt className={`flex items-center gap-1.5 text-xs sm:pt-1.5 sm:text-sm ${changed ? "text-accent-violet" : "text-text-muted"}`}>
+        {label}
+        {changed ? (
+          <>
+            <ChangedDot />
+            <span className="sr-only">(changed, not saved)</span>
+          </>
+        ) : null}
+      </dt>
       <dd className="mb-3 min-w-0 last:mb-0 sm:mb-0">
         {children}
         {hint ? <p className="mt-1 text-xs leading-snug text-text-muted">{hint}</p> : null}
@@ -334,7 +372,11 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
   }, [view, vocabularyId, historyTick]);
 
   const values = draft ? toValues(draft) : null;
-  const dirty = loaded !== null && values !== null && JSON.stringify(values) !== JSON.stringify(toValues(toDraft(loaded)));
+  // The word as stored, cleaned the same way: what the draft is compared with, as a whole and field by field.
+  const stored = loaded ? toValues(toDraft(loaded)) : null;
+  const dirty = values !== null && stored !== null && JSON.stringify(values) !== JSON.stringify(stored);
+  const changed = (key: keyof VocabularyEditable) =>
+    values !== null && stored !== null && JSON.stringify(values[key]) !== JSON.stringify(stored[key]);
   const problems = values ? problemsOf(values) : [];
 
   function set(patch: Partial<Draft>) {
@@ -426,10 +468,16 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
       wide
       confirmClose={() => !dirty || window.confirm(`Drop your unsaved changes to ${word}?`)}
     >
-      <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1 text-left">
+      {/* -m-1 p-1: room inside the scroll box for the outline of a changed badge, short meaning or toggle, which
+          would be clipped at its edges; the content stays where it was. */}
+      <div className="-m-1 max-h-[calc(100dvh-11rem)] overflow-y-auto p-1 pr-2 text-left">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pr-10">
           {/* The JLPT level, a select dressed as the level badge. */}
-          <span className={`relative inline-flex items-center rounded-lg border ${levelColorClasses(level)}`}>
+          <span
+            className={`relative inline-flex items-center rounded-lg border ${levelColorClasses(level)} ${
+              changed("jlpt_level") ? CHANGED_OUTLINE : ""
+            }`}
+          >
             <select
               value={level ?? ""}
               onChange={(e) => set({ jlpt_level: e.target.value || null })}
@@ -504,27 +552,36 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
           />
         ) : null}
 
-        {draft && view === "edit" ? (
+        {draft && stored && view === "edit" ? (
           <>
-            {/* The meaning, right under the word, unlabelled: S, then P, then the secondary senses. */}
+            {/* The meaning, right under the word, unlabelled: S, then P, then the secondary senses. A line that
+                differs from what is stored has its tag tinted, like a field's label. */}
             <div className="mt-1 space-y-2 text-sm">
               <div className="flex items-center gap-1.5">
-                <Tag title="Short meaning">S</Tag>
+                <Tag title="Short meaning" className={changed("short_meaning") ? CHANGED_TAG : undefined}>
+                  S
+                </Tag>
                 <input
                   value={draft.short_meaning}
                   onChange={(e) => set({ short_meaning: e.target.value })}
                   placeholder="Short meaning (optional)"
                   aria-label="Short meaning"
-                  className="min-w-0 flex-1 rounded-md border border-accent-gold/30 bg-accent-gold/10 px-2 py-1 font-bold text-accent-gold outline-none transition-colors placeholder:font-normal placeholder:text-accent-gold/50 focus:border-accent-gold/60"
+                  // On the gold a violet border doesn't read: the outline the level badge gets instead.
+                  className={`min-w-0 flex-1 rounded-md border border-accent-gold/30 bg-accent-gold/10 px-2 py-1 font-bold text-accent-gold transition-colors placeholder:font-normal placeholder:text-accent-gold/50 focus:border-accent-gold/60 ${
+                    changed("short_meaning") ? CHANGED_OUTLINE : "outline-none"
+                  }`}
                 />
               </div>
               <div className="flex items-start gap-1.5">
                 <span className="mt-1.5 flex">
-                  <Tag title="Primary meanings">P</Tag>
+                  <Tag title="Primary meanings" className={changed("primary_meanings") ? CHANGED_TAG : undefined}>
+                    P
+                  </Tag>
                 </span>
                 <div className="min-w-0 flex-1">
                   <TextList
                     values={draft.primary_meanings}
+                    stored={stored.primary_meanings ?? []}
                     onChange={(next) => set({ primary_meanings: next })}
                     label="Primary meaning"
                     addLabel="Meaning"
@@ -533,15 +590,28 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
               </div>
               <div className="flex items-start gap-1.5">
                 <span className="mt-1.5 flex">
-                  <Tag title="Secondary meanings">2nd</Tag>
+                  <Tag title="Secondary meanings" className={changed("other_meanings") ? CHANGED_TAG : undefined}>
+                    2nd
+                  </Tag>
                 </span>
                 <div className="min-w-0 flex-1 space-y-1.5">
                   {draft.other_meanings.map((sense, i) => (
-                    <div key={i} className="flex items-start gap-1.5 rounded-lg border border-border-soft p-1.5">
+                    // A sense that isn't one of the stored senses (new, or edited) is tinted; inside it, so is each
+                    // meaning that no stored sense has.
+                    <div
+                      key={i}
+                      className={`flex items-start gap-1.5 rounded-lg border p-1.5 ${
+                        tidy(sense).length > 0 &&
+                        !(stored.other_meanings ?? []).some((s) => JSON.stringify(s) === JSON.stringify(tidy(sense)))
+                          ? "border-accent-violet/50"
+                          : "border-border-soft"
+                      }`}
+                    >
                       <span className="mt-1.5 w-4 shrink-0 text-right text-xs text-text-muted">{i + 1}</span>
                       <div className="min-w-0 flex-1">
                         <TextList
                           values={sense}
+                          stored={(stored.other_meanings ?? []).flat()}
                           onChange={(next) =>
                             set({ other_meanings: draft.other_meanings.map((s, j) => (j === i ? next : s)) })
                           }
@@ -561,39 +631,48 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
             </div>
 
             <Group title="Reading">
-              <Field label="Kana reading">
+              <Field label="Kana reading" changed={changed("kana_reading")}>
                 <input
                   value={draft.kana_reading}
                   onChange={(e) => set({ kana_reading: e.target.value })}
                   aria-label="Kana reading"
-                  className={`${INPUT} w-full max-w-[18rem]`}
+                  className={`${INPUT} ${box(changed("kana_reading"))} w-full max-w-[18rem]`}
                 />
               </Field>
-              <Field label="Romaji">
+              <Field label="Romaji" changed={changed("romaji_reading")}>
                 <input
                   value={draft.romaji_reading}
                   onChange={(e) => set({ romaji_reading: e.target.value })}
                   aria-label="Romaji"
-                  className={`${INPUT} w-full max-w-[18rem]`}
+                  className={`${INPUT} ${box(changed("romaji_reading"))} w-full max-w-[18rem]`}
                 />
               </Field>
               <Field
                 label="Furigana"
                 hint="One box per character: empty under kana, “-” when the reading of the character before covers this one too."
+                changed={changed("furiganas")}
               >
-                <PerCharInputs word={word} values={draft.furiganas} onChange={(next) => set({ furiganas: next })} label="Furigana" />
+                <PerCharInputs
+                  word={word}
+                  values={draft.furiganas}
+                  stored={stored.furiganas ?? []}
+                  onChange={(next) => set({ furiganas: next })}
+                  label="Furigana"
+                />
               </Field>
-              <Field label="Romaji furigana">
+              <Field label="Romaji furigana" changed={changed("romaji_furiganas")}>
                 <PerCharInputs
                   word={word}
                   values={draft.romaji_furiganas}
+                  stored={stored.romaji_furiganas ?? []}
                   onChange={(next) => set({ romaji_furiganas: next })}
                   label="Romaji furigana"
                 />
               </Field>
-              <Field label="Other readings">
+              <Field label="Other readings" changed={changed("other_readings")}>
                 <TextList
                   values={draft.other_readings}
+                  stored={stored.other_readings ?? []}
                   onChange={(next) => set({ other_readings: next })}
                   label="Other reading"
                   addLabel="Reading"
@@ -602,12 +681,14 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
             </Group>
 
             <Group title="Usage">
-              <Field label="Parts of speech">
+              <Field label="Parts of speech" changed={changed("parts_of_speech")}>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {draft.parts_of_speech.map((pos, i) => (
                     <span
                       key={`${pos}-${i}`}
-                      className="inline-flex max-w-full items-center rounded-lg border border-border-soft bg-white/[0.03] pl-2.5"
+                      className={`inline-flex max-w-full items-center rounded-lg border pl-2.5 ${box(
+                        !(stored.parts_of_speech ?? []).includes(pos)
+                      )}`}
                     >
                       <span className="min-w-0 py-1">{pos}</span>
                       <RemoveButton
@@ -633,22 +714,22 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
                   </select>
                 </div>
               </Field>
-              <Field label="Common (Jisho)">
+              <Field label="Common (Jisho)" changed={changed("is_common_jisho")}>
                 <Toggle
                   checked={draft.is_common_jisho}
                   onChange={() => set({ is_common_jisho: !draft.is_common_jisho })}
                   color="blue"
                   aria-label="Common (Jisho)"
-                  className="mt-0.5"
+                  className={`mt-0.5 rounded-full ${changed("is_common_jisho") ? CHANGED_OUTLINE : ""}`}
                 />
               </Field>
-              <Field label="Usually written in kana">
+              <Field label="Usually written in kana" changed={changed("usually_kana")}>
                 <Toggle
                   checked={draft.usually_kana}
                   onChange={() => set({ usually_kana: !draft.usually_kana })}
                   color="blue"
                   aria-label="Usually written in kana"
-                  className="mt-0.5"
+                  className={`mt-0.5 rounded-full ${changed("usually_kana") ? CHANGED_OUTLINE : ""}`}
                 />
               </Field>
               <Field
@@ -658,13 +739,14 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
                     ? undefined
                     : "Not enabled: no student gets a new card for it, and it can't be chosen for any kanji."
                 }
+                changed={changed("study_enabled")}
               >
                 <Toggle
                   checked={draft.study_enabled}
                   onChange={() => set({ study_enabled: !draft.study_enabled })}
                   color="blue"
                   aria-label="Enabled for study"
-                  className="mt-0.5"
+                  className={`mt-0.5 rounded-full ${changed("study_enabled") ? CHANGED_OUTLINE : ""}`}
                 />
               </Field>
             </Group>
@@ -709,6 +791,12 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
                 >
                   {lastWrite.message === "Undone." ? "Redo" : "Undo"}
                 </button>
+              </span>
+            ) : dirty ? (
+              // The key to the violet: what it marks isn't saved yet.
+              <span className="inline-flex items-center gap-1.5 text-text-muted">
+                <ChangedDot />
+                Unsaved changes
               </span>
             ) : null}
           </div>

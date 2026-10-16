@@ -21,11 +21,20 @@ export function meaningsText(m: WordMeaningsValue): string[] {
 }
 
 /** The S / P / 2nd mark in front of a kind of meaning (also used by the word popup's meaning editor). */
-export function Tag({ title, children }: { title: string; children: React.ReactNode }) {
+export function Tag({
+  title,
+  className = "border-white/15 bg-white/[0.06] text-text-muted",
+  children,
+}: {
+  title: string;
+  /** Border, background and text colour. */
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
     <abbr
       title={title}
-      className="shrink-0 rounded border border-white/15 bg-white/[0.06] px-1 text-[0.6rem] font-extrabold leading-[1.5] text-text-muted no-underline"
+      className={`shrink-0 rounded border px-1 text-[0.6rem] font-extrabold leading-[1.5] no-underline ${className}`}
     >
       {children}
     </abbr>
