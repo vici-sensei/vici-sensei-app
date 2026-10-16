@@ -110,8 +110,6 @@ export interface WordFilters {
   common: YesNoFilter;
   usuallyKana: YesNoFilter;
   shortMeaning: YesNoFilter;
-  /** "" = any part of speech, otherwise one exact parts_of_speech value. */
-  pos: string;
 }
 
 export interface WordsView {
@@ -130,7 +128,6 @@ const NO_FILTERS: WordFilters = {
   common: "any",
   usuallyKana: "any",
   shortMeaning: "any",
-  pos: "",
 };
 
 /** What the page opens with (and Reset goes back to): the N5 words enabled for study. */
@@ -174,8 +171,7 @@ function matchesFilters(r: AdminWordRow, f: WordFilters): boolean {
     matchesYesNo(r.study_enabled, f.study) &&
     matchesYesNo(r.is_common_jisho, f.common) &&
     matchesYesNo(r.usually_kana, f.usuallyKana) &&
-    matchesYesNo(Boolean(r.short_meaning?.trim()), f.shortMeaning) &&
-    (f.pos === "" || (r.parts_of_speech ?? []).includes(f.pos))
+    matchesYesNo(Boolean(r.short_meaning?.trim()), f.shortMeaning)
   );
 }
 
@@ -213,17 +209,6 @@ export function visibleEntries(entries: WordEntry[], view: WordsView): WordEntry
   );
 }
 
-/** Every part of speech in the dictionary, most used first, with how many words have it. */
-export function partOfSpeechOptions(entries: WordEntry[]): { value: string; count: number }[] {
-  const counts = new Map<string, number>();
-  for (const e of entries) {
-    for (const pos of e.row.parts_of_speech ?? []) counts.set(pos, (counts.get(pos) ?? 0) + 1);
-  }
-  return [...counts]
-    .map(([value, count]) => ({ value, count }))
-    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
-}
-
 // ---------------------------------------------------------------------------
 // URL <-> view -- everything but the defaults goes into the query string, so a reload lands on the same list.
 // ---------------------------------------------------------------------------
@@ -243,7 +228,6 @@ export function parseView(params: URLSearchParams): WordsView {
       common: oneOf(params.get("common"), YES_NO, d.common),
       usuallyKana: oneOf(params.get("kana"), YES_NO, d.usuallyKana),
       shortMeaning: oneOf(params.get("short"), YES_NO, d.shortMeaning),
-      pos: params.get("pos") ?? d.pos,
     },
     page: Number.isFinite(page) && page > 1 ? page : 1,
   };
@@ -261,7 +245,6 @@ export function serializeView(view: WordsView): string {
   if (changed("common")) params.set("common", f.common);
   if (changed("usuallyKana")) params.set("kana", f.usuallyKana);
   if (changed("shortMeaning")) params.set("short", f.shortMeaning);
-  if (changed("pos")) params.set("pos", f.pos);
   if (view.page > 1) params.set("page", String(view.page));
   return params.toString();
 }

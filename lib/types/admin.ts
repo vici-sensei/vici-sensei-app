@@ -173,7 +173,6 @@ export interface AdminWordRow {
   furiganas: string[] | null;
   short_meaning: string | null;
   primary_meanings: string[] | null;
-  parts_of_speech: string[] | null;
   jlpt_level: string | null;
   is_common_jisho: boolean | null;
   usually_kana: boolean | null;

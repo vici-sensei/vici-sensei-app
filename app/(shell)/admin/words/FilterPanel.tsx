@@ -98,12 +98,9 @@ function MultiChoice<T extends string>({
 export function FilterPanel({
   filters,
   onChange,
-  partsOfSpeech,
 }: {
   filters: WordFilters;
   onChange: (patch: Partial<WordFilters>) => void;
-  /** Every part of speech in the dictionary, most used first. */
-  partsOfSpeech: { value: string; count: number }[];
 }) {
   return (
     <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -129,26 +126,6 @@ export function FilterPanel({
           value={filters.shortMeaning}
           onChange={(shortMeaning) => onChange({ shortMeaning })}
         />
-      </Group>
-      <Group label="Part of speech">
-        <select
-          value={filters.pos}
-          onChange={(e) => onChange({ pos: e.target.value })}
-          aria-label="Part of speech"
-          className="w-full max-w-80 cursor-pointer rounded-lg border border-border-soft bg-gray-900 px-3 py-1.5 text-[0.85rem] text-white outline-none focus:border-accent-blue/50"
-        >
-          <option value="">Any part of speech</option>
-          {/* A part of speech from the URL that isn't in the list (yet: the words are still loading) still shows,
-              so the select never shows a different choice than the one applied. */}
-          {filters.pos && !partsOfSpeech.some((p) => p.value === filters.pos) ? (
-            <option value={filters.pos}>{filters.pos}</option>
-          ) : null}
-          {partsOfSpeech.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.value} ({p.count.toLocaleString()})
-            </option>
-          ))}
-        </select>
       </Group>
     </div>
   );

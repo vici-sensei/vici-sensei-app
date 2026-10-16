@@ -8,7 +8,7 @@ import type { AdminWordRow } from "@/lib/types";
  */
 
 const WORD_LIST_COLUMNS =
-  "id, word, kana_reading, romaji_reading, furiganas, short_meaning, primary_meanings, parts_of_speech, jlpt_level, is_common_jisho, usually_kana, study_enabled, frequency_number";
+  "id, word, kana_reading, romaji_reading, furiganas, short_meaning, primary_meanings, jlpt_level, is_common_jisho, usually_kana, study_enabled, frequency_number";
 
 /** Asked for per request; the API may hand back fewer (its max-rows cap, 1000 on Supabase by default). */
 const REQUESTED_PAGE_SIZE = 1000;

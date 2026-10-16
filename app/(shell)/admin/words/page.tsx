@@ -20,7 +20,6 @@ import {
   defaultDir,
   isDefaultFilters,
   parseView,
-  partOfSpeechOptions,
   serializeView,
   toEntries,
   visibleEntries,
@@ -159,7 +158,6 @@ function AdminWords() {
   const deferredView = useDeferredValue(view);
 
   const entries = useMemo(() => toEntries(words ?? []), [words]);
-  const partsOfSpeech = useMemo(() => partOfSpeechOptions(entries), [entries]);
   const visible = useMemo(() => visibleEntries(entries, deferredView), [entries, deferredView]);
 
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
@@ -240,7 +238,7 @@ function AdminWords() {
 
       <Collapsible open={filtersOpen} openClassName="mt-4">
         <GlassCard padding="sm">
-          <FilterPanel filters={view.filters} onChange={handleFilterChange} partsOfSpeech={partsOfSpeech} />
+          <FilterPanel filters={view.filters} onChange={handleFilterChange} />
         </GlassCard>
       </Collapsible>
 
