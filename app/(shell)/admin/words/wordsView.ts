@@ -55,10 +55,11 @@ export function toEntries(rows: AdminWordRow[]): WordEntry[] {
 // Sorting
 // ---------------------------------------------------------------------------
 
-export type SortKey = "word" | "meaning" | "level" | "frequency" | "id";
+/** "frequency" has no column of its own: it is the order the list starts in, and comes back to. */
+export type SortKey = "word" | "meaning" | "level" | "frequency";
 export type SortDir = "asc" | "desc";
 
-const SORT_KEYS: SortKey[] = ["word", "meaning", "level", "frequency", "id"];
+const SORT_KEYS: SortKey[] = ["word", "meaning", "level", "frequency"];
 
 /** Direction a column starts in when first clicked: most common first for frequency, A-Z / N5-first otherwise. */
 export function defaultDir(key: SortKey): SortDir {
@@ -85,8 +86,6 @@ function compareBy(a: WordEntry, b: WordEntry, key: SortKey): number {
       return (LEVEL_ORDER[a.row.jlpt_level ?? ""] ?? 0) - (LEVEL_ORDER[b.row.jlpt_level ?? ""] ?? 0);
     case "frequency":
       return (a.row.frequency_number ?? 0) - (b.row.frequency_number ?? 0);
-    case "id":
-      return a.row.id - b.row.id;
   }
 }
 
@@ -124,7 +123,8 @@ export interface WordsView {
   page: number;
 }
 
-export const DEFAULT_FILTERS: WordFilters = {
+/** Filters that narrow nothing. */
+const NO_FILTERS: WordFilters = {
   levels: [],
   study: "any",
   common: "any",
@@ -133,16 +133,35 @@ export const DEFAULT_FILTERS: WordFilters = {
   pos: "",
 };
 
-const DEFAULT_SORT: SortKey = "level";
+/** What the page opens with (and Reset goes back to): the N5 words enabled for study. */
+export const DEFAULT_FILTERS: WordFilters = { ...NO_FILTERS, levels: ["N5"], study: "yes" };
+
+/** Most frequent first. */
+export const DEFAULT_SORT: SortKey = "frequency";
 
 const LEVELS: LevelFilter[] = ["N5", "N4", "N3", "N2", "N1", "none"];
 const YES_NO: YesNoFilter[] = ["any", "yes", "no"];
 
+/** In the URL, "every level" -- a missing `level` param means the default levels. */
+const ANY_LEVEL = "any";
+
+/** Levels are always in LEVELS order (parsed and picked that way), so a joined compare is enough. */
+function sameFilter(a: WordFilters, b: WordFilters, k: keyof WordFilters): boolean {
+  const x = a[k];
+  const y = b[k];
+  return Array.isArray(x) && Array.isArray(y) ? x.join(",") === y.join(",") : x === y;
+}
+
+const FILTER_KEYS = Object.keys(NO_FILTERS) as (keyof WordFilters)[];
+
+/** How many filters narrow the list -- the default ones included, so the button never hides that the list
+ *  is filtered. */
 export function activeFilterCount(f: WordFilters): number {
-  return (Object.keys(DEFAULT_FILTERS) as (keyof WordFilters)[]).filter((k) => {
-    const value = f[k];
-    return Array.isArray(value) ? value.length > 0 : value !== DEFAULT_FILTERS[k];
-  }).length;
+  return FILTER_KEYS.filter((k) => !sameFilter(f, NO_FILTERS, k)).length;
+}
+
+export function isDefaultFilters(f: WordFilters): boolean {
+  return FILTER_KEYS.every((k) => sameFilter(f, DEFAULT_FILTERS, k));
 }
 
 function matchesYesNo(value: boolean | null, filter: YesNoFilter): boolean {
@@ -212,17 +231,19 @@ export function partOfSpeechOptions(entries: WordEntry[]): { value: string; coun
 export function parseView(params: URLSearchParams): WordsView {
   const sort = oneOf(params.get("sort"), SORT_KEYS, DEFAULT_SORT);
   const page = Number.parseInt(params.get("page") ?? "", 10);
+  const d = DEFAULT_FILTERS;
+  const level = params.get("level");
   return {
     query: params.get("q") ?? "",
     sort,
     dir: oneOf(params.get("dir"), ["asc", "desc"] as const, defaultDir(sort)),
     filters: {
-      levels: manyOf(params.get("level"), LEVELS),
-      study: oneOf(params.get("study"), YES_NO, "any"),
-      common: oneOf(params.get("common"), YES_NO, "any"),
-      usuallyKana: oneOf(params.get("kana"), YES_NO, "any"),
-      shortMeaning: oneOf(params.get("short"), YES_NO, "any"),
-      pos: params.get("pos") ?? "",
+      levels: level === null ? d.levels : manyOf(level, LEVELS),
+      study: oneOf(params.get("study"), YES_NO, d.study),
+      common: oneOf(params.get("common"), YES_NO, d.common),
+      usuallyKana: oneOf(params.get("kana"), YES_NO, d.usuallyKana),
+      shortMeaning: oneOf(params.get("short"), YES_NO, d.shortMeaning),
+      pos: params.get("pos") ?? d.pos,
     },
     page: Number.isFinite(page) && page > 1 ? page : 1,
   };
@@ -231,15 +252,16 @@ export function parseView(params: URLSearchParams): WordsView {
 export function serializeView(view: WordsView): string {
   const params = new URLSearchParams();
   const f = view.filters;
+  const changed = (k: keyof WordFilters) => !sameFilter(f, DEFAULT_FILTERS, k);
   if (view.query) params.set("q", view.query);
   if (view.sort !== DEFAULT_SORT) params.set("sort", view.sort);
   if (view.dir !== defaultDir(view.sort)) params.set("dir", view.dir);
-  if (f.levels.length) params.set("level", f.levels.join(","));
-  if (f.study !== "any") params.set("study", f.study);
-  if (f.common !== "any") params.set("common", f.common);
-  if (f.usuallyKana !== "any") params.set("kana", f.usuallyKana);
-  if (f.shortMeaning !== "any") params.set("short", f.shortMeaning);
-  if (f.pos) params.set("pos", f.pos);
+  if (changed("levels")) params.set("level", f.levels.join(",") || ANY_LEVEL);
+  if (changed("study")) params.set("study", f.study);
+  if (changed("common")) params.set("common", f.common);
+  if (changed("usuallyKana")) params.set("kana", f.usuallyKana);
+  if (changed("shortMeaning")) params.set("short", f.shortMeaning);
+  if (changed("pos")) params.set("pos", f.pos);
   if (view.page > 1) params.set("page", String(view.page));
   return params.toString();
 }
