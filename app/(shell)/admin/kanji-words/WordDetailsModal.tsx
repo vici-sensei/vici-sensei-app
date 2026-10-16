@@ -566,8 +566,9 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
                   onChange={(e) => set({ short_meaning: e.target.value })}
                   placeholder="Short meaning (optional)"
                   aria-label="Short meaning"
-                  // On the gold a violet border doesn't read: the outline the level badge gets instead.
-                  className={`min-w-0 flex-1 rounded-md border border-accent-gold/30 bg-accent-gold/10 px-2 py-1 font-bold text-accent-gold transition-colors placeholder:font-normal placeholder:text-accent-gold/50 focus:border-accent-gold/60 ${
+                  // On the gold a violet border doesn't read: the outline the level badge gets instead. Its colour is
+                  // set even while there is no outline, or transition-colors fades it in from the gold text colour.
+                  className={`min-w-0 flex-1 rounded-md border border-accent-gold/30 bg-accent-gold/10 px-2 py-1 font-bold text-accent-gold outline-accent-violet/60 transition-colors placeholder:font-normal placeholder:text-accent-gold/50 focus:border-accent-gold/60 ${
                     changed("short_meaning") ? CHANGED_OUTLINE : "outline-none"
                   }`}
                 />
@@ -791,12 +792,6 @@ export function WordDetailsModal({ candidate: c, onClose, onSaved, onReviewed }:
                 >
                   {lastWrite.message === "Undone." ? "Redo" : "Undo"}
                 </button>
-              </span>
-            ) : dirty ? (
-              // The key to the violet: what it marks isn't saved yet.
-              <span className="inline-flex items-center gap-1.5 text-text-muted">
-                <ChangedDot />
-                Unsaved changes
               </span>
             ) : null}
           </div>
