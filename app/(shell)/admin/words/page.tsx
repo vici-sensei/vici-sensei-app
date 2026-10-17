@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FaChevronLeft, FaChevronRight, FaPencil, FaSliders, FaSort, FaSortDown, FaSortUp } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useAllWords } from "@/lib/client-data/adminWords";
+import { setCachedReview, useAllWords } from "@/lib/client-data/adminWords";
+import { describeKanjiWordsError, setVocabularyReviewed } from "@/lib/data/adminKanjiWords";
+import { createClient } from "@/lib/supabase/client";
 import { isMultiRegionEnabled } from "@/lib/supabase/regions";
 import { buildFuriganaSegments, renderVocabularyWord, showsKanaOnly } from "@/lib/study/furigana";
 import { OtherMeaningsToggle } from "@/app/components/browse/OtherMeaningsToggle";
@@ -15,7 +17,10 @@ import { GlassCard } from "@/app/components/ui/GlassCard";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { PageHeader } from "@/app/components/ui/PageHeader";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import type { VocabularyReviewMark } from "@/lib/types";
+import { useToast } from "@/app/components/ui/Toast";
+import type { AdminWordRow, VocabularyReviewMark } from "@/lib/types";
+import { applyWordReview } from "../kanji-words/kanjiWordsMemory";
+import { ReviewedToggle } from "../kanji-words/ReviewedToggle";
 import { formatWhen } from "../kanji-words/wordLabels";
 import { FilterPanel } from "./FilterPanel";
 import {
@@ -59,7 +64,7 @@ const COLUMNS: Column[] = [
   { key: "tags", label: "Tags", className: WIDE_ONLY },
 ];
 
-// The pencil's column: no header text, as narrow as the button.
+// The reviewed mark's and the pencil's column: no header text, as narrow as the buttons.
 const EDIT_COLUMN: Column = { key: "edit", label: "", className: "w-px" };
 
 function SortButton({
@@ -124,16 +129,16 @@ function Tag({ className, title, children }: { className: string; title: string;
   );
 }
 
+const reviewedTitle = (review: VocabularyReviewMark) =>
+  `Reviewed by ${review.by ?? "an unknown admin"} · ${formatWhen(review.at)}`;
+
 // Most words are common, so only the exceptions get a tag. No tag for usually-kana words: the Word column
 // already shows them in kana.
 function WordTags({ w, review }: { w: WordEntry["row"]; review: VocabularyReviewMark | undefined }) {
   return (
     <>
       {review ? (
-        <Tag
-          className="border-accent-green/30 bg-accent-green/10 text-accent-green"
-          title={`Reviewed by ${review.by ?? "an unknown admin"} · ${formatWhen(review.at)}`}
-        >
+        <Tag className="border-accent-green/30 bg-accent-green/10 text-accent-green" title={reviewedTitle(review)}>
           Reviewed
         </Tag>
       ) : null}
@@ -156,6 +161,8 @@ function WordRow({
   review,
   editHref,
   onEdit,
+  reviewBusy,
+  onToggleReviewed,
   flash,
 }: {
   entry: WordEntry;
@@ -163,6 +170,10 @@ function WordRow({
   /** The word's page (the pencil); null when words can't be edited here. */
   editHref: string | null;
   onEdit: () => void;
+  /** The reviewed mark is being written. */
+  reviewBusy: boolean;
+  /** Sets or takes away the reviewed mark (the check beside the pencil); null when the marks couldn't be read. */
+  onToggleReviewed: (() => void) | null;
   /** The word whose page was open last: the row lights up for a moment when the list comes back. */
   flash: boolean;
 }) {
@@ -217,16 +228,28 @@ function WordRow({
         </div>
       </td>
       {editHref ? (
+        // On a phone the check sits above the pencil, so the column stays one button wide.
         <td className="py-1.5 pr-1 pl-0 md:pr-2">
-          <Link
-            href={editHref}
-            onClick={onEdit}
-            title="Edit"
-            aria-label={`Edit ${w.word}`}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white/[0.06] hover:text-white"
-          >
-            <FaPencil className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex flex-col md:flex-row">
+            {onToggleReviewed ? (
+              <ReviewedToggle
+                name={w.word}
+                reviewed={review !== undefined}
+                busy={reviewBusy}
+                onToggle={onToggleReviewed}
+                title={review ? reviewedTitle(review) : undefined}
+              />
+            ) : null}
+            <Link
+              href={editHref}
+              onClick={onEdit}
+              title="Edit"
+              aria-label={`Edit ${w.word}`}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
+              <FaPencil className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </td>
       ) : null}
     </tr>
@@ -250,6 +273,7 @@ function PageButton({ onClick, disabled, label, children }: { onClick: () => voi
 function AdminWords() {
   const { user } = useAuth();
   const { rows: words, reviews, status } = useAllWords(user);
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const countRef = useRef<HTMLParagraphElement>(null);
   // The word pages need the edit RPCs, which only the EU/US projects have.
@@ -311,6 +335,27 @@ function AdminWords() {
 
   function updateView(next: WordsView) {
     setView(next);
+  }
+
+  // The check beside the pencil: marks the word as reviewed, or takes the mark away, right away (on both regions),
+  // like the button on the word's page. Under the "Not reviewed" filter a word marked leaves the list.
+  const [reviewBusy, setReviewBusy] = useState<ReadonlySet<number>>(() => new Set());
+  async function toggleReviewed(w: AdminWordRow, next: boolean) {
+    setReviewBusy((prev) => new Set(prev).add(w.id));
+    try {
+      const result = await setVocabularyReviewed(createClient(), { vocabularyId: w.id, reviewed: next });
+      setCachedReview(w.id, result.reviewed);
+      applyWordReview(result);
+      showToast(result.changed ? `${next ? "Marked as reviewed" : "Marked as not reviewed"}: ${w.word}.` : "It was already like that.");
+    } catch (err) {
+      showToast(describeKanjiWordsError(err, "Failed to change the reviewed mark."), "error");
+    } finally {
+      setReviewBusy((prev) => {
+        const rest = new Set(prev);
+        rest.delete(w.id);
+        return rest;
+      });
+    }
   }
 
   // The word page walks through the words in the list's order (its ‹ ›).
@@ -467,6 +512,10 @@ function AdminWords() {
                   review={reviews?.get(entry.row.id)}
                   editHref={editable ? `/admin/words/edit?id=${entry.row.id}${listQs ? `&${listQs}` : ""}` : null}
                   onEdit={rememberListOrder}
+                  reviewBusy={reviewBusy.has(entry.row.id)}
+                  onToggleReviewed={
+                    reviews ? () => void toggleReviewed(entry.row, !reviews.has(entry.row.id)) : null
+                  }
                   flash={flashId === entry.row.id}
                 />
               ))}
