@@ -30,6 +30,7 @@ import { KanjiList } from "./KanjiList";
 import { clearPageMemory, clearPanelMemory, peekPageMemory, rememberPage } from "./kanjiWordsMemory";
 import { OperationModal, type OperationSpec } from "./OperationModal";
 import { ReviewProgress } from "./ReviewProgress";
+import { walkOf } from "./WordPageParts";
 import {
   activeFilterCount,
   DEFAULT_FILTERS,
@@ -110,8 +111,9 @@ function AdminKanjiWords() {
   const [limit, setLimit] = useState(memory?.limit ?? LIST_PAGE);
   const [checked, setChecked] = useState<Set<number>>(() => new Set(memory?.checked ?? []));
   const [dirty, setDirty] = useState(false);
-  // Waiting for "discard unsaved edits?": the kanji to open afterwards (null = close the panel).
-  const [pendingSelect, setPendingSelect] = useState<{ id: number | null } | null>(null);
+  // Waiting for "discard unsaved edits?": the kanji to open afterwards (null = close the panel), and whether it is a
+  // step of ‹ › (which keeps their order).
+  const [pendingSelect, setPendingSelect] = useState<{ id: number | null; keepWalk: boolean } | null>(null);
   const [operation, setOperation] = useState<OperationSpec | null>(null);
   const [batchesOpen, setBatchesOpen] = useState(false);
   const [parity, setParity] = useState<KanjiWordsParity | null>(null);
@@ -181,6 +183,13 @@ function AdminKanjiWords() {
   );
   const selectedRow = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
   const editorOpen = selectedRow !== null;
+
+  // The order the panel's ‹ › (narrow screens) step through: the list as it was when the kanji was picked from it (or
+  // the page opened on it), kept while they step, so a kanji that a save or the reviewed mark takes out of the filters
+  // keeps its place and ‹ › still lead back to it.
+  const visibleIds = useMemo(() => visible.map((r) => r.id), [visible]);
+  const [walkIds, setWalkIds] = useState<number[] | null>(null);
+  if (walkIds === null && selectedId !== null && visibleIds.includes(selectedId)) setWalkIds(visibleIds);
 
   // On a wide screen the list and the editor each keep their own scroll and reach down to just above the window's
   // bottom from wherever they are right now: lower down at the top of the page, higher once they stick under the
@@ -253,19 +262,21 @@ function AdminKanjiWords() {
   function updateView(next: KanjiView) {
     setView(next);
     setLimit(LIST_PAGE);
+    setWalkIds(null);
     writeUrl(next, selectedId);
   }
 
-  function selectKanji(id: number | null) {
+  function selectKanji(id: number | null, keepWalk = false) {
     setSelectedId(id);
     setDirty(false);
+    if (!keepWalk) setWalkIds(null);
     writeUrl(view, id);
   }
 
-  function requestSelect(id: number | null) {
+  function requestSelect(id: number | null, keepWalk = false) {
     if (id === selectedId) return;
-    if (dirty) setPendingSelect({ id });
-    else selectKanji(id);
+    if (dirty) setPendingSelect({ id, keepWalk });
+    else selectKanji(id, keepWalk);
   }
 
   function handleSort(key: SortKey) {
@@ -436,6 +447,7 @@ function AdminKanjiWords() {
               onChanged={refetch}
               onClose={() => requestSelect(null)}
               onDirtyChange={setDirty}
+              walk={walkOf(walkIds, selectedRow.id, (id) => requestSelect(id, true))}
             />
           ) : (
             <GlassCard padding="md" className="text-center text-text-muted">
@@ -524,7 +536,7 @@ function AdminKanjiWords() {
           confirmLabel="Discard"
           danger
           onConfirm={() => {
-            selectKanji(pendingSelect.id);
+            selectKanji(pendingSelect.id, pendingSelect.keepWalk);
             setPendingSelect(null);
           }}
           onCancel={() => setPendingSelect(null)}

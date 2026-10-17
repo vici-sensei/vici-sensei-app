@@ -63,39 +63,50 @@ export interface Walk {
   prefetch?: (id: number) => void;
 }
 
+/** ‹ › with the place in the walk between them; `noun` names what they step through ("word", "kanji"). */
+export function WalkButtons({ walk, noun }: { walk: Walk; noun: string }) {
+  const prefetch = walk.prefetch;
+  const prefetchOf = (to: number | null) => (prefetch && to !== null ? () => prefetch(to) : undefined);
+  return (
+    <div className="flex items-center gap-3 text-sm text-text-muted">
+      <NavButton
+        onClick={() => walk.prevId !== null && walk.go(walk.prevId)}
+        onPrefetch={prefetchOf(walk.prevId)}
+        disabled={walk.prevId === null}
+        label={`Previous ${noun}`}
+      >
+        <FaChevronLeft className="h-3 w-3" />
+      </NavButton>
+      {/* As wide as its widest ("12 of 12"), so › stays put from 9 to 10 and can be pressed again and again. */}
+      <span className="grid text-center tabular-nums">
+        <span className="invisible col-start-1 row-start-1">
+          {walk.count.toLocaleString()} of {walk.count.toLocaleString()}
+        </span>
+        <span className="col-start-1 row-start-1">
+          {(walk.index + 1).toLocaleString()} of {walk.count.toLocaleString()}
+        </span>
+      </span>
+      <NavButton
+        onClick={() => walk.nextId !== null && walk.go(walk.nextId)}
+        onPrefetch={prefetchOf(walk.nextId)}
+        disabled={walk.nextId === null}
+        label={`Next ${noun}`}
+      >
+        <FaChevronRight className="h-3 w-3" />
+      </NavButton>
+    </div>
+  );
+}
+
 /** The way back, and ‹ › with the word's place in the walk. */
 export function WordPageNav({ backHref, backLabel, walk }: { backHref: string; backLabel: string; walk: Walk | null }) {
-  const prefetch = walk?.prefetch;
-  const prefetchOf = (to: number | null) => (prefetch && to !== null ? () => prefetch(to) : undefined);
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <Link href={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-text-muted transition-colors hover:text-white">
         <FaArrowLeft className="h-3 w-3" />
         {backLabel}
       </Link>
-      {walk ? (
-        <div className="flex items-center gap-3 text-sm text-text-muted">
-          <NavButton
-            onClick={() => walk.prevId !== null && walk.go(walk.prevId)}
-            onPrefetch={prefetchOf(walk.prevId)}
-            disabled={walk.prevId === null}
-            label="Previous word"
-          >
-            <FaChevronLeft className="h-3 w-3" />
-          </NavButton>
-          <span className="tabular-nums">
-            {(walk.index + 1).toLocaleString()} of {walk.count.toLocaleString()}
-          </span>
-          <NavButton
-            onClick={() => walk.nextId !== null && walk.go(walk.nextId)}
-            onPrefetch={prefetchOf(walk.nextId)}
-            disabled={walk.nextId === null}
-            label="Next word"
-          >
-            <FaChevronRight className="h-3 w-3" />
-          </NavButton>
-        </div>
-      ) : null}
+      {walk ? <WalkButtons walk={walk} noun="word" /> : null}
     </div>
   );
 }

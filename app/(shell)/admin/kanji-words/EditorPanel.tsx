@@ -21,6 +21,7 @@ import { CandidateRow } from "./CandidateRow";
 import { FloatingCard, FloatingDock, FloatingToggle } from "./FloatingDock";
 import { HistoryPanel } from "./HistoryPanel";
 import { kanjiWordHref, peekOpenedWord, peekPanelMemory, rememberPanel } from "./kanjiWordsMemory";
+import { WalkButtons, type Walk } from "./WordPageParts";
 import { groupReadingLabels } from "./wordLabels";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
 
@@ -49,6 +50,8 @@ interface EditorPanelProps {
   onClose: () => void;
   /** Unsaved edits exist (or not), so the page can ask before switching to another kanji. */
   onDirtyChange: (dirty: boolean) => void;
+  /** ‹ › to the kanji before / after this one in the list (null: it isn't in the list). */
+  walk: Walk | null;
 }
 
 /**
@@ -61,7 +64,7 @@ interface EditorPanelProps {
  * leaves the panel's state behind (the unsaved ticks, the note, the toggles, the scroll), so coming back shows it all
  * at once, as it was, with the word's card lit up for a moment.
  */
-export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPanelProps) {
+export function EditorPanel({ row, onChanged, onClose, onDirtyChange, walk }: EditorPanelProps) {
   const { showToast } = useToast();
   // Read once, as the panel first renders: what the pencil left of the panel, and this kanji's candidates if memory
   // has them from lately, or from before the pencil (so a re-read can't drop the unsaved ticks; a save still quotes
@@ -305,11 +308,28 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
   const meanings = (data?.kanji.meanings ?? row.m).slice(0, 4).join(", ");
   const readings = [...(data?.kanji.kun ?? row.kun), ...(data?.kanji.on ?? row.on)].join("、 ");
 
+  const closeButton = (className: string) => (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Close"
+      className={`h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border-soft text-text-muted transition-colors hover:text-white ${className}`}
+    >
+      <FaXmark />
+    </button>
+  );
+
   return (
     // !h-auto: GlassCard's h-full would pin it to the phone sheet's height (fixed inset-0) and the words below spill out.
     // On a wide screen the page fits the editor's column to the window; the card shrinks into it (min-h-0) and scrolls
     // itself, so the scrollbar and the rounded corners stay inside the card.
     <GlassCard ref={cardRef} padding="sm" className="!h-auto lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+      {/* On a narrow screen the panel covers the list: ‹ › step to the kanji before / after it there, in a row of
+          their own at the top so they stay put from one kanji to the next, with the close button beside them. */}
+      <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
+        {walk ? <WalkButtons walk={walk} noun="kanji" /> : <span />}
+        {closeButton("flex")}
+      </div>
       <div className="flex items-start gap-4">
         <div className="text-[3.2rem] font-bold leading-none">{row.k}</div>
         <div className="min-w-0 flex-1">
@@ -323,14 +343,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
           <p className="mt-1 text-sm">{meanings || "—"}</p>
           <p className="text-xs text-text-muted">{readings}</p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border-soft text-text-muted transition-colors hover:text-white"
-        >
-          <FaXmark />
-        </button>
+        {closeButton("hidden lg:flex")}
       </div>
 
       <div className="mt-4 flex items-center gap-1.5 border-b border-border-soft pb-3">
