@@ -1,5 +1,5 @@
 /**
- * The lists of the word popup (WordDetailsModal) that can be rearranged by dragging: the meanings (S, P and the
+ * The lists of the word editor (useWordEditor) that can be rearranged by dragging: the meanings (S, P and the
  * secondary senses, between which a meaning can move), the other readings and the parts of speech (each only
  * reordered within itself). Every entry carries an id, so it keeps its identity while it moves.
  *

@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FaArrowDownWideShort, FaArrowUpWideShort, FaClockRotateLeft, FaSliders } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useKanjiWordsMeanings, useKanjiWordsOverview } from "@/lib/client-data/adminKanjiWords";
+import { reloadKanjiWords, useKanjiWords } from "@/lib/client-data/adminKanjiWords";
 import {
   bulkKanjiWords,
   fetchKanjiWordsParity,
@@ -27,6 +27,7 @@ import { EditorPanel } from "./EditorPanel";
 import { FilterPanel } from "./FilterPanel";
 import { FloatingCard } from "./FloatingDock";
 import { KanjiList } from "./KanjiList";
+import { clearPageMemory, clearPanelMemory, peekPageMemory, rememberPage } from "./kanjiWordsMemory";
 import { OperationModal, type OperationSpec } from "./OperationModal";
 import { ReviewProgress } from "./ReviewProgress";
 import {
@@ -91,20 +92,23 @@ function bulkSpec(choice: BulkChoice, ids: number[], versions: Record<number, nu
 function AdminKanjiWords() {
   const { user } = useAuth();
   const multiRegion = isMultiRegionEnabled();
-  const { data, status, error, refetch } = useKanjiWordsOverview(multiRegion ? user : null);
-  const { meanings, failed: meaningsFailed, refresh: refreshMeanings } = useKanjiWordsMeanings(data);
+  // Kept in memory for the tab: back on the page (from a word's page, say), the list is on screen at once.
+  const { data, status, error, meanings, meaningsFailed } = useKanjiWords(multiRegion ? user : null);
+  const refetch = reloadKanjiWords;
   const { showToast } = useToast();
   const searchParams = useSearchParams();
 
   // Read from the URL once; from then on local state is the source of truth and every change is written back
   // with replaceState (a filter tweak shouldn't become a Back step), like the student list.
   const [initialUrl] = useState(() => parseView(new URLSearchParams(searchParams.toString())));
+  // What the page left when it was last left on this same view: the rows shown, the ticks, the scroll.
+  const [memory] = useState(() => peekPageMemory(serializeView(initialUrl.view, initialUrl.selected)));
   const [view, setView] = useState<KanjiView>(initialUrl.view);
   const [selectedId, setSelectedId] = useState<number | null>(initialUrl.selected);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const closeFilters = useCallback(() => setFiltersOpen(false), []);
-  const [limit, setLimit] = useState(LIST_PAGE);
-  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [limit, setLimit] = useState(memory?.limit ?? LIST_PAGE);
+  const [checked, setChecked] = useState<Set<number>>(() => new Set(memory?.checked ?? []));
   const [dirty, setDirty] = useState(false);
   // Waiting for "discard unsaved edits?": the kanji to open afterwards (null = close the panel).
   const [pendingSelect, setPendingSelect] = useState<{ id: number | null } | null>(null);
@@ -114,6 +118,32 @@ function AdminKanjiWords() {
   const [now] = useState(() => Date.now());
   const editorRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // Where the list and the window are scrolled, kept up to date for the page's memory.
+  const scrollRef = useRef({ list: memory?.listScroll ?? 0, window: memory?.windowScroll ?? 0 });
+  // The page's state as of the last render, for the memory it leaves when it goes.
+  const latestRef = useRef({ view, selectedId, limit, checked });
+  useEffect(() => {
+    latestRef.current = { view, selectedId, limit, checked };
+  });
+
+  // Leaving (for a word's page, or anywhere else): what to put back on the way back to this same view. On screen
+  // again, the memory it came back with (and the panel's) is used up.
+  useEffect(() => {
+    clearPageMemory();
+    clearPanelMemory();
+    const latest = latestRef;
+    const scroll = scrollRef.current;
+    return () => {
+      const { view: leftView, selectedId: leftSelected, limit: leftLimit, checked: leftChecked } = latest.current;
+      rememberPage({
+        qs: serializeView(leftView, leftSelected),
+        limit: leftLimit,
+        checked: [...leftChecked],
+        listScroll: scroll.list,
+        windowScroll: scroll.window,
+      });
+    };
+  }, []);
 
   useEffect(() => {
     if (!multiRegion) return;
@@ -131,8 +161,12 @@ function AdminKanjiWords() {
   }, [multiRegion]);
 
   // The phone sheet scrolls as a whole and outlives the kanji in it: a newly picked kanji starts at its top, not where
-  // the last one was left. (On a wide screen the editor's card scrolls, and a new kanji brings a new card.)
+  // the last one was left. (On a wide screen the editor's card scrolls, and a new kanji brings a new card.) Not when
+  // the page opens: the panel may be putting back the scroll it had before a word's page.
+  const shownKanjiRef = useRef(selectedId);
   useEffect(() => {
+    if (shownKanjiRef.current === selectedId) return;
+    shownKanjiRef.current = selectedId;
     if (editorRef.current) editorRef.current.scrollTop = 0;
   }, [selectedId]);
 
@@ -151,27 +185,45 @@ function AdminKanjiWords() {
   // On a wide screen the list and the editor each keep their own scroll and reach down to just above the window's
   // bottom from wherever they are right now: lower down at the top of the page, higher once they stick under the
   // header. A fixed height would cut off one end or the other.
-  useEffect(() => {
-    const boxes = [listRef.current, editorRef.current].filter((el): el is HTMLDivElement => el !== null);
+  // The first fit is made before the browser paints (a layout effect), so the panel's card already has its height
+  // when it puts its scroll back; then the list's scroll and the window's are put back as they were left.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const boxes = [list, editorRef.current].filter((el): el is HTMLDivElement => el !== null);
     const wide = window.matchMedia("(min-width: 992px)"); // --breakpoint-lg (app/globals.css)
+    const fitNow = () => {
+      for (const el of boxes) {
+        el.style.maxHeight = wide.matches
+          ? `${Math.max(240, window.innerHeight - el.getBoundingClientRect().top - BOTTOM_GAP_PX)}px`
+          : "";
+      }
+    };
     let frame = 0;
     const fit = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        for (const el of boxes) {
-          el.style.maxHeight = wide.matches
-            ? `${Math.max(240, window.innerHeight - el.getBoundingClientRect().top - BOTTOM_GAP_PX)}px`
-            : "";
-        }
-      });
+      frame = requestAnimationFrame(fitNow);
     };
-    fit();
-    window.addEventListener("scroll", fit, { passive: true });
+    const scroll = scrollRef.current;
+    const onWindowScroll = () => {
+      scroll.window = window.scrollY;
+      fit();
+    };
+    const onListScroll = () => {
+      if (list) scroll.list = list.scrollTop;
+    };
+    fitNow();
+    if (list) list.scrollTop = scroll.list;
+    // After the router's own scroll handling for the navigation, which runs in this same commit.
+    const restoreFrame = scroll.window > 0 ? requestAnimationFrame(() => window.scrollTo(0, scroll.window)) : 0;
+    window.addEventListener("scroll", onWindowScroll, { passive: true });
+    list?.addEventListener("scroll", onListScroll, { passive: true });
     window.addEventListener("resize", fit);
     wide.addEventListener("change", fit);
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", fit);
+      cancelAnimationFrame(restoreFrame);
+      window.removeEventListener("scroll", onWindowScroll);
+      list?.removeEventListener("scroll", onListScroll);
       window.removeEventListener("resize", fit);
       wide.removeEventListener("change", fit);
     };
@@ -382,10 +434,6 @@ function AdminKanjiWords() {
               key={selectedRow.id}
               row={selectedRow}
               onChanged={refetch}
-              onWordChanged={(kanjiWordIds) => {
-                refetch();
-                refreshMeanings(kanjiWordIds);
-              }}
               onClose={() => requestSelect(null)}
               onDirtyChange={setDirty}
             />

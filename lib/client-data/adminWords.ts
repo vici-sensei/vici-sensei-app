@@ -12,7 +12,8 @@ import type { AdminWordRow, AsyncStatus, VocabularyEditable, VocabularyReviewMar
  * The /admin/words list (every word, ~7 MB), kept in memory for as long as the tab is open: back from a word's page,
  * or from anywhere else in the app, the list is on screen at once instead of downloading again. A list older than
  * STALE_MS is read again in the background when the list (or a word's page) asks for it, and stays on screen
- * meanwhile. A word saved here (its page, the kanji-words popup) is patched in at once, and so is a reviewed mark.
+ * meanwhile. A word saved on its page (from this list or from /admin/kanji-words) is patched in at once, and so is a
+ * reviewed mark.
  */
 
 const STALE_MS = 5 * 60 * 1000;
@@ -118,7 +119,7 @@ function change(apply: (data: Data) => Data) {
   emit(apply({ rows: state.rows, reviews: state.reviews }));
 }
 
-/** A word saved (from its page or the kanji-words popup): the list shows the new values without a reload. */
+/** A word saved on its page: the list shows the new values without a reload. */
 export function patchCachedWord(id: number, v: VocabularyEditable) {
   const patch: Partial<AdminWordRow> = {
     kana_reading: v.kana_reading,

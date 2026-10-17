@@ -112,7 +112,7 @@ const VOCABULARY_COLUMNS =
   "id, word, kana_reading, romaji_reading, furiganas, romaji_furiganas, other_readings, short_meaning, primary_meanings, other_meanings, parts_of_speech, jlpt_level, is_common_jisho, usually_kana, study_enabled";
 
 /**
- * The dictionary row of one candidate's word (a kanji_word id), for the word details popup. A plain table read
+ * The dictionary row of one candidate's word (a kanji_word id), for the word page opened from its card. A plain table read
  * (both tables are readable by any signed-in user), so no RPC is needed and it works the same on both regions.
  */
 export async function fetchKanjiWordVocabulary(

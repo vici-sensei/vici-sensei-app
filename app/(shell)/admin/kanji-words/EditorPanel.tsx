@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaCheck, FaFloppyDisk, FaNoteSticky, FaXmark } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
+import { cachedCandidates, prefetchKanjiWordVocabulary, storeCandidates } from "@/lib/client-data/adminKanjiWords";
 import {
   describeKanjiWordsError,
   fetchKanjiWordCandidates,
@@ -15,22 +16,21 @@ import { GlassCard } from "@/app/components/ui/GlassCard";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useToast } from "@/app/components/ui/Toast";
-import type {
-  AsyncStatus,
-  KanjiWordCandidate,
-  KanjiWordCandidates,
-  KanjiWordsRow,
-  VocabularyReviewResult,
-  VocabularyUpdateResult,
-} from "@/lib/types";
+import type { AsyncStatus, KanjiWordCandidate, KanjiWordCandidates, KanjiWordsRow } from "@/lib/types";
 import { CandidateRow } from "./CandidateRow";
 import { FloatingCard, FloatingDock, FloatingToggle } from "./FloatingDock";
 import { HistoryPanel } from "./HistoryPanel";
-import { groupReadingLabels, levelGap } from "./wordLabels";
-import { WordDetailsModal } from "./WordDetailsModal";
+import { peekOpenedWord, peekPanelMemory, rememberPanel } from "./kanjiWordsMemory";
+import { groupReadingLabels } from "./wordLabels";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
 
 const REST_PAGE = 40;
+
+/** A word's own page (the pencil on its card), which comes back to this kanji. */
+const wordHref = (kanjiWordId: number, kanjiId: number) => `/admin/words/edit?kw=${kanjiWordId}&k=${kanjiId}`;
+
+const finalIds = (data: KanjiWordCandidates | null) =>
+  new Set(data ? data.candidates.filter((c) => c.in_final).map((c) => c.id) : []);
 
 function sameSet(a: Set<number>, b: Set<number>): boolean {
   return a.size === b.size && [...a].every((id) => b.has(id));
@@ -49,8 +49,6 @@ interface EditorPanelProps {
   row: KanjiWordsRow;
   /** Something was written: the page re-reads its overview. */
   onChanged: () => void;
-  /** A word's dictionary data was edited (these are all its kanji_word ids): the page re-reads what shows it. */
-  onWordChanged: (kanjiWordIds: number[]) => void;
   onClose: () => void;
   /** Unsaved edits exist (or not), so the page can ask before switching to another kanji. */
   onDirtyChange: (dirty: boolean) => void;
@@ -61,22 +59,35 @@ interface EditorPanelProps {
  * the whole list wanted plus the version this panel loaded, so a change made meanwhile (by another admin, or on the
  * other region) is refused instead of silently overwritten. The reviewed mark is not part of the draft: the green
  * circle writes it the moment it is pressed, with the same version check. The page mounts it with key={kanji id}.
+ *
+ * The pencil on a word card opens the word's own page in this tab. The candidates stay in memory, and the pencil
+ * leaves the panel's state behind (the unsaved ticks, the note, the toggles, the scroll), so coming back shows it all
+ * at once, as it was, with the word's card lit up for a moment.
  */
-export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyChange }: EditorPanelProps) {
+export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPanelProps) {
   const { showToast } = useToast();
-  const [status, setStatus] = useState<AsyncStatus>("loading");
+  // Read once, as the panel first renders: what the pencil left of the panel, and this kanji's candidates if memory
+  // has them from lately, or from before the pencil (so a re-read can't drop the unsaved ticks; a save still quotes
+  // the version they were made on, so a change made meanwhile is refused). Otherwise they are read now.
+  const [memory] = useState(() => (cachedCandidates(row.id) ? peekPanelMemory(row.id) : null));
+  const [cached] = useState(() => {
+    const entry = cachedCandidates(row.id);
+    return entry && (entry.fresh || memory !== null) ? entry.data : null;
+  });
+  const [openedWord] = useState(() => peekOpenedWord(row.id));
+  const [status, setStatus] = useState<AsyncStatus>(cached ? "loaded" : "loading");
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [data, setData] = useState<KanjiWordCandidates | null>(null);
-  const [initial, setInitial] = useState<Set<number>>(new Set());
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [tab, setTab] = useState<"words" | "history">("words");
-  const [showAll, setShowAll] = useState(false);
-  const [showDisabled, setShowDisabled] = useState(false);
-  const [restLimit, setRestLimit] = useState(REST_PAGE);
+  const [data, setData] = useState<KanjiWordCandidates | null>(cached);
+  const [initial, setInitial] = useState<Set<number>>(() => finalIds(cached));
+  const [selected, setSelected] = useState<Set<number>>(() => (memory ? new Set(memory.selected) : finalIds(cached)));
+  const [tab, setTab] = useState<"words" | "history">(memory?.tab ?? "words");
+  const [showAll, setShowAll] = useState(memory?.showAll ?? false);
+  const [showDisabled, setShowDisabled] = useState(memory?.showDisabled ?? false);
+  const [restLimit, setRestLimit] = useState(memory?.restLimit ?? REST_PAGE);
   // Filters of the "Other candidates" list; the chosen / algorithm words are always shown in full.
-  const [restText, setRestText] = useState("");
-  const [restGroup, setRestGroup] = useState<number | null>(null);
-  const [note, setNote] = useState("");
+  const [restText, setRestText] = useState(memory?.restText ?? "");
+  const [restGroup, setRestGroup] = useState<number | null>(memory?.restGroup ?? null);
+  const [note, setNote] = useState(memory?.note ?? "");
   const [saving, setSaving] = useState(false);
   // The green circle's mark / unmark is being written.
   const [reviewing, setReviewing] = useState(false);
@@ -84,19 +95,23 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
   const [openCard, setOpenCard] = useState<"note" | "save" | null>(null);
   const closeCard = useCallback(() => setOpenCard(null), []);
   const [conflict, setConflict] = useState(false);
-  // The word whose details popup is open (the pencil on its card).
-  const [detailsFor, setDetailsFor] = useState<KanjiWordCandidate | null>(null);
+  // The word just back from its page: its card lights up for a moment.
+  const [flashId, setFlashId] = useState(openedWord);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Bumping the tick re-reads this kanji from the server and replaces the draft with what is saved there.
   const [reloadTick, setReloadTick] = useState(0);
   const reload = useCallback(() => setReloadTick((tick) => tick + 1), []);
+  const skipFirstRead = cached !== null;
 
   useEffect(() => {
+    if (reloadTick === 0 && skipFirstRead) return;
     let cancelled = false;
     fetchKanjiWordCandidates(createClient(), row.id)
       .then((d) => {
         if (cancelled) return;
-        const ids = new Set(d.candidates.filter((c) => c.in_final).map((c) => c.id));
+        const ids = finalIds(d);
+        storeCandidates(row.id, d, true);
         setData(d);
         setInitial(ids);
         setSelected(new Set(ids));
@@ -113,7 +128,28 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
     return () => {
       cancelled = true;
     };
-  }, [row.id, reloadTick]);
+  }, [row.id, reloadTick, skipFirstRead]);
+
+  // Saves and the reviewed mark change the version: memory keeps what is on screen.
+  useEffect(() => {
+    if (data) storeCandidates(row.id, data, false);
+  }, [row.id, data]);
+
+  // Back from a word's page: the scroll as the pencil left it (the card's on a wide screen, whose height the page has
+  // fitted to the window by now; the sheet's on a phone), then the word's card (the word page's arrows may have moved
+  // on to another one) is brought into view if it isn't, and lights up.
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    if (memory) {
+      card.scrollTop = memory.cardScroll;
+      if (card.parentElement) card.parentElement.scrollTop = memory.sheetScroll;
+    }
+    if (openedWord === null) return;
+    document.getElementById(`kanji-word-${openedWord}`)?.scrollIntoView({ block: "nearest" });
+    const timer = setTimeout(() => setFlashId(null), 1600);
+    return () => clearTimeout(timer);
+  }, [memory, openedWord]);
 
   const dirty = !sameSet(selected, initial);
   useEffect(() => {
@@ -178,48 +214,48 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
     });
   }
 
-  // A word's dictionary data was edited in its popup: patch its card here instead of re-reading the kanji, which
-  // would throw away the ticks not saved yet, and let the page refresh its list and the chips' meanings.
-  function applyWordEdit(result: VocabularyUpdateResult) {
-    const v = result.vocabulary;
-    const ids = new Set(result.kanji_word_ids);
-    setData((prev) =>
-      prev
-        ? {
-            ...prev,
-            candidates: prev.candidates.map((c) =>
-              ids.has(c.id)
-                ? {
-                    ...c,
-                    kana: v.kana_reading,
-                    furiganas: v.furiganas,
-                    meanings: v.short_meaning ? [v.short_meaning, ...(v.primary_meanings ?? [])] : v.primary_meanings,
-                    short: v.short_meaning,
-                    primary: v.primary_meanings ?? [],
-                    other: v.other_meanings ?? [],
-                    jlpt: v.jlpt_level,
-                    gap: levelGap(v.jlpt_level, prev.kanji.lv),
-                    common: v.is_common_jisho ?? false,
-                    usually_kana: v.usually_kana ?? false,
-                    enabled: v.study_enabled,
-                  }
-                : c
-            ),
-          }
-        : prev
+  // The pencil on a word card, before its page opens: the panel as it is now, for the way back.
+  function leaveForWord(c: KanjiWordCandidate) {
+    const card = cardRef.current;
+    rememberPanel(
+      {
+        kanjiId: row.id,
+        selected: [...selected],
+        note,
+        tab,
+        showAll,
+        showDisabled,
+        restText,
+        restGroup,
+        restLimit,
+        cardScroll: card?.scrollTop ?? 0,
+        sheetScroll: card?.parentElement?.scrollTop ?? 0,
+      },
+      {
+        kanjiId: row.id,
+        kanji: row.k,
+        returnHref: `${window.location.pathname}${window.location.search}`,
+        order: [...pinned, ...(showAll ? rest.slice(0, restLimit) : [])].map((w) => w.id),
+        opened: c.id,
+      }
     );
-    onWordChanged(result.kanji_word_ids);
+    // Kept as the newest, so memory still has it when the page comes back.
+    if (data) storeCandidates(row.id, data, false);
   }
 
-  // The same for the word's reviewed mark; nothing else on the page shows it.
-  function applyWordReview(result: VocabularyReviewResult) {
-    const ids = new Set(result.kanji_word_ids);
-    setData((prev) =>
-      prev
-        ? { ...prev, candidates: prev.candidates.map((c) => (ids.has(c.id) ? { ...c, reviewed: result.reviewed } : c)) }
-        : prev
-    );
-  }
+  const candidateRow = (c: KanjiWordCandidate) => (
+    <CandidateRow
+      key={c.id}
+      candidate={c}
+      checked={selected.has(c.id)}
+      onToggle={() => toggle(c.id)}
+      onRevert={() => revertWord(c)}
+      editHref={wordHref(c.id, row.id)}
+      onEdit={() => leaveForWord(c)}
+      onPrefetch={() => prefetchKanjiWordVocabulary(c.id)}
+      flash={flashId === c.id}
+    />
+  );
 
   async function handleSave() {
     if (!data) return;
@@ -276,7 +312,7 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
     // !h-auto: GlassCard's h-full would pin it to the phone sheet's height (fixed inset-0) and the words below spill out.
     // On a wide screen the page fits the editor's column to the window; the card shrinks into it (min-h-0) and scrolls
     // itself, so the scrollbar and the rounded corners stay inside the card.
-    <GlassCard padding="sm" className="!h-auto lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+    <GlassCard ref={cardRef} padding="sm" className="!h-auto lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
       <div className="flex items-start gap-4">
         <div className="text-[3.2rem] font-bold leading-none">{row.k}</div>
         <div className="min-w-0 flex-1">
@@ -384,18 +420,7 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
             {pinned.length === 0 ? (
               <p className="text-sm italic text-text-muted">No words.</p>
             ) : (
-              <ul className="space-y-2">
-                {pinned.map((c) => (
-                  <CandidateRow
-                    key={c.id}
-                    candidate={c}
-                    checked={selected.has(c.id)}
-                    onToggle={() => toggle(c.id)}
-                    onRevert={() => revertWord(c)}
-                    onDetails={() => setDetailsFor(c)}
-                  />
-                ))}
-              </ul>
+              <ul className="space-y-2">{pinned.map(candidateRow)}</ul>
             )}
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
@@ -470,18 +495,7 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
                 {rest.length === 0 ? (
                   <p className="mt-2 text-sm italic text-text-muted">{restFiltered ? "No match." : "None."}</p>
                 ) : (
-                  <ul className="mt-2 space-y-2">
-                    {rest.slice(0, restLimit).map((c) => (
-                      <CandidateRow
-                        key={c.id}
-                        candidate={c}
-                        checked={selected.has(c.id)}
-                        onToggle={() => toggle(c.id)}
-                        onRevert={() => revertWord(c)}
-                        onDetails={() => setDetailsFor(c)}
-                      />
-                    ))}
-                  </ul>
+                  <ul className="mt-2 space-y-2">{rest.slice(0, restLimit).map(candidateRow)}</ul>
                 )}
                 {rest.length > restLimit ? (
                   <button
@@ -568,14 +582,6 @@ export function EditorPanel({ row, onChanged, onWordChanged, onClose, onDirtyCha
         </div>
       ) : null}
 
-      {detailsFor ? (
-        <WordDetailsModal
-          candidate={detailsFor}
-          onClose={() => setDetailsFor(null)}
-          onSaved={applyWordEdit}
-          onReviewed={applyWordReview}
-        />
-      ) : null}
     </GlassCard>
   );
 }

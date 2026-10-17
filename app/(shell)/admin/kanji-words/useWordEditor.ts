@@ -20,6 +20,7 @@ import type {
   VocabularyReviewResult,
   VocabularyUpdateResult,
 } from "@/lib/types";
+import { applyWordReview, applyWordSave } from "./kanjiWordsMemory";
 import { applyMove, itemMoved, newId, placesOf, textsOf, toItems, toSenses, type DragLists, type Item } from "./meaningsDraft";
 import { highlightOf, listPlaceholder, useListDrag } from "./useListDrag";
 import { dropRing } from "./wordEditorParts";
@@ -167,7 +168,7 @@ interface WordEditorOptions {
 }
 
 /**
- * Everything the word editor does, for the popup on /admin/kanji-words and the word page of /admin/words: one word's
+ * Everything the word editor does, for the word page (from /admin/words or a kanji's panel on /admin/kanji-words): one word's
  * dictionary data (JLPT level, meanings, readings, usage) as a draft. The word itself is fixed and so is the furigana
  * above it, which only previews the Furigana field. Nothing is written until Save, which writes both regions at once
  * and is refused if the word changed since it was loaded.
@@ -308,6 +309,7 @@ export function useWordEditor({ wordKey, load, initialReviewed, rootRef, viewpor
         setLastWrite(result.edit_id ? { editId: result.edit_id, message: `${done}.` } : null);
         setHistoryTick((tick) => tick + 1);
         patchCachedWord(loaded.id, result.vocabulary);
+        applyWordSave(result);
         onSaved?.(result);
       } else {
         showToast("It was already like that.");
@@ -350,6 +352,7 @@ export function useWordEditor({ wordKey, load, initialReviewed, rootRef, viewpor
         result.changed ? `${next ? "Marked as reviewed" : "Marked as not reviewed"}: ${loaded.word}.` : "It was already like that."
       );
       setCachedReview(loaded.id, result.reviewed);
+      applyWordReview(result);
       onReviewed?.(result);
     } catch (err) {
       setSaveError(describeKanjiWordsError(err, "Failed to save."));
