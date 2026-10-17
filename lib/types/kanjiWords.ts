@@ -2,9 +2,18 @@
 // /admin/kanji-words. Keys of the overview rows are deliberately short: it is one ~600 KB document with a
 // row for every kanji, filtered and sorted on the client.
 
-/** [kanji_word_id, word, jlpt_level, level gap vs the kanji, is_common]. The gap is signed
- *  (word rank - kanji rank, a word without a JLPT level counts as beyond N1, like the algorithm does). */
-export type KanjiWordTuple = [id: number, word: string, jlpt: string | null, gap: number, common: boolean];
+/** [kanji_word_id, word, jlpt_level, level gap vs the kanji, is_common, furiganas]. The gap is signed
+ *  (word rank - kanji rank, a word without a JLPT level counts as beyond N1, like the algorithm does). The
+ *  furiganas (one per character, as vocabulary stores them) came with 20261017035637_kanji_words_overview_furigana.sql:
+ *  absent from an older RPC. */
+export type KanjiWordTuple = [
+  id: number,
+  word: string,
+  jlpt: string | null,
+  gap: number,
+  common: boolean,
+  furiganas?: string[] | null,
+];
 
 export interface KanjiWordsRow {
   id: number;

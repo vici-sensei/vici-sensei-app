@@ -139,7 +139,14 @@ export function applyWordSave(result: VocabularyUpdateResult) {
     usually_kana: v.usually_kana ?? false,
     enabled: v.study_enabled,
   }));
-  patchKanjiWordTuples(ids, ([id, word], row) => [id, word, v.jlpt_level, levelGap(v.jlpt_level, row.lv), v.is_common_jisho ?? false]);
+  patchKanjiWordTuples(ids, ([id, word], row) => [
+    id,
+    word,
+    v.jlpt_level,
+    levelGap(v.jlpt_level, row.lv),
+    v.is_common_jisho ?? false,
+    v.furiganas,
+  ]);
   patchKanjiWordMeanings(
     Object.fromEntries([...ids].map((id) => [String(id), [v.short_meaning, v.primary_meanings ?? [], v.other_meanings ?? []]]))
   );

@@ -7,6 +7,7 @@ import { describeKanjiWordsError, isKanjiWordsConflict, setKanjiReviewed } from 
 import { createClient } from "@/lib/supabase/client";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
 import { useToast } from "@/app/components/ui/Toast";
+import { renderWordWithFurigana } from "@/lib/study/furigana";
 import type { KanjiWordsMeaningsMap, KanjiWordsRow, KanjiWordTuple } from "@/lib/types";
 import { maxGap } from "./kanjiWordsView";
 import { ReviewedToggle } from "./ReviewedToggle";
@@ -107,9 +108,9 @@ function KanjiListRow({
               <span
                 key={w[0]}
                 data-word-id={w[0]}
-                className={`rounded-md border px-1.5 py-0.5 text-[0.82rem] ${gapToneClasses(w[3])} ${WORD_CHIP_CLASSES}`}
+                className={`rounded-md border px-1.5 pb-1 pt-[1em] text-[0.82rem] leading-none ${gapToneClasses(w[3])} ${WORD_CHIP_CLASSES}`}
               >
-                {w[1]}
+                {renderWordWithFurigana(w[1], w[5], "text-[0.6rem] font-normal opacity-80", "bg-white/5")}
               </span>
             ))
           )}
