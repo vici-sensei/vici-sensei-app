@@ -66,8 +66,13 @@ function KanjiListRow({
       : "hover:bg-white/[0.03]";
   const reviewedBar = row.r ? "shadow-[inset_3px_0_0_rgba(52,211,153,0.7)]" : "";
   return (
+    // A press on the row itself (under the check, beside the checkbox, in its padding) opens the kanji too, like one
+    // on its text: the button only covers the middle.
     <li
-      className={`flex items-start gap-2.5 border-b border-border-soft/50 px-3 py-2.5 last:border-0 ${background} ${reviewedBar}`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onSelect();
+      }}
+      className={`flex cursor-pointer items-start gap-2.5 border-b border-border-soft/50 px-3 py-2.5 last:border-0 ${background} ${reviewedBar}`}
     >
       <input
         type="checkbox"

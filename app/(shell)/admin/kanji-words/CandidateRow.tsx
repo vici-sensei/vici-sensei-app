@@ -49,9 +49,14 @@ export function CandidateRow({ candidate: c, checked, onToggle, onRevert, editHr
         : "bg-white/[0.02]";
 
   return (
+    // A press on the card itself (under the pencil, in its padding) ticks the word too, like one on the label: the
+    // label stops at the buttons' column.
     <li
       id={`kanji-word-${c.id}`}
-      className={`flex items-start gap-3 rounded-xl border p-3 transition-colors duration-700 ${border} ${background} ${c.enabled ? "" : "opacity-50"}`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && c.enabled) onToggle();
+      }}
+      className={`flex items-start gap-3 rounded-xl border p-3 transition-colors duration-700 ${border} ${background} ${c.enabled ? "cursor-pointer" : "opacity-50"}`}
     >
       <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
         <input

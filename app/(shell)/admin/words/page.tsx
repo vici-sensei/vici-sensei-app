@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FaChevronLeft, FaChevronRight, FaPencil, FaSliders, FaSort, FaSortDown, FaSortUp } from "react-icons/fa6";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { setCachedReview, useAllWords } from "@/lib/client-data/adminWords";
@@ -183,6 +183,16 @@ function WordRow({
   // Only a word whose furigana is missing or doesn't line up with it gets its reading on a line below.
   const hasFurigana = !showsKanaOnly(w) && buildFuriganaSegments(w.word, w.furiganas).some((s) => s.furigana);
   const kana = !showsKanaOnly(w) && !hasFurigana && w.kana_reading !== w.word ? w.kana_reading : null;
+  const router = useRouter();
+  // A press anywhere on the row opens the word, like the pencil: not one on the row's buttons, and not the end of a
+  // drag that selected text (to copy a meaning). Ctrl/⌘-click opens a new tab only from the pencil.
+  function openFromRow(e: MouseEvent<HTMLTableRowElement>) {
+    if (!editHref || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (e.target instanceof Element && e.target.closest("a, button, input")) return;
+    if (window.getSelection()?.isCollapsed === false) return;
+    onEdit();
+    router.push(editHref);
+  }
   return (
     // Top, not baseline: lined up with the kanji, the meaning of a word with furigana started a furigana's
     // height lower than in the other rows, with empty space above it.
@@ -190,7 +200,8 @@ function WordRow({
     // /admin/kanji-words (the bar on the first cell: a row draws no shadow of its own). The return flash wins.
     <tr
       id={`word-${w.id}`}
-      className={`border-b border-border-soft/50 align-top transition-colors duration-700 last:border-0 ${
+      onClick={openFromRow}
+      className={`border-b border-border-soft/50 align-top transition-colors duration-700 last:border-0 ${editHref ? "cursor-pointer" : ""} ${
         flash
           ? "bg-accent-blue/[0.12]"
           : review
