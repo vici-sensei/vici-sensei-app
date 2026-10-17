@@ -47,6 +47,12 @@ export function clearPageMemory() {
 // The kanji's panel, and the word page opened from it
 // ---------------------------------------------------------------------------
 
+/** The page of a word opened from a kanji's panel (kw = its kanji_word id, k = the kanji): the same editor as
+ *  /admin/words/edit, under /admin/kanji-words so the menu shows "Words per kanji" as the page you're in. */
+export function kanjiWordHref(kanjiWordId: number, kanjiId: number | null): string {
+  return `/admin/kanji-words/word?kw=${kanjiWordId}${kanjiId !== null ? `&k=${kanjiId}` : ""}`;
+}
+
 export interface PanelMemory {
   kanjiId: number;
   selected: number[];

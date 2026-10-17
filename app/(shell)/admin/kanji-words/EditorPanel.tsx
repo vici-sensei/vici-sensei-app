@@ -20,14 +20,11 @@ import type { AsyncStatus, KanjiWordCandidate, KanjiWordCandidates, KanjiWordsRo
 import { CandidateRow } from "./CandidateRow";
 import { FloatingCard, FloatingDock, FloatingToggle } from "./FloatingDock";
 import { HistoryPanel } from "./HistoryPanel";
-import { peekOpenedWord, peekPanelMemory, rememberPanel } from "./kanjiWordsMemory";
+import { kanjiWordHref, peekOpenedWord, peekPanelMemory, rememberPanel } from "./kanjiWordsMemory";
 import { groupReadingLabels } from "./wordLabels";
 import { candidateMeanings, meaningsText } from "./WordMeanings";
 
 const REST_PAGE = 40;
-
-/** A word's own page (the pencil on its card), which comes back to this kanji. */
-const wordHref = (kanjiWordId: number, kanjiId: number) => `/admin/words/edit?kw=${kanjiWordId}&k=${kanjiId}`;
 
 const finalIds = (data: KanjiWordCandidates | null) =>
   new Set(data ? data.candidates.filter((c) => c.in_final).map((c) => c.id) : []);
@@ -250,7 +247,7 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange }: EditorPa
       checked={selected.has(c.id)}
       onToggle={() => toggle(c.id)}
       onRevert={() => revertWord(c)}
-      editHref={wordHref(c.id, row.id)}
+      editHref={kanjiWordHref(c.id, row.id)}
       onEdit={() => leaveForWord(c)}
       onPrefetch={() => prefetchKanjiWordVocabulary(c.id)}
       flash={flashId === c.id}

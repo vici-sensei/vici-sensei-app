@@ -15,8 +15,9 @@ import { formatWhen, PARTS_OF_SPEECH } from "./wordLabels";
 import { WordHistory } from "./WordHistory";
 
 /*
- * The word editor's pieces, for the word page (/admin/words/edit: opened from a row of /admin/words or from a word
- * card's pencil on /admin/kanji-words; two columns on a wide screen). Each takes the state from useWordEditor.
+ * The word editor's pieces, for the word page (/admin/words/edit from a row of /admin/words, /admin/kanji-words/word
+ * from a word card's pencil on /admin/kanji-words; two columns on a wide screen). Each takes the state from
+ * useWordEditor.
  */
 
 const LEVELS = ["N5", "N4", "N3", "N2", "N1"];
