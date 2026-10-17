@@ -427,6 +427,9 @@ function AdminKanjiWords() {
               meaningsFailed={meaningsFailed}
             />
           ) : null}
+          {/* The Filters circle's spot: it comes to rest in this corner, so at the end of the list the last row stops
+              above it instead of under it. */}
+          <div aria-hidden className="h-14" />
         </GlassCard>
 
         {/* A full-screen sheet on a phone, scrolling as a whole. On a wide screen it sits beside the list and, like it,
@@ -460,9 +463,12 @@ function AdminKanjiWords() {
       {/* Search, sorting, the filters and the bulk tools all sit behind one round button that floats at the bottom
           right of the kanji list while the page scrolls: the whole width on a phone, the list's 26rem column beside the
           editor (whose own circles hold the far right) on a wide screen. The zero-height sticky strip keeps it out of
-          the flow, so the card grows upwards over the list instead of pushing the page down. */}
-      <div className="pointer-events-none sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-0 lg:bottom-10">
-        <div data-floating-dock className="absolute bottom-0 left-0 right-0 flex flex-col items-end pr-5 lg:right-auto lg:w-[26rem]">
+          the flow, so the card grows upwards over the list instead of pushing the page down. The circle sits 1.25rem
+          above the strip: while the page scrolls that's its gap from the window's bottom (more over a phone's home
+          bar), and at the end of the list it rests in the list card's corner, as far from its bottom as from its
+          right, on the empty spot the card keeps for it. */}
+      <div className="pointer-events-none sticky bottom-[max(0px,env(safe-area-inset-bottom)_-_1.25rem)] z-30 h-0 lg:bottom-5">
+        <div data-floating-dock className="absolute bottom-5 left-0 right-0 flex flex-col items-end pr-5 lg:right-auto lg:w-[26rem]">
           <FloatingCard
             label="Filters"
             icon={<FaSliders className="h-4 w-4" />}
