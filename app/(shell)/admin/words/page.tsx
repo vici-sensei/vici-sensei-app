@@ -175,13 +175,19 @@ function WordRow({
   return (
     // Top, not baseline: lined up with the kanji, the meaning of a word with furigana started a furigana's
     // height lower than in the other rows, with empty space above it.
+    // A reviewed word gets the faint green wash and the green bar on the left that its card has on
+    // /admin/kanji-words (the bar on the first cell: a row draws no shadow of its own). The return flash wins.
     <tr
       id={`word-${w.id}`}
-      className={`border-b border-border-soft/50 align-top transition-colors duration-700 last:border-0 hover:bg-white/[0.03] ${
-        flash ? "bg-accent-blue/[0.12]" : ""
+      className={`border-b border-border-soft/50 align-top transition-colors duration-700 last:border-0 ${
+        flash
+          ? "bg-accent-blue/[0.12]"
+          : review
+            ? "bg-accent-green/[0.07] hover:bg-accent-green/[0.1]"
+            : "hover:bg-white/[0.03]"
       }`}
     >
-      <td className="px-3 py-2.5">
+      <td className={`px-3 py-2.5 ${review ? "shadow-[inset_3px_0_0_rgba(52,211,153,0.7)]" : ""}`}>
         <div className={`whitespace-nowrap text-lg font-bold leading-snug ${hasFurigana ? "pt-[0.6em]" : ""}`}>
           {renderVocabularyWord(w, "text-xs font-normal text-text-muted")}
         </div>
