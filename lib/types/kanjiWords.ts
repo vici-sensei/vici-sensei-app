@@ -100,6 +100,12 @@ export interface VocabularyReviewMark {
   by: string | null;
 }
 
+/** One marked word, as admin_get_vocabulary_reviews lists it. */
+export interface VocabularyReviewRow extends VocabularyReviewMark {
+  /** The vocabulary id. */
+  id: number;
+}
+
 /** What admin_set_vocabulary_reviewed returns. */
 export interface VocabularyReviewResult {
   /** false = the word was already like that: nothing changed. */

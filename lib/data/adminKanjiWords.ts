@@ -13,6 +13,7 @@ import type {
   VocabularyEdit,
   VocabularyEditable,
   VocabularyReviewResult,
+  VocabularyReviewRow,
   VocabularyUpdateResult,
 } from "@/lib/types";
 
@@ -107,6 +108,9 @@ export function fetchKanjiWordCandidates(supabase: AppSupabaseClient, kanjiId: n
   return call(supabase, "admin_get_kanji_word_candidates", { p_kanji_id: kanjiId });
 }
 
+const VOCABULARY_COLUMNS =
+  "id, word, kana_reading, romaji_reading, furiganas, romaji_furiganas, other_readings, short_meaning, primary_meanings, other_meanings, parts_of_speech, jlpt_level, is_common_jisho, usually_kana, study_enabled";
+
 /**
  * The dictionary row of one candidate's word (a kanji_word id), for the word details popup. A plain table read
  * (both tables are readable by any signed-in user), so no RPC is needed and it works the same on both regions.
@@ -117,15 +121,30 @@ export async function fetchKanjiWordVocabulary(
 ): Promise<KanjiWordVocabulary> {
   const { data, error } = await supabase
     .from("kanji_word")
-    .select(
-      "vocabulary:id_word(id, word, kana_reading, romaji_reading, furiganas, romaji_furiganas, other_readings, short_meaning, primary_meanings, other_meanings, parts_of_speech, jlpt_level, is_common_jisho, usually_kana, study_enabled)"
-    )
+    .select(`vocabulary:id_word(${VOCABULARY_COLUMNS})`)
     .eq("id", kanjiWordId)
     .maybeSingle();
   if (error) throw new KanjiWordsError(error.message, error.code);
   const vocabulary = (data as unknown as { vocabulary: KanjiWordVocabulary | null } | null)?.vocabulary ?? null;
   if (!vocabulary) throw new KanjiWordsError("This word is no longer in the dictionary.");
   return vocabulary;
+}
+
+/** The same row by its vocabulary id, for the word page of /admin/words (a word without kanji has no kanji_word). */
+export async function fetchVocabulary(supabase: AppSupabaseClient, vocabularyId: number): Promise<KanjiWordVocabulary> {
+  const { data, error } = await supabase.from("vocabulary").select(VOCABULARY_COLUMNS).eq("id", vocabularyId).maybeSingle();
+  if (error) throw new KanjiWordsError(error.message, error.code);
+  if (!data) throw new KanjiWordsError("This word is no longer in the dictionary.");
+  return data as unknown as KanjiWordVocabulary;
+}
+
+/** The reviewed marks of those words, or of every marked word when `vocabularyIds` is null
+ *  (20261017023044_vocabulary_reviews_read.sql). A word with no mark isn't in the list. */
+export function fetchVocabularyReviews(
+  supabase: AppSupabaseClient,
+  vocabularyIds: number[] | null
+): Promise<VocabularyReviewRow[]> {
+  return call(supabase, "admin_get_vocabulary_reviews", { p_vocabulary_ids: vocabularyIds });
 }
 
 /**

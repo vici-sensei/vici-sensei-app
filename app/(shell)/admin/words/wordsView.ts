@@ -34,7 +34,7 @@ function ranks(rows: AdminWordRow[], compare: (a: AdminWordRow, b: AdminWordRow)
   return new Map([...rows].sort(compare).map((row, i) => [row, i]));
 }
 
-export function toEntries(rows: AdminWordRow[]): WordEntry[] {
+function toEntries(rows: AdminWordRow[]): WordEntry[] {
   const byReading = ranks(rows, (a, b) => collator.compare(readingKey(a), readingKey(b)) || a.id - b.id);
   const byMeaning = ranks(rows, (a, b) => meaningKey(a).localeCompare(meaningKey(b)) || a.id - b.id);
   return rows.map((row) => {
@@ -49,6 +49,18 @@ export function toEntries(rows: AdminWordRow[]): WordEntry[] {
       meaningRank: byMeaning.get(row)!,
     };
   });
+}
+
+// Worked out once per list (a patched word makes a new list): the list page and the word page share it.
+const entriesCache = new WeakMap<AdminWordRow[], WordEntry[]>();
+
+export function entriesOf(rows: AdminWordRow[]): WordEntry[] {
+  let entries = entriesCache.get(rows);
+  if (!entries) {
+    entries = toEntries(rows);
+    entriesCache.set(rows, entries);
+  }
+  return entries;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,6 +122,8 @@ export interface WordFilters {
   common: YesNoFilter;
   usuallyKana: YesNoFilter;
   shortMeaning: YesNoFilter;
+  /** Marked as reviewed (the word page, or the kanji-words popup). */
+  reviewed: YesNoFilter;
 }
 
 export interface WordsView {
@@ -128,6 +142,7 @@ const NO_FILTERS: WordFilters = {
   common: "any",
   usuallyKana: "any",
   shortMeaning: "any",
+  reviewed: "any",
 };
 
 /** What the page opens with (and Reset goes back to): the N5 words enabled for study. */
@@ -165,8 +180,12 @@ function matchesYesNo(value: boolean | null, filter: YesNoFilter): boolean {
   return filter === "any" || (filter === "yes") === Boolean(value);
 }
 
-function matchesFilters(r: AdminWordRow, f: WordFilters): boolean {
+/** The ids of the reviewed words; null when the marks couldn't be read (the Reviewed filter then narrows nothing). */
+export type ReviewedIds = { has: (id: number) => boolean } | null;
+
+function matchesFilters(r: AdminWordRow, f: WordFilters, reviewed: ReviewedIds): boolean {
   return (
+    (reviewed === null || matchesYesNo(reviewed.has(r.id), f.reviewed)) &&
     (f.levels.length === 0 || f.levels.includes((r.jlpt_level ?? "none") as LevelFilter)) &&
     matchesYesNo(r.study_enabled, f.study) &&
     matchesYesNo(r.is_common_jisho, f.common) &&
@@ -189,11 +208,11 @@ function matchTier(terms: string[], q: string): number | null {
 
 /** The words the view shows, in order. With a search, exact matches come first, then words starting with it,
  *  then the rest -- each group in the chosen column's order. Ties fall back to the reading. */
-export function visibleEntries(entries: WordEntry[], view: WordsView): WordEntry[] {
+export function visibleEntries(entries: WordEntry[], view: WordsView, reviewed: ReviewedIds): WordEntry[] {
   const q = view.query.trim().toLowerCase();
   const tiers = new Map<WordEntry, number>();
   const matching = entries.filter((e) => {
-    if (!matchesFilters(e.row, view.filters)) return false;
+    if (!matchesFilters(e.row, view.filters, reviewed)) return false;
     if (!q) return true;
     const tier = matchTier(e.terms, q);
     if (tier === null) return false;
@@ -228,6 +247,7 @@ export function parseView(params: URLSearchParams): WordsView {
       common: oneOf(params.get("common"), YES_NO, d.common),
       usuallyKana: oneOf(params.get("kana"), YES_NO, d.usuallyKana),
       shortMeaning: oneOf(params.get("short"), YES_NO, d.shortMeaning),
+      reviewed: oneOf(params.get("reviewed"), YES_NO, d.reviewed),
     },
     page: Number.isFinite(page) && page > 1 ? page : 1,
   };
@@ -245,6 +265,48 @@ export function serializeView(view: WordsView): string {
   if (changed("common")) params.set("common", f.common);
   if (changed("usuallyKana")) params.set("kana", f.usuallyKana);
   if (changed("shortMeaning")) params.set("short", f.shortMeaning);
+  if (changed("reviewed")) params.set("reviewed", f.reviewed);
   if (view.page > 1) params.set("page", String(view.page));
   return params.toString();
+}
+
+// ---------------------------------------------------------------------------
+// Paging, and the order the word page walks through (‹ ›)
+// ---------------------------------------------------------------------------
+
+export const PAGE_SIZE = 100;
+
+/** The page of the list a word at this place (0-based) is on. */
+export const pageOf = (index: number) => Math.floor(index / PAGE_SIZE) + 1;
+
+/** The list's search, filters and sort, without the page: two views with the same key list the same words in the
+ *  same order. */
+export const listKeyOf = (view: WordsView) => serializeView({ ...view, page: 1 });
+
+// The words in the order the list showed them when a word's page was opened from it. Kept while the word page walks
+// through them, so a word that a save takes out of the filters (another level, say) keeps its place in the walk.
+let order: { key: string; ids: number[] } | null = null;
+// The word whose page was open last, for the list to scroll to (and flash) when it comes back.
+let lastOpened: number | null = null;
+
+export function rememberOrder(key: string, ids: number[]) {
+  order = { key, ids };
+}
+
+/** The remembered order, if it is this view's. */
+export function orderFor(key: string): number[] | null {
+  return order?.key === key ? order.ids : null;
+}
+
+export function rememberOpened(id: number) {
+  lastOpened = id;
+}
+
+/** The last word whose page was open; the list scrolls to it once, then clears it (clearOpened). */
+export function peekOpened(): number | null {
+  return lastOpened;
+}
+
+export function clearOpened() {
+  lastOpened = null;
 }

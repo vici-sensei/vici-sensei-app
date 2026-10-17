@@ -24,13 +24,25 @@ const STUDY_OPTIONS = yesNoOptions("Enabled", "Disabled");
 const COMMON_OPTIONS = yesNoOptions("Common", "Not common");
 const USUALLY_KANA_OPTIONS = yesNoOptions("Yes", "No");
 const SHORT_MEANING_OPTIONS = yesNoOptions("Has one", "None");
+const REVIEWED_OPTIONS = yesNoOptions("Reviewed", "Not reviewed");
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function Chip({
+  active,
+  onClick,
+  disabled = false,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
       aria-pressed={active}
-      className={`cursor-pointer rounded-lg border px-3 py-1.5 text-[0.8rem] font-bold transition-all ${
+      disabled={disabled}
+      className={`cursor-pointer rounded-lg border px-3 py-1.5 text-[0.8rem] font-bold transition-all disabled:cursor-default disabled:opacity-40 ${
         active
           ? "border-accent-blue/35 bg-accent-blue/[0.12] text-accent-blue"
           : "border-border-soft bg-white/[0.03] text-text-muted hover:border-white/20"
@@ -42,11 +54,12 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-function Group({ label, children }: { label: string; children: ReactNode }) {
+function Group({ label, note, children }: { label: string; note?: string; children: ReactNode }) {
   return (
     <fieldset className="min-w-0">
       <legend className="mb-2 text-[0.7rem] font-extrabold uppercase tracking-[1px] text-text-muted">{label}</legend>
       <div className="flex flex-wrap gap-1.5">{children}</div>
+      {note ? <p className="mt-1.5 text-xs text-text-muted">{note}</p> : null}
     </fieldset>
   );
 }
@@ -56,13 +69,15 @@ function SingleChoice<T extends string>({
   options,
   value,
   onChange,
+  disabled,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
+  disabled?: boolean;
 }) {
   return options.map((option) => (
-    <Chip key={option.value} active={value === option.value} onClick={() => onChange(option.value)}>
+    <Chip key={option.value} active={value === option.value} onClick={() => onChange(option.value)} disabled={disabled}>
       {option.label}
     </Chip>
   ));
@@ -98,9 +113,12 @@ function MultiChoice<T extends string>({
 export function FilterPanel({
   filters,
   onChange,
+  reviewsAvailable,
 }: {
   filters: WordFilters;
   onChange: (patch: Partial<WordFilters>) => void;
+  /** false: the reviewed marks couldn't be read, so that filter can't narrow anything. */
+  reviewsAvailable: boolean;
 }) {
   return (
     <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -125,6 +143,14 @@ export function FilterPanel({
           options={SHORT_MEANING_OPTIONS}
           value={filters.shortMeaning}
           onChange={(shortMeaning) => onChange({ shortMeaning })}
+        />
+      </Group>
+      <Group label="Reviewed" note={reviewsAvailable ? undefined : "Couldn't load the reviewed marks."}>
+        <SingleChoice
+          options={REVIEWED_OPTIONS}
+          value={filters.reviewed}
+          onChange={(reviewed) => onChange({ reviewed })}
+          disabled={!reviewsAvailable}
         />
       </Group>
     </div>

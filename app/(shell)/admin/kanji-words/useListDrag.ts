@@ -30,7 +30,11 @@ export interface DragState {
 }
 
 interface Options {
+  /** The box holding the entries; it is also what scrolls near its edges, unless `viewport` is given. */
   scrollRef: RefObject<HTMLElement | null>;
+  /** The entries scroll with the page (the word page of /admin/words): the part of the window they are seen
+   *  through, below the sticky header and above the sticky bar. Near its edges the window scrolls. */
+  viewport?: () => { top: number; bottom: number };
   lists: DragLists | null;
   enabled: boolean;
   /** Applies the move; returns an entry to flash (the one a dropped duplicate merged into). */
@@ -44,7 +48,8 @@ const HOLD_MS = 300;
 const HOLD_TOLERANCE_PX = 8;
 // ...a mouse only has to move this far.
 const MOUSE_START_PX = 4;
-// Near the top or bottom edge of the scroll box this much, the box scrolls by itself, faster closer to the edge.
+// Near the top or bottom edge of the scroll box (or of the page's viewport) this much, it scrolls by itself, faster
+// closer to the edge.
 const EDGE_PX = 52;
 const SHIFT_MS = 130;
 const DROP_MS = 190;
@@ -83,6 +88,18 @@ const TIP_OK = { border: "1px solid rgba(0, 210, 255, 0.4)", color: "#bff3ff" };
 const TIP_BAD = { border: "1px solid rgba(255, 74, 90, 0.55)", color: "#ffb3bb" };
 
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Scrolls what the entries scroll in by `dy` pixels; true if it moved. */
+function scrollArea(scroll: HTMLElement, page: boolean, dy: number): boolean {
+  if (page) {
+    const before = window.scrollY;
+    window.scrollTo({ top: before + dy, behavior: "instant" });
+    return window.scrollY !== before;
+  }
+  const before = scroll.scrollTop;
+  scroll.scrollTop += dy;
+  return scroll.scrollTop !== before;
+}
 
 function ghostText(lists: DragLists, src: DragSource): string {
   const text =
@@ -159,7 +176,7 @@ interface Live {
 
 /**
  * The pointer side of dragging, outside React: the press (a mouse moves 4px, a finger holds 300 ms), the pill that
- * follows the pointer, working out the target under it, scrolling the popup near its edges, Escape. React only
+ * follows the pointer, working out the target under it, scrolling the popup (or the page) near its edges, Escape. React only
  * gets the DragState to render (the placeholder, the highlighted box, the shortcut bar) and the drop.
  */
 class DragEngine {
@@ -203,7 +220,7 @@ class DragEngine {
     if (!root) return;
     if (this.anchor !== null && this.live) {
       const ph = root.querySelector('[data-dnd-ph=""]');
-      if (ph) root.scrollTop += ph.getBoundingClientRect().top - this.anchor;
+      if (ph) scrollArea(root, !!this.opts().viewport, ph.getBoundingClientRect().top - this.anchor);
       this.anchor = null;
     }
     const flip = this.flip;
@@ -374,9 +391,10 @@ class DragEngine {
     const l = this.live;
     if (!l) return;
     this.raf = requestAnimationFrame(this.loop);
-    const scroll = this.opts().scrollRef.current;
+    const { scrollRef, viewport } = this.opts();
+    const scroll = scrollRef.current;
     if (!scroll) return;
-    const box = scroll.getBoundingClientRect();
+    const box = viewport ? viewport() : scroll.getBoundingClientRect();
     const overDock = !!document.elementFromPoint(l.x, l.y)?.closest("[data-dnd-dockbar]");
     const meaning = l.src.type === "sense" || ["S", "P", "O"].includes(l.src.loc.list);
     const prow = scroll.querySelector('[data-dnd-zone="P"]');
@@ -392,9 +410,7 @@ class DragEngine {
     if (l.y < top + EDGE_PX && l.y > top - 60) p = -Math.min(1.4, (top + EDGE_PX - l.y) / EDGE_PX);
     else if (l.y > box.bottom - EDGE_PX && l.y < box.bottom + 60) p = Math.min(1.4, (l.y - (box.bottom - EDGE_PX)) / EDGE_PX);
     if (!p) return;
-    const before = scroll.scrollTop;
-    scroll.scrollTop += Math.sign(p) * (2 + 16 * p * p);
-    if (scroll.scrollTop !== before) this.track();
+    if (scrollArea(scroll, !!viewport, Math.sign(p) * (2 + 16 * p * p))) this.track();
   };
 
   private hit(x: number, y: number): DropTarget | null {

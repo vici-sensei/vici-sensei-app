@@ -82,9 +82,10 @@ export function Placeholder({ width, height }: { width: number; height: number }
 
 /**
  * Shortcut drop targets over the top of the popup while a meaning or a sense is dragged and S and P are scrolled out
- * of view (a long word, low in its senses): dropping on one of them needs no scrolling back up.
+ * of view (a long word, low in its senses): dropping on one of them needs no scrolling back up. `className` places
+ * the bar (the popup's top by default).
  */
-export function DragDock({ drag }: { drag: DragState }) {
+export function DragDock({ drag, className = "absolute inset-x-6 top-4" }: { drag: DragState; className?: string }) {
   const bad = drag.check?.status === "blocked";
   const target = (key: string, label: string) => (
     <span
@@ -103,7 +104,7 @@ export function DragDock({ drag }: { drag: DragState }) {
   return (
     <div
       data-dnd-dockbar=""
-      className="absolute inset-x-6 top-4 z-10 flex flex-wrap items-center gap-1.5 rounded-xl border border-accent-blue/30 bg-gray-950/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.55)]"
+      className={`${className} z-10 flex flex-wrap items-center gap-1.5 rounded-xl border border-accent-blue/30 bg-gray-950/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.55)]`}
     >
       <span className="mr-1 text-[0.65rem] font-extrabold uppercase tracking-[1px] text-text-muted">Drop on</span>
       {drag.src.type === "sense" ? (
