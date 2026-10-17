@@ -100,7 +100,8 @@ function KanjiListRow({
           ) : null}
         </span>
         <span className="mt-1 block truncate text-xs text-text-muted">{row.m.join(", ") || "—"}</span>
-        <span className="mt-1.5 flex flex-wrap gap-1">
+        {/* Lined up at the bottom: a chip in kana has no furigana to make room for, so it is shorter. */}
+        <span className="mt-1.5 flex flex-wrap items-end gap-1">
           {row.f.length === 0 ? (
             <span className="text-xs italic text-text-muted">No words</span>
           ) : (
@@ -108,9 +109,10 @@ function KanjiListRow({
               <span
                 key={w[0]}
                 data-word-id={w[0]}
-                className={`rounded-md border px-1.5 pb-1 pt-[1em] text-[0.82rem] leading-none ${gapToneClasses(w[3])} ${WORD_CHIP_CLASSES}`}
+                className={`rounded-md border px-1.5 pb-1 text-base leading-none ${w[6] ? "pt-1" : "pt-[1em]"} ${gapToneClasses(w[3])} ${WORD_CHIP_CLASSES}`}
               >
-                {renderWordWithFurigana(w[1], w[5], "text-[0.6rem] font-normal opacity-80", "bg-white/5")}
+                {/* A usually-kana word in kana, with no furigana, like a card shows it to a student. */}
+                {w[6] ?? renderWordWithFurigana(w[1], w[5], "text-[0.7rem] font-normal opacity-80", "bg-white/5")}
               </span>
             ))
           )}
