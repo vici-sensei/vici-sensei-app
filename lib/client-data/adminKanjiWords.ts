@@ -66,6 +66,11 @@ const candidates = new Map<number, { data: KanjiWordCandidates; at: number }>();
 // kanji_word id -> its word, read ahead.
 const prefetched = new Map<number, { promise: Promise<KanjiWordVocabulary>; at: number }>();
 const listeners = new Set<() => void>();
+// Reviewed marks set from the list, numbered: one set while a reload was running is applied again to what the reload
+// brings (which may have been read before it was written).
+let seq = 0;
+const reviewMarks: (KanjiReviewedChange & { seq: number })[] = [];
+const reviewListeners = new Set<(change: KanjiReviewedChange) => void>();
 
 function emit(next: Partial<KanjiWordsState>) {
   state = { ...state, ...next };
@@ -108,10 +113,13 @@ function load() {
   }
   inFlight = true;
   const gen = generation;
+  const fromSeq = seq;
   if (state.data === null) emit({ status: "loading", error: null });
   fetchKanjiWordsOverview(createClient())
-    .then((data) => {
+    .then((read) => {
       if (gen !== generation) return;
+      const data = reviewMarks.filter((mark) => mark.seq > fromSeq).reduce(withReviewed, read);
+      reviewMarks.length = 0;
       loadedAt = Date.now();
       emit({ status: "loaded", data, error: null });
       loadMeanings(data, gen);
@@ -142,6 +150,7 @@ function ensure(userId: string) {
     requested = null;
     candidates.clear();
     prefetched.clear();
+    reviewMarks.length = 0;
     state = INITIAL;
     listeners.forEach((listener) => listener());
   }
@@ -185,6 +194,50 @@ export function patchKanjiWordTuples(ids: Set<number>, patch: (tuple: KanjiWordT
     return f === row.f && a === row.a ? row : { ...row, f, a };
   });
   emit({ data: { ...data, kanji } });
+}
+
+/** A kanji's reviewed mark, changed from the list: version `from` (the one quoted) became `version`. */
+export interface KanjiReviewedChange {
+  kanjiId: number;
+  from: number;
+  version: number;
+  reviewed: boolean;
+}
+
+// Only onto a row older than the change: a reload that already has it (or something newer) is left alone. Marking
+// stamps the algorithm's list the review saw, so "Re-check" goes; taking the mark away leaves it as it was.
+function withReviewed(data: KanjiWordsOverview, change: KanjiReviewedChange): KanjiWordsOverview {
+  const kanji = data.kanji.map((row) =>
+    row.id === change.kanjiId && row.v < change.version
+      ? { ...row, r: change.reviewed, v: change.version, ac: change.reviewed ? false : row.ac }
+      : row
+  );
+  return { ...data, kanji };
+}
+
+/**
+ * A kanji was marked as reviewed (or no longer) from the list: its row, its kept candidates and a panel open on it
+ * (see onKanjiReviewed) show it at once and quote the new version. The rest of the row (the last change) comes with
+ * the reload this starts.
+ */
+export function applyKanjiReviewed(change: KanjiReviewedChange) {
+  seq += 1;
+  reviewMarks.push({ ...change, seq });
+  if (state.data) emit({ data: withReviewed(state.data, change) });
+  const entry = candidates.get(change.kanjiId);
+  if (entry && entry.data.version === change.from) {
+    candidates.set(change.kanjiId, { ...entry, data: { ...entry.data, version: change.version, reviewed: change.reviewed } });
+  }
+  reviewListeners.forEach((listener) => listener(change));
+  reloadKanjiWords();
+}
+
+/** Called with every reviewed mark the list changes; returns the unsubscribe. */
+export function onKanjiReviewed(listener: (change: KanjiReviewedChange) => void) {
+  reviewListeners.add(listener);
+  return () => {
+    reviewListeners.delete(listener);
+  };
 }
 
 /** Patch the chips' meanings (kanji_word id -> the word's meanings now). */

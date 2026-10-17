@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaCheck, FaFloppyDisk, FaNoteSticky, FaXmark } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
-import { cachedCandidates, prefetchKanjiWordVocabulary, storeCandidates } from "@/lib/client-data/adminKanjiWords";
+import {
+  cachedCandidates,
+  onKanjiReviewed,
+  prefetchKanjiWordVocabulary,
+  storeCandidates,
+} from "@/lib/client-data/adminKanjiWords";
 import {
   describeKanjiWordsError,
   fetchKanjiWordCandidates,
@@ -129,6 +134,19 @@ export function EditorPanel({ row, onChanged, onClose, onDirtyChange, walk }: Ed
       cancelled = true;
     };
   }, [row.id, reloadTick, skipFirstRead]);
+
+  // The check on the kanji's row in the list changed the reviewed mark: the panel takes the new version if it was on
+  // the one the list quoted (only the mark changed, so the draft still fits it); otherwise its next save is refused.
+  useEffect(
+    () =>
+      onKanjiReviewed((change) => {
+        if (change.kanjiId !== row.id) return;
+        setData((prev) =>
+          prev && prev.version === change.from ? { ...prev, version: change.version, reviewed: change.reviewed } : prev
+        );
+      }),
+    [row.id]
+  );
 
   // Saves and the reviewed mark change the version: memory keeps what is on screen.
   useEffect(() => {

@@ -1,10 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
-import { FaCircleCheck, FaPenToSquare, FaRotate } from "react-icons/fa6";
+import { useMemo, useState } from "react";
+import { FaPenToSquare, FaRotate } from "react-icons/fa6";
+import { applyKanjiReviewed, reloadKanjiWords } from "@/lib/client-data/adminKanjiWords";
+import { describeKanjiWordsError, isKanjiWordsConflict, setKanjiReviewed } from "@/lib/data/adminKanjiWords";
+import { createClient } from "@/lib/supabase/client";
 import { LevelBadge } from "@/app/components/ui/LevelBadge";
+import { useToast } from "@/app/components/ui/Toast";
 import type { KanjiWordsMeaningsMap, KanjiWordsRow, KanjiWordTuple } from "@/lib/types";
 import { maxGap } from "./kanjiWordsView";
+import { ReviewedToggle } from "./ReviewedToggle";
 import { gapText, gapToneClasses } from "./wordLabels";
 import { useWordPopover, WORD_CHIP_CLASSES } from "./WordPopover";
 
@@ -39,12 +44,16 @@ function KanjiListRow({
   checked,
   onSelect,
   onToggleChecked,
+  reviewBusy,
+  onToggleReviewed,
 }: {
   row: KanjiWordsRow;
   selected: boolean;
   checked: boolean;
   onSelect: () => void;
   onToggleChecked: () => void;
+  reviewBusy: boolean;
+  onToggleReviewed: () => void;
 }) {
   const worst = maxGap(row.f);
   // Reviewed rows get a faint green wash so they stand out while scrolling; the selection's blue wins the
@@ -88,11 +97,6 @@ function KanjiListRow({
               {gapText(worst)}
             </Flag>
           ) : null}
-          {row.r ? (
-            <Flag title="Reviewed" className="border-accent-green/30 bg-accent-green/10 text-accent-green">
-              <FaCircleCheck className="h-2.5 w-2.5" />
-            </Flag>
-          ) : null}
         </span>
         <span className="mt-1 block truncate text-xs text-text-muted">{row.m.join(", ") || "—"}</span>
         <span className="mt-1.5 flex flex-wrap gap-1">
@@ -111,6 +115,7 @@ function KanjiListRow({
           )}
         </span>
       </button>
+      <ReviewedToggle name={row.k} reviewed={row.r} busy={reviewBusy} onToggle={onToggleReviewed} />
     </li>
   );
 }
@@ -126,6 +131,7 @@ export function KanjiList({
   meanings,
   meaningsFailed,
 }: KanjiListProps) {
+  const { showToast } = useToast();
   const tuples = useMemo(() => new Map<number, KanjiWordTuple>(rows.flatMap((row) => row.f.map((w) => [w[0], w]))), [rows]);
   // The chip's level and "not common" used to be its title; they head the popover now.
   const { handlers, popover } = useWordPopover((id) => {
@@ -140,6 +146,33 @@ export function KanjiList({
     };
   });
 
+  // The check at the right of a row: marks the kanji as reviewed, or takes the mark away, right away, like the green
+  // circle of its panel (its words stay as saved; a draft in the panel isn't touched). Quotes the row's version, so a
+  // kanji changed since the list was read is refused, and the list is read again.
+  const [reviewBusy, setReviewBusy] = useState<ReadonlySet<number>>(() => new Set());
+  async function toggleReviewed(row: KanjiWordsRow) {
+    const next = !row.r;
+    setReviewBusy((prev) => new Set(prev).add(row.id));
+    try {
+      const result = await setKanjiReviewed(createClient(), { kanjiId: row.id, reviewed: next, expectedVersion: row.v });
+      applyKanjiReviewed({ kanjiId: row.id, from: row.v, version: result.version, reviewed: next });
+      showToast(next ? `${row.k} marked as reviewed.` : `${row.k} marked as not reviewed.`);
+    } catch (err) {
+      if (isKanjiWordsConflict(err)) {
+        showToast(`${row.k} changed since the list was loaded. It's being read again, try once more.`, "error");
+        reloadKanjiWords();
+      } else {
+        showToast(describeKanjiWordsError(err, "Failed to change the reviewed mark."), "error");
+      }
+    } finally {
+      setReviewBusy((prev) => {
+        const rest = new Set(prev);
+        rest.delete(row.id);
+        return rest;
+      });
+    }
+  }
+
   return (
     <>
       <ul {...handlers}>
@@ -151,6 +184,8 @@ export function KanjiList({
             checked={checked.has(row.id)}
             onSelect={() => onSelect(row.id)}
             onToggleChecked={() => onToggleChecked(row.id)}
+            reviewBusy={reviewBusy.has(row.id)}
+            onToggleReviewed={() => void toggleReviewed(row)}
           />
         ))}
       </ul>
