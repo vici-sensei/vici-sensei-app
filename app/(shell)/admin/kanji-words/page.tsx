@@ -30,6 +30,7 @@ import { KanjiList } from "./KanjiList";
 import { clearPageMemory, clearPanelMemory, peekPageMemory, rememberPage } from "./kanjiWordsMemory";
 import { OperationModal, type OperationSpec } from "./OperationModal";
 import { ReviewProgress } from "./ReviewProgress";
+import { useKeepCardInWindow } from "./useKeepCardInWindow";
 import { walkOf } from "./WordPageParts";
 import {
   activeFilterCount,
@@ -108,6 +109,7 @@ function AdminKanjiWords() {
   const [selectedId, setSelectedId] = useState<number | null>(initialUrl.selected);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const closeFilters = useCallback(() => setFiltersOpen(false), []);
+  const { dockRef: filtersDockRef, scrollRef: filtersScrollRef } = useKeepCardInWindow(filtersOpen);
   const [limit, setLimit] = useState(memory?.limit ?? LIST_PAGE);
   const [checked, setChecked] = useState<Set<number>>(() => new Set(memory?.checked ?? []));
   const [dirty, setDirty] = useState(false);
@@ -466,9 +468,14 @@ function AdminKanjiWords() {
           the flow, so the card grows upwards over the list instead of pushing the page down. The circle sits 1.25rem
           above the strip: while the page scrolls that's its gap from the window's bottom (more over a phone's home
           bar), and at the end of the list it rests in the list card's corner, as far from its bottom as from its
-          right, on the empty spot the card keeps for it. */}
+          right, on the empty spot the card keeps for it. When the list is short that spot is high up, and the open card
+          comes down as far as it must to stay under the header (useKeepCardInWindow). */}
       <div className="pointer-events-none sticky bottom-[max(0px,env(safe-area-inset-bottom)_-_1.25rem)] z-30 h-0 lg:bottom-5">
-        <div data-floating-dock className="absolute bottom-5 left-0 right-0 flex flex-col items-end pr-5 lg:right-auto lg:w-[26rem]">
+        <div
+          ref={filtersDockRef}
+          data-floating-dock
+          className="absolute bottom-5 left-0 right-0 flex flex-col items-end pr-5 lg:right-auto lg:w-[26rem]"
+        >
           <FloatingCard
             label="Filters"
             icon={<FaSliders className="h-4 w-4" />}
@@ -528,7 +535,8 @@ function AdminKanjiWords() {
                 </button>
               ) : null}
             </div>
-            <div className="@container max-h-[calc(100dvh-20rem)] overflow-y-auto overscroll-contain border-t border-border-soft pt-3">
+            {/* Its height is capped by useKeepCardInWindow, so the whole card fits in the window. */}
+            <div ref={filtersScrollRef} className="@container overflow-y-auto overscroll-contain border-t border-border-soft pt-3">
               <FilterPanel filters={view.filters} onChange={handleFilterChange} adminOptions={adminOptions} />
             </div>
           </FloatingCard>
